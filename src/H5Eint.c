@@ -238,8 +238,8 @@ H5E_walk1_cb(int n, H5E_error1_t *err_desc, void *client_data)
         stream = eprint->stream;
 
     /* Get descriptions for the major and minor error numbers */
-    maj_ptr = H5I_object_verify(err_desc->maj_num, H5I_ERROR_MSG);
-    min_ptr = H5I_object_verify(err_desc->min_num, H5I_ERROR_MSG);
+    maj_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->maj_num, H5I_ERROR_MSG);
+    min_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->min_num, H5I_ERROR_MSG);
     HDassert(maj_ptr && min_ptr);
     if(maj_ptr->msg)
         maj_str = maj_ptr->msg;
@@ -275,11 +275,7 @@ H5E_walk1_cb(int n, H5E_error1_t *err_desc, void *client_data)
 	        fprintf(stream, "thread 0");
         } /* end block */
 #elif defined(H5_HAVE_THREADSAFE)
-#ifdef _WIN32
-        fprintf(stream, "some thread: no way to know the thread number from pthread on windows");
-#else
-        fprintf(stream, "thread %lu", (unsigned long)pthread_self());
-#endif
+        fprintf(stream, "thread %lu", HDpthread_self_ulong());
 #else
         fprintf(stream, "thread 0");
 #endif
@@ -358,8 +354,8 @@ H5E_walk2_cb(unsigned n, const H5E_error2_t *err_desc, void *client_data)
         stream = eprint->stream;
 
     /* Get descriptions for the major and minor error numbers */
-    maj_ptr = H5I_object_verify(err_desc->maj_num, H5I_ERROR_MSG);
-    min_ptr = H5I_object_verify(err_desc->min_num, H5I_ERROR_MSG);
+    maj_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->maj_num, H5I_ERROR_MSG);
+    min_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->min_num, H5I_ERROR_MSG);
     HDassert(maj_ptr && min_ptr);
     if(maj_ptr->msg)
         maj_str = maj_ptr->msg;
@@ -395,11 +391,7 @@ H5E_walk2_cb(unsigned n, const H5E_error2_t *err_desc, void *client_data)
 	        fprintf(stream, "thread 0");
         } /* end block */
 #elif defined(H5_HAVE_THREADSAFE)
-#ifdef _WIN32
-        fprintf(stream, "some thread: no way to know the thread number from pthread on windows");
-#else
-        fprintf(stream, "thread %lu", (unsigned long)pthread_self());
-#endif
+        fprintf(stream, "thread %lu", HDpthread_self_ulong());
 #else
         fprintf(stream, "thread 0");
 #endif
@@ -730,13 +722,13 @@ H5E_push_stack(H5E_t *estack, const char *file, const char *func, unsigned line,
 
     if(estack->nused < H5E_NSLOTS) {
         /* Increment the IDs to indicate that they are used in this stack */
-        if(H5I_inc_ref(cls_id) < 0)
+        if(H5I_inc_ref(cls_id, FALSE) < 0)
             HGOTO_DONE(FAIL)
 	estack->slot[estack->nused].cls_id = cls_id;
-        if(H5I_inc_ref(maj_id) < 0)
+        if(H5I_inc_ref(maj_id, FALSE) < 0)
             HGOTO_DONE(FAIL)
 	estack->slot[estack->nused].maj_num = maj_id;
-        if(H5I_inc_ref(min_id) < 0)
+        if(H5I_inc_ref(min_id, FALSE) < 0)
             HGOTO_DONE(FAIL)
 	estack->slot[estack->nused].min_num = min_id;
 	if(NULL == (estack->slot[estack->nused].func_name = H5MM_xstrdup(func)))
@@ -786,11 +778,11 @@ H5E_clear_entries(H5E_t *estack, size_t nentries)
 
         /* Decrement the IDs to indicate that they are no longer used by this stack */
         /* (In reverse order that they were incremented, so that reference counts work well) */
-        if(H5I_dec_ref(error->min_num) < 0)
+        if(H5I_dec_ref(error->min_num, FALSE) < 0)
             HGOTO_ERROR(H5E_ERROR, H5E_CANTDEC, FAIL, "unable to decrement ref count on error message")
-        if(H5I_dec_ref(error->maj_num) < 0)
+        if(H5I_dec_ref(error->maj_num, FALSE) < 0)
             HGOTO_ERROR(H5E_ERROR, H5E_CANTDEC, FAIL, "unable to decrement ref count on error message")
-        if(H5I_dec_ref(error->cls_id) < 0)
+        if(H5I_dec_ref(error->cls_id, FALSE) < 0)
             HGOTO_ERROR(H5E_ERROR, H5E_CANTDEC, FAIL, "unable to decrement ref count on error class")
 
         /* Release strings */

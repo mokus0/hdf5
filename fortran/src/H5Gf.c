@@ -87,7 +87,7 @@ DONE:
  * Inputs:      loc_id - file or group identifier
  *              name - name of the group
  *              namelen - name length
- *              gapl_id - Group access property list identifier 
+ *              gapl_id - Group access property list identifier
  * Outputs:     grp_id - group identifier
  * Returns:     0 on success, -1 on failure
  * Programmer:  Elena Pourmal
@@ -664,8 +664,8 @@ DONE:
 /*----------------------------------------------------------------------------
  * Name:        h5gcreate_anon_c
  * Purpose:     Call H5Gcreate_anon
- * Inputs:      
- *              loc_id  - Location identifier 
+ * Inputs:
+ *              loc_id  - Location identifier
  *              gcpl_id - Group creation property list identifier
  *              gapl_id - Group access property list identifier
  *
@@ -680,7 +680,7 @@ nh5gcreate_anon_c(hid_t_f *loc_id, hid_t_f *gcpl_id, hid_t_f *gapl_id, hid_t_f *
 {
 
   int_f ret_value=0;          /* Return value */
-  
+
   if ((*grp_id = (hid_t_f)H5Gcreate_anon((hid_t)*loc_id,(hid_t)*gcpl_id,(hid_t)*gapl_id)) < 0)
     HGOTO_DONE(FAIL);
 
@@ -689,9 +689,9 @@ done:
 }
 
 /*----------------------------------------------------------------------------
- * Name:        h5gget_create_plist_c 
+ * Name:        h5gget_create_plist_c
  * Purpose:     Call H5Gget_create_plist
- * Inputs:      
+ * Inputs:
  *              grp_id - group identifier
  *
  * Outputs:     gcpl_id - Group creation property list identifier
@@ -717,7 +717,7 @@ done:
  * Name:      h5gget_info_c
  * Purpose:   Call H5Gget_info
  * Inputs:    group_id - Group identifier
- * Outputs: 
+ * Outputs:
  *            storage_type - Type of storage for links in group:
  *                             H5G_STORAGE_TYPE_COMPACT: Compact storage
  *                             H5G_STORAGE_TYPE_DENSE: Indexed storage
@@ -725,14 +725,18 @@ done:
  *
  *                  nlinks - Number of links in group
  *              max_corder - Current maximum creation order value for group
+ *                 mounted - Whether group has a file mounted on it (0 = false, 1 = true)
  *
  * Returns:     0 on success, -1 on failure
  * Programmer:  M.S. Breitenfeld
  *              February 15, 2008
- * Modifications: N/A
+ * Modifications:
+ *          - Added 'mounted' paramater
+ *            M.S. Breitenfeld
+ *            July 16, 2008
  *---------------------------------------------------------------------------*/
 int_f
-nh5gget_info_c (hid_t_f *group_id, int_f *storage_type, int_f *nlinks, int_f *max_corder)
+nh5gget_info_c (hid_t_f *group_id, int_f *storage_type, int_f *nlinks, int_f *max_corder, int_f *mounted )
 {
 
     int_f ret_value = 0;          /* Return value */
@@ -749,6 +753,8 @@ nh5gget_info_c (hid_t_f *group_id, int_f *storage_type, int_f *nlinks, int_f *ma
     *storage_type = (int_f)ginfo.storage_type;
     *nlinks = (int_f)ginfo.nlinks;
     *max_corder = (int_f)ginfo.max_corder;
+    *mounted = 0;
+    if(ginfo.mounted) *mounted = 1;
 
 done:
     return ret_value;
@@ -758,7 +764,7 @@ done:
 /*----------------------------------------------------------------------------
  * Name:      h5gget_info_by_idx_c
  * Purpose:   Call H5Gget_info_by_idx
- * Inputs:    
+ * Inputs:
  *          loc_id - File or group identifier
  *      group_name - Name of group containing group for which information is to be retrieved
  *   group_namelen - name length
@@ -766,7 +772,7 @@ done:
  *           order - Order of the count in the index
  *               n - Position in the index of the group for which information is retrieved
  *         lapl_id - Link access property list
- * Outputs: 
+ * Outputs:
  *            storage_type - Type of storage for links in group:
  *                             H5G_STORAGE_TYPE_COMPACT: Compact storage
  *                             H5G_STORAGE_TYPE_DENSE: Indexed storage
@@ -774,16 +780,20 @@ done:
  *
  *                  nlinks - Number of links in group
  *              max_corder - Current maximum creation order value for group
+ *                 mounted - Whether group has a file mounted on it (0 = false, 1 = true)
  *
  * Returns:     0 on success, -1 on failure
  * Programmer:  M.S. Breitenfeld
  *              February 18, 2008
- * Modifications: N/A
+ * Modifications:
+ *          - Added 'mounted' paramater
+ *            M.S. Breitenfeld
+ *            July 16, 2008
  *---------------------------------------------------------------------------*/
 int_f
-nh5gget_info_by_idx_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen, 
-		      int_f *index_type, int_f *order, hsize_t_f *n, hid_t_f *lapl_id, 
-		      int_f *storage_type, int_f *nlinks, int_f *max_corder)
+nh5gget_info_by_idx_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen,
+		      int_f *index_type, int_f *order, hsize_t_f *n, hid_t_f *lapl_id,
+		      int_f *storage_type, int_f *nlinks, int_f *max_corder, int_f *mounted )
 
 {
   char *c_group_name = NULL;          /* Buffer to hold group name C string */
@@ -807,6 +817,8 @@ nh5gget_info_by_idx_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen,
   *storage_type = (int_f)ginfo.storage_type;
   *nlinks = (int_f)ginfo.nlinks;
   *max_corder = (int_f)ginfo.max_corder;
+  *mounted = 0;
+  if(ginfo.mounted) *mounted = 1;
 
  done:
   if(c_group_name)
@@ -817,12 +829,12 @@ nh5gget_info_by_idx_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen,
 /*----------------------------------------------------------------------------
  * Name:      h5gget_info_by_name_c
  * Purpose:   Call H5Gget_info_by_name
- * Inputs:    
+ * Inputs:
  *          loc_id - File or group identifier
  *      group_name - Name of group containing group for which information is to be retrieved
  *   group_namelen - name length
  *         lapl_id - Link access property list
- * Outputs: 
+ * Outputs:
  *            storage_type - Type of storage for links in group:
  *                             H5G_STORAGE_TYPE_COMPACT: Compact storage
  *                             H5G_STORAGE_TYPE_DENSE: Indexed storage
@@ -830,15 +842,19 @@ nh5gget_info_by_idx_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen,
  *
  *                  nlinks - Number of links in group
  *              max_corder - Current maximum creation order value for group
+ *                 mounted - Whether group has a file mounted on it (0 = false, 1 = true)
  *
  * Returns:     0 on success, -1 on failure
  * Programmer:  M.S. Breitenfeld
  *              February 18, 2008
- * Modifications: N/A
+ * Modifications:
+ *          - Added 'mounted' paramater
+ *            M.S. Breitenfeld
+ *            July 16, 2008
  *---------------------------------------------------------------------------*/
 int_f
-nh5gget_info_by_name_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen, hid_t_f *lapl_id, 
-		       int_f *storage_type, int_f *nlinks, int_f *max_corder)
+nh5gget_info_by_name_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen, hid_t_f *lapl_id,
+		       int_f *storage_type, int_f *nlinks, int_f *max_corder, int_f *mounted)
 
 {
   char *c_group_name = NULL;          /* Buffer to hold group name C string */
@@ -861,6 +877,8 @@ nh5gget_info_by_name_c(hid_t_f *loc_id, _fcd group_name, size_t_f *group_namelen
   *storage_type = (int_f)ginfo.storage_type;
   *nlinks = (int_f)ginfo.nlinks;
   *max_corder = (int_f)ginfo.max_corder;
+  *mounted = 0;
+  if(ginfo.mounted) *mounted = 1;
 
  done:
   if(c_group_name)

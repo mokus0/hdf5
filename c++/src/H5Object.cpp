@@ -124,7 +124,7 @@ Attribute H5Object::createAttribute( const char* name, const DataType& data_type
 // Function:	H5Object::createAttribute
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for \a name.
+///		a reference to an \c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 Attribute H5Object::createAttribute( const H5std_string& name, const DataType& data_type, const DataSpace& data_space, const PropList& create_plist ) const
@@ -158,7 +158,7 @@ Attribute H5Object::openAttribute( const char* name ) const
 // Function:	H5Object::openAttribute
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for \a name.
+///		a reference to an \c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 Attribute H5Object::openAttribute( const H5std_string& name ) const
@@ -176,7 +176,7 @@ Attribute H5Object::openAttribute( const H5std_string& name ) const
 //--------------------------------------------------------------------------
 Attribute H5Object::openAttribute( const unsigned int idx ) const
 {
-   hid_t attr_id = H5Aopen_by_idx(getId(), ".", H5_INDEX_CRT_ORDER, 
+   hid_t attr_id = H5Aopen_by_idx(getId(), ".", H5_INDEX_CRT_ORDER,
 			H5_ITER_INC, (hsize_t)idx, H5P_DEFAULT, H5P_DEFAULT);
    if( attr_id > 0 )
    {
@@ -194,7 +194,7 @@ Attribute H5Object::openAttribute( const unsigned int idx ) const
 ///\brief	Iterates a user's function over all the attributes of an H5
 ///		object, which may be a group, dataset or named datatype.
 ///\param	user_op - IN: User's function to operate on each attribute
-///\param	idx - IN/OUT: Starting (IN) and ending (OUT) attribute indices
+///\param	_idx - IN/OUT: Starting (IN) and ending (OUT) attribute indices
 ///\param	op_data - IN: User's data to pass to user's operator function
 ///\return	Returned value of the last operator if it was non-zero, or
 ///		zero if all attributes were processed
@@ -202,7 +202,7 @@ Attribute H5Object::openAttribute( const unsigned int idx ) const
 ///\par Description
 ///		For information, please refer to the C layer Reference Manual
 ///		at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5A.html#Annot-Iterate
+/// http://www.hdfgroup.org/HDF5/doc/RM/RM_H5A.html#Annot-Create2
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 int H5Object::iterateAttrs( attr_operator_t user_op, unsigned *_idx, void *op_data )
@@ -215,7 +215,7 @@ int H5Object::iterateAttrs( attr_operator_t user_op, unsigned *_idx, void *op_da
 
    // call the C library routine H5Aiterate2 to iterate the attributes
    hsize_t idx = (hsize_t)*_idx;
-   int ret_value = H5Aiterate2(getId(), H5_INDEX_NAME, H5_ITER_INC, &idx, 
+   int ret_value = H5Aiterate2(getId(), H5_INDEX_NAME, H5_ITER_INC, &idx,
 			userAttrOpWrpr, (void *) userData);
 
    // release memory
@@ -266,7 +266,7 @@ void H5Object::removeAttr( const char* name ) const
 // Function:	H5Object::removeAttr
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for \a name.
+///		a reference to an \c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void H5Object::removeAttr( const H5std_string& name ) const
@@ -293,7 +293,7 @@ void H5Object::renameAttr(const char* oldname, const char* newname) const
 // Function:	H5Object::renameAttr
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for the names.
+///		a reference to an \c H5std_string for the names.
 // Programmer	Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
 void H5Object::renameAttr(const H5std_string& oldname, const H5std_string& newname) const
@@ -365,8 +365,8 @@ void H5Object::p_reference(void* ref, const char* name, hid_t space_id, H5R_type
 ///\param       name - IN: Name of the object to be referenced
 ///\param       dataspace - IN: Dataspace with selection
 ///\param       ref_type - IN: Type of reference to query, valid values are:
-///             \li \c H5R_OBJECT \tReference is an object reference.
-///             \li \c H5R_DATASET_REGION \tReference is a dataset region
+///             \li \c H5R_OBJECT         - Reference is an object reference.
+///             \li \c H5R_DATASET_REGION - Reference is a dataset region
 ///                     reference. - this is the default
 ///\exception   H5::IdComponentException
 // Programmer   Binh-Minh Ribler - May, 2004
@@ -409,9 +409,9 @@ void H5Object::reference(void* ref, const char* name) const
 // Function:    H5Object::reference
 ///\brief       This is an overloaded function, provided for your convenience.
 ///             It differs from the above function in that it takes an
-///             \c std::string for the object's name.
+///             \c H5std_string for the object's name.
 ///\param       ref - IN: Reference pointer
-///\param       name - IN: Name of the object to be referenced - \c std::string
+///\param       name - IN: Name of the object to be referenced - \c H5std_string
 // Programmer   Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void H5Object::reference(void* ref, const H5std_string& name) const
@@ -420,44 +420,102 @@ void H5Object::reference(void* ref, const H5std_string& name) const
 }
 
 //--------------------------------------------------------------------------
-// Function:    H5Object::dereference
-// Purpose      Dereference a ref into a DataSet object.
+// Function:	H5Object::p_dereference (protected)
+// Purpose	Dereference a ref into an hdf5 object.
 // Parameters
-//              ref - IN: Reference pointer
-// Exception    H5::IdComponentException
-// Programmer   Binh-Minh Ribler - Oct, 2006
+//		loc_id - IN: An hdf5 identifier specifying the location of the 
+//			 referenced object
+//		ref - IN: Reference pointer
+//		ref_type - IN: Reference type
+// Exception	H5::ReferenceException
+// Programmer	Binh-Minh Ribler - Oct, 2006
 // Modification
 //	May 2008 - BMR
-//		Moved from IdComponent into H5File and H5Object
+//		Moved from IdComponent.
 //--------------------------------------------------------------------------
-void H5Object::dereference(H5File& h5file, void* ref)
+hid_t H5Object::p_dereference(hid_t loc_id, const void* ref, H5R_type_t ref_type)
 {
    hid_t temp_id;
-   try {
-      temp_id = h5file.p_dereference(ref);
-   }
-   catch (ReferenceException ref_err) {
-      throw (inMemFunc("dereference"), ref_err.getDetailMsg());
+   temp_id = H5Rdereference(loc_id, ref_type, ref);
+   if (temp_id < 0)
+   {
+      throw ReferenceException("", "H5Rdereference failed");
    }
 
    // No failure, set id to the object
-    /* obj.setId(temp_id);
- */ 
-   setId(temp_id);
+   return(temp_id);
 }
 
-void H5Object::dereference(H5Object& obj, void* ref)
+//--------------------------------------------------------------------------
+// Function:	H5Object::dereference
+///\brief	Dereferences a reference into an HDF5 object, given an HDF5 object.
+///\param	obj - IN: Object specifying the location of the referenced object
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type
+///\exception	H5::ReferenceException
+// Programmer   Binh-Minh Ribler - Oct, 2006
+// Modification
+//	May, 2008
+//		Corrected missing parameters. - BMR
+//--------------------------------------------------------------------------
+void H5Object::dereference(H5Object& obj, const void* ref, H5R_type_t ref_type)
 {
    hid_t temp_id;
    try {
-      temp_id = obj.p_dereference(ref);
+      temp_id = p_dereference(obj.getId(), ref, ref_type);
    }
-   catch (ReferenceException ref_err) {
-      throw (inMemFunc("dereference"), ref_err.getDetailMsg());
+   catch (ReferenceException E) {
+      throw ReferenceException("H5Object::dereference - located by object", E.getDetailMsg());
    }
+   p_setId(temp_id);
+}
 
-   // No failure, set id to the object
-   setId(temp_id);
+//--------------------------------------------------------------------------
+// Function:	H5Object::dereference
+///\brief	Dereferences a reference into an HDF5 object, given an HDF5 file.
+///\param	h5file - IN: HDF5 file specifying the location of the referenced object
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type
+///\exception	H5::ReferenceException
+// Programmer   Binh-Minh Ribler - Oct, 2006
+// Modification
+//	May, 2008
+//		Corrected missing parameters. - BMR
+//--------------------------------------------------------------------------
+void H5Object::dereference(H5File& h5file, const void* ref, H5R_type_t ref_type)
+{
+   hid_t temp_id;
+   try {
+      temp_id = p_dereference(h5file.getId(), ref, ref_type);
+   }
+   catch (ReferenceException E) {
+      throw ReferenceException("H5Object::dereference - located by file", E.getDetailMsg());
+   }
+   p_setId(temp_id);
+}
+
+//--------------------------------------------------------------------------
+// Function:	H5Object::dereference
+///\brief	Dereferences a reference into an HDF5 object, given an attribute.
+///\param	attr - IN: Attribute specifying the location of the referenced object
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type
+///\exception	H5::ReferenceException
+// Programmer   Binh-Minh Ribler - Oct, 2006
+// Modification
+//	May, 2008
+//		Corrected missing parameters. - BMR
+//--------------------------------------------------------------------------
+void H5Object::dereference(Attribute& attr, const void* ref, H5R_type_t ref_type)
+{
+   hid_t temp_id;
+   try {
+      temp_id = p_dereference(attr.getId(), ref, ref_type);
+   }
+   catch (ReferenceException E) {
+      throw ReferenceException("H5Object::dereference - located by attribute", E.getDetailMsg());
+   }
+   p_setId(temp_id);
 }
 
 #ifndef H5_NO_DEPRECATED_SYMBOLS

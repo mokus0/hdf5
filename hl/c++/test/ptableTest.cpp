@@ -79,7 +79,7 @@ int BasicTest()
 {
     herr_t err;
     int myRecord;
-    int count;
+    hsize_t count;
     int error;
 
     TESTING("basic funtionality")
@@ -134,7 +134,7 @@ out:
 int TestCompoundDatatype()
 {
     hid_t dtypeID;
-    int count;
+    hsize_t count;
     int error;
 
     TESTING("compound datatypes")
@@ -254,13 +254,13 @@ out:
 
 int TestCompress()
 {
-   
+
 	unsigned int flags = 0;
     unsigned int config = 0;
     size_t cd_nelemts = 0;
 
     TESTING("compression")
-#ifdef H5_HAVE_FILTER_DEFLATE 
+#ifdef H5_HAVE_FILTER_DEFLATE
     try {
         /* Create packet table with compression. */
         FL_PacketTable wrapper(fileID, "/compressTest", H5T_NATIVE_CHAR, 100, 8);
@@ -440,7 +440,7 @@ int SystemTest()
     TESTING("multiple datatypes")
 
     hid_t dtypeID1, dtypeID2;
-    unsigned int count;
+    hsize_t count;
     int error;
 
     /* Creating two inter-related datatypes.  Create two datasets and put

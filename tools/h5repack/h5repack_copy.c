@@ -23,22 +23,27 @@
 
 extern char  *progname;
 
+#if 0
+#define H5REPACK_DEBUG
+#endif
+
 /*-------------------------------------------------------------------------
  * macros
  *-------------------------------------------------------------------------
  */
-#define FORMAT_OBJ      " %-27s %s\n"   /* obj type, name */
-#define FORMAT_OBJ_ATTR "  %-27s %s\n"  /* obj type, name */
-#define USERBLOCK_XFER_SIZE     512             /* Size of buffer/# of bytes to xfer at a time when copying userblock */
+#define USERBLOCK_XFER_SIZE     512     /* size of buffer/# of bytes to xfer at a time when copying userblock */
 
 /*-------------------------------------------------------------------------
  * local functions
  *-------------------------------------------------------------------------
  */
-static void  print_dataset_info(hid_t dcpl_id,char *objname,double per);
+static void  print_dataset_info(hid_t dcpl_id,char *objname,double per, int pr);
 static int   do_copy_objects(hid_t fidin,hid_t fidout,trav_table_t *travt,pack_opt_t *options);
 static int   copy_attr(hid_t loc_in,hid_t loc_out,pack_opt_t *options);
 static int   copy_user_block(const char *infile, const char *outfile, hsize_t size);
+#if defined (H5REPACK_DEBUG)  
+static void  print_user_block(const char *filename, hid_t fid);
+#endif
 
 /*-------------------------------------------------------------------------
  * Function: copy_objects
@@ -55,9 +60,11 @@ static int   copy_user_block(const char *infile, const char *outfile, hsize_t si
  *   Peter Cao, June 13, 2007
  *   Add "-L, --latest" and other options to pack a file with the latest file format
  *
- * Modification:
  *   Peter Cao, September 25, 2007
  *   Copy user block when repacking a file
+ *
+ *   Pedro Vicente, August 20, 2008
+ *   Add a user block to file if requested
  *
  *-------------------------------------------------------------------------
  */
@@ -69,66 +76,80 @@ int copy_objects(const char* fnamein,
     hid_t         fidin;
     hid_t         fidout = -1;
     trav_table_t  *travt = NULL;
-    hsize_t       ub_size = 0;                  /* Size of user block */
-    hid_t         fapl = H5P_DEFAULT;           /* File access property list ID */
-    hid_t         fcpl = H5P_DEFAULT;           /* File creation property list ID */
+    hsize_t       ub_size = 0;        /* size of user block */
+    hid_t         fcpl = H5P_DEFAULT; /* file creation property list ID */
+    hid_t         fapl = H5P_DEFAULT; /* file access property list ID */
 
     /*-------------------------------------------------------------------------
-    * open the files
+    * open input file
     *-------------------------------------------------------------------------
     */
-    if((fidin = h5tools_fopen(fnamein, H5F_ACC_RDONLY, H5P_DEFAULT, NULL, NULL, (size_t)0)) < 0) {
+    if((fidin = h5tools_fopen(fnamein, H5F_ACC_RDONLY, H5P_DEFAULT, NULL, NULL, (size_t)0)) < 0) 
+    {
         error_msg(progname, "<%s>: %s\n", fnamein, H5FOPENERROR );
         goto out;
     }
 
     /* get user block size */
     {
-        hid_t         fcpl_in;              /* File creation property list ID for input file */
-
-        if((fcpl_in = H5Fget_create_plist(fidin)) < 0) {
+        hid_t fcpl_in; /* file creation property list ID for input file */
+        
+        if((fcpl_in = H5Fget_create_plist(fidin)) < 0) 
+        {
             error_msg(progname, "failed to retrieve file creation property list\n");
             goto out;
-        } /* end if */
-
-        if(H5Pget_userblock(fcpl_in, &ub_size) < 0) {
+        } 
+        
+        if(H5Pget_userblock(fcpl_in, &ub_size) < 0) 
+        {
             error_msg(progname, "failed to retrieve userblock size\n");
             goto out;
-        } /* end if */
-
-        if(H5Pclose(fcpl_in) < 0) {
+        } 
+        
+        if(H5Pclose(fcpl_in) < 0) 
+        {
             error_msg(progname, "failed to close property list\n");
             goto out;
-        } /* end if */
-    } /* end block */
+        } 
+    } 
 
     /* Check if we need to create a non-default file creation property list */
-    if(options->latest || ub_size > 0) {
+    if(options->latest || ub_size > 0) 
+    {
         /* Create file creation property list */
-        if((fcpl = H5Pcreate(H5P_FILE_CREATE)) < 0) {
+        if((fcpl = H5Pcreate(H5P_FILE_CREATE)) < 0) 
+        {
             error_msg(progname, "fail to create a file creation property list\n");
             goto out;
-        }  /* end if */
+        }  
 
         if(ub_size > 0)
-            if(H5Pset_userblock(fcpl, ub_size) < 0) {
+        {
+            if(H5Pset_userblock(fcpl, ub_size) < 0) 
+            {
                 error_msg(progname, "failed to set non-default userblock size\n");
                 goto out;
-            } /* end if */
+            } 
+        }
 
-        if(options->latest) {
+        if(options->latest) 
+        {
             unsigned i = 0, nindex = 0, mesg_type_flags[5], min_mesg_sizes[5];
 
             /* Adjust group creation parameters for root group */
             /* (So that it is created in "dense storage" form) */
-            if(H5Pset_link_phase_change(fcpl, (unsigned)options->grp_compact, (unsigned)options->grp_indexed) < 0) {
+            if(H5Pset_link_phase_change(fcpl, (unsigned)options->grp_compact, (unsigned)options->grp_indexed) < 0) 
+            {
                 error_msg(progname, "fail to adjust group creation parameters for root group\n");
                 goto out;
-            } /* end if */
+            } 
 
-            for(i = 0; i < 5; i++) {
-                if(options->msg_size[i] > 0) {
-                    switch(i) {
+            for(i = 0; i < 5; i++) 
+            {
+                if(options->msg_size[i] > 0) 
+                {
+                    switch(i) 
+                    {
                         case 0:
                             mesg_type_flags[nindex] = H5O_SHMESG_SDSPACE_FLAG;
                             break;
@@ -155,14 +176,17 @@ int copy_objects(const char* fnamein,
                 } /* end if */
             } /* end for */
 
-            if(nindex > 0) {
-                if(H5Pset_shared_mesg_nindexes(fcpl, nindex) < 0) {
+            if(nindex > 0) 
+            {
+                if(H5Pset_shared_mesg_nindexes(fcpl, nindex) < 0) 
+                {
                     error_msg(progname, "fail to set the number of shared object header message indexes\n");
                     goto out;
-                } /* end if */
+                } 
 
                 /* msg_size[0]=dataspace, 1=datatype, 2=file value, 3=filter pipleline, 4=attribute */
-                for(i = 0; i < (nindex - 1); i++) {
+                for(i = 0; i < (nindex - 1); i++) 
+                {
                     if(H5Pset_shared_mesg_index(fcpl, i, mesg_type_flags[i], min_mesg_sizes[i]) < 0) {
                         error_msg(progname, "fail to configure the specified shared object header message index\n");
                         goto out;
@@ -171,25 +195,147 @@ int copy_objects(const char* fnamein,
             } /* if (nindex>0) */
 
             /* Create file access property list */
-            if((fapl = H5Pcreate(H5P_FILE_ACCESS)) < 0) {
+            if((fapl = H5Pcreate(H5P_FILE_ACCESS)) < 0) 
+            {
                 error_msg(progname, "Could not create file access property list\n");
                 goto out;
             } /* end if */
 
-            if(H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) {
+            if(H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) 
+            {
                 error_msg(progname, "Could not set property for using latest version of the format\n");
                 goto out;
             } /* end if */
         } /* end if */
     } /* end if */
+  
+   
 
-    if((fidout = H5Fcreate(fnameout,H5F_ACC_TRUNC, fcpl, fapl)) < 0) {
-        error_msg(progname, "<%s>: Could not create file\n", fnameout );
-        goto out;
-    } /* end if */
 
+#if defined (H5REPACK_DEBUG)  
+    print_user_block(fnamein,fidin);
+#endif
+
+
+    /*-------------------------------------------------------------------------
+    * set the new user userblock options in the FCPL (before H5Fcreate )
+    *-------------------------------------------------------------------------
+    */
+
+    if ( options->ublock_size > 0 )
+    {
+        /* either use the FCPL already created or create a new one */
+        if(fcpl != H5P_DEFAULT)
+        {
+            /* set user block size */
+            if(H5Pset_userblock(fcpl, options->ublock_size) < 0) 
+            {
+                error_msg(progname, "failed to set userblock size\n");
+                goto out;
+            } 
+            
+        }
+        
+        else
+        {
+            
+            /* create a file creation property list */
+            if((fcpl = H5Pcreate(H5P_FILE_CREATE)) < 0) 
+            {
+                error_msg(progname, "fail to create a file creation property list\n");
+                goto out;
+            }  
+            
+            /* set user block size */
+            if(H5Pset_userblock(fcpl, options->ublock_size) < 0) 
+            {
+                error_msg(progname, "failed to set userblock size\n");
+                goto out;
+            } 
+            
+        }
+        
+       
+        
+    }
+
+
+    /*-------------------------------------------------------------------------
+    * set alignment options
+    *-------------------------------------------------------------------------
+    */
+
+   
+    if (  options->alignment > 0 )
+    {
+        /* either use the FAPL already created or create a new one */
+        if (fapl != H5P_DEFAULT)
+        {
+            
+            if (H5Pset_alignment(fapl, options->threshold, options->alignment) < 0)
+            {
+                error_msg(progname, "failed to set alignment\n");
+                goto out;
+            }
+            
+        }
+        
+        else
+        {
+            
+            /* create a file access property list */
+            if ((fapl = H5Pcreate(H5P_FILE_ACCESS)) < 0) 
+            {
+                error_msg(progname, "Could not create file access property list\n");
+                goto out;
+            } 
+            
+            if (H5Pset_alignment(fapl, options->threshold, options->alignment) < 0)
+            {
+                error_msg(progname, "failed to set alignment\n");
+                goto out;
+            }
+            
+        }      
+        
+    }
+
+
+    /*-------------------------------------------------------------------------
+    * create the output file
+    *-------------------------------------------------------------------------
+    */
+
+    
     if(options->verbose)
         printf("Making file <%s>...\n",fnameout);
+    
+    
+    if((fidout = H5Fcreate(fnameout,H5F_ACC_TRUNC, fcpl, fapl)) < 0) 
+    {
+        error_msg(progname, "<%s>: Could not create file\n", fnameout );
+        goto out;
+    } 
+
+    
+    /*-------------------------------------------------------------------------
+    * write a new user block if requested
+    *-------------------------------------------------------------------------
+    */
+    if ( options->ublock_size > 0  )
+    {      
+        if ( copy_user_block( options->ublock_filename, fnameout, options->ublock_size) < 0 )
+        {
+            error_msg(progname, "Could not copy user block. Exiting...\n");
+            goto out;
+            
+        }
+    }
+
+     /*-------------------------------------------------------------------------
+    * get list of objects
+    *-------------------------------------------------------------------------
+    */
 
     /* init table */
     trav_table_init(&travt);
@@ -202,7 +348,8 @@ int copy_objects(const char* fnamein,
     * do the copy
     *-------------------------------------------------------------------------
     */
-    if(do_copy_objects(fidin, fidout, travt, options) < 0) {
+    if(do_copy_objects(fidin, fidout, travt, options) < 0) 
+    {
         error_msg(progname, "<%s>: Could not copy data to: %s\n", fnamein, fnameout);
         goto out;
     } /* end if */
@@ -212,14 +359,11 @@ int copy_objects(const char* fnamein,
     * and create hard links
     *-------------------------------------------------------------------------
     */
-    if(do_copy_refobjs(fidin, fidout, travt, options) < 0) {
+    if ( do_copy_refobjs(fidin, fidout, travt, options) < 0 ) 
+    {
         printf("h5repack: <%s>: Could not copy data to: %s\n", fnamein, fnameout);
         goto out;
-    } /* end if */
-
-    /* free table */
-    trav_table_free(travt);
-
+    } 
 
     /*-------------------------------------------------------------------------
     * close
@@ -234,9 +378,25 @@ int copy_objects(const char* fnamein,
 
     H5Fclose(fidin);
     H5Fclose(fidout);
+    
+    /* free table */
+    trav_table_free(travt);
+    travt = NULL;
 
-    if(ub_size > 0)
-        copy_user_block(fnamein, fnameout, ub_size);
+    /*-------------------------------------------------------------------------
+    * write only the input file user block if there is no user block file input
+    *-------------------------------------------------------------------------
+    */
+
+    if( ub_size > 0 && options->ublock_size == 0 )
+    {
+        if ( copy_user_block(fnamein, fnameout, ub_size) < 0 )
+        {
+            error_msg(progname, "Could not copy user block. Exiting...\n");
+            goto out;
+            
+        }
+    }
 
     return 0;
 
@@ -246,7 +406,8 @@ int copy_objects(const char* fnamein,
     */
 
 out:
-    H5E_BEGIN_TRY {
+    H5E_BEGIN_TRY 
+    {
         H5Pclose(fapl);
         H5Pclose(fcpl);
         H5Fclose(fidin);
@@ -323,7 +484,7 @@ out:
  *   H5Ocopy or not is if a change of filters or layout is requested by the user 
  *   then use read/write else use H5Ocopy. 
  *
- *  May, 1, 2008: Add a printing of the compression ratio of old size / new size
+ * May, 1, 2008: Add a printing of the compression ratio of old size / new size
  *
  *-------------------------------------------------------------------------
  */
@@ -356,7 +517,9 @@ int do_copy_objects(hid_t fidin,
     void     *buf=NULL;         /* buffer for raw data */
     void     *sm_buf=NULL;      /* buffer for raw data */
     int      has_filter;        /* current object has a filter */
+    int      req_filter;        /* there was a request for a filter */
     unsigned i;
+    unsigned u;
     int      is_ref=0;
 
     /*-------------------------------------------------------------------------
@@ -364,16 +527,19 @@ int do_copy_objects(hid_t fidin,
     *-------------------------------------------------------------------------
     */
 
-    if (options->verbose) {
+    if (options->verbose) 
+    {
         printf("-----------------------------------------\n");
         printf(" Type     Filter (Compression)     Name\n");
         printf("-----------------------------------------\n");
     }
 
-    for ( i = 0; i < travt->nobjs; i++) {
+    for ( i = 0; i < travt->nobjs; i++) 
+    {
 
         buf = NULL;
-        switch ( travt->objs[i].type ) {
+        switch ( travt->objs[i].type ) 
+        {
             /*-------------------------------------------------------------------------
              * H5TRAV_TYPE_GROUP
              *-------------------------------------------------------------------------
@@ -387,11 +553,13 @@ int do_copy_objects(hid_t fidin,
                  * and copy its attributes using that ID
                  *-------------------------------------------------------------------------
                  */
-                if(HDstrcmp(travt->objs[i].name, "/") == 0) {
+                if(HDstrcmp(travt->objs[i].name, "/") == 0) 
+                {
                     if ((grp_out = H5Gopen2(fidout, "/", H5P_DEFAULT)) < 0)
                         goto error;
                 }
-                else if (options->grp_compact>0 || options->grp_indexed>0) {
+                else if (options->grp_compact>0 || options->grp_indexed>0) 
+                {
                     /* Set up group creation property list */
                     if((gcpl_id = H5Pcreate(H5P_GROUP_CREATE)) < 0)
                         goto error;
@@ -402,7 +570,8 @@ int do_copy_objects(hid_t fidin,
                     if((grp_out = H5Gcreate2(fidout, travt->objs[i].name, H5P_DEFAULT, gcpl_id, H5P_DEFAULT)) < 0)
                         goto error; 
                 }
-                else {
+                else 
+                {
                     if((grp_out = H5Gcreate2(fidout, travt->objs[i].name, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0)
                         goto error;
                 }
@@ -435,6 +604,28 @@ int do_copy_objects(hid_t fidin,
             case H5TRAV_TYPE_DATASET:
 
                 has_filter = 0;
+                req_filter = 0;
+
+                /* check if global filters were requested */
+                if ( options->n_filter_g )
+                    req_filter = 1;
+
+                /* check if filters were requested for individual objects */
+                for( u = 0; u < options->op_tbl->nelems; u++)
+                {
+                    int k; 
+                    
+                    for( k = 0; k < options->op_tbl->objs[u].nfilters; k++)
+                    {
+                        if ( options->op_tbl->objs[u].filter->filtn > 0 )
+                        {
+                            
+                            req_filter = 1;
+                            
+                        }
+                        
+                    }
+                }
 
                 /* early detection of references */
                 if((dset_in = H5Dopen2(fidin, travt->objs[i].name, H5P_DEFAULT)) < 0)
@@ -455,10 +646,14 @@ int do_copy_objects(hid_t fidin,
                  * otherwise we do a copy using H5Ocopy
                  *-------------------------------------------------------------------------
                  */
-                if(options->op_tbl->nelems || options->all_filter == 1
-                        || options->all_layout == 1 || is_ref) {
-                    int j;
-
+                if ( options->op_tbl->nelems  || 
+                     options->all_filter == 1 || 
+                     options->all_layout == 1 || 
+                     is_ref) 
+                {
+                    
+                    int      j;
+                    
                     if((dset_in = H5Dopen2(fidin, travt->objs[i].name, H5P_DEFAULT)) < 0)
                         goto error;
                     if((f_space_id = H5Dget_space(dset_in)) < 0)
@@ -475,8 +670,10 @@ int do_copy_objects(hid_t fidin,
                     if(H5Sget_simple_extent_dims(f_space_id, dims, NULL) < 0)
                         goto error;
                     nelmts = 1;
-                    for(j = 0; j < rank; j++)
+                    for ( j = 0; j < rank; j++)
+                    {
                         nelmts *= dims[j];
+                    }
 
                     if(options->use_native == 1)
                         wtype_id = h5tools_get_native_type(ftype_id);
@@ -510,11 +707,12 @@ int do_copy_objects(hid_t fidin,
                             dsize_in=H5Dget_storage_size(dset_in);
 
                             /* check for datasets too small */
-                            if (nelmts*msize < options->threshold )
+                            if (nelmts*msize < options->min_comp )
                                 apply_s=0;
 
                             /* apply the filter */
-                            if (apply_s) {
+                            if (apply_s) 
+                            {
                                 if (apply_filters(travt->objs[i].name,rank,dims,dcpl_out,options,&has_filter) < 0)
                                     goto error;
                             }
@@ -665,11 +863,12 @@ int do_copy_objects(hid_t fidin,
                             {
                                 double ratio=0;
 
-                                if (apply_s && apply_f)
+                                /* only print the compression ration if there was a filter request */
+                                if (apply_s && apply_f && req_filter)
                                 {
                                     hssize_t a, b;
 
-                                    /* get the storage size of the input dataset */
+                                    /* get the storage size of the output dataset */
                                     dsize_out=H5Dget_storage_size(dset_out);
 
                                     /* compression ratio = uncompressed size /  compressed size */
@@ -677,11 +876,11 @@ int do_copy_objects(hid_t fidin,
                                     a = dsize_in; b = dsize_out;
                                     if (b!=0)
                                         ratio = (double) a / (double) b;
-
-                                    print_dataset_info(dcpl_out,travt->objs[i].name,ratio);
+                                  
+                                    print_dataset_info(dcpl_out,travt->objs[i].name,ratio,1);
                                 }
                                 else
-                                    print_dataset_info(dcpl_id,travt->objs[i].name,ratio);
+                                    print_dataset_info(dcpl_id,travt->objs[i].name,ratio,0);
 
                                 /* print a message that the filter was not applied 
                                 (in case there was a filter)
@@ -689,7 +888,7 @@ int do_copy_objects(hid_t fidin,
                                 if ( has_filter && apply_s == 0 )
                                     printf(" <warning: filter not applied to %s. dataset smaller than %d bytes>\n",
                                             travt->objs[i].name,
-                                            (int)options->threshold);
+                                            (int)options->min_comp);
 
                                 if ( has_filter && apply_f == 0 )
                                     printf(" <warning: could not apply the filter to %s>\n",
@@ -1060,7 +1259,8 @@ error:
  */
 static void print_dataset_info(hid_t dcpl_id,
                                char *objname,
-                               double ratio)
+                               double ratio,
+                               int pr)
 {
     char         strfilter[255];
 #if defined (PRINT_DEBUG )
@@ -1141,7 +1341,7 @@ static void print_dataset_info(hid_t dcpl_id,
         } /* switch */
     }/*i*/
     
-    if(*strfilter == '\0')
+    if(!pr)
         printf(FORMAT_OBJ,"dset",objname );
     else
     {
@@ -1239,4 +1439,93 @@ done:
 }
 
 
+
+/*-------------------------------------------------------------------------
+ * Function: print_user_block 
+ *
+ * Purpose: print user block
+ *
+ * Return: 0, ok, -1 no
+ *
+ * Programmer: Pedro Vicente 
+ *
+ * Date: August, 20, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+#if defined (H5REPACK_DEBUG)  
+static 
+void print_user_block(const char *filename, hid_t fid)
+{
+    int     fh;      /* file handle  */
+    hsize_t ub_size; /* user block size */
+    hsize_t size;    /* size read */
+    hid_t   fcpl;    /* file creation property list ID for HDF5 file */
+    int     i;
+
+    /* get user block size */  
+    if(( fcpl = H5Fget_create_plist(fid)) < 0) 
+    {
+        error_msg(progname, "failed to retrieve file creation property list\n");
+        goto done;
+    } 
+    
+    if(H5Pget_userblock(fcpl, &ub_size) < 0) 
+    {
+        error_msg(progname, "failed to retrieve userblock size\n");
+        goto done;
+    } 
+    
+    if(H5Pclose(fcpl) < 0) 
+    {
+        error_msg(progname, "failed to close property list\n");
+        goto done;
+    } 
+    
+    /* open file */
+    if((fh = HDopen(filename, O_RDONLY, 0)) < 0) 
+    {
+        goto done;
+    }
+ 
+    size = ub_size;
+
+    /* read file */
+    while(size > 0) 
+    {
+        ssize_t nread;                  /* # of bytes read */
+        char rbuf[USERBLOCK_XFER_SIZE]; /* buffer for reading */
+
+        /* read buffer */
+        if(size > USERBLOCK_XFER_SIZE)
+            nread = HDread(fh, rbuf, (size_t)USERBLOCK_XFER_SIZE);
+        else
+            nread = HDread(fh, rbuf, (size_t)size);
+
+        for(i = 0; i < nread; i++) 
+        {
+
+            printf("%c ", rbuf[i]);
+
+        }
+        printf("\n");
+
+        if(nread < 0) 
+        {
+            goto done;
+        } 
+
+       
+        /* update size of userblock left to transfer */
+        size -= nread;
+    } 
+
+done:
+    if(fh > 0)
+        HDclose(fh);
+  
+
+    return;    
+}
+#endif
 

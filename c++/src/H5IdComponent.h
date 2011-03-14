@@ -44,14 +44,11 @@ class H5_DLLCPP IdComponent {
 	// Assignment operator.
 	IdComponent& operator=( const IdComponent& rhs );
 
-	// Opens the HDF5 object referenced.
-	hid_t p_dereference(void* ref);
-
 	// Gets the identifier of this object.
 	virtual hid_t getId () const = 0;
 
 	// Sets the identifier of this object to a new value.
-	virtual void setId(const hid_t new_id) = 0;
+	void setId(const hid_t new_id);
 
 	// Creates an object to hold an HDF5 identifier.
 	IdComponent( const hid_t h5_id );
@@ -68,7 +65,7 @@ class H5_DLLCPP IdComponent {
 	// <class-name> is returned by fromClass().
 	H5std_string inMemFunc(const char* func_name) const;
 
-	// Returns this class name.
+	///\brief Returns this class name.
 	virtual H5std_string fromClass() const { return("IdComponent");}
 
 #endif // DOXYGEN_SHOULD_SKIP_THIS
@@ -87,6 +84,10 @@ class H5_DLLCPP IdComponent {
 
 	// Verifies that the given id is valid.
 	static bool p_valid_id(const hid_t obj_id);
+
+	// Sets the identifier of this object to a new value. - this one
+	// doesn't increment reference count
+	virtual void p_setId(const hid_t new_id) = 0;
 
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 

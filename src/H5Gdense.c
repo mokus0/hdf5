@@ -403,7 +403,7 @@ HDfprintf(stderr, "%s: HDstrlen(lnk->name) = %Zu, link_size = %Zu\n", FUNC, HDst
         HGOTO_ERROR(H5E_SYM, H5E_NOSPACE, FAIL, "can't get actual buffer")
 
     /* Create serialized form of link */
-    if(H5O_msg_encode(f, H5O_LINK_ID, FALSE, link_ptr, lnk) < 0)
+    if(H5O_msg_encode(f, H5O_LINK_ID, FALSE, (unsigned char *)link_ptr, lnk) < 0)
 	HGOTO_ERROR(H5E_SYM, H5E_CANTENCODE, FAIL, "can't encode link")
 
     /* Open the fractal heap */
@@ -490,7 +490,7 @@ done:
  *
  * Purpose:	Look up a link within a group that uses dense link storage
  *
- * Return:	Non-negative on success/Negative on failure
+ * Return:	Non-negative (TRUE/FALSE) on success/Negative on failure
  *
  * Programmer:	Quincey Koziol
  *		koziol@hdfgroup.org
@@ -498,13 +498,13 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-herr_t
+htri_t
 H5G_dense_lookup(H5F_t *f, hid_t dxpl_id, const H5O_linfo_t *linfo,
     const char *name, H5O_link_t *lnk)
 {
     H5G_bt2_ud_common_t udata;          /* User data for v2 B-tree link lookup */
     H5HF_t *fheap = NULL;               /* Fractal heap handle */
-    herr_t ret_value = SUCCEED;         /* Return value */
+    htri_t ret_value;                   /* Return value */
 
     FUNC_ENTER_NOAPI(H5G_dense_lookup, FAIL)
 
@@ -530,7 +530,7 @@ H5G_dense_lookup(H5F_t *f, hid_t dxpl_id, const H5O_linfo_t *linfo,
     udata.found_op_data = lnk;
 
     /* Find & copy the named link in the 'name' index */
-    if(H5B2_find(f, dxpl_id, H5G_BT2_NAME, linfo->name_bt2_addr, &udata, NULL, NULL) < 0)
+    if((ret_value = H5B2_find(f, dxpl_id, H5G_BT2_NAME, linfo->name_bt2_addr, &udata, NULL, NULL)) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, FAIL, "unable to locate link in name index")
 
 done:
@@ -566,7 +566,7 @@ H5G_dense_lookup_by_idx_fh_cb(const void *obj, size_t UNUSED obj_len, void *_uda
     FUNC_ENTER_NOAPI_NOINIT(H5G_dense_lookup_by_idx_fh_cb)
 
     /* Decode link information & keep a copy */
-    if(NULL == (tmp_lnk = H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, obj)))
+    if(NULL == (tmp_lnk = (H5O_link_t *)H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, (const unsigned char *)obj)))
         HGOTO_ERROR(H5E_SYM, H5E_CANTDECODE, FAIL, "can't decode link")
 
     /* Copy link information */
@@ -800,7 +800,7 @@ H5G_dense_build_table(H5F_t *f, hid_t dxpl_id, const H5O_linfo_t *linfo,
         H5G_dense_bt_ud_t udata;       /* User data for iteration callback */
 
         /* Allocate the table to store the links */
-        if((ltable->lnks = H5MM_malloc(sizeof(H5O_link_t) * ltable->nlinks)) == NULL)
+        if((ltable->lnks = (H5O_link_t *)H5MM_malloc(sizeof(H5O_link_t) * ltable->nlinks)) == NULL)
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
 
         /* Set up user data for iteration */
@@ -852,7 +852,7 @@ H5G_dense_iterate_fh_cb(const void *obj, size_t UNUSED obj_len, void *_udata)
      *  HDF5 routine, it could attempt to re-protect that direct block for the
      *  heap, causing the HDF5 routine called to fail - QAK)
      */
-    if(NULL == (udata->lnk = H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, obj)))
+    if(NULL == (udata->lnk = (H5O_link_t *)H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, (const unsigned char *)obj)))
         HGOTO_ERROR(H5E_SYM, H5E_CANTDECODE, FAIL, "can't decode link")
 
 done:
@@ -1047,7 +1047,7 @@ H5G_dense_get_name_by_idx_fh_cb(const void *obj, size_t UNUSED obj_len, void *_u
     FUNC_ENTER_NOAPI_NOINIT(H5G_dense_get_name_by_idx_fh_cb)
 
     /* Decode link information */
-    if(NULL == (lnk = H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, obj)))
+    if(NULL == (lnk = (H5O_link_t *)H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, (const unsigned char *)obj)))
         HGOTO_ERROR(H5E_SYM, H5E_CANTDECODE, FAIL, "can't decode link")
 
     /* Get the length of the name */
@@ -1245,7 +1245,7 @@ H5G_dense_remove_fh_cb(const void *obj, size_t UNUSED obj_len, void *_udata)
     FUNC_ENTER_NOAPI_NOINIT(H5G_dense_remove_fh_cb)
 
     /* Decode link information */
-    if(NULL == (lnk = H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, obj)))
+    if(NULL == (lnk = (H5O_link_t *)H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, (const unsigned char *)obj)))
         HGOTO_ERROR(H5E_SYM, H5E_CANTDECODE, FAIL, "can't decode link")
 
     /* Check for removing the link from the creation order index */
@@ -1408,7 +1408,7 @@ H5G_dense_remove_by_idx_fh_cb(const void *obj, size_t UNUSED obj_len, void *_uda
     FUNC_ENTER_NOAPI_NOINIT(H5G_dense_remove_by_idx_fh_cb)
 
     /* Decode link information */
-    if(NULL == (udata->lnk = H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, obj)))
+    if(NULL == (udata->lnk = (H5O_link_t *)H5O_msg_decode(udata->f, udata->dxpl_id, H5O_LINK_ID, (const unsigned char *)obj)))
         HGOTO_ERROR(H5E_SYM, H5E_CANTDECODE, H5_ITER_ERROR, "can't decode link")
 
     /* Can't operate on link here because the fractal heap block is locked */

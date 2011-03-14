@@ -82,6 +82,7 @@ static herr_t H5FD_mpio_read(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, hadd
 static herr_t H5FD_mpio_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
             size_t size, const void *buf);
 static herr_t H5FD_mpio_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing);
+static herr_t H5FD_mpio_truncate(H5FD_t *_file, hid_t dxpl_id, hbool_t closing);
 static int H5FD_mpio_mpi_rank(const H5FD_t *_file);
 static int H5FD_mpio_mpi_size(const H5FD_t *_file);
 static MPI_Comm H5FD_mpio_communicator(const H5FD_t *_file);
@@ -112,6 +113,7 @@ static const H5FD_class_mpi_t H5FD_mpio_g = {
     H5FD_mpio_close,				/*close			*/
     NULL,					/*cmp			*/
     H5FD_mpio_query,		                /*query			*/
+    NULL,					/*get_type_map		*/
     NULL,					/*alloc			*/
     NULL,					/*free			*/
     H5FD_mpio_get_eoa,				/*get_eoa		*/
@@ -121,6 +123,7 @@ static const H5FD_class_mpi_t H5FD_mpio_g = {
     H5FD_mpio_read,				/*read			*/
     H5FD_mpio_write,				/*write			*/
     H5FD_mpio_flush,				/*flush			*/
+    H5FD_mpio_truncate,				/*truncate		*/
     NULL,                                       /*lock                  */
     NULL,                                       /*unlock                */
     H5FD_FLMAP_SINGLE                           /*fl_map                */
@@ -201,7 +204,7 @@ H5FD_mpio_init(void)
     FUNC_ENTER_NOAPI(H5FD_mpio_init, FAIL)
 
     if (H5I_VFL!=H5I_get_type(H5FD_MPIO_g))
-        H5FD_MPIO_g = H5FD_register((const H5FD_class_t *)&H5FD_mpio_g,sizeof(H5FD_class_mpi_t));
+        H5FD_MPIO_g = H5FD_register((const H5FD_class_t *)&H5FD_mpio_g,sizeof(H5FD_class_mpi_t),FALSE);
 
 #ifdef H5FDmpio_DEBUG
     if (!H5FD_mpio_Debug_inited)
@@ -326,7 +329,7 @@ H5Pset_fapl_mpio(hid_t fapl_id, MPI_Comm comm, MPI_Info info)
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't set values in default property list")
 
     /* Check arguments */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a file access list")
     if(MPI_COMM_NULL == comm)
 	HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a valid communicator")
@@ -393,7 +396,7 @@ H5Pget_fapl_mpio(hid_t fapl_id, MPI_Comm *comm/*out*/, MPI_Info *info/*out*/)
     FUNC_ENTER_API(H5Pget_fapl_mpio, FAIL)
     H5TRACE3("e", "ixx", fapl_id, comm, info);
 
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a file access list")
     if(H5FD_MPIO != H5P_get_driver(plist))
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "incorrect VFL driver")
@@ -471,7 +474,7 @@ H5Pset_dxpl_mpio(hid_t dxpl_id, H5FD_mpio_xfer_t xfer_mode)
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't set values in default property list")
 
     /* Check arguments */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
+    if(NULL == (plist = H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a dxpl")
     if(H5FD_MPIO_INDEPENDENT != xfer_mode && H5FD_MPIO_COLLECTIVE != xfer_mode)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "incorrect xfer_mode")
@@ -517,7 +520,7 @@ H5Pget_dxpl_mpio(hid_t dxpl_id, H5FD_mpio_xfer_t *xfer_mode/*out*/)
     FUNC_ENTER_API(H5Pget_dxpl_mpio, FAIL)
     H5TRACE2("e", "ix", dxpl_id, xfer_mode);
 
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
+    if(NULL == (plist = H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a dxpl")
     if(H5FD_MPIO != H5P_get_driver(plist))
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "incorrect VFL driver")
@@ -544,14 +547,14 @@ Description:
         The library won't behave as it asks for only when we find
         that the low-level MPI-IO package doesn't support this.
 
-Parameters: 
+Parameters:
         hid_t dxpl_id	      		in: Data transfer property list identifier
 	H5FD_mpio_chunk_opt_t   	in: The optimization flag for linked chunk IO
                                             or multi-chunk IO.
-                                                
 
-Returns: 
-Returns a non-negative value if successful. Otherwise returns a negative value. 
+
+Returns:
+Returns a non-negative value if successful. Otherwise returns a negative value.
 *
  *-------------------------------------------------------------------------
  */
@@ -568,7 +571,7 @@ H5Pset_dxpl_mpio_collective_opt(hid_t dxpl_id, H5FD_mpio_collective_opt_t opt_mo
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't set values in default property list")
 
     /* Check arguments */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
+    if(NULL == (plist = H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a dxpl")
 
     /* Set the transfer mode */
@@ -596,14 +599,14 @@ Description:
         The library won't behave as it asks for only when we find
         that the low-level MPI-IO package doesn't support this.
 
-Parameters: 
+Parameters:
         hid_t dxpl_id	      		in: Data transfer property list identifier
 	H5FD_mpio_chunk_opt_t   	in: The optimization flag for linked chunk IO
                                             or multi-chunk IO.
-                                                
 
-Returns: 
-Returns a non-negative value if successful. Otherwise returns a negative value. 
+
+Returns:
+Returns a non-negative value if successful. Otherwise returns a negative value.
 *
  *-------------------------------------------------------------------------
  */
@@ -620,7 +623,7 @@ H5Pset_dxpl_mpio_chunk_opt(hid_t dxpl_id, H5FD_mpio_chunk_opt_t opt_mode)
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't set values in default property list")
 
     /* Check arguments */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
+    if(NULL == (plist = H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a dxpl")
 
     /* Set the transfer mode */
@@ -643,15 +646,15 @@ Purpose:
 	To set a threshold for doing linked chunk IO
 
 Description:
-        If the number is greater than the threshold set by the user, 
+        If the number is greater than the threshold set by the user,
         the library will do linked chunk IO; otherwise, IO will be done for every chunk.
 
-Parameters: 
+Parameters:
         hid_t dxpl_id	      		in: Data transfer property list identifier
-	unsigned num_proc_per_chunk	in: the threshold of the average number of chunks selected by each process 
+	unsigned num_proc_per_chunk	in: the threshold of the average number of chunks selected by each process
 
-Returns: 
-Returns a non-negative value if successful. Otherwise returns a negative value. 
+Returns:
+Returns a non-negative value if successful. Otherwise returns a negative value.
 *
  *-------------------------------------------------------------------------
  */
@@ -668,7 +671,7 @@ H5Pset_dxpl_mpio_chunk_opt_num(hid_t dxpl_id, unsigned num_chunk_per_proc)
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't set values in default property list")
 
     /* Check arguments */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
+    if(NULL == (plist = H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a dxpl")
 
     /* Set the transfer mode */
@@ -690,13 +693,13 @@ Purpose:
 	To set a threshold for doing collective IO for each chunk
 Description:
 	The library will calculate the percentage of the number of process holding selections at each chunk. If that percentage of number of process in the individual chunk is greater than the threshold set by the user, the library will do collective chunk IO for this chunk; otherwise, independent IO will be done for this chunk.
-Parameters: 
-	hid_t dxpl_id	         				
+Parameters:
+	hid_t dxpl_id
 		in: Data transfer property list identifier
-	unsigned percent_num_proc_per_chunk	
+	unsigned percent_num_proc_per_chunk
 		in: the threshold of the percentage of the number of process holding selections per chunk
-Returns: 
-Returns a non-negative value if successful. Otherwise returns a negative value. 
+Returns:
+Returns a non-negative value if successful. Otherwise returns a negative value.
 
 
 *
@@ -715,7 +718,7 @@ H5Pset_dxpl_mpio_chunk_opt_ratio(hid_t dxpl_id, unsigned percent_num_proc_per_ch
         HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't set values in default property list")
 
     /* Check arguments */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
+    if(NULL == (plist = H5P_object_verify(dxpl_id, H5P_DATASET_XFER)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a dxpl")
 
     /* Set the transfer mode */
@@ -941,7 +944,7 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
 #ifndef H5_HAVE_MPI_GET_SIZE
     struct stat                 stat_buf;
 #endif
- 
+
     FUNC_ENTER_NOAPI(H5FD_mpio_open, NULL)
 
 #ifdef H5FDmpio_DEBUG
@@ -952,7 +955,7 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
 #endif
 
     /* Obtain a pointer to mpio-specific file access properties */
-    if(NULL == (plist = (H5P_genplist_t *)H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, NULL, "not a file access property list")
     if(H5P_FILE_ACCESS_DEFAULT == fapl_id || H5FD_MPIO != H5P_get_driver(plist)) {
 	_fa.comm = MPI_COMM_SELF; /*default*/
@@ -1016,7 +1019,7 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
     /* Only processor p0 will get the filesize and broadcast it. */
     if (mpi_rank == 0) {
         /* Get current file size.  If MPI_File_get_size is disabled in configuration
-         * because it doesn't return correct value (SGI Altix Propack 4), 
+         * because it doesn't return correct value (SGI Altix Propack 4),
          * use stat to get the file size. */
 #ifdef H5_HAVE_MPI_GET_SIZE
         if (MPI_SUCCESS != (mpi_code=MPI_File_get_size(fh, &size)))
@@ -1514,7 +1517,7 @@ H5FD_mpio_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t dxpl_id, haddr_t add
             if(MPI_SUCCESS != (mpi_code = MPI_File_read_at(file->f, mpi_off, buf, size_i, buf_type, &mpi_stat)))
                 HMPI_GOTO_ERROR(FAIL, "MPI_File_read_at failed", mpi_code)
         } /* end else */
- 
+
         /*
          * Reset the file view when we used MPI derived types
          */
@@ -1859,23 +1862,8 @@ done:
  *
  * 		Failure:	Negative
  *
- * Programmer:  Unknown
+ * Programmer:  Robb Matzke
  *              January 30, 1998
- *
- * Modifications:
- * 		Robb Matzke, 1998-02-18
- *		Added the ACCESS_PARMS argument.
- *
- * 		Robb Matzke, 1999-08-06
- *		Modified to work with the virtual file layer.
- *
- *              Robb Matzke, 2000-12-29
- *              Make sure file size is at least as large as the last
- *              allocated byte.
- *
- *              Quincey Koziol, 2002-06-??
- *              Changed file extension method to use MPI_File_set_size instead
- *              read->write method.
  *
  *-------------------------------------------------------------------------
  */
@@ -1884,43 +1872,96 @@ H5FD_mpio_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned closing)
 {
     H5FD_mpio_t		*file = (H5FD_mpio_t*)_file;
     int			mpi_code;	/* mpi return code */
-    MPI_Offset          mpi_off;
-    herr_t              ret_value=SUCCEED;
+    herr_t              ret_value = SUCCEED;
 
     FUNC_ENTER_NOAPI(H5FD_mpio_flush, FAIL)
 
 #ifdef H5FDmpio_DEBUG
-    if (H5FD_mpio_Debug[(int)'t'])
-    	fprintf(stdout, "Entering H5FD_mpio_flush\n" );
+    if(H5FD_mpio_Debug[(int)'t'])
+    	HDfprintf(stdout, "Entering %s\n", FUNC);
 #endif
-    assert(file);
-    assert(H5FD_MPIO==file->pub.driver_id);
+    HDassert(file);
+    HDassert(H5FD_MPIO == file->pub.driver_id);
+
+    /* Only sync the file if we are not going to immediately close it */
+    if(!closing) {
+        if(MPI_SUCCESS != (mpi_code = MPI_File_sync(file->f)))
+            HMPI_GOTO_ERROR(FAIL, "MPI_File_sync failed", mpi_code)
+    } /* end if */
+
+done:
+#ifdef H5FDmpio_DEBUG
+    if(H5FD_mpio_Debug[(int)'t'])
+    	HDfprintf(stdout, "Leaving %s\n", FUNC);
+#endif
+
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5FD_mpio_flush() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5FD_mpio_truncate
+ *
+ * Purpose:     Make certain the file's size matches it's allocated size
+ *
+ * Return:      Success:	Non-negative
+ * 		Failure:	Negative
+ *
+ * Programmer:  Quincey Koziol
+ *              January 31, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5FD_mpio_truncate(H5FD_t *_file, hid_t UNUSED dxpl_id, hbool_t closing)
+{
+    H5FD_mpio_t		*file = (H5FD_mpio_t*)_file;
+    herr_t              ret_value = SUCCEED;
+
+    FUNC_ENTER_NOAPI(H5FD_mpio_truncate, FAIL)
+
+#ifdef H5FDmpio_DEBUG
+    if(H5FD_mpio_Debug[(int)'t'])
+    	HDfprintf(stdout, "Entering %s\n", FUNC);
+#endif
+    HDassert(file);
+    HDassert(H5FD_MPIO == file->pub.driver_id);
 
     /* Extend the file to make sure it's large enough, then sync.
      * Unfortunately, keeping track of EOF is an expensive operation, so
      * we can't just check whether EOF<EOA like with other drivers.
      * Therefore we'll just read the byte at EOA-1 and then write it back. */
-    if(file->eoa>file->last_eoa) {
+    if(file->eoa > file->last_eoa) {
+        int		mpi_code;	/* mpi return code */
+        MPI_Offset      mpi_off;
+
 #ifdef H5_MPI_FILE_SET_SIZE_BIG
-        if (H5FD_mpi_haddr_to_MPIOff(file->eoa, &mpi_off)<0)
+        if(H5FD_mpi_haddr_to_MPIOff(file->eoa, &mpi_off) < 0)
             HGOTO_ERROR(H5E_INTERNAL, H5E_BADRANGE, FAIL, "cannot convert from haddr_t to MPI_Offset")
 
         /* Extend the file's size */
-        if (MPI_SUCCESS != (mpi_code=MPI_File_set_size(file->f, mpi_off)))
+        if(MPI_SUCCESS != (mpi_code = MPI_File_set_size(file->f, mpi_off)))
             HMPI_GOTO_ERROR(FAIL, "MPI_File_set_size failed", mpi_code)
 #else /* H5_MPI_FILE_SET_SIZE_BIG */
-        if (0==file->mpi_rank) {
-            uint8_t             byte=0;
+	/* Wait until all processes are here before reading/writing the byte at
+         * process 0's end of address space.  The window for corruption is
+         * probably tiny, but does exist...
+         */
+        if(MPI_SUCCESS != (mpi_code = MPI_Barrier(file->comm)))
+            HMPI_GOTO_ERROR(FAIL, "MPI_Barrier failed", mpi_code)
+
+        if(0 == file->mpi_rank) {
+            uint8_t             byte = 0;
             MPI_Status          mpi_stat;
 
             /* Portably initialize MPI status variable */
-            HDmemset(&mpi_stat,0,sizeof(MPI_Status));
+            HDmemset(&mpi_stat, 0, sizeof(MPI_Status));
 
-            if (H5FD_mpi_haddr_to_MPIOff(file->eoa-1, &mpi_off)<0)
+            if(H5FD_mpi_haddr_to_MPIOff(file->eoa-1, &mpi_off) < 0)
                 HGOTO_ERROR(H5E_INTERNAL, H5E_BADRANGE, FAIL, "cannot convert from haddr_t to MPI_Offset")
-            if (MPI_SUCCESS != (mpi_code=MPI_File_read_at(file->f, mpi_off, &byte, 1, MPI_BYTE, &mpi_stat)))
+            if(MPI_SUCCESS != (mpi_code = MPI_File_read_at(file->f, mpi_off, &byte, 1, MPI_BYTE, &mpi_stat)))
                 HMPI_GOTO_ERROR(FAIL, "MPI_File_read_at failed", mpi_code)
-            if (MPI_SUCCESS != (mpi_code=MPI_File_write_at(file->f, mpi_off, &byte, 1, MPI_BYTE, &mpi_stat)))
+            if(MPI_SUCCESS != (mpi_code = MPI_File_write_at(file->f, mpi_off, &byte, 1, MPI_BYTE, &mpi_stat)))
                 HMPI_GOTO_ERROR(FAIL, "MPI_File_write_at failed", mpi_code)
         } /* end if */
 #endif /* H5_MPI_FILE_SET_SIZE_BIG */
@@ -1931,27 +1972,21 @@ H5FD_mpio_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned closing)
          * it the shorter length, potentially truncating the file and dropping
          * the new data written)
          */
-        if (MPI_SUCCESS!= (mpi_code=MPI_Barrier(file->comm)))
+        if(MPI_SUCCESS != (mpi_code = MPI_Barrier(file->comm)))
             HMPI_GOTO_ERROR(FAIL, "MPI_Barrier failed", mpi_code)
 
         /* Update the 'last' eoa value */
-        file->last_eoa=file->eoa;
-    } /* end if */
-
-    /* Only sync the file if we are not going to immediately close it */
-    if(!closing) {
-        if (MPI_SUCCESS != (mpi_code=MPI_File_sync(file->f)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_File_sync failed", mpi_code)
+        file->last_eoa = file->eoa;
     } /* end if */
 
 done:
 #ifdef H5FDmpio_DEBUG
-    if (H5FD_mpio_Debug[(int)'t'])
-    	fprintf(stdout, "Leaving H5FD_mpio_flush\n" );
+    if(H5FD_mpio_Debug[(int)'t'])
+    	HDfprintf(stdout, "Leaving %s\n", FUNC);
 #endif
 
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5FD_mpio_truncate() */
 
 
 /*-------------------------------------------------------------------------

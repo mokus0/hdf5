@@ -16,6 +16,8 @@
 #include "h5diff.h"
 #include "ph5diff.h"
 #include "H5private.h"
+#include "h5tools.h"
+
 
 /* global variables */
 int      g_nTasks = 1;
@@ -93,24 +95,25 @@ void parallel_print(const char* format, ...)
 /*-------------------------------------------------------------------------
  * Function: print_dimensions
  *
- * Purpose: print dimensions 
+ * Purpose: print dimensions
  *
  *-------------------------------------------------------------------------
  */
 void
 print_dimensions (int rank, hsize_t *dims)
 {
-    int i;
-
+    int  i;
+        
     parallel_print("[" );
     for ( i = 0; i < rank-1; i++)
     {
-        parallel_print("%"H5_PRINTF_LL_WIDTH"u", (unsigned long_long)dims[i]);
+        parallel_print(HSIZE_T_FORMAT, dims[i]);
         parallel_print("x");
     }
-    parallel_print("%"H5_PRINTF_LL_WIDTH"u", (unsigned long_long)dims[rank-1]);
-    parallel_print("]" );
     
+    parallel_print(HSIZE_T_FORMAT,  dims[rank-1]);
+    parallel_print("]" );
+
 }
 
 

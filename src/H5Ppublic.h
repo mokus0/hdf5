@@ -374,13 +374,15 @@ H5_DLL herr_t H5Pset_nlinks(hid_t plist_id, size_t nlinks);
 H5_DLL herr_t H5Pget_nlinks(hid_t plist_id, size_t *nlinks);
 H5_DLL herr_t H5Pset_elink_prefix(hid_t plist_id, const char *prefix);
 H5_DLL ssize_t H5Pget_elink_prefix(hid_t plist_id, char *prefix, size_t size);
+H5_DLL hid_t H5Pget_elink_fapl(hid_t lapl_id);
+H5_DLL herr_t H5Pset_elink_fapl(hid_t lapl_id, hid_t fapl_id);
 
 /* Object copy property list (OCPYPL) routines */
 H5_DLL herr_t H5Pset_copy_object(hid_t plist_id, unsigned crt_intmd);
 H5_DLL herr_t H5Pget_copy_object(hid_t plist_id, unsigned *crt_intmd /*out*/);
 
 /* Symbols defined for compatibility with previous versions of the HDF5 API.
- * 
+ *
  * Use of these symbols is deprecated.
  */
 #ifndef H5_NO_DEPRECATED_SYMBOLS

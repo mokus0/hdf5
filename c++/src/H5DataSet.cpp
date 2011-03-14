@@ -35,6 +35,7 @@
 #include "H5DataSpace.h"
 #include "H5AbstractDs.h"
 #include "H5File.h"
+#include "H5Attribute.h"
 #include "H5DataSet.h"
 
 #ifndef H5_NO_NAMESPACE
@@ -69,33 +70,83 @@ DataSet::DataSet(const hid_t existing_id) : AbstractDs(), H5Object()
 ///\param	original - IN: DataSet instance to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSet::DataSet(const DataSet& original) : AbstractDs(original), H5Object()
+DataSet::DataSet(const DataSet& original) : AbstractDs(original), H5Object(original)
 {
     id = original.getId();
     incRefCount(); // increment number of references to this id
-
 }
 
 //--------------------------------------------------------------------------
 // Function:	DataSet overload constructor - dereference
-///\brief	Given a reference to some object, returns that dataset
-///             obj - IN: Dataset reference object is in or location of
-///                   object that the dataset is located within.
+///\brief	Given a reference, ref, to an hdf5 dataset, creates a 
+///		DataSet object
+///\param	obj - IN: Dataset reference object is in or location of
+///			  object that the dataset is located within.
 ///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type - default to H5R_OBJECT
 ///\exception	H5::DataSetIException
-///\parDescription
+///\par Description
 ///		\c obj can be DataSet, Group, H5File, or named DataType, that 
 ///		is a datatype that has been named by DataType::commit.
 // Programmer	Binh-Minh Ribler - Oct, 2006
+// Modification
+//	Jul, 2008
+//		Added for application convenience.
 //--------------------------------------------------------------------------
-DataSet::DataSet(H5Object& obj, void* ref) : AbstractDs(), H5Object()
+DataSet::DataSet(H5Object& obj, const void* ref, H5R_type_t ref_type) : AbstractDs(), H5Object()
 {
-   id = obj.p_dereference(ref);
+    try {
+	id = p_dereference(obj.getId(), ref, ref_type);
+    } catch (ReferenceException deref_error) {
+	throw ReferenceException("DataSet constructor - located by object", 
+		deref_error.getDetailMsg());
+    }
 }
 
-DataSet::DataSet(H5File& h5file, void* ref) : AbstractDs(), H5Object()
+//--------------------------------------------------------------------------
+// Function:	DataSet overload constructor - dereference
+///\brief	Given a reference, ref, to an hdf5 dataset, creates a 
+///		DataSet object
+///\param	h5file - IN: Location referenced object is in
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\exception	H5::DataSetIException
+// Programmer	Binh-Minh Ribler - Oct, 2006
+// Modification
+//	Jul, 2008
+//		Added for application convenience.
+//--------------------------------------------------------------------------
+DataSet::DataSet(H5File& h5file, const void* ref, H5R_type_t ref_type) : AbstractDs(), H5Object()
 {
-   id = h5file.p_dereference(ref);
+    try {
+	id = p_dereference(h5file.getId(), ref, ref_type);
+    } catch (ReferenceException deref_error) {
+	throw ReferenceException("DataSet constructor - located by HDF5 file", 
+		deref_error.getDetailMsg());
+    }
+}
+
+//--------------------------------------------------------------------------
+// Function:	DataSet overload constructor - dereference
+///\brief	Given a reference, ref, to an hdf5 dataset, creates a 
+///		DataSet object
+///\param	attr - IN: Specifying location where the referenced object is in
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\exception	H5::ReferenceException
+// Programmer	Binh-Minh Ribler - Oct, 2006
+// Modification
+//	Jul, 2008
+//		Added for application convenience.
+//--------------------------------------------------------------------------
+DataSet::DataSet(Attribute& attr, const void* ref, H5R_type_t ref_type) : AbstractDs(), H5Object()
+{
+    try {
+	id = p_dereference(attr.getId(), ref, ref_type);
+    } catch (ReferenceException deref_error) {
+	throw ReferenceException("DataSet constructor - located by attribute", 
+		deref_error.getDetailMsg());
+    }
 }
 
 //--------------------------------------------------------------------------
@@ -312,7 +363,7 @@ void DataSet::read( void* buf, const DataType& mem_type, const DataSpace& mem_sp
 //--------------------------------------------------------------------------
 // Function:	DataSet::read
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It takes a reference to a \c std::string for the buffer.
+///		It takes a reference to a \c H5std_string for the buffer.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSet::read( H5std_string& strg, const DataType& mem_type, const DataSpace& mem_space, const DataSpace& file_space, const DSetMemXferPropList& xfer_plist ) const
@@ -363,7 +414,7 @@ void DataSet::write( const void* buf, const DataType& mem_type, const DataSpace&
 //--------------------------------------------------------------------------
 // Function:	DataSet::write
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It takes a reference to a \c std::string for the buffer.
+///		It takes a reference to a \c H5std_string for the buffer.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSet::write( const H5std_string& strg, const DataType& mem_type, const DataSpace& mem_space, const DataSpace& file_space, const DSetMemXferPropList& xfer_plist ) const
@@ -416,7 +467,7 @@ int DataSet::iterateElems( void* buf, const DataType& type, const DataSpace& spa
 ///		For more information, please see the Description section in
 ///		C layer Reference Manual at:
 ///\par
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5D.html#Dataset-Extend
+/// http://www.hdfgroup.org/HDF5/doc/RM/RM_H5D.html#Dataset-Extend
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSet::extend( const hsize_t* size ) const
@@ -476,14 +527,14 @@ void DataSet::fillMemBuf(void *buf, DataType& buf_type, DataSpace& space)
 // Function:	DataSet::getObjType
 ///\brief	Retrieves the type of object that an object reference points to.
 ///\param	ref_type - IN: Type of reference to query, valid values are:
-///		\li \c H5R_OBJECT \tReference is an object reference.
-///		\li \c H5R_DATASET_REGION \tReference is a dataset region reference.
+///		\li \c H5R_OBJECT         - Reference is an object reference.
+///		\li \c H5R_DATASET_REGION - Reference is a dataset region reference.
 ///\param	ref      - IN: Reference to query
 ///\return	An object type, which can be one of the following:
-///		\li \c H5G_LINK (0) \tObject is a symbolic link.
-///		\li \c H5G_GROUP (1) \tObject is a group.
-///		\li \c H5G_DATASET (2) \tObject is a dataset.
-///		\li \c H5G_TYPE Object (3) \tis a named datatype
+///		\li \c H5G_LINK (0)    - Object is a symbolic link.
+///		\li \c H5G_GROUP (1)   - Object is a group.
+///		\li \c H5G_DATASET (2) - Object is a dataset.
+///		\li \c H5G_TYPE (3)    - Object is a named datatype
 ///\exception	H5::DataSetIException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
@@ -501,9 +552,9 @@ H5G_obj_t DataSet::getObjType(void *ref, H5R_type_t ref_type) const
 //--------------------------------------------------------------------------
 // Function:	DataSet::getRegion
 ///\brief	Retrieves a dataspace with the region pointed to selected.
+///\param	ref      - IN: Reference to get region of
 ///\param	ref_type - IN: Type of reference to get region of - default
 ///		to H5R_DATASET_REGION
-///\param	ref      - IN: Reference to get region of
 ///\return	DataSpace instance
 ///\exception	H5::DataSetIException
 // Programmer	Binh-Minh Ribler - May, 2004
@@ -521,7 +572,7 @@ DataSpace DataSet::getRegion(void *ref, H5R_type_t ref_type) const
 
 //--------------------------------------------------------------------------
 // Function:    DataSet::getId
-// Purpose:     Get the id of this attribute
+///\brief	Get the id of this dataset.
 // Description:
 //              Class hierarchy is revised to address bugzilla 1068.  Class
 //              AbstractDs and Attribute are moved out of H5Object.  In
@@ -535,8 +586,8 @@ hid_t DataSet::getId() const
 }
 
 //--------------------------------------------------------------------------
-// Function:    DataSet::setId
-///\brief       Sets the identifier of this object to a new value.
+// Function:    DataSet::p_setId
+///\brief       Sets the identifier of this dataset to a new value.
 ///
 ///\exception   H5::IdComponentException when the attempt to close the HDF5
 ///             object fails
@@ -546,20 +597,20 @@ hid_t DataSet::getId() const
 //              Then the object's id is reset to the new id.
 // Programmer   Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void DataSet::setId(const hid_t new_id)
+void DataSet::p_setId(const hid_t new_id)
 {
     // handling references to this old id
     try {
         close();
     }
     catch (Exception close_error) {
-        throw DataSetIException(inMemFunc("setId"), close_error.getDetailMsg());
+        throw DataSetIException(inMemFunc("p_setId"), close_error.getDetailMsg());
     }
    // reset object's id to the given id
    id = new_id;
 
    // increment the reference counter of the new id
-   incRefCount();
+   //incRefCount();
 }
 
 //--------------------------------------------------------------------------
@@ -578,8 +629,10 @@ void DataSet::close()
 	{
 	    throw DataSetIException("DataSet::close", "H5Dclose failed");
 	}
-	// reset the id because the dataset that it represents is now closed
-	id = 0;
+	// reset the id when the dataset that it represents is no longer
+	// referenced
+	if (getCounter() == 0)
+	    id = 0;
     }
 }
 

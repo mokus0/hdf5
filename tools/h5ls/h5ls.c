@@ -31,10 +31,25 @@
 
 #define NAME_BUF_SIZE   2048
 
+/* Struct to keep track of external link targets visited */
+typedef struct elink_trav_t {
+    size_t      nalloc;
+    size_t      nused;
+    struct {
+        char *file;
+        char *path;
+    } *objs;
+} elink_trav_t;
+
 /* Struct to pass through to visitors */
 typedef struct {
-    hid_t fid;                          /* File ID */
     const char *fname;                  /* Filename */
+    hid_t fid;                          /* File ID */
+    hid_t gid;                          /* Group ID */
+    hbool_t ext_target;                 /* Whether this is the target of an external link */
+    elink_trav_t *elink_list;           /* List of visited external links */
+    int base_len;                       /* Length of base path name, if not root */
+    int name_start;                     /* # of leading characters to strip off path names on output */
 }iter_t;
 
 /* Command-line switches */
@@ -46,6 +61,7 @@ static hbool_t  label_g = FALSE;          /* label compound values? */
 static hbool_t  string_g = FALSE;         /* print 1-byte numbers as ASCII? */
 static hbool_t  fullname_g = FALSE;       /* print full path names */
 static hbool_t  recursive_g = FALSE;      /* recursive descent listing */
+static hbool_t  follow_elink_g = FALSE;   /* follow external links */
 static hbool_t  grp_literal_g = FALSE;    /* list group, not contents */
 static hbool_t  hexdump_g = FALSE;        /* show data as raw hexadecimal */
 static hbool_t  show_errors_g = FALSE;    /* print HDF5 error messages */
@@ -70,6 +86,7 @@ static struct dispatch_t {
 }
 
 static void display_type(hid_t type, int ind);
+static herr_t visit_obj(hid_t file, const char *oname, iter_t *iter);
 
 const char *progname="h5ls";
 int   d_status;
@@ -99,6 +116,7 @@ usage: %s [OPTIONS] [OBJECTS...]\n\
       -a, --address    Print addresses for raw data\n\
       -d, --data       Print the values of datasets\n\
       -e, --errors     Show all HDF5 error reporting\n\
+      -E, --external   Allow traversal into external files\n\
       -f, --full       Print full path names instead of base names\n\
       -g, --group      Show information about a group, not its contents\n\
       -l, --label      Label members of compound datasets\n\
@@ -223,9 +241,9 @@ display_obj_name(FILE *stream, const iter_t *iter, const char *oname,
     int  n;
 
     if(show_file_name_g)
-        sprintf(fullname, "%s/%s", iter->fname, oname);
+        sprintf(fullname, "%s/%s", iter->fname, oname + iter->name_start);
     else
-        name = oname;
+        name = oname + iter->name_start;
 
     /* Print the object name, either full name or base name */
     if(fullname_g)
@@ -1526,11 +1544,7 @@ dataset_list2(hid_t dset, const char UNUSED *name)
                (unsigned long)total, 1==total?"":"s",
                (unsigned long)used, 1==used?"":"s");
         if (used>0) {
-#ifdef _WIN32
-            utilization = (hssize_t)total * 100.0 / (hssize_t)used;
-#else
             utilization = (total*100.0)/used;
-#endif
             printf(", %1.2f%% utilization", utilization);
         }
         putchar('\n');
@@ -1665,13 +1679,16 @@ list_obj(const char *name, const H5O_info_t *oinfo, const char *first_seen, void
     iter_t *iter = (iter_t*)_iter;
 
     /* Print the link's name, either full name or base name */
-    display_obj_name(stdout, iter, name, "");
+    if(!iter->ext_target)
+        display_obj_name(stdout, iter, name, "");
 
     /* Check object information */
     if(oinfo->type < 0 || oinfo->type >= H5O_TYPE_NTYPES) {
         printf("Unknown type(%d)", (int)oinfo->type);
         obj_type = H5O_TYPE_UNKNOWN;
     }
+    if(iter->ext_target)
+        fputc('{', stdout);
     if(obj_type >= 0 && dispatch_g[obj_type].name)
         fputs(dispatch_g[obj_type].name, stdout);
 
@@ -1679,7 +1696,8 @@ list_obj(const char *name, const H5O_info_t *oinfo, const char *first_seen, void
     if(first_seen) {
         printf(", same as ");
         display_string(stdout, first_seen, TRUE);
-        printf("\n");
+        if(!iter->ext_target)
+            printf("\n");
     } /* end if */
     else {
         hid_t obj = (-1);               /* ID of object opened */
@@ -1695,7 +1713,8 @@ list_obj(const char *name, const H5O_info_t *oinfo, const char *first_seen, void
         /* List the first line of information for the object. */
         if(obj_type >= 0 && dispatch_g[obj_type].list1)
             (dispatch_g[obj_type].list1)(obj);
-        putchar('\n');
+        if(!iter->ext_target || (verbose_g > 0))
+            putchar('\n');
 
         /* Show detailed information about the object, beginning with information
          * which is common to all objects. */
@@ -1746,8 +1765,86 @@ list_obj(const char *name, const H5O_info_t *oinfo, const char *first_seen, void
     } /* end else */
 
 done:
+    if(iter->ext_target) {
+        fputs("}\n", stdout);
+        iter->ext_target = FALSE;
+    }
     return 0;
 } /* end list_obj() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: elink_trav_add
+ *
+ * Purpose: Add an external link to visited data structure
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Neil Fortner, nfortne2@hdfgroup.org
+ *             Adapted from trav_addr_add in h5trav.c by Quincey Koziol
+ *
+ * Date: September 5, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+elink_trav_add(elink_trav_t *visited, const char *file, const char *path)
+{
+    size_t  idx;         /* Index of address to use */
+    void    *tmp_ptr;
+
+    /* Allocate space if necessary */
+    if(visited->nused == visited->nalloc) {
+        visited->nalloc = MAX(1, visited->nalloc * 2);
+        if(NULL == (tmp_ptr = HDrealloc(visited->objs, visited->nalloc * sizeof(visited->objs[0]))))
+            return -1;
+        visited->objs = tmp_ptr;
+    } /* end if */
+
+    /* Append it */
+    idx = visited->nused++;
+    if(NULL == (visited->objs[idx].file = HDstrdup(file))) {
+        visited->nused--;
+        return -1;
+    }
+    if(NULL == (visited->objs[idx].path = HDstrdup(path))) {
+        visited->nused--;
+        HDfree (visited->objs[idx].file);
+        return -1;
+    }
+
+    return 0;
+} /* end elink_trav_add() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: elink_trav_visited
+ *
+ * Purpose: Check if an external link has already been visited
+ *
+ * Return: TRUE/FALSE
+ *
+ * Programmer: Neil Fortner, nfortne2@hdfgroup.org
+ *             Adapted from trav_addr_visited in h5trav.c by Quincey Koziol
+ *
+ * Date: September 5, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+static hbool_t
+elink_trav_visited(elink_trav_t *visited, const char *file, const char *path)
+{
+    size_t u;           /* Local index variable */
+
+    /* Look for elink */
+    for(u = 0; u < visited->nused; u++)
+        /* Check for elink value already in array */
+        if(!HDstrcmp(visited->objs[u].file, file) && !HDstrcmp(visited->objs[u].path, path))
+            return(TRUE);
+
+    /* Didn't find elink */
+    return(FALSE);
+} /* end elink_trav_visited() */
 
 
 /*-------------------------------------------------------------------------
@@ -1773,7 +1870,6 @@ list_lnk(const char *name, const H5L_info_t *linfo, void *_iter)
     /* Print the link's name, either full name or base name */
     display_obj_name(stdout, iter, name, "");
 
-    HDfputs("-> ", stdout);
     switch(linfo->type) {
         case H5L_TYPE_SOFT:
             if((buf = HDmalloc(linfo->u.val_size)) == NULL)
@@ -1784,8 +1880,10 @@ list_lnk(const char *name, const H5L_info_t *linfo, void *_iter)
                 goto done;
             } /* end if */
 
+            HDfputs("Soft Link {", stdout);
             HDfputs(buf, stdout);
             HDfree(buf);
+            HDfputs("}\n", stdout);
             break;
 
         case H5L_TYPE_EXTERNAL:
@@ -1795,7 +1893,6 @@ list_lnk(const char *name, const H5L_info_t *linfo, void *_iter)
 
             if((buf = HDmalloc(linfo->u.val_size)) == NULL)
                 goto done;
-
             if(H5Lget_val(iter->fid, name, buf, linfo->u.val_size, H5P_DEFAULT) < 0) {
                 HDfree(buf);
                 goto done;
@@ -1805,23 +1902,130 @@ list_lnk(const char *name, const H5L_info_t *linfo, void *_iter)
                 goto done;
             } /* end if */
 
-            HDfputs("file: ", stdout);
+            HDfputs("External Link {", stdout);
             HDfputs(filename, stdout);
-            HDfputs("    path: ", stdout);
+            HDfputc('/', stdout);
+            if(*path != '/')
+                HDfputc('/', stdout);
             HDfputs(path, stdout);
+            HDfputc('}', stdout);
+
+            /* Recurse through the external link */
+            if(follow_elink_g) {
+                hbool_t orig_grp_literal = grp_literal_g;
+
+                HDfputc(' ', stdout);
+            
+                /* Check if we have already seen this elink */
+                if(elink_trav_visited(iter->elink_list, filename, path)) {
+                    HDfputs("{Already Visited}\n", stdout);
+                    HDfree(buf);
+                    goto done;
+                }
+
+                /* Add this link to the list of seen elinks */
+                if(elink_trav_add(iter->elink_list, filename, path) < 0) {
+                    HDfree(buf);
+                    goto done;
+                }
+
+                /* Adjust user data to specify that we are operating on the
+                 * target of an external link */
+                iter->ext_target = TRUE;
+
+                /* Prevent recursive listing of external link target if
+                 * recursive_g is off */
+                if(!recursive_g)
+                    grp_literal_g = TRUE;
+
+                /* Recurse through the external link */
+                if(visit_obj(iter->fid, name, iter) < 0) {
+                    HDfree(buf);
+                    grp_literal_g = orig_grp_literal;
+                    goto done;
+                }
+
+                grp_literal_g = orig_grp_literal;
+            }
+            else
+                HDfputc('\n', stdout);
+
             HDfree(buf);
             }
             break;
 
         default:
-            HDfputs("cannot follow UD links", stdout);
+            HDfputs("UD Link {cannot follow UD links}\n", stdout);
             break;
     } /* end switch */
-    HDfputc('\n', stdout);
 
 done:
     return 0;
 } /* end list_lnk() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: visit_obj
+ *
+ * Purpose: Begins iteration on an object
+ *
+ * Return: Success: 0
+ *
+ *  Failure: -1
+ *
+ * Programmer: Neil Fortner
+ *              Wednesday, August 21, 2008
+ *             Mostly copied from main()
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+visit_obj(hid_t file, const char *oname, iter_t *iter)
+{
+    H5O_info_t oi;              /* Information for object */
+
+    /* Retrieve info for object to list */
+    if(H5Oget_info_by_name(file, oname, &oi, H5P_DEFAULT) < 0) {
+        if(iter->ext_target) {
+            HDfputs("{**NOT FOUND**}\n", stdout);
+            iter->ext_target = FALSE;
+        }
+        else
+            display_obj_name(stdout, iter, oname, "**NOT FOUND**");
+        return -1;
+    } /* end if */
+
+    /* Check for group iteration */
+    if(H5O_TYPE_GROUP == oi.type && !grp_literal_g) {
+        /* Get ID for group */
+        if(!iter->ext_target && (iter->gid = H5Gopen2(file, oname, H5P_DEFAULT)) < 0) {
+            fprintf(stderr, "%s: unable to open '%s' as group\n", iter->fname, oname);
+            return 0;   /* Previously "continue", when this code was in main().
+                         * We don't "continue" here in order to close the file
+                         * and free the file name properly. */
+        } /* end if */
+
+        /* Delay specifying the name start point so the original object name is
+         * displayed if it is a link or non-group object */ 
+        iter->name_start = iter->base_len;
+
+        /* Specified name is a group. List the complete contents of the group. */
+        h5trav_visit(file, oname, (hbool_t) (display_root_g || iter->ext_target), recursive_g, list_obj, list_lnk, iter);
+
+        /* Close group */
+        if(!iter->ext_target)
+            H5Gclose(iter->gid);
+    } /* end if */
+    else {
+        /* Use file ID for root group ID */
+        iter->gid = file;
+
+        /* Specified name is a non-group object -- list that object */
+        list_obj(oname, &oi, NULL, iter);
+    } /* end else */
+
+    return 0;
+}
 
 
 /*-------------------------------------------------------------------------
@@ -1872,7 +2076,7 @@ get_width(void)
     {
         /* Win32 C */
         CONSOLE_SCREEN_BUFFER_INFO scr;
-        GetConsoleScreenBufferInfo(con_out, &scr);
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &scr);
         width = scr.srWindow.Right - scr.srWindow.Left + 1;
     }
 #elif defined(H5_HAVE__SCRSIZE)
@@ -1984,6 +2188,8 @@ main(int argc, const char *argv[])
             data_g = TRUE;
         } else if(!HDstrcmp(argv[argno], "--errors")) {
             show_errors_g = TRUE;
+        } else if(!HDstrcmp(argv[argno], "--external")) {
+            follow_elink_g = TRUE;
         } else if(!HDstrcmp(argv[argno], "--full")) {
             fullname_g = TRUE;
         } else if(!HDstrcmp(argv[argno], "--group")) {
@@ -2063,6 +2269,10 @@ main(int argc, const char *argv[])
 
                     case 'e': /* --errors */
                         show_errors_g = TRUE;
+                        break;
+
+                    case 'E': /* --external */
+                        follow_elink_g = TRUE;
                         break;
 
                     case 'f': /* --full */
@@ -2148,6 +2358,8 @@ main(int argc, const char *argv[])
     while(argno < argc) {
         H5L_info_t li;
         iter_t iter;
+        elink_trav_t elink_list;
+        size_t u;
 
         fname = HDstrdup(argv[argno++]);
         oname = NULL;
@@ -2164,7 +2376,7 @@ main(int argc, const char *argv[])
 
             /* Shorten the file name; lengthen the object name */
             x = oname;
-            oname = strrchr(fname, '/');
+            oname = HDstrrchr(fname, '/');
             if(x)
                 *x = '/';
             if(!oname)
@@ -2173,19 +2385,45 @@ main(int argc, const char *argv[])
         } /* end while */
         if(file < 0) {
             fprintf(stderr, "%s: unable to open file\n", argv[argno-1]);
+            HDfree(fname);
             continue;
         } /* end if */
-        if(oname)
-            oname++;
+        if(oname) {
+            /* Always use absolute paths to avoid confusion, keep track of where
+             * to begin path name output */
+            *oname = '/';
+            iter.base_len = HDstrlen(oname);
+            iter.base_len -= oname[iter.base_len-1] == '/';
+            x = oname;
+            if(NULL == (oname = HDstrdup(oname))) {
+                fprintf(stderr, "memory allocation failed\n");
+                leave(1);
+            }
+            *x = '\0';
+            /* Delay specifying the name start point so the original object name
+             * is displayed if it is a link or non-group object */ 
+            iter.name_start = 1;
+        }
         if(!oname || !*oname) {
             oname = root_name;
             if(recursive_g)
                 display_root_g = TRUE;
+            iter.base_len = 0;
+            iter.name_start = 0;
+            /* Use x to remember if we have allocated space in oname */
+            x = NULL;
         } /* end if */
 
         /* Remember the file information for later */
         iter.fname = fname;
         iter.fid = file;
+        iter.gid = -1;
+        iter.ext_target = FALSE;
+        iter.elink_list = &elink_list;
+
+        /* Initialize list of visited external links */
+        elink_list.nused = elink_list.nalloc = 0;
+        elink_list.objs = NULL;
 
         /* Check for root group as object name */
         if(HDstrcmp(oname, root_name)) {
@@ -2200,28 +2438,27 @@ main(int argc, const char *argv[])
 
         /* Open the object and display it's information */
         if(li.type == H5L_TYPE_HARD) {
-            H5O_info_t oi;              /* Information for object */
-
-            /* Retrieve info for object to list */
-            if(H5Oget_info_by_name(file, oname, &oi, H5P_DEFAULT) < 0) {
-                display_obj_name(stdout, &iter, oname, "**NOT FOUND**");
+            if(visit_obj(file, oname, &iter) < 0)
                 leave(1);
-            } /* end if */
-
-            /* Check for group iteration */
-            if(H5O_TYPE_GROUP == oi.type && !grp_literal_g)
-                /* Specified name is a group. List the complete contents of the group. */
-                h5trav_visit(file, oname, display_root_g, recursive_g, list_obj, list_lnk, &iter);
-            else
-                /* Specified name is a non-group object -- list that object */
-                list_obj(oname, &oi, NULL, &iter);
-        } else
+        } /* end if(li.type == H5L_TYPE_HARD) */
+        else {
             /* Specified name is not for object -- list that link */
+            /* Use file ID for root group ID */
+            iter.gid = file;
             list_lnk(oname, &li, &iter);
+        }
         H5Fclose(file);
-        free(fname);
+        HDfree(fname);
+        if(x)
+            HDfree(oname);
+
+        for(u=0; u < elink_list.nused; u++) {
+            HDfree(elink_list.objs[u].file);
+            HDfree(elink_list.objs[u].path);
+        }
+        HDfree(elink_list.objs);
     } /* end while */
 
     leave(0);
-}
+} /* end main() */
 

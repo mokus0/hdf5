@@ -18,11 +18,51 @@
 !    This file contains subroutines which are used in
 !    all the hdf5 fortran tests
 !
+
+
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: write_test_status 
+!DEC$endif
+  SUBROUTINE write_test_status( test_result, test_title, total_error)
+
+! Writes the results of the tests
+
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN) :: test_result  ! negative,  --skip --
+                                        ! 0       ,   passed 
+                                        ! positive,   failed
+
+    CHARACTER(LEN=*), INTENT(IN) :: test_title ! Short description of test
+    INTEGER, INTENT(INOUT) :: total_error ! Accumulated error
+
+! Controls the output style for reporting test results
+
+  CHARACTER(LEN=8) :: error_string
+  CHARACTER(LEN=8), PARAMETER :: success = ' PASSED '
+  CHARACTER(LEN=8), PARAMETER :: failure = '*FAILED*'
+  CHARACTER(LEN=8), PARAMETER :: skip    = '--SKIP--'
+
+
+    error_string = failure
+    IF (test_result ==  0) THEN
+       error_string = success
+    ELSE IF (test_result == -1) THEN
+       error_string = skip
+    ENDIF
+       
+    WRITE(*, fmt = '(A, T72, A)') test_title, error_string
+    
+    IF(test_result.GT.0) total_error = total_error + test_result
+
+  END SUBROUTINE write_test_status
+
+
 !This definition is needed for Windows DLLs
 !DEC$if defined(BUILD_HDF5_DLL)
 !DEC$attributes dllexport :: check
 !DEC$endif
-
 SUBROUTINE check(string,error,total_error)
   CHARACTER(LEN=*) :: string
   INTEGER :: error, total_error
@@ -231,4 +271,47 @@ SUBROUTINE h5_exit_f(status)
   CALL h5_exit_c(status)
   
 END SUBROUTINE h5_exit_f 
+
+!----------------------------------------------------------------------
+! Name:		h5_env_nocleanup_f 
+!
+! Purpose:	Uses the HDF5_NOCLEANUP environment variable in Fortran 
+!               tests to determine if the output files should be removed
+!
+! Inputs:  
+!
+! Outputs:      HDF5_NOCLEANUP:  .true. - don't remove test files
+!		                .false. - remove test files
+!
+! Programmer:	M.S. Breitenfeld
+!               September 30, 2008
+!
+!----------------------------------------------------------------------
+SUBROUTINE h5_env_nocleanup_f(HDF5_NOCLEANUP)
+!
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: h5_env_nocleanup_f
+!DEC$endif
+  IMPLICIT NONE
+  LOGICAL, INTENT(OUT) :: HDF5_NOCLEANUP ! Return code
+  INTEGER :: status
+
+  INTERFACE
+     SUBROUTINE h5_env_nocleanup_c(status)
+       !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+       !DEC$ ATTRIBUTES C,reference,decorate,alias:'H5_ENV_NOCLEANUP_C':: h5_env_nocleanup_c
+       !DEC$ ENDIF
+       INTEGER :: status
+     END SUBROUTINE h5_env_nocleanup_c
+  END INTERFACE
+  
+  CALL h5_env_nocleanup_c(status)
+
+  HDF5_NOCLEANUP = .FALSE.
+  IF(status.EQ.1)THEN
+     HDF5_NOCLEANUP = .TRUE.
+  ENDIF
+  
+END SUBROUTINE h5_env_nocleanup_f
 

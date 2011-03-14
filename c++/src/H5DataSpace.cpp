@@ -408,7 +408,7 @@ hssize_t DataSpace::getSelectElemNpoints () const
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectElemPointList
+/// http://www.hdfgroup.org/HDF5/doc/RM/RM_H5S.html#Dataspace-SelectElemPointList
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::getSelectElemPointlist ( hsize_t startpoint, hsize_t numpoints, hsize_t *buf ) const
@@ -432,7 +432,7 @@ void DataSpace::getSelectElemPointlist ( hsize_t startpoint, hsize_t numpoints, 
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectBounds
+/// http://www.hdfgroup.org/HDF5/doc/RM/RM_H5S.html#Dataspace-SelectBounds
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::getSelectBounds ( hsize_t* start, hsize_t* end ) const
@@ -458,7 +458,7 @@ void DataSpace::getSelectBounds ( hsize_t* start, hsize_t* end ) const
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectElements
+/// http://www.hdfgroup.org/HDF5/doc/RM/RM_H5S.html#Dataspace-SelectElements
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::selectElements ( H5S_seloper_t op, const size_t num_elements, const hsize_t *coord) const
@@ -540,7 +540,7 @@ bool DataSpace::selectValid () const
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectHyperslab
+/// http://www.hdfgroup.org/HDF5/doc/RM/RM_H5S.html#Dataspace-SelectHyperslab
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::selectHyperslab( H5S_seloper_t op, const hsize_t *count, const hsize_t *start, const hsize_t *stride, const hsize_t *block ) const
@@ -571,7 +571,7 @@ hid_t DataSpace::getId() const
 }
 
 //--------------------------------------------------------------------------
-// Function:    DataSpace::setId
+// Function:    DataSpace::p_setId
 ///\brief       Sets the identifier of this object to a new value.
 ///
 ///\exception   H5::IdComponentException when the attempt to close the HDF5
@@ -582,20 +582,17 @@ hid_t DataSpace::getId() const
 //              Then the object's id is reset to the new id.
 // Programmer   Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void DataSpace::setId(const hid_t new_id)
+void DataSpace::p_setId(const hid_t new_id)
 {
     // handling references to this old id
     try {
         close();
     }
     catch (Exception close_error) {
-        throw DataSpaceIException(inMemFunc("setId"), close_error.getDetailMsg());
+        throw DataSpaceIException(inMemFunc("p_setId"), close_error.getDetailMsg());
     }
    // reset object's id to the given id
    id = new_id;
-
-   // increment the reference counter of the new id
-   incRefCount();
 }
 
 //--------------------------------------------------------------------------
@@ -615,8 +612,10 @@ void DataSpace::close()
 	{
 	    throw DataSpaceIException("DataSpace::close", "H5Sclose failed");
 	}
-	// reset the id because the dataspace that it represents is now closed
-	id = 0;
+	// reset the id when the dataspace that it represents is no longer
+	// referenced
+	if (getCounter() == 0)
+	    id = 0;
     }
 }
 
@@ -632,16 +631,10 @@ void DataSpace::close()
 //--------------------------------------------------------------------------
 DataSpace::~DataSpace()
 {
-    int counter = getCounter(id);
-    if (counter > 1)
-	decRefCount(id);
-    else if (counter == 1)
-    {
-	try {
-	    close();
-	} catch (Exception close_error) {
-	    cerr << "DataSpace::~DataSpace - " << close_error.getDetailMsg() << endl;
-	}
+    try {
+	close();
+    } catch (Exception close_error) {
+	cerr << "DataSpace::~DataSpace - " << close_error.getDetailMsg() << endl;
     }
 }
 

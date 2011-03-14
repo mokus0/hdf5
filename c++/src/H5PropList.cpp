@@ -53,7 +53,7 @@ PropList::PropList() : IdComponent(), id(0) {}
 ///\param	original - IN: The original property list to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-PropList::PropList(const PropList& original) : IdComponent(original) 
+PropList::PropList(const PropList& original) : IdComponent(original)
 {
     id = original.getId();
     incRefCount(); // increment number of references to this id
@@ -223,7 +223,7 @@ hid_t PropList::getId() const
 }
 
 //--------------------------------------------------------------------------
-// Function:    PropList::setId
+// Function:    PropList::p_setId
 ///\brief       Sets the identifier of this object to a new value.
 ///
 ///\exception   H5::IdComponentException when the attempt to close the HDF5
@@ -234,20 +234,17 @@ hid_t PropList::getId() const
 //              Then the object's id is reset to the new id.
 // Programmer   Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void PropList::setId(const hid_t new_id)
+void PropList::p_setId(const hid_t new_id)
 {
     // handling references to this old id
     try {
         close();
     }
     catch (Exception close_error) {
-        throw PropListIException(inMemFunc("setId"), close_error.getDetailMsg());
+        throw PropListIException(inMemFunc("p_setId"), close_error.getDetailMsg());
     }
    // reset object's id to the given id
    id = new_id;
-
-   // increment the reference counter of the new id
-   incRefCount();
 }
 
 //--------------------------------------------------------------------------
@@ -266,8 +263,10 @@ void PropList::close()
 	{
 	    throw PropListIException(inMemFunc("close"), "H5Pclose failed");
 	}
-	// reset the id because the property list that it represents is now closed
-	id = 0;
+	// reset the id when the property list that it represents is no longer
+	// referenced
+	if (getCounter() == 0)
+	    id = 0;
     }
 }
 
@@ -566,7 +565,7 @@ void PropList::setProperty(const H5std_string& name, void* value) const
 /// 		It differs from the above function only in what arguments it
 ///		accepts.
 ///\param	name - IN: Name of property to set - \c H5std_string
-///\param	strg - IN: Value for the property is a \c std::string
+///\param	strg - IN: Value for the property is a \c H5std_string
 // Programmer:  Binh-Minh Ribler - April, 2004
 //--------------------------------------------------------------------------
 void PropList::setProperty(const H5std_string& name, H5std_string& strg) const

@@ -94,7 +94,7 @@ class H5_DLLCPP PropList : public IdComponent {
 	void removeProp(const char *name) const;
 	void removeProp(const H5std_string& name) const;
 
-	// Returns this class name
+	///\brief Returns this class name
 	virtual H5std_string fromClass () const { return("PropList"); }
 
 	// Default constructor: creates a stub PropList object.
@@ -105,13 +105,15 @@ class H5_DLLCPP PropList : public IdComponent {
 
 	// Gets the property list id.
 	virtual hid_t getId() const;
-	virtual void setId(const hid_t new_id);
 
 	// Destructor: properly terminates access to this property list.
 	virtual ~PropList();
 
    protected:
 	hid_t id;	// HDF5 property list id
+
+	// Sets the property list id.
+	virtual void p_setId(const hid_t new_id);
 };
 
 #ifndef H5_NO_NAMESPACE

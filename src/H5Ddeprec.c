@@ -170,7 +170,7 @@ H5Dcreate1(hid_t loc_id, const char *name, hid_t type_id, hid_t space_id,
 	HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to create dataset")
 
     /* Register the new dataset to get an ID for it */
-    if((ret_value = H5I_register(H5I_DATASET, dset)) < 0)
+    if((ret_value = H5I_register(H5I_DATASET, dset, TRUE)) < 0)
 	HGOTO_ERROR(H5E_DATASET, H5E_CANTREGISTER, FAIL, "unable to register dataset")
 
 done:
@@ -242,7 +242,7 @@ H5Dopen1(hid_t loc_id, const char *name)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "can't open dataset")
 
     /* Register an atom for the dataset */
-    if((ret_value = H5I_register(H5I_DATASET, dset)) < 0)
+    if((ret_value = H5I_register(H5I_DATASET, dset, TRUE)) < 0)
         HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "can't register dataset atom")
 
 done:
@@ -346,13 +346,13 @@ H5D_extend(H5D_t *dataset, const hsize_t *size, hid_t dxpl_id)
     if(changed) {
         /* Update the index values for the cached chunks for this dataset */
         if(H5D_CHUNKED == dataset->shared->layout.type)
-            if(H5D_istore_update_cache(dataset, dxpl_id) < 0)
+            if(H5D_chunk_update_cache(dataset, dxpl_id) < 0)
                 HGOTO_ERROR(H5E_DATASET, H5E_WRITEERROR, FAIL, "unable to update cached chunk indices")
 
 	/* Allocate space for the new parts of the dataset, if appropriate */
         fill = &dataset->shared->dcpl_cache.fill;
         if(fill->alloc_time == H5D_ALLOC_TIME_EARLY)
-            if(H5D_alloc_storage(dataset->oloc.file, dxpl_id, dataset, H5D_ALLOC_EXTEND, FALSE) < 0)
+            if(H5D_alloc_storage(dataset, dxpl_id, H5D_ALLOC_EXTEND, FALSE) < 0)
                 HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to initialize dataset with fill value")
 
         /* Mark the dataspace as dirty, for later writing to the file */

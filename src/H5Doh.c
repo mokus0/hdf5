@@ -48,7 +48,8 @@
 static void *H5O_dset_get_copy_file_udata(void);
 static void H5O_dset_free_copy_file_udata(void *);
 static htri_t H5O_dset_isa(H5O_t *loc);
-static hid_t H5O_dset_open(const H5G_loc_t *obj_loc, hid_t dxpl_id);
+static hid_t H5O_dset_open(const H5G_loc_t *obj_loc, hid_t dxpl_id,
+    hbool_t app_ref);
 static void *H5O_dset_create(H5F_t *f, void *_crt_info, H5G_loc_t *obj_loc,
     hid_t dxpl_id);
 static H5O_loc_t *H5O_dset_get_oloc(hid_t obj_id);
@@ -151,11 +152,11 @@ H5O_dset_free_copy_file_udata(void *_udata)
         H5T_close(udata->src_dtype);
 
     /* Release copy of dataset's filter pipeline, if it was set */
-    if (udata->src_pline)
+    if(udata->src_pline)
         H5O_msg_free(H5O_PLINE_ID, udata->src_pline);
 
     /* Release space for 'copy file' user data */
-    H5FL_FREE(H5D_copy_file_ud_t, udata);
+    (void)H5FL_FREE(H5D_copy_file_ud_t, udata);
 
     FUNC_LEAVE_NOAPI_VOID
 } /* end H5O_dset_free_copy_file_udata() */
@@ -219,7 +220,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static hid_t
-H5O_dset_open(const H5G_loc_t *obj_loc, hid_t dxpl_id)
+H5O_dset_open(const H5G_loc_t *obj_loc, hid_t dxpl_id, hbool_t app_ref)
 {
     H5D_t       *dset = NULL;           /* Dataset opened */
     hid_t	ret_value;              /* Return value */
@@ -233,7 +234,7 @@ H5O_dset_open(const H5G_loc_t *obj_loc, hid_t dxpl_id)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTOPENOBJ, FAIL, "unable to open dataset")
 
     /* Register an ID for the dataset */
-    if((ret_value = H5I_register(H5I_DATASET, dset)) < 0)
+    if((ret_value = H5I_register(H5I_DATASET, dset, app_ref)) < 0)
         HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register dataset")
 
 done:
@@ -361,7 +362,7 @@ H5O_dset_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh, H5_ih_info_t *bh_info)
 
     /* Check for chunked dataset storage */
     if((layout.type == H5D_CHUNKED) && H5F_addr_defined(layout.u.chunk.addr))
-        if(H5D_istore_bh_info(f, dxpl_id, &layout, &(bh_info->index_size)) < 0)
+        if(H5D_chunk_bh_info(f, dxpl_id, &layout, &(bh_info->index_size)) < 0)
             HGOTO_ERROR(H5E_OHDR, H5E_CANTGET, FAIL, "can't determine chunked dataset btree info")
 
 done:

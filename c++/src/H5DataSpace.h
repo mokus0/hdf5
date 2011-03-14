@@ -103,7 +103,7 @@ class H5_DLLCPP DataSpace : public IdComponent {
 	// Sets or resets the size of this dataspace.
 	void setExtentSimple( int rank, const hsize_t *current_size, const hsize_t *maximum_size = NULL ) const;
 
-	// Returns this class name
+	///\brief Returns this class name
 	virtual H5std_string fromClass () const { return("DataSpace"); }
 
 	// Creates a DataSpace object using an existing dataspace id.
@@ -114,13 +114,16 @@ class H5_DLLCPP DataSpace : public IdComponent {
 
 	// Gets the dataspace id.
 	virtual hid_t getId() const;
-	virtual void setId(const hid_t new_id);
 
 	// Destructor: properly terminates access to this dataspace.
 	virtual ~DataSpace();
 
    private:
 	hid_t id;       // HDF5 dataspace id
+
+   protected:
+	// Sets the dataspace id.
+	virtual void p_setId(const hid_t new_id);
 };
 #ifndef H5_NO_NAMESPACE
 }

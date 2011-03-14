@@ -34,7 +34,7 @@ class H5_DLLCPP Group : public H5Object, public CommonFG {
 	// Retrieves a dataspace with the region pointed to selected.
 	DataSpace getRegion(void *ref, H5R_type_t ref_type = H5R_DATASET_REGION) const;
 
-	// Returns this class name
+	///\brief Returns this class name
 	virtual H5std_string fromClass () const { return("Group"); }
 
 	// Throw group exception.
@@ -44,8 +44,9 @@ class H5_DLLCPP Group : public H5Object, public CommonFG {
 	virtual hid_t getLocId() const;
 
 	// Creates a group by way of dereference.
-	Group(H5Object& obj, void* ref);
-	Group(H5File& obj, void* ref);
+	Group(H5Object& obj, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+        Group(H5File& h5file, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+        Group(Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
 
 	// default constructor
 	Group();
@@ -55,7 +56,6 @@ class H5_DLLCPP Group : public H5Object, public CommonFG {
 
 	// Gets the group id.
 	virtual hid_t getId() const;
-	virtual void setId(const hid_t new_id);
 
 	// Destructor
 	virtual ~Group();
@@ -65,6 +65,10 @@ class H5_DLLCPP Group : public H5Object, public CommonFG {
 
    private:
 	hid_t id;	// HDF5 group id
+
+   protected:
+	// Sets the group id.
+	virtual void p_setId(const hid_t new_id);
 };
 #ifndef H5_NO_NAMESPACE
 }

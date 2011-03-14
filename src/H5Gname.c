@@ -67,9 +67,6 @@ typedef struct H5G_gnba_iter_t {
 /* Declare extern the PQ free list for the wrapped strings */
 H5FL_BLK_EXTERN(str_buf);
 
-/* Declare the free list to manage haddr_t's */
-H5FL_DEFINE_STATIC(haddr_t);
-
 /* PRIVATE PROTOTYPES */
 static htri_t H5G_common_path(const H5RS_str_t *fullpath_r, const H5RS_str_t *prefix_r);
 static H5RS_str_t *H5G_build_fullpath(const char *prefix, const char *name);
@@ -455,17 +452,17 @@ H5G_get_name(hid_t id, char *name/*out*/, size_t size, hid_t lapl_id,
 	    hid_t	  file;
 
             /* Retrieve file ID for name search */
-	    if((file = H5I_get_file_id(id)) < 0)
+	    if((file = H5I_get_file_id(id, FALSE)) < 0)
 		HGOTO_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "can't retrieve file ID")
 
             /* Search for name of object */
 	    if((len = H5G_get_name_by_addr(file, lapl_id, dxpl_id, loc.oloc, name, size)) < 0) {
-                H5I_dec_ref(file);
+                H5I_dec_ref(file, FALSE);
 		HGOTO_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "can't determine name")
             } /* end if */
-	
+
             /* Close file ID used for search */
-	    if(H5I_dec_ref(file) < 0)
+	    if(H5I_dec_ref(file, FALSE) < 0)
 		HGOTO_ERROR(H5E_SYM, H5E_CANTCLOSEFILE, FAIL, "can't determine name")
 	} /* end else */
 
@@ -473,7 +470,7 @@ H5G_get_name(hid_t id, char *name/*out*/, size_t size, hid_t lapl_id,
         ret_value = len;
     } /* end if */
 
-done: 
+done:
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5G_get_name() */
 
@@ -703,19 +700,19 @@ H5G_name_replace_cb(void *obj_ptr, hid_t obj_id, void *key)
         HGOTO_DONE(SUCCEED)     /* No need to look at object, it's path is already invalid */
 
     /* Find the top file in object's mount hier. */
-    if(oloc->file->mtab.parent) {
+    if(oloc->file->parent) {
         /* Check if object is in child file (for mount & unmount operations) */
         if(names->dst_file && oloc->file->shared == names->dst_file->shared)
             obj_in_child = TRUE;
 
         /* Find the "top" file in the chain of mounted files */
-        top_obj_file = oloc->file->mtab.parent;
-        while(top_obj_file->mtab.parent != NULL) {
+        top_obj_file = oloc->file->parent;
+        while(top_obj_file->parent != NULL) {
             /* Check if object is in child mount hier. (for mount & unmount operations) */
             if(names->dst_file && top_obj_file->shared == names->dst_file->shared)
                 obj_in_child = TRUE;
 
-            top_obj_file = top_obj_file->mtab.parent;
+            top_obj_file = top_obj_file->parent;
         } /* end while */
     } /* end if */
     else
@@ -917,7 +914,7 @@ done:
  */
 herr_t
 H5G_name_replace(const H5O_link_t *lnk, H5G_names_op_t op, H5F_t *src_file,
-    H5RS_str_t *src_full_path_r, H5F_t *dst_file, H5RS_str_t *dst_full_path_r, 
+    H5RS_str_t *src_full_path_r, H5F_t *dst_file, H5RS_str_t *dst_full_path_r,
     hid_t dxpl_id)
 {
     herr_t ret_value = SUCCEED;
@@ -1000,8 +997,8 @@ H5G_name_replace(const H5O_link_t *lnk, H5G_names_op_t op, H5F_t *src_file,
             H5G_names_t names;          /* Structure to hold operation information for callback */
 
             /* Find top file in src location's mount hierarchy */
-            while(src_file->mtab.parent)
-                src_file = src_file->mtab.parent;
+            while(src_file->parent)
+                src_file = src_file->parent;
 
             /* Set up common information for callback */
             names.src_file = src_file;
@@ -1012,15 +1009,15 @@ H5G_name_replace(const H5O_link_t *lnk, H5G_names_op_t op, H5F_t *src_file,
 
             /* Search through group IDs */
             if(search_group)
-                H5I_search(H5I_GROUP, H5G_name_replace_cb, &names);
+                H5I_search(H5I_GROUP, H5G_name_replace_cb, &names, FALSE);
 
             /* Search through dataset IDs */
             if(search_dataset)
-                H5I_search(H5I_DATASET, H5G_name_replace_cb, &names);
+                H5I_search(H5I_DATASET, H5G_name_replace_cb, &names, FALSE);
 
             /* Search through datatype IDs */
             if(search_datatype)
-                H5I_search(H5I_DATATYPE, H5G_name_replace_cb, &names);
+                H5I_search(H5I_DATATYPE, H5G_name_replace_cb, &names, FALSE);
         } /* end if */
     } /* end if */
 
@@ -1089,8 +1086,8 @@ H5G_get_name_by_addr_cb(hid_t gid, const char *path, const H5L_info_t *linfo,
             HGOTO_DONE(H5_ITER_STOP)
         } /* end if */
     } /* end if */
-   
-done:    
+
+done:
     if(obj_found && H5G_loc_free(&obj_loc) < 0)
         HDONE_ERROR(H5E_SYM, H5E_CANTRELEASE, H5_ITER_ERROR, "can't free location")
 
@@ -1140,7 +1137,7 @@ H5G_get_name_by_addr(hid_t file, hid_t lapl_id, hid_t dxpl_id, const H5O_loc_t *
         udata.lapl_id = lapl_id;
         udata.dxpl_id = dxpl_id;
         udata.path = NULL;
-        
+
         /* Visit all the links in the file */
         if((status = H5G_visit(file, "/", H5_INDEX_NAME, H5_ITER_NATIVE, H5G_get_name_by_addr_cb, &udata, lapl_id, dxpl_id)) < 0)
             HGOTO_ERROR(H5E_SYM, H5E_BADITER, FAIL, "group traversal failed while looking for object name")
@@ -1169,8 +1166,8 @@ H5G_get_name_by_addr(hid_t file, hid_t lapl_id, hid_t dxpl_id, const H5O_loc_t *
     } /* end if */
     else
         ret_value = 0;
-   
-done:    
+
+done:
     /* Release resources */
     H5MM_xfree(udata.path);
 

@@ -119,6 +119,9 @@
 /* Define to 1 if you have the `ftello' function. */
 #undef HAVE_FTELLO
 
+/* Define to 1 if you have the `ftruncate64' function. */
+#undef HAVE_FTRUNCATE64
+
 /* Define if the compiler understand the __FUNCTION__ keyword */
 #undef HAVE_FUNCTION
 
@@ -433,6 +436,9 @@
 /* Define if your system can handle special collective IO properly. */
 #undef MPI_SPECIAL_COLLECTIVE_IO_WORKS
 
+/* Define if we can violate pointer alignment restrictions */
+#undef NO_ALIGNMENT_RESTRICTIONS
+
 /* Define if deprecated public API symbols are disabled */
 #undef NO_DEPRECATED_SYMBOLS
 
@@ -600,7 +606,7 @@
 #undef ULONG_TO_FP_BOTTOM_BIT_ACCURATE
 
 /* Define using v1.6 public API symbols by default */
-#undef USE_16_API
+#undef USE_16_API_DEFAULT
 
 /* Define if a memory checking tool will be used on the library, to cause
    library to be very picky about memory operations and also disable the

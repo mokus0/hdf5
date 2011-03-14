@@ -48,11 +48,7 @@ class H5_DLLCPP Attribute : public AbstractDs, public IdComponent {
 	void write(const DataType& mem_type, const void *buf ) const;
 	void write(const DataType& mem_type, const H5std_string& strg ) const;
 
-	// Creates an attribute by way of dereference.
-	Attribute(H5Object& obj, void* ref);
-	Attribute(H5File& file, void* ref);
-
-	// Returns this class name
+	///\brief Returns this class name
 	virtual H5std_string fromClass () const { return("Attribute"); }
 
 	// Creates a copy of an existing attribute using the attribute id
@@ -64,12 +60,15 @@ class H5_DLLCPP Attribute : public AbstractDs, public IdComponent {
 	// Default constructor
 	Attribute();
 
-	// Gets/Sets the attribute id.
+	// Gets the attribute id.
 	virtual hid_t getId() const;
-	virtual void setId(const hid_t new_id);
 
 	// Destructor: properly terminates access to this attribute.
 	virtual ~Attribute();
+
+   protected:
+	// Sets the attribute id.
+	virtual void p_setId(const hid_t new_id);
 
    private:
 	hid_t id;	// HDF5 attribute id

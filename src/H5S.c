@@ -43,7 +43,6 @@ static herr_t H5S_set_extent_simple (H5S_t *space, unsigned rank,
 static htri_t H5S_is_simple(const H5S_t *sdim);
 static herr_t H5S_encode(H5S_t *obj, unsigned char *buf, size_t *nalloc);
 static H5S_t *H5S_decode(const unsigned char *buf);
-static htri_t H5S_extent_equal(const H5S_t *ds1, const H5S_t *ds2);
 
 #ifdef H5_HAVE_PARALLEL
 /* Global vars whose value can be set from environment variable also */
@@ -123,7 +122,7 @@ H5S_term_interface(void)
 
     if(H5_interface_initialize_g) {
 	if((n = H5I_nmembers(H5I_DATASPACE))) {
-	    H5I_clear_type(H5I_DATASPACE, FALSE);
+	    H5I_clear_type(H5I_DATASPACE, FALSE, FALSE);
 	} /* end if */
         else {
 	    /* Free data types */
@@ -250,7 +249,7 @@ H5Screate(H5S_class_t type)
         HGOTO_ERROR(H5E_DATASPACE, H5E_CANTCREATE, FAIL, "unable to create dataspace")
 
     /* Atomize */
-    if((ret_value = H5I_register (H5I_DATASPACE, new_ds)) < 0)
+    if((ret_value = H5I_register (H5I_DATASPACE, new_ds, TRUE)) < 0)
         HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register data space atom")
 
 done:
@@ -325,7 +324,7 @@ H5S_close(H5S_t *ds)
     H5S_extent_release(&ds->extent);
 
     /* Release the main structure */
-    H5FL_FREE(H5S_t, ds);
+    (void)H5FL_FREE(H5S_t, ds);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -361,7 +360,7 @@ H5Sclose(hid_t space_id)
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data space")
 
     /* When the reference count reaches zero the resources are freed */
-    if (H5I_dec_ref(space_id) < 0)
+    if (H5I_dec_ref(space_id, TRUE) < 0)
         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "problem freeing id")
 
 done:
@@ -404,7 +403,7 @@ H5Scopy(hid_t space_id)
         HGOTO_ERROR(H5E_DATASPACE, H5E_CANTINIT, FAIL, "unable to copy data space")
 
     /* Atomize */
-    if ((ret_value=H5I_register (H5I_DATASPACE, dst))<0)
+    if ((ret_value=H5I_register (H5I_DATASPACE, dst, TRUE))<0)
         HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register data space atom")
 
 done:
@@ -1015,7 +1014,7 @@ H5S_read(const H5O_loc_t *loc, hid_t dxpl_id)
 done:
     if(ret_value == NULL) {
         if(ds != NULL)
-            H5FL_FREE(H5S_t, ds);
+            (void)H5FL_FREE(H5S_t, ds);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1309,7 +1308,7 @@ H5Screate_simple(int rank, const hsize_t dims[/*rank*/],
         HGOTO_ERROR(H5E_DATASPACE, H5E_CANTCREATE, FAIL, "can't create simple dataspace")
 
     /* Atomize */
-    if ((ret_value=H5I_register (H5I_DATASPACE, space))<0)
+    if ((ret_value=H5I_register (H5I_DATASPACE, space, TRUE))<0)
         HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register dataspace ID")
 
 done:
@@ -1510,7 +1509,7 @@ H5Sdecode(const void *buf)
 	HGOTO_ERROR(H5E_DATASPACE, H5E_CANTDECODE, FAIL, "can't decode object")
 
     /* Register the type and return the ID */
-    if((ret_value = H5I_register(H5I_DATASPACE, ds)) < 0)
+    if((ret_value = H5I_register(H5I_DATASPACE, ds, TRUE)) < 0)
 	HGOTO_ERROR(H5E_DATASPACE, H5E_CANTREGISTER, FAIL, "unable to register dataspace")
 
 done:
@@ -1577,7 +1576,7 @@ H5S_decode(const unsigned char *buf)
 	HGOTO_ERROR(H5E_DATASPACE, H5E_CANTCOPY, NULL, "can't copy object")
     if(H5S_extent_release(extent) < 0)
         HGOTO_ERROR(H5E_RESOURCE, H5E_CANTDELETE, NULL, "can't release previous dataspace")
-    H5FL_FREE(H5S_extent_t, extent);
+    (void)H5FL_FREE(H5S_extent_t, extent);
 
     /* Initialize to "all" selection. Deserialization relies on valid existing selection. */
     if(H5S_select_all(ds, FALSE) < 0)
@@ -1933,7 +1932,7 @@ done:
  DESCRIPTION
 	Compare two dataspaces if their extents are identical.
 --------------------------------------------------------------------------*/
-static htri_t
+htri_t
 H5S_extent_equal(const H5S_t *ds1, const H5S_t *ds2)
 {
     unsigned u;                 /* Local index variable */

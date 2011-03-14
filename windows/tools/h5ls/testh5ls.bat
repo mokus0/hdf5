@@ -160,6 +160,7 @@ rem ############################################################################
     call :tooltest tall-1.ls 0 -w80 tall.h5
     call :tooltest tall-2.ls 0 -w80 -r -d tall.h5
     call :tooltest tgroup.ls 0 -w80 tgroup.h5
+    call :tooltest tgroup-3.ls 0 -w80 tgroup.h5/g1
 
     rem test for displaying groups
     call :tooltest tgroup-1.ls 1 -w80 -r -g tgroup.h5
@@ -173,6 +174,13 @@ rem ############################################################################
 
     rem test for displaying external and user-defined links
     call :tooltest textlink-1.ls 0 -w80 -r textlink.h5
+    call :tooltest textlinksrc-1.ls 0 -w80 -Er textlinksrc.h5
+    call :tooltest textlinksrc-2.ls 0 -w80 -Erv textlinksrc.h5/ext_link5
+    call :tooltest textlinksrc-3.ls 0 -w80 -Er textlinksrc.h5/ext_link1
+    call :tooltest textlinksrc-4.ls 0 -w80 -r textlinksrc.h5
+    call :tooltest textlinksrc-5.ls 0 -w80 -r textlinksrc.h5/ext_link1
+    call :tooltest textlinksrc-6.ls 0 -w80 -E textlinksrc.h5
+    call :tooltest textlinksrc-7.ls 0 -w80 -E textlinksrc.h5/ext_link1
     call :tooltest tudlink-1.ls 0 -w80 -r tudlink.h5
 
     rem tests for hard links

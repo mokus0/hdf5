@@ -53,24 +53,27 @@ static struct long_options l_opts[] = {
  *-------------------------------------------------------------------------
  */
 
-void parse_command_line(int argc, 
-                        const char* argv[], 
-                        const char** fname1, 
+void parse_command_line(int argc,
+                        const char* argv[],
+                        const char** fname1,
                         const char** fname2,
-                        const char** objname1, 
-                        const char** objname2, 
+                        const char** objname1,
+                        const char** objname2,
                         diff_opt_t* options)
 {
-    
+
     int opt;
 
     /* process the command-line */
     memset(options, 0, sizeof (diff_opt_t));
-    
+
+    /* assume equal contents initially */
+    options->contents = 1;
+
     /* parse command line options */
-    while ((opt = get_option(argc, argv, s_opts, l_opts)) != EOF) 
+    while ((opt = get_option(argc, argv, s_opts, l_opts)) != EOF)
     {
-        switch ((char)opt) 
+        switch ((char)opt)
         {
         default:
             usage();
@@ -93,7 +96,7 @@ void parse_command_line(int argc,
             break;
         case 'd':
             options->d=1;
-            
+
             if ( check_d_input( opt_arg )==-1)
             {
                 printf("<-d %s> is not a valid option\n", opt_arg );
@@ -104,7 +107,7 @@ void parse_command_line(int argc,
             break;
 
         case 'p':
-            
+
             options->p=1;
             if ( check_p_input( opt_arg )==-1)
             {
@@ -116,7 +119,7 @@ void parse_command_line(int argc,
             break;
 
         case 'n':
-            
+
             options->n=1;
             if ( check_n_input( opt_arg )==-1)
             {
@@ -125,13 +128,13 @@ void parse_command_line(int argc,
                 h5diff_exit(EXIT_FAILURE);
             }
             options->count = atol( opt_arg );
-            
+
             break;
         }
     }
-    
+
     /* check for file names to be processed */
-    if (argc <= opt_ind || argv[ opt_ind + 1 ] == NULL) 
+    if (argc <= opt_ind || argv[ opt_ind + 1 ] == NULL)
     {
         error_msg(progname, "missing file names\n");
         usage();
@@ -148,7 +151,7 @@ void parse_command_line(int argc,
         return;
     }
 
-    if ( argv[ opt_ind + 3 ] != NULL) 
+    if ( argv[ opt_ind + 3 ] != NULL)
     {
         *objname2 = argv[ opt_ind + 3 ];
     }
@@ -157,8 +160,9 @@ void parse_command_line(int argc,
         *objname2 = *objname1;
     }
 
-   
+
 }
+
 
 /*-------------------------------------------------------------------------
  * Function: print_info
@@ -170,16 +174,16 @@ void parse_command_line(int argc,
 
  void  print_info(diff_opt_t* options)
  {
-     if (options->m_quiet || options->err_stat)
+     if (options->m_quiet || options->err_stat )
          return;
-     
+
      if (options->cmn_objs==0)
      {
          printf("No common objects found. Files are not comparable.\n");
          if (!options->m_verbose)
              printf("Use -v for a list of objects.\n");
      }
-     
+
      if (options->not_cmp==1)
      {
          printf("--------------------------------\n");
@@ -188,7 +192,7 @@ void parse_command_line(int argc,
          if (!options->m_verbose)
              printf("Use -v for a list of objects.\n");
      }
-     
+
  }
 
 /*-------------------------------------------------------------------------
@@ -212,7 +216,7 @@ int check_n_input( const char *str )
 {
     unsigned i;
     char c;
-    
+
     for ( i = 0; i < strlen(str); i++)
     {
         c = str[i];
@@ -246,18 +250,18 @@ int check_n_input( const char *str )
 int check_p_input( const char *str )
 {
     double x;
-    
+
     /*
     the atof return value on a hexadecimal input is different
     on some systems; we do a character check for this
     */
     if (strlen(str)>2 && str[0]=='0' && str[1]=='x')
         return -1;
-    
+
     x=atof(str);
     if (x<=0)
         return -1;
-    
+
     return 1;
 }
 
@@ -279,18 +283,18 @@ int check_p_input( const char *str )
 int check_d_input( const char *str )
 {
     double x;
-    
+
     /*
     the atof return value on a hexadecimal input is different
     on some systems; we do a character check for this
     */
     if (strlen(str)>2 && str[0]=='0' && str[1]=='x')
         return -1;
-    
+
     x=atof(str);
     if (x <=0)
         return -1;
-    
+
     return 1;
 }
 
@@ -318,12 +322,12 @@ void usage(void)
  printf("   -V, --version           Print version number and exit\n");
  printf("   -r, --report            Report mode. Print differences\n");
  printf("   -v, --verbose           Verbose mode. Print differences, list of objects\n");
-  
  printf("   -q, --quiet             Quiet mode. Do not do output\n");
+
  printf("   -n C, --count=C         Print differences up to C number\n");
  printf("   -d D, --delta=D         Print difference when greater than limit D\n");
  printf("   -p R, --relative=R      Print difference when greater than relative limit R\n");
- 
+
 
  printf("\n");
 
@@ -342,9 +346,22 @@ void usage(void)
 
  printf("\n");
 
+ printf(" Compare criteria\n");
+ printf("\n");
+ printf(" If no objects [obj1[obj2]] are specified, h5diff only compares objects\n");
+ printf("   with the same absolute path in both files\n");
+ printf("\n");
+
+ printf(" The compare criteria is:\n");
+ printf("   1) datasets: numerical array differences 2) groups: name string difference\n");
+ printf("   3) datatypes: the return value of H5Tequal 2) links: name string difference\n");
+ printf("   of the linked value\n");
+
+ printf("\n");
+
  printf(" Return exit code:\n");
  printf("\n");
- printf("  1 if differences found, 0 if no differences, -1 if error\n");
+ printf("  1 if differences found, 0 if no differences, 2 if error\n");
 
  printf("\n");
 
@@ -368,11 +385,7 @@ void usage(void)
  printf("\n");
  printf("    to compare '/g1/dset1' and '/g1/dset2' in the same file\n");
  printf("\n");
- printf(" If no objects [obj1[obj2]] are specified, h5diff only compares objects\n");
- printf("   with the same absolute path in both files. The compare criteria is:\n");
- printf("   1) datasets: numerical array differences 2) groups: name string difference\n");
- printf("   3) datatypes: the return value of H5Tequal 2) links: name string difference\n");
- printf("   of the linked value\n");
+
 
 }
 

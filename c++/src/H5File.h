@@ -60,12 +60,12 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 
 	// Returns the number of opened object IDs (files, datasets, groups
 	// and datatypes) in the same file.
-	int getObjCount(unsigned types) const;
-	int getObjCount() const;
+	ssize_t getObjCount(unsigned types) const;
+	ssize_t getObjCount() const;
 
 	// Retrieves a list of opened object IDs (files, datasets, groups
 	// and datatypes) in the same file.
-	void getObjIDs(unsigned types, int max_objs, hid_t *oid_list) const;
+	void getObjIDs(unsigned types, size_t max_objs, hid_t *oid_list) const;
 
 #ifndef H5_NO_DEPRECATED_SYMBOLS
 	// Retrieves the type of object that an object reference points to.
@@ -94,7 +94,7 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	void reference(void* ref, const char* name) const;
 	void reference(void* ref, const H5std_string& name) const;
 
-	// Returns this class name
+	///\brief Returns this class name
 	virtual H5std_string fromClass () const { return("H5File"); }
 
 	// Throw file exception.
@@ -109,9 +109,8 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	// Copy constructor: makes a copy of the original H5File object.
 	H5File(const H5File& original);
 
-	// Gets/Sets the HDF5 file id.
+	// Gets the HDF5 file id.
 	virtual hid_t getId() const;
-	virtual void setId(const hid_t new_id);
 
 	// H5File destructor.
 	virtual ~H5File();
@@ -135,6 +134,10 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 
 	// Retrieves a dataspace with the region pointed to selected.
 	hid_t p_get_region(void *ref, H5R_type_t ref_type) const;
+
+   protected:
+	// Sets the HDF5 file id.
+	virtual void p_setId(const hid_t new_id);
 
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 

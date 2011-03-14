@@ -497,7 +497,7 @@ HDstrtoll(const char *s, const char **rest, int base)
 	if (sign>0) {
 	    acc = ((uint64_t)1<<(8*sizeof(int64_t)-1))-1;
 	} else {
-	    acc = (uint64_t)1<<(8*sizeof(int64_t)-1);
+	    acc = (int64_t)((uint64_t)1<<(8*sizeof(int64_t)-1));
 	}
 	errno = ERANGE;
     }
@@ -597,6 +597,9 @@ HDremove_all(const char *fname)
  *
  * Programmer:	Vailin Choi
  *		April 2, 2008
+ *	Modifications: 2nd Oct, 2008; Vailin Choi
+ *		Remove compiler warning for "if condition"
+ *
  *-------------------------------------------------------------------------
  */
 #define MAX_PATH_LEN     1024
@@ -614,7 +617,7 @@ H5_build_extpath(const char *name, char **extpath/*out*/)
 
     *extpath = NULL;
 
-    /* 
+    /*
      * Unix: name[0] is a "/"
      * Windows: name[0-2] is "<drive letter>:\" or "<drive-letter>:/"
      */
@@ -622,26 +625,26 @@ H5_build_extpath(const char *name, char **extpath/*out*/)
         if ((full_path=H5MM_strdup(name)) == NULL)
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
     } else { /* relative pathname */
-        if ((cwdpath=H5MM_malloc(MAX_PATH_LEN)) == NULL)
+        if (NULL == (cwdpath = (char *)H5MM_malloc(MAX_PATH_LEN)))
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
-        if ((new_name=H5MM_strdup(name)) == NULL)
+        if (NULL == (new_name = (char *)H5MM_strdup(name)))
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
 
-	/* 
+	/*
 	 * Windows: name[0-1] is "<drive-letter>:"
-	 * 	Get current working directory on the drive specified in NAME 
+	 * 	Get current working directory on the drive specified in NAME
 	 * Unix: does not apply
 	 */
         if (CHECK_ABS_DRIVE(name)) {
             drive = name[0] - 'A' + 1;
             retcwd = HDgetdcwd(drive, cwdpath, MAX_PATH_LEN);
             HDstrcpy(new_name, &name[2]);
-	/* 
-	 * Windows: name[0] is a '/' or '\' 
+	/*
+	 * Windows: name[0] is a '/' or '\'
 	 *	Get current drive
 	 * Unix: does not apply
 	 */
-        } else if (CHECK_ABS_PATH(name) && (drive=HDgetdrive())) {
+        } else if (CHECK_ABS_PATH(name) && ((drive=HDgetdrive()) != 0)) {
             sprintf(cwdpath, "%c:%c", (drive+'A'-1), name[0]);
             retcwd = cwdpath;
             HDstrcpy(new_name, &name[1]);
@@ -652,7 +655,7 @@ H5_build_extpath(const char *name, char **extpath/*out*/)
             cwdlen = HDstrlen(cwdpath);
             HDassert(cwdlen);
             path_len = cwdlen + HDstrlen(new_name) + 2;
-            if ((full_path=H5MM_malloc(path_len)) == NULL)
+            if (NULL == (full_path = (char *)H5MM_malloc(path_len)))
                 HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
 
             HDstrcpy(full_path, cwdpath);

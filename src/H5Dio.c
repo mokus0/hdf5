@@ -164,9 +164,9 @@ H5Dread(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no output buffer")
 
     /* If the buffer is nil, and 0 element is selected, make a fake buffer.
-     * This is for some MPI package like ChaMPIon on NCSA's tungsten which 
-     * doesn't support this feature. 
-     */ 
+     * This is for some MPI package like ChaMPIon on NCSA's tungsten which
+     * doesn't support this feature.
+     */
     if(!buf)
         buf = &fake_char;
 
@@ -254,11 +254,11 @@ H5Dwrite(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not xfer parms")
     if(!buf && H5S_GET_SELECT_NPOINTS(file_space) != 0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no output buffer")
-    
+
     /* If the buffer is nil, and 0 element is selected, make a fake buffer.
-     * This is for some MPI package like ChaMPIon on NCSA's tungsten which 
-     * doesn't support this feature. 
-     */ 
+     * This is for some MPI package like ChaMPIon on NCSA's tungsten which
+     * doesn't support this feature.
+     */
     if(!buf)
         buf = &fake_char;
 
@@ -392,7 +392,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
                 || dataset->shared->layout.type == H5D_COMPACT);
 
     /* Call storage method's I/O initialization routine */
-    if(io_info.layout_ops.init && (*io_info.layout_ops.init)(&io_info, &type_info, nelmts, file_space, mem_space, &fm) < 0)
+    if(io_info.layout_ops.io_init && (*io_info.layout_ops.io_init)(&io_info, &type_info, nelmts, file_space, mem_space, &fm) < 0)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "can't initialize I/O info")
     io_op_init = TRUE;
 
@@ -408,7 +408,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
 done:
     /* Shut down the I/O op information */
-    if(io_op_init && io_info.layout_ops.term && (*io_info.layout_ops.term)(&fm) < 0)
+    if(io_op_init && io_info.layout_ops.io_term && (*io_info.layout_ops.io_term)(&fm) < 0)
         HDONE_ERROR(H5E_DATASET, H5E_CANTCLOSEOBJ, FAIL, "unable to shut down I/O op info")
 #ifdef H5_HAVE_PARALLEL
     /* Shut down io_info struct */
@@ -553,7 +553,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
             full_overwrite = (hsize_t)file_nelmts == nelmts ? TRUE : FALSE;
 
  	/* Allocate storage */
-        if(H5D_alloc_storage(dataset->oloc.file, dxpl_id, dataset, H5D_ALLOC_WRITE, full_overwrite) < 0)
+        if(H5D_alloc_storage(dataset, dxpl_id, H5D_ALLOC_WRITE, full_overwrite) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to initialize storage")
     } /* end if */
 
@@ -567,7 +567,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 #endif /*H5_HAVE_PARALLEL*/
 
     /* Call storage method's I/O initialization routine */
-    if(io_info.layout_ops.init && (*io_info.layout_ops.init)(&io_info, &type_info, nelmts, file_space, mem_space, &fm) < 0)
+    if(io_info.layout_ops.io_init && (*io_info.layout_ops.io_init)(&io_info, &type_info, nelmts, file_space, mem_space, &fm) < 0)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "can't initialize I/O info")
     io_op_init = TRUE;
 
@@ -598,7 +598,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
 done:
     /* Shut down the I/O op information */
-    if(io_op_init && io_info.layout_ops.term && (*io_info.layout_ops.term)(&fm) < 0)
+    if(io_op_init && io_info.layout_ops.io_term && (*io_info.layout_ops.io_term)(&fm) < 0)
         HDONE_ERROR(H5E_DATASET, H5E_CANTCLOSEOBJ, FAIL, "unable to shut down I/O op info")
 #ifdef H5_HAVE_PARALLEL
     /* Shut down io_info struct */
@@ -646,11 +646,11 @@ H5D_ioinfo_init(H5D_t *dset, const H5D_dxpl_cache_t *dxpl_cache, hid_t dxpl_id,
     io_info->store = store;
 
     /* Set I/O operations to initial values */
-    io_info->layout_ops = *dset->shared->layout_ops;
+    io_info->layout_ops = *dset->shared->layout.ops;
 
     /* Set the "high-level" I/O operations for the dataset */
-    io_info->io_ops.multi_read = dset->shared->layout_ops->ser_read;
-    io_info->io_ops.multi_write = dset->shared->layout_ops->ser_write;
+    io_info->io_ops.multi_read = dset->shared->layout.ops->ser_read;
+    io_info->io_ops.multi_write = dset->shared->layout.ops->ser_write;
 
     /* Set the I/O operations for reading/writing single blocks on disk */
     if(type_info->is_xform_noop && type_info->is_conv_noop) {
@@ -698,7 +698,7 @@ H5D_typeinfo_init(const H5D_t *dset, const H5D_dxpl_cache_t *dxpl_cache,
 {
     const H5T_t	*src_type;              /* Source datatype */
     const H5T_t	*dst_type;              /* Destination datatype */
-    herr_t	ret_value = SUCCEED;	/* Return value	*/
+    herr_t ret_value = SUCCEED;	        /* Return value	*/
 
     FUNC_ENTER_NOAPI_NOINIT(H5D_typeinfo_init)
 
@@ -707,7 +707,7 @@ H5D_typeinfo_init(const H5D_t *dset, const H5D_dxpl_cache_t *dxpl_cache,
     HDassert(dset);
 
     /* Initialize type info safely */
-    HDmemset(type_info, 0, sizeof(H5D_type_info_t));
+    HDmemset(type_info, 0, sizeof(*type_info));
 
     /* Get the memory & dataset datatypes */
     if(NULL == (type_info->mem_type = (const H5T_t *)H5I_object_verify(mem_type_id, H5I_DATATYPE)))
@@ -745,7 +745,7 @@ H5D_typeinfo_init(const H5D_t *dset, const H5D_dxpl_cache_t *dxpl_cache,
     type_info->is_conv_noop = H5T_path_noop(type_info->tpath);
     type_info->is_xform_noop = H5Z_xform_noop(dxpl_cache->data_xform_prop);
     if(type_info->is_xform_noop && type_info->is_conv_noop) {
-        type_info->cmpd_subset = H5T_SUBSET_FALSE;
+        type_info->cmpd_subset = NULL;
         type_info->need_bkg = H5T_BKG_NO;
     } /* end if */
     else {
@@ -887,8 +887,8 @@ H5D_ioinfo_adjust(H5D_io_info_t *io_info, const H5D_t *dset,
         /* Check if we can use the optimized parallel I/O routines */
         if(opt == TRUE) {
             /* Override the I/O op pointers to the MPI-specific routines */
-            io_info->io_ops.multi_read = dset->shared->layout_ops->par_read;
-            io_info->io_ops.multi_write = dset->shared->layout_ops->par_write;
+            io_info->io_ops.multi_read = dset->shared->layout.ops->par_read;
+            io_info->io_ops.multi_write = dset->shared->layout.ops->par_write;
             io_info->io_ops.single_read = H5D_mpio_select_read;
             io_info->io_ops.single_write = H5D_mpio_select_write;
         } /* end if */

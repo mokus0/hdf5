@@ -26,7 +26,8 @@
 
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_sdspace_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags, const uint8_t *p);
+static void *H5O_sdspace_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags,
+    unsigned *ioflags, const uint8_t *p);
 static herr_t H5O_sdspace_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_sdspace_copy(const void *_mesg, void *_dest);
 static size_t H5O_sdspace_size(const H5F_t *f, const void *_mesg);
@@ -109,7 +110,7 @@ H5FL_ARR_EXTERN(hsize_t);
 --------------------------------------------------------------------------*/
 static void *
 H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
-    const uint8_t *p)
+    unsigned UNUSED *ioflags, const uint8_t *p)
 {
     H5S_extent_t	*sdim = NULL;/* New extent dimensionality structure */
     void		*ret_value;
@@ -189,7 +190,7 @@ H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
 done:
     if(!ret_value && sdim) {
         H5S_extent_release(sdim);
-        H5FL_FREE(H5S_extent_t, sdim);
+        (void)H5FL_FREE(H5S_extent_t, sdim);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -413,7 +414,7 @@ H5O_sdspace_free(void *mesg)
 
     HDassert(mesg);
 
-    H5FL_FREE(H5S_extent_t, mesg);
+    (void)H5FL_FREE(H5S_extent_t, mesg);
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5O_sdspace_free() */

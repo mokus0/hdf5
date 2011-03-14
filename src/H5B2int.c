@@ -215,7 +215,7 @@ HDmemset(shared->page, 0, shared->node_size);
             shared->node_info[u].split_nrec = (shared->node_info[u].max_nrec * shared->split_percent) / 100;
             shared->node_info[u].merge_nrec = (shared->node_info[u].max_nrec * shared->merge_percent) / 100;
 
-            shared->node_info[u].cum_max_nrec = ((shared->node_info[u].max_nrec + 1) * 
+            shared->node_info[u].cum_max_nrec = ((shared->node_info[u].max_nrec + 1) *
                 shared->node_info[u - 1].cum_max_nrec) + shared->node_info[u].max_nrec;
             shared->node_info[u].cum_max_nrec_size = H5V_limit_enc_size((uint64_t)shared->node_info[u].cum_max_nrec);
 
@@ -290,7 +290,7 @@ H5B2_shared_free(void *_shared)
     } /* end if */
 
     /* Free the shared B-tree info itself */
-    H5FL_FREE(H5B2_shared_t, shared);
+    (void)H5FL_FREE(H5B2_shared_t, shared);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -574,7 +574,7 @@ H5B2_split_root(H5F_t *f, hid_t dxpl_id, H5B2_t *bt2, unsigned *bt2_flags_ptr)
     shared->node_info[shared->depth].max_nrec = H5B2_NUM_INT_REC(f, shared, shared->depth);
     shared->node_info[shared->depth].split_nrec = (shared->node_info[shared->depth].max_nrec * shared->split_percent) / 100;
     shared->node_info[shared->depth].merge_nrec = (shared->node_info[shared->depth].max_nrec * shared->merge_percent) / 100;
-    shared->node_info[shared->depth].cum_max_nrec = ((shared->node_info[shared->depth].max_nrec + 1) * 
+    shared->node_info[shared->depth].cum_max_nrec = ((shared->node_info[shared->depth].max_nrec + 1) *
         shared->node_info[shared->depth - 1].cum_max_nrec) + shared->node_info[shared->depth].max_nrec;
     shared->node_info[shared->depth].cum_max_nrec_size = H5V_limit_enc_size((uint64_t)shared->node_info[shared->depth].cum_max_nrec);
     if((shared->node_info[shared->depth].nat_rec_fac = H5FL_fac_init(shared->type->nrec_size * shared->node_info[shared->depth].max_nrec)) == NULL)
@@ -1350,9 +1350,7 @@ H5B2_merge2(H5F_t *f, hid_t dxpl_id, unsigned depth,
         HGOTO_ERROR(H5E_BTREE, H5E_CANTUNPROTECT, FAIL, "unable to release B-tree child node")
 
     /* Delete right node & remove from cache (marked as dirty) */
-    if(H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, right_addr, (hsize_t)shared->node_size) < 0)
-        HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree leaf node")
-    if(H5AC_unprotect(f, dxpl_id, child_class, right_addr, right_child, H5AC__DIRTIED_FLAG|H5AC__DELETED_FLAG) < 0)
+    if(H5AC_unprotect(f, dxpl_id, child_class, right_addr, right_child, H5AC__DIRTIED_FLAG | H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG) < 0)
         HGOTO_ERROR(H5E_BTREE, H5E_CANTUNPROTECT, FAIL, "unable to release B-tree child node")
 
 done:
@@ -1574,9 +1572,7 @@ H5B2_merge3(H5F_t *f, hid_t dxpl_id, unsigned depth,
         HGOTO_ERROR(H5E_BTREE, H5E_CANTUNPROTECT, FAIL, "unable to release B-tree child node")
 
     /* Delete right node & remove from cache (marked as dirty) */
-    if (H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, right_addr, (hsize_t)shared->node_size) < 0)
-        HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree leaf node")
-    if (H5AC_unprotect(f, dxpl_id, child_class, right_addr, right_child, H5AC__DIRTIED_FLAG|H5AC__DELETED_FLAG) < 0)
+    if(H5AC_unprotect(f, dxpl_id, child_class, right_addr, right_child, H5AC__DIRTIED_FLAG | H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG) < 0)
         HGOTO_ERROR(H5E_BTREE, H5E_CANTUNPROTECT, FAIL, "unable to release B-tree child node")
 
 done:
@@ -2280,12 +2276,8 @@ H5B2_remove_leaf(H5F_t *f, hid_t dxpl_id, H5RC_t *bt2_shared,
             HDmemmove(H5B2_LEAF_NREC(leaf, shared, idx), H5B2_LEAF_NREC(leaf, shared, (idx + 1)), shared->type->nrec_size * (leaf->nrec-idx));
     } /* end if */
     else {
-        /* Release space for B-tree node on disk */
-        if(H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, leaf_addr, (hsize_t)shared->node_size) < 0)
-            HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree leaf node")
-
         /* Let the cache know that the object is deleted */
-        leaf_flags |= H5AC__DELETED_FLAG;
+        leaf_flags |= H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG;
 
         /* Reset address of parent node pointer */
         curr_node_ptr->addr = HADDR_UNDEF;
@@ -2367,12 +2359,8 @@ H5B2_remove_internal(H5F_t *f, hid_t dxpl_id, H5RC_t *bt2_shared,
                 parent_cache_info_flags_ptr, internal, &internal_flags, 0) < 0)
             HGOTO_ERROR(H5E_BTREE, H5E_CANTSPLIT, FAIL, "unable to merge child node")
 
-        /* Release space for root B-tree node on disk */
-        if(H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, internal_addr, (hsize_t)shared->node_size) < 0)
-            HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree leaf node")
-
         /* Let the cache know that the object is deleted */
-        internal_flags |= H5AC__DELETED_FLAG;
+        internal_flags |= H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG;
 
         /* Reset information in header's root node pointer */
         curr_node_ptr->addr = internal->node_ptrs[0].addr;
@@ -2580,12 +2568,8 @@ H5B2_remove_leaf_by_idx(H5F_t *f, hid_t dxpl_id, H5RC_t *bt2_shared,
             HDmemmove(H5B2_LEAF_NREC(leaf, shared, idx), H5B2_LEAF_NREC(leaf, shared, (idx + 1)), shared->type->nrec_size * (leaf->nrec-idx));
     } /* end if */
     else {
-        /* Release space for B-tree node on disk */
-        if(H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, leaf_addr, (hsize_t)shared->node_size) < 0)
-            HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree leaf node")
-
         /* Let the cache know that the object is deleted */
-        leaf_flags |= H5AC__DELETED_FLAG;
+        leaf_flags |= H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG;
 
         /* Reset address of parent node pointer */
         curr_node_ptr->addr = HADDR_UNDEF;
@@ -2671,12 +2655,8 @@ H5B2_remove_internal_by_idx(H5F_t *f, hid_t dxpl_id, H5RC_t *bt2_shared,
                 parent_cache_info_flags_ptr, internal, &internal_flags, 0) < 0)
             HGOTO_ERROR(H5E_BTREE, H5E_CANTSPLIT, FAIL, "unable to merge child node")
 
-        /* Release space for root B-tree node on disk */
-        if(H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, internal_addr, (hsize_t)shared->node_size) < 0)
-            HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree leaf node")
-
         /* Let the cache know that the object is deleted */
-        internal_flags |= H5AC__DELETED_FLAG;
+        internal_flags |= H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG;
 
         /* Reset information in header's root node pointer */
         curr_node_ptr->addr = internal->node_ptrs[0].addr;
@@ -3134,15 +3114,10 @@ H5B2_delete_node(H5F_t *f, hid_t dxpl_id, H5RC_t *bt2_shared, unsigned depth,
         } /* end for */
     } /* end if */
 
-    /* Release space for current B-tree node on disk */
-    if(H5MF_xfree(f, H5FD_MEM_BTREE, dxpl_id, curr_node->addr, (hsize_t)shared->node_size) < 0)
-        HGOTO_ERROR(H5E_BTREE, H5E_CANTFREE, FAIL, "unable to free B-tree node")
-
 done:
     /* Unlock & delete current node */
-    if(node)
-        if(H5AC_unprotect(f, dxpl_id, curr_node_class, curr_node->addr, node, H5AC__DELETED_FLAG) < 0)
-            HDONE_ERROR(H5E_BTREE, H5E_CANTUNPROTECT, FAIL, "unable to release B-tree node")
+    if(node && H5AC_unprotect(f, dxpl_id, curr_node_class, curr_node->addr, node, H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG) < 0)
+        HDONE_ERROR(H5E_BTREE, H5E_CANTUNPROTECT, FAIL, "unable to release B-tree node")
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5B2_delete_node() */
@@ -3150,22 +3125,22 @@ done:
 
 /*-------------------------------------------------------------------------
  * Function:    H5B2_iterate_size_node
- *      
+ *
  * Purpose:     Iterate over all the records from a B-tree node, collecting
  *		btree storage info.
- *  
+ *
  * Return:      non-negative on success, negative on error
- *  
+ *
  * Programmer:  Vailin Choi
  *              July 12 2007
- *      
+ *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5B2_iterate_size_node(H5F_t *f, hid_t dxpl_id, H5RC_t *bt2_shared, unsigned depth,
     const H5B2_node_ptr_t *curr_node, hsize_t *btree_size)
 {
-    H5B2_shared_t 	*shared;        	/* Pointer to B-tree's shared information */    
+    H5B2_shared_t 	*shared;        	/* Pointer to B-tree's shared information */
     H5B2_internal_t 	*internal = NULL;     	/* Pointer to internal node */
     herr_t 		ret_value = SUCCEED;  	/* Iterator return value */
 

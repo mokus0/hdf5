@@ -113,6 +113,7 @@ TOOLTEST help-3.ls 0 -w80 -?
 TOOLTEST tall-1.ls 0 -w80 tall.h5
 TOOLTEST tall-2.ls 0 -w80 -r -d tall.h5
 TOOLTEST tgroup.ls 0 -w80 tgroup.h5
+TOOLTEST tgroup-3.ls 0 -w80 tgroup.h5/g1
 
 # test for displaying groups
 # The following combination of arguments is expected to return an error message
@@ -128,6 +129,13 @@ TOOLTEST tslink-1.ls 0 -w80 -r tslink.h5
 
 # test for displaying external and user-defined links
 TOOLTEST textlink-1.ls 0 -w80 -r textlink.h5
+TOOLTEST textlinksrc-1.ls 0 -w80 -Er textlinksrc.h5
+TOOLTEST textlinksrc-2.ls 0 -w80 -Erv textlinksrc.h5/ext_link5
+TOOLTEST textlinksrc-3.ls 0 -w80 -Er textlinksrc.h5/ext_link1
+TOOLTEST textlinksrc-4.ls 0 -w80 -r textlinksrc.h5
+TOOLTEST textlinksrc-5.ls 0 -w80 -r textlinksrc.h5/ext_link1
+TOOLTEST textlinksrc-6.ls 0 -w80 -E textlinksrc.h5
+TOOLTEST textlinksrc-7.ls 0 -w80 -E textlinksrc.h5/ext_link1
 TOOLTEST tudlink-1.ls 0 -w80 -r tudlink.h5
 
 # tests for hard links

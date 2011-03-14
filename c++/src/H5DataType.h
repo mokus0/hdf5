@@ -30,8 +30,9 @@ class H5_DLLCPP DataType : public H5Object {
 	DataType( const DataType& original );
 
 	// Creates a datatype by way of dereference.
-	DataType(H5Object& obj, void* ref);
-	DataType(H5File& file, void* ref);
+	DataType(H5Object& obj, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+	DataType(H5File& h5file, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
+	DataType(Attribute& attr, const void* ref, H5R_type_t ref_type = H5R_OBJECT);
 
 	// Closes this datatype.
 	virtual void close();
@@ -108,7 +109,7 @@ class H5_DLLCPP DataType : public H5Object {
 	// Retrieves a dataspace with the region pointed to selected.
 	DataSpace getRegion(void *ref, H5R_type_t ref_type = H5R_DATASET_REGION) const;
 
-	// Returns this class name
+	///\brief Returns this class name
 	virtual H5std_string fromClass () const { return("DataType"); }
 
 	// Creates a copy of an existing DataType using its id
@@ -119,13 +120,16 @@ class H5_DLLCPP DataType : public H5Object {
 
 	// Gets the datatype id.
 	virtual hid_t getId() const;
-	virtual void setId(const hid_t new_id);
 
 	// Destructor: properly terminates access to this datatype.
 	virtual ~DataType();
 
    protected:
 	hid_t id;	// HDF5 datatype id
+
+	// Sets the datatype id.
+	virtual void p_setId(const hid_t new_id);
+
    private:
 	void p_commit(hid_t loc_id, const char* name);
 };

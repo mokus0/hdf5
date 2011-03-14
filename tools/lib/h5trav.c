@@ -39,6 +39,9 @@ typedef struct {
 typedef struct {
     trav_addr_t *seen;              /* List of addresses seen already */
     const trav_visitor_t *visitor;  /* Information for visiting each link/object */
+    hbool_t is_absolute;            /* Whether the traversal has absolute paths */
+    const char *base_grp_name;      /* Name of the group that serves as the base
+                                     * for iteration */
 } trav_ud_traverse_t;
 
 typedef struct {
@@ -139,21 +142,36 @@ traverse_cb(hid_t loc_id, const char *path, const H5L_info_t *linfo,
     void *_udata)
 {
     trav_ud_traverse_t *udata = (trav_ud_traverse_t *)_udata;     /* User data */
-    char *full_name;
+    char *new_name = NULL;
+    const char *full_name;
     const char *already_visited = NULL; /* Whether the link/object was already visited */
 
     /* Create the full path name for the link */
-    full_name = HDmalloc(HDstrlen(path) + 2);
-    *full_name = '/';
-    HDstrcpy(full_name + 1, path);
+    if(udata->is_absolute) {
+        size_t base_len = HDstrlen(udata->base_grp_name);
+        size_t add_slash = base_len ? ((udata->base_grp_name)[base_len-1] != '/') : 1;
+            
+        if(NULL == (new_name = HDmalloc(base_len + add_slash + HDstrlen(path) + 1)))
+            return(H5_ITER_ERROR);
+        HDstrcpy(new_name, udata->base_grp_name);
+        if (add_slash)
+            new_name[base_len] = '/';
+        HDstrcpy(new_name + base_len + add_slash, path);
+        full_name = new_name;
+    } /* end if */
+    else
+        full_name = path;
 
     /* Perform the correct action for different types of links */
     if(linfo->type == H5L_TYPE_HARD) {
         H5O_info_t oinfo;
 
         /* Get information about the object */
-        if(H5Oget_info_by_name(loc_id, path, &oinfo, H5P_DEFAULT) < 0)
+        if(H5Oget_info_by_name(loc_id, path, &oinfo, H5P_DEFAULT) < 0) {
+            if(new_name)
+                HDfree(new_name);
             return(H5_ITER_ERROR);
+        }
 
         /* If the object has multiple links, add it to the list of addresses
          *  already visited, if it isn't there already
@@ -164,15 +182,24 @@ traverse_cb(hid_t loc_id, const char *path, const H5L_info_t *linfo,
 
         /* Make 'visit object' callback */
         if(udata->visitor->visit_obj)
-            (*udata->visitor->visit_obj)(full_name, &oinfo, already_visited, udata->visitor->udata);
+            if((*udata->visitor->visit_obj)(full_name, &oinfo, already_visited, udata->visitor->udata) < 0) {
+                if(new_name)
+                    HDfree(new_name);
+                return(H5_ITER_ERROR);
+            }
     } /* end if */
     else {
         /* Make 'visit link' callback */
         if(udata->visitor->visit_lnk)
-            (*udata->visitor->visit_lnk)(full_name, linfo, udata->visitor->udata);
+            if((*udata->visitor->visit_lnk)(full_name, linfo, udata->visitor->udata) < 0) {
+                if(new_name)
+                    HDfree(new_name);
+                return(H5_ITER_ERROR);
+            }
     } /* end else */
 
-    HDfree(full_name);
+    if(new_name)
+        HDfree(new_name);
 
     return(H5_ITER_CONT);
 } /* end traverse_cb() */
@@ -222,6 +249,8 @@ traverse(hid_t file_id, const char *grp_name, hbool_t visit_start,
         /* Set up user data structure */
         udata.seen = &seen;
         udata.visitor = visitor;
+        udata.is_absolute = (*grp_name == '/');
+        udata.base_grp_name = grp_name;
 
         /* Check for iteration of links vs. visiting all links recursively */
         if(recurse) {
@@ -580,32 +609,6 @@ h5trav_getindext(const char *name, const trav_table_t *table)
 
     return -1;
 }
-
-/*-------------------------------------------------------------------------
- * Function: trav_table_search
- *
- * Purpose: Search in the table for OBJNO
- *
- * Return: index of object in table
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: November 4, 2002
- *
- *-------------------------------------------------------------------------
- */
-
-static size_t
-trav_table_search(const trav_table_t *table, haddr_t objno)
-{
-    size_t i;
-
-    for(i = 0; i < table->nobjs; i++)
-        if(table->objs[i].objno == objno)
-            return(i);
-    return(i);
-}
-
 
 /*-------------------------------------------------------------------------
  * Function: trav_table_add

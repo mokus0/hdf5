@@ -78,16 +78,16 @@
  * pointing to this struct.
  */
 typedef struct H5F_file_t {
-    unsigned	flags;		/* Access Permissions for file		*/
     H5FD_t	*lf; 		/* Lower level file handle for I/O	*/
     unsigned	nrefs;		/* Ref count for times file is opened	*/
     uint32_t	consist_flags;	/* File Consistency Flags		*/
+    unsigned	flags;		/* Access Permissions for file		*/
 
     /* Cached values from FCPL */
-    size_t	sizeof_addr;	/* Size of addresses in file            */
-    size_t	sizeof_size;	/* Size of offsets in file              */
     unsigned	sym_leaf_k;	/* Size of leaves in symbol tables      */
     unsigned    btree_k[H5B_NUM_BTREE_ID];  /* B-tree key values for each type  */
+    size_t	sizeof_addr;	/* Size of addresses in file            */
+    size_t	sizeof_size;	/* Size of offsets in file              */
     haddr_t	super_addr;	/* Absolute address of super block	*/
     haddr_t	base_addr;	/* Absolute base address for rel.addrs. */
     haddr_t	freespace_addr;	/* Relative address of free-space info	*/
@@ -96,8 +96,9 @@ typedef struct H5F_file_t {
     unsigned	super_chksum;	/* Superblock checksum                  */
     unsigned	drvr_chksum;	/* Driver info block checksum           */
     H5AC_t      *cache;		/* The object cache			*/
-    hid_t       fcpl_id;	/* File creation property list ID 	*/
     int         mdc_nelmts;	/* Size of meta data cache (elements)	*/
+    hid_t       fcpl_id;	/* File creation property list ID 	*/
+    H5F_close_degree_t fc_degree;   /* File close behavior degree	*/
     size_t	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
     size_t	rdcc_nbytes;	/* Size of raw data chunk cache	(bytes)	*/
     double	rdcc_w0;	/* Preempt read chunks first? [0.0..1.0]*/
@@ -105,11 +106,10 @@ typedef struct H5F_file_t {
     hsize_t	threshold;	/* Threshold for alignment		*/
     hsize_t	alignment;	/* Alignment				*/
     unsigned	gc_ref;		/* Garbage-collect references?		*/
-    struct H5G_t *root_grp;	/* Open root group			*/
     int	ncwfs;			/* Num entries on cwfs list		*/
     struct H5HG_heap_t **cwfs;	/* Global heap cache			*/
+    struct H5G_t *root_grp;	/* Open root group			*/
     H5FO_t *open_objs;          /* Open objects in file                 */
-    H5F_close_degree_t fc_degree;   /* File close behavior degree	*/
     H5RC_t *grp_btree_shared;   /* Ref-counted group B-tree node info   */
 } H5F_file_t;
 
@@ -118,7 +118,7 @@ typedef struct H5F_mount_t {
     struct H5G_t	*group;	/* Mount point group held open		*/
     struct H5F_t	*file;	/* File mounted at that point		*/
 } H5F_mount_t;
-    
+
 /*
  * The mount table describes what files are attached to (mounted on) the file
  * to which this table belongs.
@@ -139,13 +139,13 @@ typedef struct H5F_mtab_t {
  * indicate that the file is mounted on some other file).
  */
 struct H5F_t {
-    unsigned		nrefs;		/* Reference count		*/
     unsigned		intent;		/* The flags passed to H5F_open()*/
     char		*name;		/* Name used to open file	*/
     H5F_file_t		*shared;	/* The shared file info		*/
     unsigned		nopen_objs;	/* Number of open object headers*/
+    H5FO_t              *obj_count;     /* # of time each object is opened through top file structure */
     hid_t               file_id;        /* ID of this file              */
-    hid_t		closing;	/* H5I_FILE_CLOSING ID or zero	*/
+    hbool_t             closing;        /* File is in the process of being closed */
     H5F_mtab_t		mtab;		/* File mount table		*/
 };
 
@@ -158,7 +158,26 @@ union H5D_storage_t;
 #ifdef NOT_YET
 H5_DLL void H5F_encode_length_unusual(const H5F_t *f, uint8_t **p, uint8_t *l);
 #endif /* NOT_YET */
+
+/* General routines */
+H5_DLL herr_t H5F_try_close(H5F_t *f);
+H5_DLL haddr_t H5F_locate_signature(H5FD_t *file, hid_t dxpl_id);
+
+/* File mount related routines */
 H5_DLL herr_t H5F_mountpoint(struct H5G_entry_t *find/*in,out*/);
+H5_DLL herr_t H5F_close_mounts(H5F_t *f);
+H5_DLL int H5F_term_unmount_cb(void *obj_ptr, hid_t obj_id, void *key);
+H5_DLL herr_t H5F_mount_count_ids(H5F_t *f, unsigned *nopen_files, unsigned *nopen_objs);
+
+/* Superblock related routines */
+H5_DLL herr_t H5F_init_superblock(const H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_write_superblock(H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_read_superblock(H5F_t *f, hid_t dxpl_id, H5G_entry_t *root_ent);
+
+/* Shared file list related routines */
+H5_DLL herr_t H5F_sfile_add(H5F_file_t *shared);
+H5_DLL H5F_file_t * H5F_sfile_search(H5FD_t *lf);
+H5_DLL herr_t H5F_sfile_remove(H5F_file_t *shared);
 
 #endif
 

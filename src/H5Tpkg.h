@@ -162,8 +162,8 @@ typedef struct H5T_vlen_t {
     H5T_vlen_type_t     type;   /* Type of VL data in buffer */
     H5T_vlen_loc_t      loc;    /* Location of VL data in buffer */
     H5T_cset_t          cset;   /* For VL string. character set */
-    H5T_str_t           pad;    /* For VL string.  space or null padding of 
-                                 * extra bytes */                          
+    H5T_str_t           pad;    /* For VL string.  space or null padding of
+                                 * extra bytes */
     H5F_t *f;                   /* File ID (if VL data is on disk) */
     H5T_vlen_getptrfunc_t getptr;   /* Function to get VL sequence pointer */
     H5T_vlen_getlenfunc_t getlen;   /* Function to get VL sequence size (in element units, not bytes) */
@@ -198,8 +198,8 @@ typedef enum H5T_state_t {
 typedef struct H5T_shared_t {
     hsize_t		fo_count; /* number of references to this file object */
     H5T_state_t		state;	/*current state of the type		     */
-    H5F_t		*sh_file;/*file pointer if this is a shared type     */
     H5T_class_t		type;	/*which class of type is this?		     */
+    H5F_t		*sh_file;/*file pointer if this is a shared type     */
     size_t		size;	/*total size of an instance of this type     */
     hbool_t		force_conv;/* Set if this type always needs to be converted and H5T_conv_noop cannot be called */
     struct H5T_t	*parent;/*parent type for derived datatypes	     */
@@ -325,6 +325,7 @@ H5_DLLVAR double H5T_NATIVE_DOUBLE_NEG_INF_g;
 
 /* Common functions */
 H5_DLL H5T_t *H5T_create(H5T_class_t type, size_t size);
+H5_DLL H5T_t *H5T_alloc(void);
 H5_DLL herr_t H5T_free(H5T_t *dt);
 H5_DLL H5T_sign_t H5T_get_sign(H5T_t const *dt);
 H5_DLL H5T_t *H5T_get_super(H5T_t *dt);

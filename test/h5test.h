@@ -33,17 +33,17 @@
  * Predefined test verbosity levels.
  *
  * Convention:
- * 
+ *
  * The higher the verbosity value, the more information printed.
  * So, output for higher verbosity also include output of all lower
  * verbosity.
- * 
+ *
  *  Value     Description
  *  0         None:   No informational message.
  *  1                 "All tests passed"
  *  2                 Header of overall test
  *  3         Default: header and results of individual test
- *  4         
+ *  4
  *  5         Low:    Major category of tests.
  *  6
  *  7         Medium: Minor category of tests such as functions called.
@@ -75,7 +75,7 @@
 
 /*
  * This contains the filename prefix specificied as command line option for
- * the parallel test files. 
+ * the parallel test files.
  */
 extern char *paraprefix;
 #ifdef H5_HAVE_PARALLEL
@@ -103,6 +103,15 @@ extern MPI_Info h5_io_info_g;         /* MPI INFO object for IO */
 #define SKIPPED()	{puts(" -SKIP-");fflush(stdout);}
 #define TEST_ERROR      {H5_FAILED(); AT(); goto error;}
 
+/*
+ * Alarm definitions to wait up (terminate) a test that runs too long.
+ */
+#define alarm_seconds	1200	/* default is 20 minutes */
+#define ALARM_ON	HDalarm(alarm_seconds)
+#define ALARM_OFF	HDalarm(0)
+/* set alarms to N seconds if N > 0, else use default alarm_seconds. */
+#define ALARM_SET(N)	HDalarm((N)>0 ? N : alarm_seconds)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -121,7 +130,7 @@ H5TEST_DLL int print_func(const char *format, ...);
 /* Routines for operating on the list of tests (for the "all in one" tests) */
 H5TEST_DLL void TestUsage(void);
 H5TEST_DLL void AddTest(const char *TheName, void (*TheCall) (void),
-	     void (*Cleanup) (void), const char *TheDescr, 
+	     void (*Cleanup) (void), const char *TheDescr,
 	     const void *Parameters);
 H5TEST_DLL void TestInfo(const char *ProgName);
 H5TEST_DLL void TestParseCmdLine(int argc, char *argv[]);
@@ -135,18 +144,20 @@ H5TEST_DLL int  GetTestSummary(void);
 H5TEST_DLL int  GetTestCleanup(void);
 H5TEST_DLL void ParseTestVerbosity(char *argv);
 H5TEST_DLL int  GetTestNumErrs(void);
+H5TEST_DLL void  IncTestNumErrs(void);
 H5TEST_DLL const void *GetTestParameters(void);
 H5TEST_DLL int  TestErrPrintf(const char *format, ...);
 H5TEST_DLL void SetTest(const char *testname, int action);
 
 
-#ifdef H5_HAVE_FILTER_SZIP 
+#ifdef H5_HAVE_FILTER_SZIP
 H5TEST_DLL int h5_szip_can_encode(void);
 #endif /* H5_HAVE_FILTER_SZIP */
 
 #ifdef H5_HAVE_PARALLEL
 H5TEST_DLL int h5_set_info_object(void);
 H5TEST_DLL void h5_dump_info_object(MPI_Info info);
+H5TEST_DLL char* getenv_all(MPI_Comm comm, int root, const char* name);
 #endif
 
 #ifdef __cplusplus

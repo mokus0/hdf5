@@ -22,14 +22,15 @@ HDF5/H5A API Specification
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem --></head>
+<!-- #EndLibraryItem -->
+
+</head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
@@ -316,9 +317,8 @@ SUBROUTINE h5acreate_f(obj_id, name, type_id, space_id, attr_id, &amp;
   INTEGER(HID_T), INTENT(IN) :: space_id  ! Attribute dataspace identifier
   INTEGER(HID_T), INTENT(OUT) :: attr_id  ! Attribute identifier 
   INTEGER, INTENT(OUT) :: hdferr          ! Error code:
-                                          ! 0 on success and -1 on failure</pre>
-<!-- NEW PAGE -->
-<pre>
+                                          ! 0 on success and -1 on failure
+										  
   INTEGER(HID_T), OPTIONAL, INTENT(IN) :: creation_prp
                                           ! Attribute creation property 
                                           ! list identifier 
@@ -829,6 +829,18 @@ END SUBROUTINE h5aread_f
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
+  <dt><strong>History:</strong>
+	<ul><table width="90%">
+        <tr>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+            <strong>Fortran90</strong></td></tr>
+        <tr>
+          <td valign="top">1.4.2</td>
+          <td valign="top">
+            The <code>dims</code> parameter was added in this release.</td></tr>
+    </table></ul>
 </dl>
 
 <!-- NEW PAGE -->
@@ -899,10 +911,21 @@ END SUBROUTINE h5awrite_f
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
+<dt><strong>History:</strong>
+	<ul><table width="90%">
+        <tr>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+            <strong>Fortran90</strong></td></tr>
+        <tr>
+          <td valign="top">1.4.2</td>
+          <td valign="top">
+            The <code>dims</code> parameter was added in this release.</td></tr>
+    </table></ul>
 </dl>
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
@@ -938,11 +961,10 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </table>
 </center>
 <hr>
-<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
-<address>
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.4, March 2005
+Describes HDF5 Release 1.6.5, November 2005
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--

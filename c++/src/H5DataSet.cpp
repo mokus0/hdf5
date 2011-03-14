@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 #ifdef OLD_HEADER_FILENAME
@@ -73,7 +73,7 @@ DataSpace DataSet::getSpace() const
    hid_t dataspace_id = H5Dget_space( id );
 
    // If the dataspace id is invalid, throw an exception
-   if( dataspace_id <= 0 )
+   if( dataspace_id < 0 )
    {
       throw DataSetIException("DataSet::getSpace", "H5Dget_space failed");
    }
@@ -82,7 +82,7 @@ DataSpace DataSet::getSpace() const
    return( data_space );
 }
 
-// This private member function calls the C API to get the identifier 
+// This private member function calls the C API to get the identifier
 // of the datatype that is used by this dataset.  It is used
 // by the various AbstractDs functions to get the specific datatype.
 hid_t DataSet::p_get_type() const
@@ -92,7 +92,7 @@ hid_t DataSet::p_get_type() const
       return( type_id );
    else
    {
-      throw DataSetIException(0, "H5Dget_type failed");
+      throw DataSetIException("", "H5Dget_type failed");
    }
 }
 
@@ -106,32 +106,28 @@ hid_t DataSet::p_get_type() const
 DSetCreatPropList DataSet::getCreatePlist() const
 {
    hid_t create_plist_id = H5Dget_create_plist( id );
-   if( create_plist_id <= 0 )
+   if( create_plist_id < 0 )
    {
       throw DataSetIException("DataSet::getCreatePlist", "H5Dget_create_plist failed");
    }
-   // create and return the DSetCreatPropList object 
+   // create and return the DSetCreatPropList object
    DSetCreatPropList create_plist( create_plist_id );
    return( create_plist );
 }
 
 //--------------------------------------------------------------------------
 // Function:	DataSet::getStorageSize
-///\brief	Returns the amount of storage required for a dataset.  
-///\return	Amount of storage
+///\brief	Returns the amount of storage required for a dataset.
+///\return	Size of the storage or 0, for no data
 ///\exception	H5::DataSetIException
-// Programmer	Binh-Minh Ribler - 2000
+// Note:	H5Dget_storage_size returns 0 when there is no data.  This
+//		function should have no failure. (from SLU)
+// Programmer	Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
 hsize_t DataSet::getStorageSize() const
 {
-   hsize_t storage_size = H5Dget_storage_size( id );
-
-   if( storage_size > 0 )  // checking with Quincey for failure value - BMR
-      return( storage_size );
-   else
-   {
-      throw DataSetIException("DataSet::getStorageSize", "H5Dget_storage_size failed");
-   }
+   hsize_t storage_size = H5Dget_storage_size(id);
+   return(storage_size);
 }
 
 //--------------------------------------------------------------------------
@@ -187,16 +183,16 @@ hsize_t DataSet::getVlenBufSize( DataType& type, DataSpace& space ) const
    herr_t ret_value = H5Dvlen_get_buf_size( id, type_id, space_id, &size );
    if( ret_value < 0 )
    {
-      throw DataSetIException("DataSet::getStorageSize", "H5Dget_storage_size failed");
+      throw DataSetIException("DataSet::getVlenBufSize", "H5Dvlen_get_buf_size failed");
    }
    return( size );
 }
 
 //--------------------------------------------------------------------------
-// Function:	DataSet::getVlenBufSize
-///\brief	Reclaims VL datatype memory buffers. 
+// Function:	DataSet::vlenReclaim
+///\brief	Reclaims VL datatype memory buffers.
 ///\param	type - IN: Datatype, which is the datatype stored in the buffer
-///\param	space - IN: Selection for the memory buffer to free the 
+///\param	space - IN: Selection for the memory buffer to free the
 ///		VL datatypes within
 ///\param	xfer_plist - IN: Property list used to create the buffer
 ///\param	buf - IN: Pointer to the buffer to be reclaimed
@@ -227,9 +223,9 @@ void DataSet::vlenReclaim( DataType& type, DataSpace& space, DSetMemXferPropList
 ///\param	xfer_plist - IN: Transfer property list for this I/O operation
 ///\exception	H5::DataSetIException
 ///\par Description
-///		This function reads raw data from this dataset into the 
-///		buffer \a buf, converting from file datatype and dataspace 
-///		to memory datatype \a mem_type and dataspace \a mem_space. 
+///		This function reads raw data from this dataset into the
+///		buffer \a buf, converting from file datatype and dataspace
+///		to memory datatype \a mem_type and dataspace \a mem_space.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSet::read( void* buf, const DataType& mem_type, const DataSpace& mem_space, const DataSpace& file_space, const DSetMemXferPropList& xfer_plist ) const
@@ -264,7 +260,7 @@ void DataSet::read( string& strg, const DataType& mem_type, const DataSpace& mem
 
    // Get the String and clean up
    strg = strg_C;
-   delete strg_C;
+   delete []strg_C;
 }
 
 //--------------------------------------------------------------------------
@@ -277,9 +273,9 @@ void DataSet::read( string& strg, const DataType& mem_type, const DataSpace& mem
 ///\param	xfer_plist - IN: Transfer property list for this I/O operation
 ///\exception	H5::DataSetIException
 ///\par Description
-///		This function writes raw data from an application buffer 
-///		\a buf to a dataset, converting from memory datatype 
-///		\a mem_type and dataspace \a mem_space to file datatype 
+///		This function writes raw data from an application buffer
+///		\a buf to a dataset, converting from memory datatype
+///		\a mem_type and dataspace \a mem_space to file datatype
 ///		and dataspace.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -316,18 +312,18 @@ void DataSet::write( const string& strg, const DataType& mem_type, const DataSpa
 
 //--------------------------------------------------------------------------
 // Function:	DataSet::iterateElems
-///\brief	Iterates over all selected elements in a dataspace. 
-///\param	buf - IN/OUT: Pointer to the buffer in memory containing the 
+///\brief	Iterates over all selected elements in a dataspace.
+///\param	buf - IN/OUT: Pointer to the buffer in memory containing the
 ///		elements to iterate over
 ///\param	type - IN: Datatype for the elements stored in \a buf
-///\param	space - IN: Dataspace for \a buf. Also contains the selection 
+///\param	space - IN: Dataspace for \a buf. Also contains the selection
 ///		to iterate over.
-///\param	op - IN: Function pointer to the routine to be called for 
+///\param	op - IN: Function pointer to the routine to be called for
 ///		each element in \a buf iterated over
-///\param	op_data - IN/OUT: Pointer to any user-defined data associated 
+///\param	op_data - IN/OUT: Pointer to any user-defined data associated
 ///		with the operation
 ///\exception	H5::DataSetIException
-///\note	This function may not work correctly yet - it's still 
+///\note	This function may not work correctly yet - it's still
 ///		under development.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -417,7 +413,7 @@ void DataSet::fillMemBuf(void *buf, DataType& buf_type, DataSpace& space)
 ///\param	dataspace - IN: Dataspace with selection
 ///\param	ref_type - IN: Type of reference; default to \c H5R_DATASET_REGION
 ///\return	A reference
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void* DataSet::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type) const
@@ -430,11 +426,11 @@ void* DataSet::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_
 ///\brief	This is an overloaded function, provided for your convenience.
 ///		It differs from the above function in that it only creates
 ///		a reference to an HDF5 object, not to a dataset region.
-///\param	name - IN: Name of the object to be referenced
+///\param	name - IN: Name of the object to be referenced - \c char pointer
 ///\return	A reference
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 ///\par Description
-//		This function passes H5R_OBJECT and -1 to the protected 
+//		This function passes H5R_OBJECT and -1 to the protected
 //		function for it to pass to the C API H5Rcreate
 //		to create a reference to the named object.
 // Programmer	Binh-Minh Ribler - May, 2004
@@ -445,16 +441,29 @@ void* DataSet::Reference(const char* name) const
 }
 
 //--------------------------------------------------------------------------
+// Function:    DataSet::Reference
+///\brief       This is an overloaded function, provided for your convenience.
+///             It differs from the above function in that it takes an
+///             \c std::string for the object's name.
+///\param       name - IN: Name of the object to be referenced - \c std::string
+// Programmer   Binh-Minh Ribler - May, 2004
+//--------------------------------------------------------------------------
+void* DataSet::Reference(const string& name) const
+{
+   return(Reference(name.c_str()));
+}
+
+//--------------------------------------------------------------------------
 // Function:	DataSet::getObjType
 ///\brief	Retrieves the type of object that an object reference points to.
 ///\param		ref_type - IN: Type of reference to query
 ///\param		ref      - IN: Reference to query
 // Return	An object type, which can be one of the following:
-//			H5G_LINK Object is a symbolic link.  
-//			H5G_GROUP Object is a group.  
-//			H5G_DATASET   Object is a dataset.  
-//			H5G_TYPE Object is a named datatype 
-// Exception	H5::ReferenceIException
+//			H5G_LINK Object is a symbolic link.
+//			H5G_GROUP Object is a group.
+//			H5G_DATASET   Object is a dataset.
+//			H5G_TYPE Object is a named datatype
+// Exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 H5G_obj_t DataSet::getObjType(void *ref, H5R_type_t ref_type) const
@@ -469,7 +478,7 @@ H5G_obj_t DataSet::getObjType(void *ref, H5R_type_t ref_type) const
 ///		to H5R_DATASET_REGION
 ///\param	ref      - IN: Reference to get region of
 ///\return	DataSpace instance
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 DataSpace DataSet::getRegion(void *ref, H5R_type_t ref_type) const
@@ -478,37 +487,35 @@ DataSpace DataSet::getRegion(void *ref, H5R_type_t ref_type) const
    return(dataspace);
 }
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //--------------------------------------------------------------------------
-// Function:    DataSet::p_close (private)
-// Purpose:     Closes this dataset.
-// Exception    H5::DataSetIException
-// Description
-//              This function will be obsolete because its functionality
-//              is recently handled by the C library layer. - May, 2004
-// Programmer   Binh-Minh Ribler - 2000
+// Function:	DataSet::close
+///\brief	Closes this dataset.
+///
+///\exception	H5::DataSetIException
+// Programmer	Binh-Minh Ribler - Mar 9, 2005
 //--------------------------------------------------------------------------
-void DataSet::p_close() const
+void DataSet::close()
 {
    herr_t ret_value = H5Dclose( id );
    if( ret_value < 0 )
    {
-      throw DataSetIException(0, "H5Dclose failed");
+      throw DataSetIException("DataSet::close", "H5Dclose failed");
    }
+   // reset the id because the group that it represents is now closed
+   id = 0;
 }
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
 // Function:	DataSet destructor
 ///\brief	Properly terminates access to this dataset.
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
-//              Replaced resetIdComponent with decRefCount to use new ID
-//              reference counting mechanisms by QAK, Feb 20, 2005
+//		Replaced resetIdComponent with decRefCount to use C library
+//		ID reference counting mechanism - BMR, Feb 20, 2005
 //--------------------------------------------------------------------------
 DataSet::~DataSet()
 {
-   // The dataset id will be closed properly
+    // The dataset id will be closed properly
     try {
         decRefCount();
     }

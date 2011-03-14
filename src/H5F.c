@@ -50,32 +50,30 @@ typedef struct H5F_olist_t {
     H5I_type_t obj_type;        /* Type of object to look for */
     hid_t      *obj_id_list;    /* Pointer to the list of open IDs to return */
     unsigned   *obj_id_count;   /* Number of open IDs */
-    H5F_file_t *shared;         /* Pointer to file to look inside */
+    struct {
+        hbool_t local;          /* Set flag for "local" file searches */
+        union {
+            H5F_file_t *shared; /* Pointer to shared file to look inside */
+            const H5F_t *file;  /* Pointer to file to look inside */
+        } ptr;
+    } file_info;
     unsigned   list_index;      /* Current index in open ID array */
     int   max_index;            /* Maximum # of IDs to put into array */
-} H5F_olist_t;    
+} H5F_olist_t;
 
 /* PRIVATE PROTOTYPES */
-static H5F_t *H5F_open(const char *name, unsigned flags, hid_t fcpl_id, 
-			hid_t fapl_id, hid_t dxpl_id);
-static herr_t H5F_close(H5F_t *f);
-
 #ifdef NOT_YET
-static herr_t H5F_flush_all(hbool_t invalidate);
 static int H5F_flush_all_cb(void *f, hid_t fid, void *_invalidate);
 #endif /* NOT_YET */
-
-static herr_t H5F_init_superblock(const H5F_t *f, hid_t dxpl_id);
-static herr_t H5F_write_superblock(H5F_t *f, hid_t dxpl_id);
-static herr_t H5F_read_superblock(H5F_t *f, hid_t dxpl_id, H5G_entry_t *root_ent);
-
-static H5F_t *H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id);
-static herr_t H5F_dest(H5F_t *f, hid_t dxpl_id);
-static herr_t H5F_flush(H5F_t *f, hid_t dxpl_id, H5F_scope_t scope, unsigned flags);
-static haddr_t H5F_locate_signature(H5FD_t *file, hid_t dxpl_id);
-static int H5F_get_objects(const H5F_t *f, unsigned types, int max_objs, hid_t *obj_id_list);
+static unsigned H5F_get_objects(const H5F_t *f, unsigned types, int max_objs, hid_t *obj_id_list);
 static int H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key);
 static herr_t H5F_get_vfd_handle(const H5F_t *file, hid_t fapl, void** file_handle);
+static H5F_t *H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id);
+static herr_t H5F_dest(H5F_t *f, hid_t dxpl_id);
+static H5F_t *H5F_open(const char *name, unsigned flags, hid_t fcpl_id,
+			hid_t fapl_id, hid_t dxpl_id);
+static herr_t H5F_flush(H5F_t *f, hid_t dxpl_id, H5F_scope_t scope, unsigned flags);
+static herr_t H5F_close(H5F_t *f);
 
 /* Declare a free list to manage the H5F_t struct */
 H5FL_DEFINE_STATIC(H5F_t);
@@ -146,7 +144,7 @@ done:
  *	Change File creation property list to generic property list mechanism.
  *-------------------------------------------------------------------------
  */
-static herr_t 
+static herr_t
 H5F_init_interface(void)
 {
     size_t      nprops;                 /* Number of properties */
@@ -154,7 +152,7 @@ H5F_init_interface(void)
 
     /* File creation property class variables.  In sequence, they are
      * - File create property list class to modify
-     * - Default value for size of file user block 
+     * - Default value for size of file user block
      * - Default value for 1/2 rank for symbol table leaf nodes
      * - Default value for 1/2 rank for btree internal nodes
      * - Default value for byte number in an address
@@ -162,7 +160,7 @@ H5F_init_interface(void)
      * - Default value for version number of superblock
      * - Default value for free-space version number
      * - Default value for object directory version number
-     * - Default value for share-header format version 
+     * - Default value for share-header format version
      */
     H5P_genclass_t  *crt_pclass;
     hsize_t         userblock_size      = H5F_CRT_USER_BLOCK_DEF;
@@ -174,7 +172,7 @@ H5F_init_interface(void)
     unsigned        freespace_ver       = H5F_CRT_FREESPACE_VERS_DEF;
     unsigned        objectdir_ver       = H5F_CRT_OBJ_DIR_VERS_DEF;
     unsigned        sharedheader_ver    = H5F_CRT_SHARE_HEAD_VERS_DEF;
-    /* File access property class variables.  In sequence, they are 
+    /* File access property class variables.  In sequence, they are
      * - File access property class to modify
      * - Size of meta data cache(elements)
      * - Size of raw data chunk cache(elements)
@@ -186,7 +184,7 @@ H5F_init_interface(void)
      * - Maximum sieve buffer size
      * - Garbage-collect reference
      * - File driver ID
-     * - File driver info 
+     * - File driver info
      */
     H5P_genclass_t  *acs_pclass;
     int             mdc_nelmts          = H5F_ACS_META_CACHE_SIZE_DEF;
@@ -205,13 +203,13 @@ H5F_init_interface(void)
     hsize_t         family_offset       = H5F_ACS_FAMILY_OFFSET_DEF;
     H5FD_mem_t      mem_type            = H5F_ACS_MULTI_TYPE_DEF;
 
-    /* File mount property class variable. 
+    /* File mount property class variable.
      * - Mount property class to modify
-     * - whether absolute symlinks is local to file 
+     * - whether absolute symlinks is local to file
      */
     H5P_genclass_t  *mnt_pclass;
     hbool_t 	    local		= H5F_MNT_SYM_LOCAL_DEF;
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5F_init_interface)
 
     /*
@@ -222,11 +220,10 @@ H5F_init_interface(void)
      * which are pending completion because there are object headers still
      * open within the file.
      */
-    if (H5I_init_group(H5I_FILE, H5I_FILEID_HASHSIZE, 0, (H5I_free_t)H5F_close)<0 ||
-            H5I_init_group(H5I_FILE_CLOSING, H5I_FILEID_HASHSIZE, 0, (H5I_free_t)H5F_close)<0)
+    if (H5I_init_group(H5I_FILE, (size_t)H5I_FILEID_HASHSIZE, 0, (H5I_free_t)H5F_close)<0)
         HGOTO_ERROR (H5E_FILE, H5E_CANTINIT, FAIL, "unable to initialize interface")
-   
-    /* ========== File Creation Property Class Initialization ============*/ 
+
+    /* ========== File Creation Property Class Initialization ============*/
     assert(H5P_CLS_FILE_CREATE_g!=-1);
 
     /* Get the pointer to file creation class */
@@ -240,39 +237,39 @@ H5F_init_interface(void)
     /* Assume that if there are properties in the class, they are the default ones */
     if(nprops==0) {
         /* Register the user block size */
-        if(H5P_register(crt_pclass,H5F_CRT_USER_BLOCK_NAME,H5F_CRT_USER_BLOCK_SIZE, &userblock_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_USER_BLOCK_NAME,H5F_CRT_USER_BLOCK_SIZE, &userblock_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the 1/2 rank for symbol table leaf nodes */
-        if(H5P_register(crt_pclass,H5F_CRT_SYM_LEAF_NAME,H5F_CRT_SYM_LEAF_SIZE, &sym_leaf_k,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_SYM_LEAF_NAME,H5F_CRT_SYM_LEAF_SIZE, &sym_leaf_k,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the 1/2 rank for btree internal nodes */
-        if(H5P_register(crt_pclass,H5F_CRT_BTREE_RANK_NAME,H5F_CRT_BTREE_RANK_SIZE, btree_k,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_BTREE_RANK_NAME,H5F_CRT_BTREE_RANK_SIZE, btree_k,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the byte number for an address */
-        if(H5P_register(crt_pclass,H5F_CRT_ADDR_BYTE_NUM_NAME, H5F_CRT_ADDR_BYTE_NUM_SIZE, &sizeof_addr,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_ADDR_BYTE_NUM_NAME, H5F_CRT_ADDR_BYTE_NUM_SIZE, &sizeof_addr,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the byte number for object size */
-        if(H5P_register(crt_pclass,H5F_CRT_OBJ_BYTE_NUM_NAME, H5F_CRT_OBJ_BYTE_NUM_SIZE,&sizeof_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_OBJ_BYTE_NUM_NAME, H5F_CRT_OBJ_BYTE_NUM_SIZE,&sizeof_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the superblock version number */
-        if(H5P_register(crt_pclass,H5F_CRT_SUPER_VERS_NAME,H5F_CRT_SUPER_VERS_SIZE, &superblock_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_SUPER_VERS_NAME,H5F_CRT_SUPER_VERS_SIZE, &superblock_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the free-space version number */
-        if(H5P_register(crt_pclass,H5F_CRT_FREESPACE_VERS_NAME, H5F_CRT_FREESPACE_VERS_SIZE,&freespace_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_FREESPACE_VERS_NAME, H5F_CRT_FREESPACE_VERS_SIZE,&freespace_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the object directory version number */
-        if(H5P_register(crt_pclass,H5F_CRT_OBJ_DIR_VERS_NAME, H5F_CRT_OBJ_DIR_VERS_SIZE,&objectdir_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_OBJ_DIR_VERS_NAME, H5F_CRT_OBJ_DIR_VERS_SIZE,&objectdir_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the shared-header version number */
-        if(H5P_register(crt_pclass,H5F_CRT_SHARE_HEAD_VERS_NAME, H5F_CRT_SHARE_HEAD_VERS_SIZE, &sharedheader_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(crt_pclass,H5F_CRT_SHARE_HEAD_VERS_NAME, H5F_CRT_SHARE_HEAD_VERS_SIZE, &sharedheader_ver,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
     } /* end if */
 
@@ -297,51 +294,51 @@ H5F_init_interface(void)
     /* Assume that if there are properties in the class, they are the default ones */
     if(nprops==0) {
         /* Register the size of meta data cache(elements) */
-        if(H5P_register(acs_pclass,H5F_ACS_META_CACHE_SIZE_NAME,H5F_ACS_META_CACHE_SIZE_SIZE, &mdc_nelmts,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_META_CACHE_SIZE_NAME,H5F_ACS_META_CACHE_SIZE_SIZE, &mdc_nelmts,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the size of raw data chunk cache (elements) */
-        if(H5P_register(acs_pclass,H5F_ACS_DATA_CACHE_ELMT_SIZE_NAME,H5F_ACS_DATA_CACHE_ELMT_SIZE_SIZE, &rdcc_nelmts,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_DATA_CACHE_ELMT_SIZE_NAME,H5F_ACS_DATA_CACHE_ELMT_SIZE_SIZE, &rdcc_nelmts,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the size of raw data chunk cache(bytes) */
-        if(H5P_register(acs_pclass,H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME,H5F_ACS_DATA_CACHE_BYTE_SIZE_SIZE, &rdcc_nbytes,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME,H5F_ACS_DATA_CACHE_BYTE_SIZE_SIZE, &rdcc_nbytes,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the preemption for reading chunks */
-        if(H5P_register(acs_pclass,H5F_ACS_PREEMPT_READ_CHUNKS_NAME,H5F_ACS_PREEMPT_READ_CHUNKS_SIZE, &rdcc_w0,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_PREEMPT_READ_CHUNKS_NAME,H5F_ACS_PREEMPT_READ_CHUNKS_SIZE, &rdcc_w0,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the threshold for alignment */
-        if(H5P_register(acs_pclass,H5F_ACS_ALIGN_THRHD_NAME,H5F_ACS_ALIGN_THRHD_SIZE, &threshold,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_ALIGN_THRHD_NAME,H5F_ACS_ALIGN_THRHD_SIZE, &threshold,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the alignment */
-        if(H5P_register(acs_pclass,H5F_ACS_ALIGN_NAME,H5F_ACS_ALIGN_SIZE, &alignment,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_ALIGN_NAME,H5F_ACS_ALIGN_SIZE, &alignment,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the minimum metadata allocation block size */
-        if(H5P_register(acs_pclass,H5F_ACS_META_BLOCK_SIZE_NAME,H5F_ACS_META_BLOCK_SIZE_SIZE, &meta_block_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_META_BLOCK_SIZE_NAME,H5F_ACS_META_BLOCK_SIZE_SIZE, &meta_block_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the maximum sieve buffer size */
-        if(H5P_register(acs_pclass,H5F_ACS_SIEVE_BUF_SIZE_NAME,H5F_ACS_SIEVE_BUF_SIZE_SIZE, &sieve_buf_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_SIEVE_BUF_SIZE_NAME,H5F_ACS_SIEVE_BUF_SIZE_SIZE, &sieve_buf_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the minimum "small data" allocation block size */
-        if(H5P_register(acs_pclass,H5F_ACS_SDATA_BLOCK_SIZE_NAME,H5F_ACS_SDATA_BLOCK_SIZE_SIZE, &sdata_block_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_SDATA_BLOCK_SIZE_NAME,H5F_ACS_SDATA_BLOCK_SIZE_SIZE, &sdata_block_size,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the garbage collection reference */
-        if(H5P_register(acs_pclass,H5F_ACS_GARBG_COLCT_REF_NAME,H5F_ACS_GARBG_COLCT_REF_SIZE, &gc_ref,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_GARBG_COLCT_REF_NAME,H5F_ACS_GARBG_COLCT_REF_SIZE, &gc_ref,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the file driver ID */
-        if(H5P_register(acs_pclass,H5F_ACS_FILE_DRV_ID_NAME,H5F_ACS_FILE_DRV_ID_SIZE, &driver_id,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_FILE_DRV_ID_NAME,H5F_ACS_FILE_DRV_ID_SIZE, &driver_id,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the file driver info */
-        if(H5P_register(acs_pclass,H5F_ACS_FILE_DRV_INFO_NAME,H5F_ACS_FILE_DRV_INFO_SIZE, &driver_info,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(acs_pclass,H5F_ACS_FILE_DRV_INFO_NAME,H5F_ACS_FILE_DRV_INFO_SIZE, &driver_info,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
         /* Register the file close degree */
@@ -378,7 +375,7 @@ H5F_init_interface(void)
     /* Assume that if there are properties in the class, they are the default ones */
     if(nprops==0) {
         /* Register property of whether symlinks is local to file */
-        if(H5P_register(mnt_pclass,H5F_MNT_SYM_LOCAL_NAME,H5F_MNT_SYM_LOCAL_SIZE, &local,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0) 
+        if(H5P_register(mnt_pclass,H5F_MNT_SYM_LOCAL_NAME,H5F_MNT_SYM_LOCAL_SIZE, &local,NULL,NULL,NULL,NULL,NULL,NULL,NULL)<0)
              HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
     } /* end if */
 
@@ -424,9 +421,11 @@ H5F_term_interface(void)
     if (H5_interface_initialize_g) {
 	if ((n=H5I_nmembers(H5I_FILE))!=0) {
             H5I_clear_group(H5I_FILE, FALSE);
-	} else if (0==(n=H5I_nmembers(H5I_FILE_CLOSING))) {
+	} else {
+            /* Make certain we've cleaned up all the shared file objects */
+            H5F_sfile_assert_num(0);
+
 	    H5I_destroy_group(H5I_FILE);
-	    H5I_destroy_group(H5I_FILE_CLOSING);
 	    H5_interface_initialize_g = 0;
 	    n = 1; /*H5I*/
 	}
@@ -437,15 +436,15 @@ H5F_term_interface(void)
 
 /*----------------------------------------------------------------------------
  * Function:	H5F_acs_create
- * 
- * Purpose:	Callback routine which is called whenever a file access 
+ *
+ * Purpose:	Callback routine which is called whenever a file access
  *		property list is closed.  This routine performs any generic
  * 		initialization needed on the properties the library put into
  * 		the list.
- *		
+ *
  * Return:	Success:		Non-negative
  * 		Failure:		Negative
- * 
+ *
  * Programmer:	Raymond Lu
  *		Tuesday, Oct 23, 2001
  *
@@ -454,7 +453,7 @@ H5F_term_interface(void)
  *----------------------------------------------------------------------------
  */
 /* ARGSUSED */
-herr_t 
+herr_t
 H5F_acs_create(hid_t fapl_id, void UNUSED *copy_data)
 {
     hid_t          driver_id;
@@ -473,7 +472,7 @@ H5F_acs_create(hid_t fapl_id, void UNUSED *copy_data)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get drver ID")
     if(H5P_get(plist, H5F_ACS_FILE_DRV_INFO_NAME, &driver_info) < 0)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get drver info")
-    
+
     if(driver_id > 0) {
         /* Set the driver for the property list */
         if(H5FD_fapl_open(plist, driver_id, driver_info)<0)
@@ -488,7 +487,7 @@ done:
 /*--------------------------------------------------------------------------
  * Function:	H5F_acs_copy
  *
- * Purpose:	Callback routine which is called whenever a file access 
+ * Purpose:	Callback routine which is called whenever a file access
  * 		property list is copied.  This routine performs any generic
  * 	 	copy needed on the properties.
  *
@@ -497,12 +496,12 @@ done:
  * Programmer:	Raymond Lu
  *		Tuesday, Oct 23, 2001
  *
- * Modifications:	
+ * Modifications:
  *
  *--------------------------------------------------------------------------
- */	
+ */
 /* ARGSUSED */
-herr_t 
+herr_t
 H5F_acs_copy(hid_t new_fapl_id, hid_t old_fapl_id, void UNUSED *copy_data)
 {
     hid_t          driver_id;
@@ -523,7 +522,7 @@ H5F_acs_copy(hid_t new_fapl_id, hid_t old_fapl_id, void UNUSED *copy_data)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get drver ID")
     if(H5P_get(old_plist, H5F_ACS_FILE_DRV_INFO_NAME, &driver_info) < 0)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get drver info")
-    
+
     if(driver_id > 0) {
         /* Set the driver for the property list */
         if(H5FD_fapl_open(new_plist, driver_id, driver_info)<0)
@@ -537,24 +536,24 @@ done:
 
 /*--------------------------------------------------------------------------
  * Function:	H5F_acs_close
- * 
- * Purpose:	Callback routine which is called whenever a file access 
- *		property list is closed.  This routine performs any generic 
+ *
+ * Purpose:	Callback routine which is called whenever a file access
+ *		property list is closed.  This routine performs any generic
  *		cleanup needed on the properties.
  *
  * Return:	Success:	Non-negative
- * 		
+ *
  * 		Failure:	Negative
  *
  * Programmer:	Raymond Lu
  *		Tuesday, Oct 23, 2001
- * 
+ *
  * Modifications:
  *
  *---------------------------------------------------------------------------
- */ 
+ */
 /* ARGSUSED */
-herr_t 
+herr_t
 H5F_acs_close(hid_t fapl_id, void UNUSED *close_data)
 {
     hid_t      driver_id;
@@ -608,7 +607,7 @@ H5F_flush_all_cb(void *_f, hid_t UNUSED fid, void *_invalidate)
     H5F_t *f=(H5F_t *)_f;
     unsigned    invalidate = (*((hbool_t*)_invalidate);
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_flush_all_cb)
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_flush_all_cb)
 
     H5F_flush(f, H5F_SCOPE_LOCAL, (invalidate ? H5F_FLUSH_INVALIDATE : H5F_FLUSH_NONE));
 
@@ -665,7 +664,7 @@ done:
  DESCRIPTION
     Encode non-standard (i.e. not 2, 4 or 8-byte) lengths in file meta-data.
 --------------------------------------------------------------------------*/
-void 
+void
 H5F_encode_length_unusual(const H5F_t *f, uint8_t **p, uint8_t *l)
 {
     int		    i = (int)H5F_SIZEOF_SIZE(f)-1;
@@ -724,11 +723,11 @@ H5Fget_create_plist(hid_t file_id)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file")
     if(NULL == (plist = H5I_object(file->shared->fcpl_id)))
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a property list")
-    
+
     /* Create the property list object to return */
     if((ret_value=H5P_copy_plist(plist)) < 0)
 	HGOTO_ERROR(H5E_INTERNAL, H5E_CANTINIT, FAIL, "unable to copy file creation properties")
-    
+
 done:
     FUNC_LEAVE_API(ret_value)
 }
@@ -755,14 +754,14 @@ done:
  *
  * Modifications:
  *		Raymond Lu, Oct 23, 2001
- *		Changed file access property list to the new generic 
+ *		Changed file access property list to the new generic
  * 		property list.
  *
  *              Bill Wendling, Apr 21, 2003
  *              Fixed bug where the driver ID and info in the property
  *              list were being overwritten but the original ID and info
  *              weren't being close.
- * 		
+ *
  *-------------------------------------------------------------------------
  */
 hid_t
@@ -772,8 +771,8 @@ H5Fget_access_plist(hid_t file_id)
     H5P_genplist_t *new_plist;              /* New property list */
     H5P_genplist_t *old_plist;              /* Old property list */
     hid_t		ret_value = SUCCEED;
-    void		*driver_info=NULL;   
- 
+    void		*driver_info=NULL;
+
     FUNC_ENTER_API(H5Fget_access_plist, FAIL)
     H5TRACE1("i","i",file_id);
 
@@ -836,7 +835,7 @@ H5Fget_access_plist(hid_t file_id)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set file close degree")
     } else if(f->shared->fc_degree != H5F_CLOSE_DEFAULT && H5P_set(new_plist, H5F_CLOSE_DEGREE_NAME, &(f->shared->fc_degree)) < 0) {
         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set file close degree")
-    } 
+    }
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -846,11 +845,11 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5Fget_obj_count
  *
- * Purpose:	Public function returning the number of opened object IDs 
- *		(files, datasets, groups and datatypes) in the same file. 
+ * Purpose:	Public function returning the number of opened object IDs
+ *		(files, datasets, groups and datatypes) in the same file.
  *
  * Return:	Non-negative on success; negative on failure.
- * 
+ *
  * Programmer:	Raymond Lu
  *		Wednesday, Dec 5, 2001
  *
@@ -895,17 +894,15 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-int
+unsigned
 H5F_get_obj_count(const H5F_t *f, unsigned types)
 {
-    int   ret_value;            /* Return value */
+    unsigned   ret_value;            /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_get_obj_count)
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_obj_count)
 
-    if((ret_value=H5F_get_objects(f, types, -1, NULL)) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTGET, FAIL, "can't get counts of opened file IDs and object IDs in the file")
+    ret_value=H5F_get_objects(f, types, -1, NULL);
 
-done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
@@ -947,30 +944,28 @@ done:
 
 
 /*-------------------------------------------------------------------------
- * Function:    H5F_get_object_ids
+ * Function:    H5F_get_obj_ids
  *
  * Purpose:     Private function to return a list of opened object IDs.
  *
- * Return:      Non-negative on success; negative on failure.   
- *      
- * Programmer:  Raymond Lu      
- *              Wednesday, Dec 5, 2001  
- *      
- * Modification:        
- *      
+ * Return:      Non-negative on success; negative on failure.
+ *
+ * Programmer:  Raymond Lu
+ *              Wednesday, Dec 5, 2001
+ *
+ * Modification:
+ *
  *-------------------------------------------------------------------------
  */
-int
+unsigned
 H5F_get_obj_ids(const H5F_t *f, unsigned types, int max_objs, hid_t *oid_list)
 {
-    int ret_value;              /* Return value */
- 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_get_obj_ids)
+    unsigned ret_value;              /* Return value */
 
-    if((ret_value=H5F_get_objects(f, types, max_objs, oid_list)) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTGET, FAIL, "can't get object IDs opened in the file")
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_obj_ids)
 
-done:
+    ret_value = H5F_get_objects(f, types, max_objs, oid_list);
+
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
@@ -978,10 +973,10 @@ done:
 /*---------------------------------------------------------------------------
  * Function:	H5F_get_objects
  *
- * Purpose:	This function is called by H5F_get_obj_count or 
- *		H5F_get_obj_ids to get number of object IDs and/or a 
+ * Purpose:	This function is called by H5F_get_obj_count or
+ *		H5F_get_obj_ids to get number of object IDs and/or a
  *		list of opened object IDs (in return value).
- * Return:	Non-negative on success; negative on failure. 
+ * Return:	Non-negative on success; negative on failure.
  *
  * Programmer:  Raymond Lu
  *              Wednesday, Dec 5, 2001
@@ -990,12 +985,12 @@ done:
  *
  *---------------------------------------------------------------------------
  */
-static int
+static unsigned
 H5F_get_objects(const H5F_t *f, unsigned types, int max_index, hid_t *obj_id_list)
 {
     unsigned obj_id_count=0;    /* Number of open IDs */
     H5F_olist_t olist;          /* Structure to hold search results */
-    int ret_value;              /* Return value */
+    unsigned ret_value;         /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_objects)
 
@@ -1004,62 +999,63 @@ H5F_get_objects(const H5F_t *f, unsigned types, int max_index, hid_t *obj_id_lis
     olist.obj_id_count = &obj_id_count;
     olist.list_index   = 0;
     olist.max_index   = max_index;
-    /* Shared file structure is used to verify if file IDs refer to the same 
-     * file. */
-    if(f != NULL)
-        olist.shared = f->shared;
-    else
-	olist.shared = NULL;
+
+    /* Determine if we are searching for local or global objects */
+    if(types&H5F_OBJ_LOCAL) {
+        olist.file_info.local = TRUE;
+        olist.file_info.ptr.file = f;
+    } /* end if */
+    else {
+        olist.file_info.local = FALSE;
+        olist.file_info.ptr.shared = f ? f->shared : NULL;
+    } /* end else */
 
     /* Search through file IDs to count the number, and put their
      * IDs on the object list */
-    if( (types & H5F_OBJ_FILE) && H5I_nmembers(H5I_FILE) > 0 ) {
+    if(types & H5F_OBJ_FILE) {
         olist.obj_type = H5I_FILE;
         (void)H5I_search(H5I_FILE, H5F_get_objects_cb, &olist);
-    }
+    } /* end if */
 
-    /* Search through dataset IDs to count number of datasets, and put their 
+    /* Search through dataset IDs to count number of datasets, and put their
      * IDs on the object list */
-    if( (max_index<0 || (int)olist.list_index< max_index) && (types & H5F_OBJ_DATASET) && H5I_nmembers(H5I_DATASET) > 0 ) {
+    if( (max_index < 0 || (int)olist.list_index < max_index) && (types & H5F_OBJ_DATASET) ) {
         olist.obj_type = H5I_DATASET;
         (void)H5I_search(H5I_DATASET, H5F_get_objects_cb, &olist);
     }
 
-    /* Search through group IDs to count number of groups, and put their 
+    /* Search through group IDs to count number of groups, and put their
      * IDs on the object list */
-    if( (max_index<0 || (int)olist.list_index< max_index) && (types & H5F_OBJ_GROUP) && H5I_nmembers(H5I_GROUP) > 0 ) {
+    if( (max_index < 0 || (int)olist.list_index < max_index) && (types & H5F_OBJ_GROUP) ) {
         olist.obj_type = H5I_GROUP;
         (void)H5I_search(H5I_GROUP, H5F_get_objects_cb, &olist);
     }
 
-    /* Search through datatype IDs to count number of named datatypes, and put their 
+    /* Search through datatype IDs to count number of named datatypes, and put their
      * IDs on the object list */
-    if( (max_index<0 || (int)olist.list_index< max_index) && (types & H5F_OBJ_DATATYPE) && H5I_nmembers(H5I_DATATYPE) > 0 ) {
+    if( (max_index < 0 || (int)olist.list_index < max_index) && (types & H5F_OBJ_DATATYPE) ) {
         olist.obj_type = H5I_DATATYPE;
         (void)H5I_search(H5I_DATATYPE, H5F_get_objects_cb, &olist);
     }
 
-    /* Search through attribute IDs to count number of attributes, and put their 
+    /* Search through attribute IDs to count number of attributes, and put their
      * IDs on the object list */
-    if( (max_index<0 || (int)olist.list_index< max_index) && (types & H5F_OBJ_ATTR) && H5I_nmembers(H5I_ATTR) > 0 ) {
+    if( (max_index < 0 || (int)olist.list_index < max_index) && (types & H5F_OBJ_ATTR) ) {
         olist.obj_type = H5I_ATTR;
         (void)H5I_search(H5I_ATTR, H5F_get_objects_cb, &olist);
     }
 
     /* Set the number of objects currently open */
-    H5_ASSIGN_OVERFLOW(ret_value,obj_id_count,unsigned,int);
+    ret_value = obj_id_count;
 
-#ifdef LATER
-done:
-#endif /* LATER */
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
 
 /*-------------------------------------------------------------------------
- * Function:	H5F_get_objects_cb 
+ * Function:	H5F_get_objects_cb
  *
- * Purpose:	H5F_get_objects' callback function.  It verifies if an 
+ * Purpose:	H5F_get_objects' callback function.  It verifies if an
  * 		object is in the file, and either count it or put its ID
  *		on the list.
  *
@@ -1075,15 +1071,18 @@ H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key)
 {
     H5F_olist_t *olist = (H5F_olist_t *)key;    /* Alias for search info */
     int      ret_value = FALSE;    /* Return value */
- 
+
     FUNC_ENTER_NOAPI_NOINIT(H5F_get_objects_cb)
 
     assert(obj_ptr);
     assert(olist);
 
-    /* Count file IDs */ 
+    /* Count file IDs */
     if(olist->obj_type == H5I_FILE) {
-	if( !olist->shared || (olist->shared && ((H5F_t*)obj_ptr)->shared == olist->shared) ) {
+        if((olist->file_info.local &&
+                        (!olist->file_info.ptr.file || (olist->file_info.ptr.file && (H5F_t*)obj_ptr == olist->file_info.ptr.file) ))
+                ||  (!olist->file_info.local &&
+                        ( !olist->file_info.ptr.shared || (olist->file_info.ptr.shared && ((H5F_t*)obj_ptr)->shared == olist->file_info.ptr.shared) ))) {
             /* Add the object's ID to the ID list, if appropriate */
             if(olist->obj_id_list) {
                 olist->obj_id_list[olist->list_index] = obj_id;
@@ -1121,9 +1120,14 @@ H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key)
                 HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "unknown data object")
 	}
 
-    	if( (!olist->shared && olist->obj_type==H5I_DATATYPE && H5T_is_immutable((H5T_t*)obj_ptr)==FALSE) 
-                || (!olist->shared && olist->obj_type!=H5I_DATATYPE) 
-                || (ent && ent->file && ent->file->shared == olist->shared) ) {
+        if((olist->file_info.local &&
+                    ( (!olist->file_info.ptr.file && olist->obj_type==H5I_DATATYPE && H5T_is_immutable((H5T_t*)obj_ptr)==FALSE)
+                            || (!olist->file_info.ptr.file && olist->obj_type!=H5I_DATATYPE)
+                            || (ent && ent->file == olist->file_info.ptr.file) ))
+                || (!olist->file_info.local &&
+                    ((!olist->file_info.ptr.shared && olist->obj_type==H5I_DATATYPE && H5T_is_immutable((H5T_t*)obj_ptr)==FALSE)
+                            || (!olist->file_info.ptr.shared && olist->obj_type!=H5I_DATATYPE)
+                            || (ent && ent->file && ent->file->shared == olist->file_info.ptr.shared) ))) {
             /* Add the object's ID to the ID list, if appropriate */
             if(olist->obj_id_list) {
             	olist->obj_id_list[olist->list_index] = obj_id;
@@ -1151,10 +1155,10 @@ done:
  * Purpose:     Returns a pointer to the file handle of the low-level file
  *              driver.
  *
- * Return:      Success:        non-negative value. 
+ * Return:      Success:        non-negative value.
  *
- *              Failture:       negative. 
- * 
+ *              Failture:       negative.
+ *
  * Programmer:  Raymond Lu
  *              Sep. 16, 2002
  *
@@ -1167,7 +1171,7 @@ H5Fget_vfd_handle(hid_t file_id, hid_t fapl, void **file_handle)
 {
     H5F_t               *file=NULL;
     herr_t              ret_value;
-    
+
     FUNC_ENTER_API(H5Fget_vfd_handle, FAIL)
     H5TRACE3("e","iix",file_id,fapl,file_handle);
 
@@ -1201,7 +1205,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5F_get_vfd_handle(const H5F_t *file, hid_t fapl, void**file_handle) 
+H5F_get_vfd_handle(const H5F_t *file, hid_t fapl, void**file_handle)
 {
     herr_t ret_value;
 
@@ -1213,39 +1217,6 @@ H5F_get_vfd_handle(const H5F_t *file, hid_t fapl, void**file_handle)
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5F_equal
- *
- * Purpose:	Compares NEEDLE to a file from the HAYSTACK.
- *
- * Return:	Success:	Returns positive if two files are equal,
- *				zero otherwise.
- *
- *		Failure:	Negative
- *
- * Programmer:	Robb Matzke
- *              Monday, August  2, 1999
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-/* ARGSUSED */
-static int
-H5F_equal(void *_haystack, hid_t UNUSED id, void *_needle)
-{
-    H5F_t		*haystack = (H5F_t*)_haystack;
-    const H5FD_t	*needle = (const H5FD_t*)_needle;
-    int		retval;
-    
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_equal)
-
-    retval = (0==H5FD_cmp(haystack->shared->lf, needle));
-
-    FUNC_LEAVE_NOAPI(retval)
 }
 
 
@@ -1268,7 +1239,7 @@ H5F_equal(void *_haystack, hid_t UNUSED id, void *_needle)
  *		Rewritten to use the virtual file layer.
  *-------------------------------------------------------------------------
  */
-static haddr_t
+haddr_t
 H5F_locate_signature(H5FD_t *file, hid_t dxpl_id)
 {
     haddr_t	    addr, eoa;
@@ -1294,9 +1265,9 @@ H5F_locate_signature(H5FD_t *file, hid_t dxpl_id)
 	addr = (8==n) ? 0 : (haddr_t)1 << n;
 	if (H5FD_set_eoa(file, addr+H5F_SIGNATURE_LEN)<0)
 	    HGOTO_ERROR(H5E_IO, H5E_CANTINIT, HADDR_UNDEF, "unable to set EOA value for file signature")
-	if (H5FD_read(file, H5FD_MEM_SUPER, dxpl_id, addr, H5F_SIGNATURE_LEN, buf)<0)
+	if (H5FD_read(file, H5FD_MEM_SUPER, dxpl_id, addr, (size_t)H5F_SIGNATURE_LEN, buf)<0)
 	    HGOTO_ERROR(H5E_IO, H5E_CANTINIT, HADDR_UNDEF, "unable to read file signature")
-	if (!HDmemcmp(buf, H5F_SIGNATURE, H5F_SIGNATURE_LEN))
+	if (!HDmemcmp(buf, H5F_SIGNATURE, (size_t)H5F_SIGNATURE_LEN))
             break;
     }
 
@@ -1390,7 +1361,7 @@ done:
  * Modifications:
  *
  *		Raymond Lu, Oct 14, 2001
- *		Changed the file creation and access property list to the 
+ *		Changed the file creation and access property list to the
  *		new generic property list.
  *
  *-------------------------------------------------------------------------
@@ -1399,23 +1370,25 @@ static H5F_t *
 H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id)
 {
     H5F_t	*f=NULL, *ret_value;
-    int		n;
     H5P_genplist_t *plist;              /* Property list */
- 
+
     FUNC_ENTER_NOAPI_NOINIT(H5F_new)
 
     if (NULL==(f=H5FL_CALLOC(H5F_t)))
 	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+    f->file_id = -1;
 
     if (shared) {
 	f->shared = shared;
     } else {
+    	int		n;
+
 	f->shared = H5FL_CALLOC(H5F_file_t);
 	f->shared->super_addr = HADDR_UNDEF;
 	f->shared->base_addr = HADDR_UNDEF;
 	f->shared->freespace_addr = HADDR_UNDEF;
 	f->shared->driver_addr = HADDR_UNDEF;
-    
+
 	/*
 	 * Copy the file creation and file access property lists into the
 	 * new file handle.  We do this early because some values might need
@@ -1460,7 +1433,7 @@ H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get data cache cache size")
         if(H5P_get(plist, H5F_ACS_PREEMPT_READ_CHUNKS_NAME, &(f->shared->rdcc_w0)) < 0)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get preempt read chunk")
-  
+
         if(H5P_get(plist, H5F_ACS_ALIGN_THRHD_NAME, &(f->shared->threshold))<0)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get alignment threshold")
         if(H5P_get(plist, H5F_ACS_ALIGN_NAME, &(f->shared->alignment)) < 0)
@@ -1482,11 +1455,18 @@ H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id)
 
         /* Create the file's "open object" information */
         if(H5FO_create(f)<0)
-	    HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, NULL, "unable to create open object TBBT")
+	    HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, NULL, "unable to create open object data structure")
+
+        /* Add new "shared" struct to list of open files */
+        if(H5F_sfile_add(f->shared) < 0)
+	    HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, NULL, "unable to append to list of open files")
     } /* end else */
-    
+
     f->shared->nrefs++;
-    f->nrefs = 1;
+
+    /* Create the file's "top open object" information */
+    if(H5FO_top_create(f)<0)
+        HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, NULL, "unable to create open object data structure")
 
     /* Set return value */
     ret_value = f;
@@ -1497,7 +1477,7 @@ done:
             H5FL_FREE(H5F_file_t,f->shared);
 	H5FL_FREE(H5F_t,f);
     }
-    
+
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
@@ -1540,80 +1520,79 @@ static herr_t
 H5F_dest(H5F_t *f, hid_t dxpl_id)
 {
     herr_t	   ret_value = SUCCEED;
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5F_dest)
 
-    if (f && 1==f->nrefs) {
-	if (1==f->shared->nrefs) {
-	    /*
-	     * Do not close the root group since we didn't count it, but free
-	     * the memory associated with it.
-	     */
-	    if (f->shared->root_grp) {
-                /* Free the ID to name buffer */
-                if(H5G_free_grp_name(f->shared->root_grp)<0) {
-                    HERROR(H5E_FILE, H5E_CANTRELEASE, "problems closing file");
-                    ret_value = FAIL; /*but keep going*/
-                } /* end if */
+    /* Sanity check */
+    HDassert(f);
 
-                /* Free the memory for the root group */
-                if(H5G_free(f->shared->root_grp)<0) {
-                    HERROR(H5E_FILE, H5E_CANTRELEASE, "problems closing file");
-                    ret_value = FAIL; /*but keep going*/
-                } /* end if */
-                f->shared->root_grp=NULL;
-            }
-	    if (H5AC_dest(f, dxpl_id)) {
-		HERROR(H5E_FILE, H5E_CANTRELEASE, "problems closing file");
-		ret_value = FAIL; /*but keep going*/
-	    }
-	    if (H5FO_dest(f)<0) {
-                HERROR(H5E_FILE, H5E_CANTRELEASE, "problems closing file");
-                ret_value = FAIL; /*but keep going*/
-	    } /* end if */
-	    f->shared->cwfs = H5MM_xfree (f->shared->cwfs);
-	    if (H5G_node_close(f)<0) {
-                HERROR(H5E_FILE, H5E_CANTRELEASE, "problems closing file");
-                ret_value = FAIL; /*but keep going*/
-	    } /* end if */
+    if (1==f->shared->nrefs) {
+        /* Remove shared file struct from list of open files */
+        if(H5F_sfile_remove(f->shared) < 0)
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_FILE, H5E_CANTRELEASE, FAIL, "problems closing file")
 
-	    /* Destroy file creation properties */
-            if(H5I_GENPROP_LST != H5I_get_type(f->shared->fcpl_id)) 
-                HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a property list")
-            if((ret_value=H5I_dec_ref(f->shared->fcpl_id)) < 0)
-                HGOTO_ERROR(H5E_PLIST, H5E_CANTFREE, FAIL, "can't close property list")
+        /*
+         * Do not close the root group since we didn't count it, but free
+         * the memory associated with it.
+         */
+        if (f->shared->root_grp) {
+            /* Free the ID to name buffer */
+            if(H5G_free_grp_name(f->shared->root_grp)<0)
+                /* Push error, but keep going*/
+                HDONE_ERROR(H5E_FILE, H5E_CANTRELEASE, FAIL, "problems closing file")
 
-	    /* Destroy shared file struct */
-	    if (H5FD_close(f->shared->lf)<0) {
-		HERROR(H5E_FILE, H5E_CANTINIT, "problems closing file");
-		ret_value = FAIL; /*but keep going*/
-	    }
-	    f->shared = H5FL_FREE(H5F_file_t,f->shared);
-	    
-	} else if (f->shared->nrefs>0) {
-	    /*
-	     * There are other references to the shared part of the file.
-	     * Only decrement the reference count.
-	     */
-	    --f->shared->nrefs;
-	}
+            /* Free the memory for the root group */
+            if(H5G_free(f->shared->root_grp)<0)
+                /* Push error, but keep going*/
+                HDONE_ERROR(H5E_FILE, H5E_CANTRELEASE, FAIL, "problems closing file")
+            f->shared->root_grp=NULL;
+        }
+        if (H5AC_dest(f, dxpl_id))
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_FILE, H5E_CANTRELEASE, FAIL, "problems closing file")
+        if (H5FO_dest(f)<0)
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_FILE, H5E_CANTRELEASE, FAIL, "problems closing file")
+        f->shared->cwfs = H5MM_xfree (f->shared->cwfs);
+        if (H5G_node_close(f)<0)
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_FILE, H5E_CANTRELEASE, FAIL, "problems closing file")
 
-	/* Free the non-shared part of the file */
-	f->name = H5MM_xfree(f->name);
-	f->mtab.child = H5MM_xfree(f->mtab.child);
-	f->mtab.nalloc = 0;
-	H5FL_FREE(H5F_t,f);
-    } else if (f && f->nrefs>0) {
-	/*
-	 * There are other references to this file. Only decrement the
-	 * reference count.
-	 */
-	--f->nrefs;
+        /* Destroy file creation properties */
+        if(H5I_GENPROP_LST != H5I_get_type(f->shared->fcpl_id))
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a property list")
+        if((ret_value=H5I_dec_ref(f->shared->fcpl_id)) < 0)
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_PLIST, H5E_CANTFREE, FAIL, "can't close property list")
+
+        /* Close low-level file */
+        if (H5FD_close(f->shared->lf)<0)
+            /* Push error, but keep going*/
+            HDONE_ERROR(H5E_FILE, H5E_CANTINIT, FAIL, "problems closing file")
+
+        /* Destroy shared file struct */
+        f->shared = H5FL_FREE(H5F_file_t,f->shared);
+
+    } else if (f->shared->nrefs>0) {
+        /*
+         * There are other references to the shared part of the file.
+         * Only decrement the reference count.
+         */
+        --f->shared->nrefs;
     }
 
-done:
+    /* Free the non-shared part of the file */
+    f->name = H5MM_xfree(f->name);
+    f->mtab.child = H5MM_xfree(f->mtab.child);
+    f->mtab.nalloc = 0;
+    if(H5FO_top_dest(f) < 0)
+        HDONE_ERROR(H5E_FILE, H5E_CANTINIT, FAIL, "problems closing file")
+    H5FL_FREE(H5F_t,f);
+
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5F_dest() */
 
 
 /*-------------------------------------------------------------------------
@@ -1687,7 +1666,7 @@ done:
  *		arguments would be the same.
  *
  *		Raymond Lu, 2001-10-14
- *		Changed the file creation and access property lists to the 
+ *		Changed the file creation and access property lists to the
  *		new generic property list.
  *
  *		Bill Wendling, 2003-03-18
@@ -1710,7 +1689,7 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id, hid_t d
     H5F_close_degree_t  fc_degree;          /*file close degree             */
     H5F_t              *ret_value;          /*actual return value           */
 
-    FUNC_ENTER_NOAPI(H5F_open, NULL)
+    FUNC_ENTER_NOAPI_NOINIT(H5F_open)
 
     /*
      * If the driver has a `cmp' method then the driver is capable of
@@ -1751,8 +1730,7 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id, hid_t d
     } /* end if */
 
     /* Is the file already open? */
-    if ((file=H5I_search(H5I_FILE, H5F_equal, lf))!=NULL ||
-            (file=H5I_search(H5I_FILE_CLOSING, H5F_equal, lf))!=NULL) {
+    if ((shared = H5F_sfile_search(lf)) != NULL) {
 	/*
 	 * The file is already open, so use that one instead of the one we
 	 * just opened. We only one one H5FD_t* per file so one doesn't
@@ -1762,24 +1740,17 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id, hid_t d
 	 * exists), or if the new request adds write access (since the
 	 * readers don't expect the file to change under them).
 	 */
-	if(H5FD_close(lf)<0) {
-	    file = NULL; /*to prevent destruction of wrong file*/
+	if(H5FD_close(lf)<0)
 	    HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to close low-level file info")
-        } /* end if */
-	if (flags & H5F_ACC_TRUNC) {
-	    file = NULL; /*to prevent destruction of wrong file*/
+	if (flags & H5F_ACC_TRUNC)
 	    HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to truncate a file which is already open")
-	}
-	if (flags & H5F_ACC_EXCL) {
-	    file = NULL; /*to prevent destruction of wrong file*/
+	if (flags & H5F_ACC_EXCL)
 	    HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "file exists")
-	}
-	if ((flags & H5F_ACC_RDWR) && 0==(file->intent & H5F_ACC_RDWR)) {
-	    file = NULL; /*to prevent destruction of wrong file*/
+	if ((flags & H5F_ACC_RDWR) && 0 == (shared->flags & H5F_ACC_RDWR))
 	    HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "file is already open for read-only")
-	}
 
-        if ((file = H5F_new(file->shared, fcpl_id, fapl_id)) == NULL)
+        /* Allocate new "high-level" file struct */
+        if ((file = H5F_new(shared, fcpl_id, fapl_id)) == NULL)
             HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to create new file object")
 
 	lf = file->shared->lf;
@@ -1863,7 +1834,7 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id, hid_t d
 
     /*
      * Decide the file close degree.  If it's the first time to open the
-     * file, set the degree to access property list value; if it's the 
+     * file, set the degree to access property list value; if it's the
      * second time or later, verify the access property list value matches
      * the degree in shared file structure.
      */
@@ -1926,10 +1897,10 @@ done:
  *		File struct creation and destruction is through H5F_new() and
  *		H5F_dest(). Writing the root symbol table entry is done with
  *		H5G_encode().
- *	
+ *
  *  		Robb Matzke, 1997-08-29
  *		Moved creation of the boot block to H5F_flush().
- *	
+ *
  *  		Robb Matzke, 1997-09-23
  *		Most of the work is now done by H5F_open() since H5Fcreate()
  *		and H5Fopen() originally contained almost identical code.
@@ -1943,9 +1914,9 @@ done:
  * 		Robb Matzke, 1999-08-02
  *		The file creation and file access property lists are passed
  *		to the H5F_open() as object IDs.
- *	
+ *
  *		Raymond Lu, 2001-10-14
- *              Changed the file creation and access property list to the 
+ *              Changed the file creation and access property list to the
  * 		new generic property list.
  *
  *-------------------------------------------------------------------------
@@ -1953,7 +1924,6 @@ done:
 hid_t
 H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
 {
-    
     H5F_t	*new_file = NULL;	/*file struct for new file	*/
     hid_t	ret_value;	        /*return value			*/
 
@@ -2036,7 +2006,7 @@ done:
  *		File struct creation and destruction is through H5F_new() and
  *		H5F_dest(). Reading the root symbol table entry is done with
  *		H5G_decode().
- *	
+ *
  *  		Robb Matzke, 1997-09-23
  *		Most of the work is now done by H5F_open() since H5Fcreate()
  *		and H5Fopen() originally contained almost identical code.
@@ -2124,7 +2094,7 @@ H5Fflush(hid_t object_id, H5F_scope_t scope)
     H5A_t	*attr = NULL;
     H5G_entry_t	*ent = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_API(H5Fflush, FAIL)
     H5TRACE2("e","iFs",object_id,scope);
 
@@ -2180,537 +2150,6 @@ done:
 
 
 /*-------------------------------------------------------------------------
- * Function:    H5F_read_superblock
- *
- * Purpose:     Reads the superblock from the file or from the BUF. If
- *              ADDR is a valid address, then it reads it from the file.
- *              If not, then BUF must be non-NULL for it to read from the
- *              BUF.
- *
- * Return:      Success:        SUCCEED
- *              Failure:        FAIL
- *
- * Programmer:  Bill Wendling
- *              wendling@ncsa.uiuc.edu
- *              Sept 12, 2003
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5F_read_superblock(H5F_t *f, hid_t dxpl_id, H5G_entry_t *root_ent)
-{
-    haddr_t             stored_eoa;         /*relative end-of-addr in file  */
-    haddr_t             eof;                /*end of file address           */
-    uint8_t            *q;                  /*ptr into temp I/O buffer      */
-    size_t              sizeof_addr = 0;
-    size_t              sizeof_size = 0;
-    const size_t        fixed_size = 24;    /*fixed sizeof superblock       */
-    unsigned            sym_leaf_k = 0;
-    size_t              variable_size;      /*variable sizeof superblock    */
-    unsigned            btree_k[H5B_NUM_BTREE_ID];  /* B-tree internal node 'K' values */
-    H5F_file_t         *shared = NULL;      /* shared part of `file'        */
-    H5FD_t             *lf = NULL;          /* file driver part of `shared' */
-    uint8_t            *p;                  /* Temporary pointer into encoding buffers */
-    unsigned            i;                  /* Index variable               */
-    unsigned            chksum;             /* Checksum temporary variable  */
-    size_t              driver_size;        /* Size of driver info block, in bytes */
-    char                driver_name[9];     /* Name of driver, for driver info block */
-    unsigned            super_vers;         /* Super block version          */
-    unsigned            freespace_vers;     /* Freespace info version       */
-    unsigned            obj_dir_vers;       /* Object header info version   */
-    unsigned            share_head_vers;    /* Shared header info version   */
-    uint8_t             buf[H5F_SUPERBLOCK_SIZE];     /* Local buffer                 */
-    H5P_genplist_t     *c_plist;            /* File creation property list  */
-    herr_t              ret_value = SUCCEED;
-
-    /* Decoding */
-    FUNC_ENTER_NOAPI(H5F_read_superblock, FAIL)
-
-    /* Short cuts */
-    shared = f->shared;
-    lf = shared->lf;
-
-    /* Get the shared file creation property list */
-    if (NULL == (c_plist = H5I_object(shared->fcpl_id)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "can't get property list")
-
-    /* Read the superblock if it hasn't been read before. */
-    if (HADDR_UNDEF == (shared->super_addr=H5F_locate_signature(lf,dxpl_id)))
-        HGOTO_ERROR(H5E_FILE, H5E_NOTHDF5, FAIL, "unable to find file signature")
-    if (H5FD_set_eoa(lf, shared->super_addr + fixed_size) < 0 ||
-            H5FD_read(lf, H5FD_MEM_SUPER, dxpl_id, shared->super_addr, fixed_size, buf) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_READERROR, FAIL, "unable to read superblock")
-
-    /* Signature, already checked */
-    p = buf + H5F_SIGNATURE_LEN;
-
-    /* Superblock version */
-    super_vers = *p++;
-    if (super_vers > HDF5_SUPERBLOCK_VERSION_MAX) 
-        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "bad superblock version number")
-    if (H5P_set(c_plist, H5F_CRT_SUPER_VERS_NAME, &super_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set superblock version")
-
-    /* Freespace version */
-    freespace_vers = *p++;
-    if (HDF5_FREESPACE_VERSION != freespace_vers) 
-        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "bad free space version number")
-    if (H5P_set(c_plist, H5F_CRT_FREESPACE_VERS_NAME, &freespace_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to free space version")
-
-    /* Root group version number */
-    obj_dir_vers = *p++;
-    if (HDF5_OBJECTDIR_VERSION != obj_dir_vers) 
-        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "bad object directory version number")
-    if (H5P_set(c_plist, H5F_CRT_OBJ_DIR_VERS_NAME, &obj_dir_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set object directory version")
-
-    /* Skip over reserved byte */
-    p++;
-
-    /* Shared header version number */
-    share_head_vers = *p++;
-    if (HDF5_SHAREDHEADER_VERSION != share_head_vers) 
-        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "bad shared-header format version number")
-    if (H5P_set(c_plist, H5F_CRT_SHARE_HEAD_VERS_NAME, &share_head_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set shared-header format version")
-
-    /* Size of file addresses */
-    sizeof_addr = *p++;
-    if (sizeof_addr != 2 && sizeof_addr != 4 &&
-            sizeof_addr != 8 && sizeof_addr != 16 && sizeof_addr != 32)
-        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "bad byte number in an address")
-    if (H5P_set(c_plist, H5F_CRT_ADDR_BYTE_NUM_NAME,&sizeof_addr) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set byte number in an address")
-    shared->sizeof_addr = sizeof_addr;  /* Keep a local copy also */
-
-    /* Size of file sizes */
-    sizeof_size = *p++;
-    if (sizeof_size != 2 && sizeof_size != 4 &&
-            sizeof_size != 8 && sizeof_size != 16 && sizeof_size != 32)
-        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "bad byte number for object size")
-    if (H5P_set(c_plist, H5F_CRT_OBJ_BYTE_NUM_NAME, &sizeof_size) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set byte number for object size")
-    shared->sizeof_size = sizeof_size;  /* Keep a local copy also */
-    
-    /* Skip over reserved byte */
-    p++;
-
-    /* Various B-tree sizes */
-    UINT16DECODE(p, sym_leaf_k);
-    if (sym_leaf_k == 0)
-        HGOTO_ERROR(H5E_FILE, H5E_BADRANGE, FAIL, "bad symbol table leaf node 1/2 rank")
-    if (H5P_set(c_plist, H5F_CRT_SYM_LEAF_NAME, &sym_leaf_k) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set rank for symbol table leaf nodes")
-    shared->sym_leaf_k = sym_leaf_k;    /* Keep a local copy also */
-
-    /* Need 'get' call to set other array values */
-    if (H5P_get(c_plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get rank for btree internal nodes")
-    UINT16DECODE(p, btree_k[H5B_SNODE_ID]);
-    if (btree_k[H5B_SNODE_ID] == 0)
-        HGOTO_ERROR(H5E_FILE, H5E_BADRANGE, FAIL, "bad 1/2 rank for btree internal nodes")
-    /*
-     * Delay setting the value in the property list until we've checked
-     * for the indexed storage B-tree internal 'K' value later.
-     */
-
-    /* File consistency flags. Not really used yet */
-    UINT32DECODE(p, shared->consist_flags);
-    assert(((size_t)(p - buf)) == fixed_size);
-
-    /* Decode the variable-length part of the superblock... */
-    variable_size = (super_vers>0 ? 4 : 0) +    /* Potential indexed storage B-tree internal 'K' value */
-                    H5F_SIZEOF_ADDR(f) +        /*base addr*/
-                    H5F_SIZEOF_ADDR(f) +        /*global free list*/
-                    H5F_SIZEOF_ADDR(f) +        /*end-of-address*/
-                    H5F_SIZEOF_ADDR(f) +        /*reserved address*/
-                    H5G_SIZEOF_ENTRY(f);        /*root group ptr*/
-    assert(fixed_size + variable_size <= sizeof(buf));
-    if (H5FD_set_eoa(lf, shared->super_addr + fixed_size+variable_size) < 0 ||
-            H5FD_read(lf, H5FD_MEM_SUPER, dxpl_id, shared->super_addr + fixed_size, variable_size, p) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to read superblock")
-
-    /*
-     * If the superblock version # is greater than 0, read in the indexed
-     * storage B-tree internal 'K' value
-     */
-    if (super_vers > 0) {
-        UINT16DECODE(p, btree_k[H5B_ISTORE_ID]);
-        p += 2;   /* reserved */
-    }
-    else
-        btree_k[H5B_ISTORE_ID] = HDF5_BTREE_ISTORE_IK_DEF;
-
-    /* Set the B-tree internal node values, etc */
-    if (H5P_set(c_plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set rank for btree internal nodes")
-    HDmemcpy(shared->btree_k, btree_k, sizeof(unsigned) * (size_t)H5B_NUM_BTREE_ID);    /* Keep a local copy also */
-
-    H5F_addr_decode(f, (const uint8_t **)&p, &shared->base_addr/*out*/);
-    H5F_addr_decode(f, (const uint8_t **)&p, &shared->freespace_addr/*out*/);
-    H5F_addr_decode(f, (const uint8_t **)&p, &stored_eoa/*out*/);
-    H5F_addr_decode(f, (const uint8_t **)&p, &shared->driver_addr/*out*/);
-    if (H5G_ent_decode(f, (const uint8_t **)&p, root_ent/*out*/) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to read root symbol entry")
-
-    /*
-     * Check if superblock address is different from base address and
-     * adjust base address and "end of address" address if so.
-     */
-    if (!H5F_addr_eq(shared->super_addr,shared->base_addr)) {
-        /* Check if the superblock moved earlier in the file */
-        if (H5F_addr_lt(shared->super_addr, shared->base_addr))
-            stored_eoa -= (shared->base_addr - shared->super_addr);
-        else
-            /* The superblock moved later in the file */
-            stored_eoa += (shared->super_addr - shared->base_addr);
-
-        shared->base_addr = shared->super_addr;
-    } /* end if */
-
-    /* Compute super block checksum */
-    assert(sizeof(chksum) == sizeof(shared->super_chksum));
-    for (q = (uint8_t *)&chksum, chksum = 0, i = 0; i < fixed_size + variable_size; ++i)
-        q[i % sizeof(shared->super_chksum)] ^= buf[i];
-
-    /* Set the super block checksum */
-    shared->super_chksum = chksum;
-
-    /* Decode the optional driver information block */
-    if (H5F_addr_defined(shared->driver_addr)) {
-        haddr_t drv_addr = shared->base_addr + shared->driver_addr;
-        uint8_t dbuf[H5F_DRVINFOBLOCK_SIZE];     /* Local buffer                 */
-
-        if (H5FD_set_eoa(lf, drv_addr + 16) < 0 ||
-                H5FD_read(lf, H5FD_MEM_SUPER, dxpl_id, drv_addr, 16, dbuf) < 0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to read driver information block")
-        p = dbuf;
-
-        /* Version number */
-        if (HDF5_DRIVERINFO_VERSION != *p++)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "bad driver information block version number")
-
-        p += 3; /* reserved */
-
-        /* Driver info size */
-        UINT32DECODE(p, driver_size);
-
-        /* Driver name and/or version */
-        HDstrncpy(driver_name, (const char *)p, 8);
-        driver_name[8] = '\0';
-        p += 8; /* advance past name/version */
-
-        /* Read driver information and decode */
-        assert((driver_size + 16) <= sizeof(dbuf));
-        if (H5FD_set_eoa(lf, drv_addr + 16 + driver_size) < 0 ||
-                H5FD_read(lf, H5FD_MEM_SUPER, dxpl_id, drv_addr+16, driver_size, p) < 0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to read file driver information")
-
-        if (H5FD_sb_decode(lf, driver_name, p) < 0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to decode driver information")
-
-        /* Compute driver info block checksum */
-        assert(sizeof(chksum) == sizeof(shared->drvr_chksum));
-        for (q = (uint8_t *)&chksum, chksum = 0, i = 0; i < (driver_size + 16); ++i)
-            q[i % sizeof(shared->drvr_chksum)] ^= dbuf[i];
-
-        /* Set the driver info block checksum */
-        shared->drvr_chksum = chksum;
-    } /* end if */
-    
-    /*
-     * The user-defined data is the area of the file before the base
-     * address.
-     */
-    if (H5P_set(c_plist, H5F_CRT_USER_BLOCK_NAME, &shared->base_addr) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "unable to set usr block size")
-
-    /*
-     * Make sure that the data is not truncated. One case where this is
-     * possible is if the first file of a family of files was opened
-     * individually.
-     */
-    if (HADDR_UNDEF == (eof = H5FD_get_eof(lf)))
-        HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to determine file size")
-    if (eof < stored_eoa)
-        HGOTO_ERROR(H5E_FILE, H5E_TRUNCATED, FAIL, "truncated file")
-    
-    /*
-     * Tell the file driver how much address space has already been
-     * allocated so that it knows how to allocate additional memory.
-     */
-    if (H5FD_set_eoa(lf, stored_eoa) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, FAIL, "unable to set end-of-address marker for file")
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5F_init_superblock
- *
- * Purpose:     Allocates the superblock for the file and initializes
- *              information about the superblock in memory.  Does not write
- *              any superblock information to the file.
- *
- * Return:      Success:        SUCCEED
- *              Failure:        FAIL
- *
- * Programmer:  Quincey Koziol
- *              koziol@ncsa.uiuc.edu
- *              Sept 15, 2003
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5F_init_superblock(const H5F_t *f, hid_t dxpl_id)
-{
-    hsize_t         userblock_size = 0;         /* Size of userblock, in bytes */
-    size_t          superblock_size;            /* Size of superblock, in bytes     */
-    size_t          driver_size;                /* Size of driver info block (bytes)*/
-    unsigned        super_vers;                 /* Super block version              */
-    haddr_t         addr;                       /* Address of superblock            */
-    H5P_genplist_t *plist;                      /* Property list                    */
-    herr_t          ret_value=SUCCEED;
-
-    /* Encoding */
-    FUNC_ENTER_NOAPI(H5F_init_superblock, FAIL)
-
-    /* Get the shared file creation property list */
-    if (NULL == (plist = H5I_object(f->shared->fcpl_id)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a property list")
-
-    /*
-     * The superblock starts immediately after the user-defined
-     * header, which we have already insured is a proper size. The
-     * base address is set to the same thing as the superblock for
-     * now.
-     */
-    if(H5P_get(plist, H5F_CRT_USER_BLOCK_NAME, &userblock_size) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTGET, FAIL, "unable to get user block size")
-    f->shared->super_addr = userblock_size;
-    f->shared->base_addr = f->shared->super_addr;
-    f->shared->consist_flags = 0x03;
-
-    /* Grab superblock version from property list */
-    if (H5P_get(plist, H5F_CRT_SUPER_VERS_NAME, &super_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get super block version")
-
-    /* Compute the size of the superblock */
-    superblock_size=H5F_SIGNATURE_LEN   /* Signature length (8 bytes) */
-        + 16                            /* Length of required fixed-size portion */
-        + ((super_vers>0) ? 4 : 0)      /* Version specific fixed-size portion */
-        + 4 * H5F_sizeof_addr(f)        /* Variable-sized addresses */
-        + H5G_SIZEOF_ENTRY(f);          /* Size of root group symbol table entry */
-
-    /* Compute the size of the driver information block. */
-    H5_ASSIGN_OVERFLOW(driver_size, H5FD_sb_size(f->shared->lf), hsize_t, size_t);
-    if (driver_size > 0)
-	driver_size += 16; /* Driver block header */
-
-    /*
-     * Allocate space for the userblock, superblock, and driver info
-     * block. We do it with one allocation request because the
-     * userblock and superblock need to be at the beginning of the
-     * file and only the first allocation request is required to
-     * return memory at format address zero.
-     */
-
-    H5_CHECK_OVERFLOW(f->shared->base_addr, haddr_t, hsize_t);
-    addr = H5FD_alloc(f->shared->lf, H5FD_MEM_SUPER, dxpl_id,
-                      ((hsize_t)f->shared->base_addr + superblock_size + driver_size));
-
-    if (HADDR_UNDEF == addr)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, FAIL,
-                    "unable to allocate file space for userblock and/or superblock")
-
-    if (0 != addr)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, FAIL,
-                    "file driver failed to allocate userblock and/or superblock at address zero")
-
-    /*
-     * The file driver information block begins immediately after the
-     * superblock.
-     */
-    if (driver_size > 0)
-        f->shared->driver_addr = superblock_size;
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5F_init_superblock() */
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5F_write_superblock
- *
- * Purpose:     Writes (and optionally allocates) the superblock for the file.
- *              If BUF is non-NULL, then write the serialized superblock
- *              information into it. It should be a buffer of size
- *              H5F_SUPERBLOCK_SIZE + H5F_DRVINFOBLOCK_SIZE or larger.
- *
- * Return:      Success:        SUCCEED
- *              Failure:        FAIL
- *
- * Programmer:  Bill Wendling
- *              wendling@ncsa.uiuc.edu
- *              Sept 12, 2003
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5F_write_superblock(H5F_t *f, hid_t dxpl_id)
-{
-    uint8_t         sbuf[H5F_SUPERBLOCK_SIZE];  /* Superblock encoding buffer       */
-    uint8_t         dbuf[H5F_DRVINFOBLOCK_SIZE];/* Driver info block encoding buffer*/
-    uint8_t        *p = NULL;                   /* Ptr into encoding buffers        */
-    unsigned        i;                          /* Index variable                   */
-    unsigned        chksum;                     /* Checksum temporary variable      */
-    size_t          superblock_size;            /* Size of superblock, in bytes     */
-    size_t          driver_size;                /* Size of driver info block (bytes)*/
-    char            driver_name[9];             /* Name of driver, for driver info block */
-    unsigned        super_vers;                 /* Super block version              */
-    unsigned        freespace_vers;             /* Freespace info version           */
-    unsigned        obj_dir_vers;               /* Object header info version       */
-    unsigned        share_head_vers;            /* Shared header info version       */
-    H5P_genplist_t *plist;                      /* Property list                    */
-    herr_t          ret_value = SUCCEED;
-
-    /* Encoding */
-    FUNC_ENTER_NOAPI(H5F_write_superblock, FAIL)
-
-    /* Get the shared file creation property list */
-    if (NULL == (plist = H5I_object(f->shared->fcpl_id)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a property list")
-
-    /* Grab values from property list */
-    if (H5P_get(plist, H5F_CRT_SUPER_VERS_NAME, &super_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get super block version")
-    if (H5P_get(plist, H5F_CRT_FREESPACE_VERS_NAME, &freespace_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get free space version")
-    if (H5P_get(plist, H5F_CRT_OBJ_DIR_VERS_NAME, &obj_dir_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get object directory version")
-    if (H5P_get(plist, H5F_CRT_SHARE_HEAD_VERS_NAME, &share_head_vers) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get shared-header format version")
-
-    /* Encode the file super block */
-    p = sbuf;
-    HDmemcpy(p, H5F_SIGNATURE, H5F_SIGNATURE_LEN);
-    p += H5F_SIGNATURE_LEN;
-    *p++ = (uint8_t)super_vers;
-    *p++ = (uint8_t)freespace_vers;
-    *p++ = (uint8_t)obj_dir_vers;
-    *p++ = 0;   /* reserved*/
-    *p++ = (uint8_t)share_head_vers;
-    assert (H5F_SIZEOF_ADDR(f) <= 255);
-    *p++ = (uint8_t)H5F_SIZEOF_ADDR(f);
-    assert (H5F_SIZEOF_SIZE(f) <= 255);
-    *p++ = (uint8_t)H5F_SIZEOF_SIZE(f);
-    *p++ = 0;   /* reserved */
-    UINT16ENCODE(p, f->shared->sym_leaf_k);
-    UINT16ENCODE(p, f->shared->btree_k[H5B_SNODE_ID]);
-    UINT32ENCODE(p, f->shared->consist_flags);    
-
-    /*
-     * Versions of the superblock >0 have the indexed storage B-tree
-     * internal 'K' value stored
-     */
-    if (super_vers > 0) {
-        UINT16ENCODE(p, f->shared->btree_k[H5B_ISTORE_ID]);
-        *p++ = 0;   /*reserved */
-        *p++ = 0;   /*reserved */
-    }
-
-    H5F_addr_encode(f, &p, f->shared->base_addr);
-    H5F_addr_encode(f, &p, f->shared->freespace_addr);
-    H5F_addr_encode(f, &p, H5FD_get_eoa(f->shared->lf));
-    H5F_addr_encode(f, &p, f->shared->driver_addr);
-    if(H5G_ent_encode(f, &p, H5G_entof(f->shared->root_grp))<0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, FAIL, "unable to encode root group information")
-
-    H5_ASSIGN_OVERFLOW(superblock_size, p - sbuf, int, size_t);
-
-    /* Double check we didn't overrun the block (unlikely) */
-    assert(superblock_size <= sizeof(sbuf));
-
-    /* Encode the driver information block. */
-    H5_ASSIGN_OVERFLOW(driver_size, H5FD_sb_size(f->shared->lf), hsize_t, size_t);
-
-    if (driver_size > 0) {
-	driver_size += 16; /* Driver block header */
-
-        /* Double check we didn't overrun the block (unlikely) */
-	assert(driver_size <= sizeof(dbuf));
-
-        /* Encode the driver information block */
-	p = dbuf;
-
-	*p++ = HDF5_DRIVERINFO_VERSION; /* Version */
-	*p++ = 0; /* reserved */
-	*p++ = 0; /* reserved */
-	*p++ = 0; /* reserved */
-
-	/* Driver info size, excluding header */
-	UINT32ENCODE(p, driver_size - 16);
-
-	/* Encode driver-specific data */
-	if (H5FD_sb_encode(f->shared->lf, driver_name, dbuf + 16) < 0)
-	    HGOTO_ERROR(H5E_FILE, H5E_CANTINIT, FAIL, "unable to encode driver information")
-
-	/* Driver name */
-	HDmemcpy(dbuf + 8, driver_name, 8);
-    } /* end if */
-
-    /* Compute super block checksum */
-    assert(sizeof(chksum) == sizeof(f->shared->super_chksum));
-
-    for (p = (uint8_t *)&chksum, chksum = 0, i = 0; i < superblock_size; ++i)
-        p[i % sizeof(f->shared->super_chksum)] ^= sbuf[i];
-
-    /* Compare with current checksums */
-    if (chksum != f->shared->super_chksum) {
-        /* Write superblock */
-        if (H5FD_write(f->shared->lf, H5FD_MEM_SUPER, dxpl_id,
-                       f->shared->super_addr, superblock_size, sbuf) < 0)
-            HGOTO_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "unable to write superblock")
-
-        /* Update checksum information if different */
-        f->shared->super_chksum = chksum;
-    } /* end if */
-
-    /* Check for driver info block */
-    if (HADDR_UNDEF != f->shared->driver_addr) {
-        /* Compute driver info block checksum */
-        assert(sizeof(chksum) == sizeof(f->shared->drvr_chksum));
-
-        for (p = (uint8_t *)&chksum, chksum = 0, i = 0; i < driver_size; ++i)
-            p[i % sizeof(f->shared->drvr_chksum)] ^= dbuf[i];
-
-        /* Compare with current checksums */
-        if (chksum != f->shared->drvr_chksum) {
-            /* Write driver information block */
-            if (H5FD_write(f->shared->lf, H5FD_MEM_SUPER, dxpl_id,
-                           f->shared->base_addr + f->shared->driver_addr, driver_size, dbuf) < 0)
-                HGOTO_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "unable to write driver information block")
-
-            /* Update checksum information if different */
-            f->shared->drvr_chksum = chksum;
-        } /* end if */
-    } /* end if */
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
  * Function:	H5F_flush
  *
  * Purpose:	Flushes (and optionally invalidates) cached data plus the
@@ -2743,10 +2182,10 @@ done:
  * 		Robb Matzke, 1999-08-16
  *		The driver information block is encoded and either allocated
  *		or written to disk.
- *   
+ *
  *		Raymond Lu, 2001-10-14
  *              Changed to new generic property list.
- *   
+ *
  *		Quincey Koziol, 2002-05-20
  *              Added 'closing' parameter
  *
@@ -2757,7 +2196,7 @@ done:
  *		Quincey Koziol, 2002-06-06
  *              Return the remainders of the metadata & "small data" blocks to
  *              the free list of blocks for the file.
- *              
+ *
  *              Bill Wendling, 2003-03-18
  *              Modified the flags being passed in to be one flag instead
  *              of several.
@@ -2803,6 +2242,10 @@ H5F_flush(H5F_t *f, hid_t dxpl_id, H5F_scope_t scope, unsigned flags)
     if (H5D_flush(f, dxpl_id, flags) < 0)
         HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, "unable to flush dataset cache")
 
+    /* flush (and invalidate) the entire meta data cache */
+    if (H5AC_flush(f, dxpl_id, flags & (H5F_FLUSH_INVALIDATE | H5F_FLUSH_CLEAR_ONLY)) < 0)
+        HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, "unable to flush meta data cache")
+
     /*
      * If we are invalidating everything (which only happens just before
      * the file closes), release the unused portion of the metadata and
@@ -2834,10 +2277,6 @@ H5F_flush(H5F_t *f, hid_t dxpl_id, H5F_scope_t scope, unsigned flags)
             } /* end if */
 
     } /* end if */
-
-    /* flush (and invalidate) the entire meta data cache */
-    if (H5AC_flush(f, dxpl_id, flags & (H5F_FLUSH_INVALIDATE | H5F_FLUSH_CLEAR_ONLY)) < 0)
-        HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, "unable to flush meta data cache")
 
     /* Write the superblock to disk */
     if (H5F_write_superblock(f, dxpl_id) != SUCCEED)
@@ -2896,49 +2335,80 @@ done:
 static herr_t
 H5F_close(H5F_t *f)
 {
-    H5F_close_degree_t	fc_degree;      /* What action to take when closing the last file ID for a file */
-    unsigned	        closing=0;      /* Indicate that the file will be closed */
-    unsigned		u;              /* Local index variable */
     herr_t	        ret_value = SUCCEED;    /* Return value */
 
-    FUNC_ENTER_NOAPI(H5F_close, FAIL)
+    FUNC_ENTER_NOAPI_NOINIT(H5F_close)
 
-    assert(f->nrefs>0);
+    /* Sanity check */
+    HDassert(f);
+    HDassert(f->file_id > 0);   /* This routine should only be called when a file ID's ref count drops to zero */
 
-    /*
-     * If this file is referenced more than once then just decrement the
-     * count and return.
-     */
-    if (f->nrefs>1) {
-	/* Decrement reference counts */
-        if (H5F_dest(f, H5AC_dxpl_id)<0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "problems closing file")
-	HGOTO_DONE(SUCCEED)
+    /* Perform checks for "semi" file close degree here, since closing the
+     * file is not allowed if there are objects still open */
+    if(f->shared->fc_degree == H5F_CLOSE_SEMI) {
+        unsigned nopen_files = 0;       /* Number of open files in file/mount hierarchy */
+        unsigned nopen_objs = 0;        /* Number of open objects in file/mount hierarchy */
+
+        /* Get the number of open objects and open files on this file/mount hierarchy */
+        if(H5F_mount_count_ids(f, &nopen_files, &nopen_objs) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_MOUNT, FAIL, "problem checking mount hierarchy")
+
+        /* If there are no other file IDs open on this file/mount hier., but
+         * there are still open objects, issue an error and bail out now,
+         * without decrementing the file ID's reference count and triggering
+         * a "real" attempt at closing the file */
+        if(nopen_files == 1 && nopen_objs > 0)
+            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close file, there are objects still open")
     } /* end if */
 
-    /* Double-check that this file should be closed */
-    assert(1==f->nrefs);
-    
-    /* Get the close degree from the file */
-    fc_degree = f->shared->fc_degree;
+    /* Reset the file ID for this file */
+    f->file_id = -1;
 
-    /* if close degree if "semi" and there are objects left open and we are
-     * holding open the file with this file ID, fail now */
-    if(fc_degree==H5F_CLOSE_SEMI && f->nopen_objs>0 && f->shared->nrefs==1)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close file, there are objects still open")
+    /* Attempt to close the file/mount hierarchy */
+    if(H5F_try_close(f) < 0)
+        HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close file")
 
-    /*
-     * Unmount and close each child before closing the current file.
-     */
-    assert(NULL==f->mtab.parent);
-    for (u=0; u<f->mtab.nmounts; u++) {
-	f->mtab.child[u].file->mtab.parent = NULL;
-	if(H5G_close(f->mtab.child[u].group)<0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "can't close child group")
-	if(H5F_close(f->mtab.child[u].file)<0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close child file")
-    } /* end if */
-    f->mtab.nmounts = 0;
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5F_close() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5F_try_close
+ *
+ * Purpose:	Attempts to close a file due to one of several actions:
+ *                      - The reference count on the file ID dropped to zero
+ *                      - The last open object was closed in the file
+ *                      - The file was unmounted
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *		Tuesday, July 19, 2005
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5F_try_close(H5F_t *f)
+{
+    unsigned            nopen_files = 0;        /* Number of open files in file/mount hierarchy */
+    unsigned            nopen_objs = 0;         /* Number of open objects in file/mount hierarchy */
+    herr_t	        ret_value = SUCCEED;    /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5F_try_close)
+
+    /* Sanity check */
+    HDassert(f);
+
+    /* Check if this file is already in the process of closing */
+    if(f->closing)
+        HGOTO_DONE(SUCCEED)
+
+    /* Get the number of open objects and open files on this file/mount hierarchy */
+    if(H5F_mount_count_ids(f, &nopen_files, &nopen_objs) < 0)
+        HGOTO_ERROR(H5E_SYM, H5E_MOUNT, FAIL, "problem checking mount hierarchy")
 
     /*
      * Close file according to close degree:
@@ -2948,147 +2418,102 @@ H5F_close(H5F_t *f)
      *  H5F_CLOSE_SEMI:	if there are still objects open, return fail;
      *			otherwise, close file.
      *  H5F_CLOSE_STRONG:	if there are still objects open, close them
-     *			first, then close file. 
-     */ 
-    switch(fc_degree) {
+     *			first, then close file.
+     */
+    switch(f->shared->fc_degree) {
         case H5F_CLOSE_WEAK:
             /*
-             * If object headers are still open then delay deletion of 
-             * resources until they have all been closed.  Flush all 
-             * caches and update the object eader anyway so that failing toi
-             * close all objects isn't a major problem. If the file is on 
-             * the H5I_FILE list then move it to the H5I_FILE_CLOSING list 
-             * instead.
-             */ 
-            if (f->nopen_objs>0) {
-#ifdef H5F_DEBUG
-                if (H5DEBUG(F)) {
-                    fprintf(H5DEBUG(F), "H5F: H5F_close(%s): %u object header%s still "
-                    "open (file close will complete when %s closed)\n",
-                    f->name,
-                    f->nopen_objs,
-                    1 == f->nopen_objs?" is":"s are",
-                    1 == f->nopen_objs?"that header is":"those headers are");
-                }
-#endif
-                /* Register an ID for closing the file later */
-                if (!f->closing)
-                    f->closing  = H5I_register(H5I_FILE_CLOSING, f);
-
-                /* Invalidate file ID */
-                f->file_id = -1;
-
+             * If file or object IDS are still open then delay deletion of
+             * resources until they have all been closed.  Flush all
+             * caches and update the object header anyway so that failing to
+             * close all objects isn't a major problem.
+             */
+            if ((nopen_files + nopen_objs) > 0)
                 HGOTO_DONE(SUCCEED)
-            } else {
-                if (f->closing) {
-
-#ifdef H5F_DEBUG
-                    if (H5DEBUG(F))
-                        fprintf(H5DEBUG(F), "H5F: H5F_close: operation completing\n");
-#endif
-                } /* end if */
-
-                /* Indicate that the file will be closing */
-                closing=1;
-            } /* end else */
             break;
 
         case H5F_CLOSE_SEMI:
-            if (f->nopen_objs>0) {
-#ifdef H5F_DEBUG
-                if (H5DEBUG(F)) {
-                    fprintf(H5DEBUG(F), "H5F: H5F_close(%s): %u object header%s still "
-                    "open (file close will complete when %s closed)\n",
-                    f->name,
-                    f->nopen_objs,
-                    1 == f->nopen_objs?" is":"s are",
-                    1 == f->nopen_objs?"that header is":"those headers are");
-                }
-#endif
-                /* Register an ID for closing the file later */
-                if (!f->closing)
-                    f->closing  = H5I_register(H5I_FILE_CLOSING, f);
-
-                /* Invalidate file ID */
-                f->file_id = -1;
-
+            /* Can leave safely if file IDs are still open on this file */
+            if (nopen_files > 0)
                 HGOTO_DONE(SUCCEED)
-            } else {
-                if (!f->closing && f->shared->nrefs>1)
-                    HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close file, there are objects still open")
 
-                /* Indicate that the file will be closing */
-                closing=1;
-            } /* end else */
+            /* Sanity check: If close degree if "semi" and we have gotten this
+             * far and there are objects left open, bail out now */
+            HDassert(nopen_files == 0 && nopen_objs == 0);
+
+            /* If we've gotten this far (ie. there are no open objects in the file), fall through to flush & close */
             break;
 
         case H5F_CLOSE_STRONG:
-            /* Force to close all opened objects in file */
-            while(f->nopen_objs > 0) {
-                int obj_count;          /* # of open objects */
-                hid_t objs[128];        /* Array of objects to close */
-                int i;                  /* Local index variable */
+            /* If there are other open files in the hierarchy, we can leave now */
+            if(nopen_files > 0)
+                HGOTO_DONE(SUCCEED)
 
-                /* Get the list of IDs of open dataset objects */
-                while((obj_count=H5F_get_obj_ids(f, H5F_OBJ_DATASET, (sizeof(objs)/sizeof(objs[0])), objs))!=0) {
-               
-                    /* Try to close all the open objects */
-                    for(i=0; i<obj_count; i++)
-                        if(H5I_dec_ref(objs[i]) < 0)
-                            HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
-                } /* end while */
-
-                /* Get the list of IDs of open group objects */
-                while((obj_count=H5F_get_obj_ids(f, H5F_OBJ_GROUP, (sizeof(objs)/sizeof(objs[0])), objs))!=0) {
-               
-                    /* Try to close all the open objects */
-                    for(i=0; i<obj_count; i++)
-                        if(H5I_dec_ref(objs[i]) < 0)
-                            HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
-                } /* end while */
-
-                /* Get the list of IDs of open named datatype objects */
-                while((obj_count=H5F_get_obj_ids(f, H5F_OBJ_DATATYPE, (sizeof(objs)/sizeof(objs[0])), objs))!=0) {
-               
-                    /* Try to close all the open objects */
-                    for(i=0; i<obj_count; i++)
-                        if(H5I_dec_ref(objs[i]) < 0)
-                            HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
-                } /* end while */
-
-                /* Get the list of IDs of open attribute objects */
-                while((obj_count=H5F_get_obj_ids(f, H5F_OBJ_ATTR, (sizeof(objs)/sizeof(objs[0])), objs))!=0) {
-               
-                    /* Try to close all the open objects */
-                    for(i=0; i<obj_count; i++)
-                        if(H5I_dec_ref(objs[i]) < 0)
-                            HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
-                } /* end while */
-            } /* end while */
-
-            /* Indicate that the file will be closing */
-            closing=1;
+            /* If we've gotten this far (ie. there are no open file IDs in the file/mount hierarchy), fall through to flush & close */
             break;
 
         default:
             HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close file, unknown file close degree")
     } /* end switch */
 
-    /* Invalidate file ID */
-    f->file_id = -1;
+    /* Mark this file as closing (prevents re-entering file shutdown code below) */
+    f->closing = TRUE;
 
-    /* Only flush at this point if the file will be closed */
-    assert(closing);
-    /* Dump debugging info */
+    /* If the file close degree is "strong", close all the open objects in this file */
+    if(f->shared->fc_degree == H5F_CLOSE_STRONG) {
+        HDassert(nopen_files ==  0);
+
+        /* Forced close of all opened objects in this file */
+        if(f->nopen_objs > 0) {
+            unsigned obj_count;     /* # of open objects */
+            hid_t objs[128];        /* Array of objects to close */
+            unsigned u;             /* Local index variable */
+
+            /* Get the list of IDs of open dataset, group, & attribute objects */
+            while((obj_count = H5F_get_obj_ids(f, H5F_OBJ_LOCAL|H5F_OBJ_DATASET|H5F_OBJ_GROUP|H5F_OBJ_ATTR, (int)(sizeof(objs)/sizeof(objs[0])), objs)) != 0) {
+
+                /* Try to close all the open objects in this file */
+                for(u = 0; u < obj_count; u++)
+                    if(H5I_dec_ref(objs[u]) < 0)
+                        HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
+            } /* end while */
+
+            /* Get the list of IDs of open named datatype objects */
+            /* (Do this separately from the dataset & attribute IDs, because
+             * they could be using one of the named datatypes and then the
+             * open named datatype ID will get closed twice.
+             */
+            while((obj_count = H5F_get_obj_ids(f, H5F_OBJ_LOCAL|H5F_OBJ_DATATYPE, (int)(sizeof(objs)/sizeof(objs[0])), objs)) != 0) {
+
+                /* Try to close all the open objects in this file */
+                for(u = 0; u < obj_count; u++)
+                    if(H5I_dec_ref(objs[u]) < 0)
+                        HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
+            } /* end while */
+        } /* end if */
+    } /* end if */
+
+    /* Check if this is a child file in a mounting hierarchy & proceed up the
+     * hierarchy if so.
+     */
+    if(f->mtab.parent)
+        if(H5F_try_close(f->mtab.parent) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close parent file")
+
+    /* Unmount and close each child before closing the current file. */
+    if(H5F_close_mounts(f) < 0)
+        HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't unmount child files")
+
 #if H5AC_DUMP_STATS_ON_CLOSE
+    /* Dump debugging info */
     H5AC_stats(f);
 #endif /* H5AC_DUMP_STATS_ON_CLOSE */
 
-    /* Only try to flush the file if it was opened with write access */
+    /* Flush at this point since the file will be closed */
+    /* (Only try to flush the file if it was opened with write access) */
     if(f->intent&H5F_ACC_RDWR) {
         /* Flush and destroy all caches */
-        if (H5F_flush(f, H5AC_dxpl_id, H5F_SCOPE_LOCAL,
-                      H5F_FLUSH_INVALIDATE | H5F_FLUSH_CLOSING) < 0)
+        if (H5F_flush(f, H5AC_dxpl_id, H5F_SCOPE_LOCAL, H5F_FLUSH_INVALIDATE | H5F_FLUSH_CLOSING) < 0)
             HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, "unable to flush cache")
     } /* end if */
 
@@ -3097,12 +2522,12 @@ H5F_close(H5F_t *f)
      * shared H5F_file_t struct. If the reference count for the H5F_file_t
      * struct reaches zero then destroy it also.
      */
-    if (H5F_dest(f,H5AC_dxpl_id)<0)
-	HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "problems closing file")
+    if (H5F_dest(f, H5AC_dxpl_id) < 0)
+        HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "problems closing file")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5F_close() */
+} /* end H5F_try_close() */
 
 
 /*-------------------------------------------------------------------------
@@ -3135,8 +2560,8 @@ H5Fclose(hid_t file_id)
     H5TRACE1("e","i",file_id);
 
     /* Check/fix arguments. */
-    if (NULL==H5I_object_verify(file_id,H5I_FILE))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file atom")
+    if (H5I_FILE != H5I_get_type(file_id))
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file ID")
 
     /*
      * Decrement reference count on atom.  When it reaches zero the file will
@@ -3144,490 +2569,6 @@ H5Fclose(hid_t file_id)
      */
     if (H5I_dec_ref (file_id)<0)
 	HGOTO_ERROR (H5E_ATOM, H5E_CANTCLOSEFILE, FAIL, "decrementing file ID failed")
-
-done:
-    FUNC_LEAVE_API(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5F_mount
- *
- * Purpose:	Mount file CHILD onto the group specified by LOC and NAME,
- *		using mount properties in PLIST.  CHILD must not already be
- *		mouted and must not be a mount ancestor of the mount-point.
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:	Robb Matzke
- *              Tuesday, October  6, 1998
- *
- * Modifications:
- *
- * 	Robb Matzke, 1998-10-14
- *	The reference count for the mounted H5F_t is incremented.
- *
- *      Pedro Vicente, <pvn@ncsa.uiuc.edu> 22 Aug 2002
- *      Added `id to name' support.
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5F_mount(H5G_entry_t *loc, const char *name, H5F_t *child,
-	  hid_t UNUSED plist_id, hid_t dxpl_id)
-{
-    H5G_t	*mount_point = NULL;	/*mount point group		*/
-    H5G_entry_t	*mp_ent = NULL;		/*mount point symbol table entry*/
-    H5F_t	*ancestor = NULL;	/*ancestor files		*/
-    H5F_t	*parent = NULL;		/*file containing mount point	*/
-    unsigned	lt, rt, md;		/*binary search indices		*/
-    int		cmp;			/*binary search comparison value*/
-    H5G_entry_t	*ent = NULL;		/*temporary symbol table entry	*/
-    H5G_entry_t  mp_open_ent;     /* entry of moint point to be opened */
-    H5RS_str_t  *name_r;                /* Ref-counted version of name */
-    herr_t	ret_value = SUCCEED;	/*return value			*/
-    
-    FUNC_ENTER_NOAPI_NOINIT(H5F_mount)
-
-    assert(loc);
-    assert(name && *name);
-    assert(child);
-    assert(TRUE==H5P_isa_class(plist_id,H5P_MOUNT));
-
-    /*
-     * Check that the child isn't mounted, that the mount point exists, and
-     * that the mount wouldn't introduce a cycle in the mount tree.
-     */
-    if (child->mtab.parent)
-        HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "file is already mounted")
-    if (H5G_find(loc, name, NULL, &mp_open_ent/*out*/, H5AC_dxpl_id) < 0)
-        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "group not found")
-    if (NULL==(mount_point=H5G_open(&mp_open_ent, dxpl_id)))
-        HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "mount point not found")
-
-    parent = H5G_fileof(mount_point);
-    mp_ent = H5G_entof(mount_point);
-    for (ancestor=parent; ancestor; ancestor=ancestor->mtab.parent) {
-	if (ancestor==child)
-	    HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "mount would introduce a cycle")
-    }
-    
-    /*
-     * Use a binary search to locate the position that the child should be
-     * inserted into the parent mount table.  At the end of this paragraph
-     * `md' will be the index where the child should be inserted.
-     */
-    lt = md = 0;
-    rt=parent->mtab.nmounts;
-    cmp = -1;
-    while (lt<rt && cmp) {
-	md = (lt+rt)/2;
-	ent = H5G_entof(parent->mtab.child[md].group);
-	cmp = H5F_addr_cmp(mp_ent->header, ent->header);
-	if (cmp<0) {
-	    rt = md;
-	} else if (cmp>0) {
-	    lt = md+1;
-	}
-    }
-    if (cmp>0)
-        md++;
-    if (!cmp)
-	HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "mount point is already in use")
-    
-    /* Make room in the table */
-    if (parent->mtab.nmounts>=parent->mtab.nalloc) {
-	unsigned n = MAX(16, 2*parent->mtab.nalloc);
-	H5F_mount_t *x = H5MM_realloc(parent->mtab.child,
-				      n*sizeof(parent->mtab.child[0]));
-	if (!x)
-	    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for mount table")
-	parent->mtab.child = x;
-	parent->mtab.nalloc = n;
-    }
-
-    /* Insert into table */
-    HDmemmove(parent->mtab.child+md+1, parent->mtab.child+md,
-        (parent->mtab.nmounts-md)*sizeof(parent->mtab.child[0]));
-    parent->mtab.nmounts++;
-    parent->mtab.child[md].group = mount_point;
-    parent->mtab.child[md].file = child;
-    child->mtab.parent = parent;
-    child->nrefs++;
-
-    /* Search the open IDs and replace names for mount operation */
-    /* We pass H5G_UNKNOWN as object type; search all IDs */
-    name_r=H5RS_wrap(name);
-    assert(name_r);
-    if (H5G_replace_name( H5G_UNKNOWN, loc, name_r, NULL, NULL, NULL, OP_MOUNT )<0)
-	HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "unable to replace name")
-    if(H5RS_decr(name_r)<0)
-	HGOTO_ERROR(H5E_FILE, H5E_CANTDEC, FAIL, "unable to decrement name string")
-
-done:
-    if (ret_value<0 && mount_point)
-	if(H5G_close(mount_point)<0)
-            HDONE_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "unable to close mounted group")
-
-    FUNC_LEAVE_NOAPI(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5F_unmount
- *
- * Purpose:	Unmount the child which is mounted at the group specified by
- *		LOC and NAME or fail if nothing is mounted there.  Neither
- *		file is closed.
- *
- *		Because the mount point is specified by name and opened as a
- *		group, the H5G_namei() will resolve it to the root of the
- *		mounted file, not the group where the file is mounted.
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:	Robb Matzke
- *              Tuesday, October  6, 1998
- *
- * Modifications:
- *
- *      Robb Matzke, 1998-10-14
- *      The ref count for the child is decremented by calling H5F_close().
- *
- *      Pedro Vicente, <pvn@ncsa.uiuc.edu> 22 Aug 2002
- *      Added `id to name' support.
- * 
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5F_unmount(H5G_entry_t *loc, const char *name, hid_t dxpl_id)
-{
-    H5G_t	*mounted = NULL;	/*mount point group		*/
-    H5G_entry_t	*mnt_ent = NULL;	/*mounted symbol table entry	*/
-    H5F_t	*child = NULL;		/*mounted file			*/
-    H5F_t	*parent = NULL;		/*file where mounted		*/
-    H5G_entry_t	*ent = NULL;		/*temporary symbol table entry	*/
-    H5G_entry_t mnt_open_ent;       /* entry used to open mount point*/
-    herr_t	ret_value = FAIL;	/*return value			*/
-    unsigned	i;			/*coutners			*/
-    unsigned	lt, rt, md=0;	        /*binary search indices		*/
-    int 	cmp;		        /*binary search comparison value*/
-    
-    FUNC_ENTER_NOAPI_NOINIT(H5F_unmount)
-
-    assert(loc);
-    assert(name && *name);
-
-    /*
-     * Get the mount point, or more precisely the root of the mounted file.
-     * If we get the root group and the file has a parent in the mount tree,
-     * then we must have found the mount point.
-     */
-    if (H5G_find(loc, name, NULL, &mnt_open_ent/*out*/, H5AC_dxpl_id) < 0)
-        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "group not found")
-    if (NULL==(mounted=H5G_open(&mnt_open_ent, dxpl_id)))
-        HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "mount point not found")
-    child = H5G_fileof(mounted);
-    mnt_ent = H5G_entof(mounted);
-    ent = H5G_entof(child->shared->root_grp);
-
-    if (child->mtab.parent &&
-	H5F_addr_eq(mnt_ent->header, ent->header)) {
-	/*
-	 * We've been given the root group of the child.  We do a reverse
-	 * lookup in the parent's mount table to find the correct entry.
-	 */
-	parent = child->mtab.parent;
-	for (i=0; i<parent->mtab.nmounts; i++) {
-	    if (parent->mtab.child[i].file==child) {
-                /* Search the open IDs replace names to reflect unmount operation */
-                if (H5G_replace_name( H5G_UNKNOWN, mnt_ent, mnt_ent->user_path_r, NULL, NULL, NULL, OP_UNMOUNT )<0)
-                    HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to replace name ")
-
-		/* Unmount the child */
-		parent->mtab.nmounts -= 1;
-		if(H5G_close(parent->mtab.child[i].group)<0)
-                    HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "unable to close unmounted group")
-		child->mtab.parent = NULL;
-		if(H5F_close(child)<0)
-                    HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "unable to close unmounted file")
-		HDmemmove(parent->mtab.child+i, parent->mtab.child+i+1,
-                    (parent->mtab.nmounts-i)* sizeof(parent->mtab.child[0]));
-		ret_value = SUCCEED;
-	    }
-	}
-	assert(ret_value>=0);
-	
-    } else {
-	/*
-	 * We've been given the mount point in the parent.  We use a binary
-	 * search in the parent to locate the mounted file, if any.
-	 */
-	parent = child; /*we guessed wrong*/
-	lt = 0;
-        rt = parent->mtab.nmounts;
-	cmp = -1;
-	while (lt<rt && cmp) {
-	    md = (lt+rt)/2;
-	    ent = H5G_entof(parent->mtab.child[md].group);
-	    cmp = H5F_addr_cmp(mnt_ent->header, ent->header);
-	    if (cmp<0) {
-		rt = md;
-	    } else {
-		lt = md+1;
-	    }
-	}
-	if (cmp)
-	    HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "not a mount point")
-
-	/* Unmount the child */
-	parent->mtab.nmounts -= 1;
-	if(H5G_close(parent->mtab.child[md].group)<0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "unable to close unmounted group")
-	parent->mtab.child[md].file->mtab.parent = NULL;
-	if(H5F_close(parent->mtab.child[md].file)<0)
-            HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "unable to close unmounted file")
-	HDmemmove(parent->mtab.child+md, parent->mtab.child+md+1,
-            (parent->mtab.nmounts-md)*sizeof(parent->mtab.child[0]));
-	ret_value = SUCCEED;
-    }
-    
-done:
-    if (mounted)
-        if(H5G_close(mounted)<0 && ret_value>=0)
-	    HDONE_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "can't close group")
-
-    FUNC_LEAVE_NOAPI(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5F_mountpoint
- *
- * Purpose:	If ENT is a mount point then copy the entry for the root
- *		group of the mounted file into ENT.
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:	Robb Matzke
- *              Tuesday, October  6, 1998
- *
- * Modifications:
- *
- *      Pedro Vicente, <pvn@ncsa.uiuc.edu> 22 Aug 2002
- *      Added `id to name' support.
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5F_mountpoint(H5G_entry_t *find/*in,out*/)
-{
-    H5F_t	*parent = find->file;
-    unsigned	lt, rt, md=0;
-    int cmp;
-    H5G_entry_t	*ent = NULL;
-    herr_t ret_value=SUCCEED;   /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5F_mountpoint, FAIL)
-
-    assert(find);
-
-    /*
-     * The loop is necessary because we might have file1 mounted at the root
-     * of file2, which is mounted somewhere in file3.
-     */
-    do {
-	/*
-	 * Use a binary search to find the potential mount point in the mount
-	 * table for the parent
-	 */
-	lt = 0;
-	rt = parent->mtab.nmounts;
-	cmp = -1;
-	while (lt<rt && cmp) {
-	    md = (lt+rt)/2;
-	    ent = H5G_entof(parent->mtab.child[md].group);
-	    cmp = H5F_addr_cmp(find->header, ent->header);
-	    if (cmp<0) {
-		rt = md;
-	    } else {
-		lt = md+1;
-	    }
-	}
-
-	/* Copy root info over to ENT */
-	if (0==cmp) {
-            /* Get the entry for the root group in the child's file */
-	    ent = H5G_entof(parent->mtab.child[md].file->shared->root_grp);
-
-            /* Don't lose the user path of the group when we copy the root group's entry */
-            if(H5G_ent_copy(find,ent,H5G_COPY_LIMITED)<0)
-                HGOTO_ERROR(H5E_FILE, H5E_CANTCOPY, FAIL, "unable to copy group entry")
-
-            /* Switch to child's file */
-	    parent = ent->file;
-	}
-    } while (!cmp);
-    
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5F_has_mount
- *
- * Purpose:	Check if a file has mounted files within it.
- *
- * Return:	Success:	TRUE/FALSE
- *		Failure:	Negative
- *
- * Programmer:	Quincey Koziol
- *              Thursday, January  2, 2002
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-htri_t
-H5F_has_mount(const H5F_t *file)
-{
-    htri_t ret_value;   /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5F_has_mount, FAIL)
-
-    assert(file);
-
-    if(file->mtab.nmounts>0)
-        ret_value=TRUE;
-    else
-        ret_value=FALSE;
-    
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5F_has_mount() */
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5F_is_mount
- *
- * Purpose:	Check if a file is mounted within another file.
- *
- * Return:	Success:	TRUE/FALSE
- *		Failure:	Negative
- *
- * Programmer:	Quincey Koziol
- *              Thursday, January  2, 2002
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-htri_t
-H5F_is_mount(const H5F_t *file)
-{
-    htri_t ret_value;   /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5F_is_mount, FAIL)
-
-    assert(file);
-
-    if(file->mtab.parent!=NULL)
-        ret_value=TRUE;
-    else
-        ret_value=FALSE;
-    
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5F_is_mount() */
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5Fmount
- *
- * Purpose:	Mount file CHILD_ID onto the group specified by LOC_ID and
- *		NAME using mount properties PLIST_ID.
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:	Robb Matzke
- *              Tuesday, October  6, 1998
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5Fmount(hid_t loc_id, const char *name, hid_t child_id, hid_t plist_id)
-{
-    H5G_entry_t		*loc = NULL;
-    H5F_t		*child = NULL;
-    herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_API(H5Fmount, FAIL)
-    H5TRACE4("e","isii",loc_id,name,child_id,plist_id);
-
-    /* Check arguments */
-    if (NULL==(loc=H5G_loc(loc_id)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location")
-    if (!name || !*name)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no name")
-    if (NULL==(child=H5I_object_verify(child_id,H5I_FILE)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file")
-    if(H5P_DEFAULT == plist_id)
-        plist_id = H5P_MOUNT_DEFAULT;
-    else
-        if(TRUE != H5P_isa_class(plist_id, H5P_MOUNT))
-            HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not property list")
-
-    /* Do the mount */
-    if (H5F_mount(loc, name, child, plist_id, H5AC_dxpl_id)<0)
-	HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "unable to mount file")
-
-done:
-    FUNC_LEAVE_API(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5Funmount
- *
- * Purpose:	Given a mount point, dissassociate the mount point's file
- *		from the file mounted there.  Do not close either file.
- *
- *		The mount point can either be the group in the parent or the
- *		root group of the mounted file (both groups have the same
- *		name).  If the mount point was opened before the mount then
- *		it's the group in the parent, but if it was opened after the
- *		mount then it's the root group of the child.
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:	Robb Matzke
- *              Tuesday, October  6, 1998
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5Funmount(hid_t loc_id, const char *name)
-{
-    H5G_entry_t		*loc = NULL;
-    herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_API(H5Funmount, FAIL)
-    H5TRACE2("e","is",loc_id,name);
-
-    /* Check args */
-    if (NULL==(loc=H5G_loc(loc_id)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location")
-    if (!name || !*name)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no name")
-
-    /* Unmount */
-    if (H5F_unmount(loc, name, H5AC_dxpl_id)<0)
-	HGOTO_ERROR(H5E_FILE, H5E_MOUNT, FAIL, "unable to unmount file")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -3662,7 +2603,7 @@ H5Freopen(hid_t file_id)
     H5F_t	*old_file=NULL;
     H5F_t	*new_file=NULL;
     hid_t	ret_value;
-    
+
     FUNC_ENTER_API(H5Freopen, FAIL)
     H5TRACE1("i","i",file_id);
 
@@ -3676,6 +2617,9 @@ H5Freopen(hid_t file_id)
     /* Keep old file's read/write intent in new file */
     new_file->intent=old_file->intent;
 
+    /* Duplicate old file's name */
+    new_file->name = H5MM_xstrdup(old_file->name);
+
     if ((ret_value=H5I_register(H5I_FILE, new_file))<0)
 	HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to atomize file handle")
 
@@ -3684,7 +2628,7 @@ H5Freopen(hid_t file_id)
 
 done:
     if (ret_value<0 && new_file)
-	if(H5F_close(new_file)<0)
+	if(H5F_dest(new_file, H5AC_dxpl_id)<0)
 	    HDONE_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "can't close file")
     FUNC_LEAVE_API(ret_value)
 }
@@ -3803,7 +2747,8 @@ H5F_sizeof_size(const H5F_t *f)
  *		Added this header and removed unused ret_value variable.
  *-------------------------------------------------------------------------
  */
-unsigned H5F_sym_leaf_k(const H5F_t *f)
+unsigned
+H5F_sym_leaf_k(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_sym_leaf_k)
@@ -3870,7 +2815,8 @@ H5F_Kvalue(const H5F_t *f, const H5B_class_t *type)
  *
  *-------------------------------------------------------------------------
  */
-size_t H5F_rdcc_nelmts(const H5F_t *f)
+size_t
+H5F_rdcc_nelmts(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_rdcc_nelmts)
@@ -3902,7 +2848,8 @@ size_t H5F_rdcc_nelmts(const H5F_t *f)
  *
  *-------------------------------------------------------------------------
  */
-size_t H5F_rdcc_nbytes(const H5F_t *f)
+size_t
+H5F_rdcc_nbytes(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_rdcc_nbytes)
@@ -3934,7 +2881,8 @@ size_t H5F_rdcc_nbytes(const H5F_t *f)
  *
  *-------------------------------------------------------------------------
  */
-double H5F_rdcc_w0(const H5F_t *f)
+double
+H5F_rdcc_w0(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_rdcc_w0)
@@ -3962,7 +2910,8 @@ double H5F_rdcc_w0(const H5F_t *f)
  *
  *-------------------------------------------------------------------------
  */
-hbool_t H5F_has_feature(const H5F_t *f, unsigned feature)
+hbool_t
+H5F_has_feature(const H5F_t *f, unsigned feature)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_has_feature)
@@ -4059,27 +3008,21 @@ hid_t
 H5F_get_id(H5F_t *file)
 {
     hid_t       ret_value;
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5F_get_id)
 
     assert(file);
 
     if(file->file_id == -1) {
-        if(H5I_remove(file->closing)==NULL)
-	    HGOTO_ERROR(H5E_ATOM, H5E_READERROR, FAIL, "unable to remove from closing list")
-                
         /* Get an atom for the file */
         if ((file->file_id = H5I_register(H5I_FILE, file))<0)
 	    HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to atomize file")
-           
-        /* Indicate file is not closing */     
-        file->closing = 0;
     } else {
         /* Increment reference count on atom. */
         if (H5I_inc_ref(file->file_id)<0)
             HGOTO_ERROR (H5E_ATOM, H5E_CANTSET, FAIL, "incrementing file ID failed")
     }
-    
+
     ret_value = file->file_id;
 
 done:
@@ -4103,7 +3046,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-haddr_t 
+haddr_t
 H5F_get_base_addr(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
@@ -4130,7 +3073,7 @@ H5F_get_base_addr(const H5F_t *f)
  *
  *-------------------------------------------------------------------------
  */
-haddr_t 
+haddr_t
 H5F_get_eoa(const H5F_t *f)
 {
     haddr_t	ret_value;
@@ -4174,7 +3117,7 @@ H5F_mpi_get_rank(const H5F_t *f)
     FUNC_ENTER_NOAPI(H5F_mpi_get_rank, FAIL)
 
     assert(f && f->shared);
-    
+
     /* Dispatch to driver */
     if ((ret_value=H5FD_mpi_get_rank(f->shared->lf))<0)
         HGOTO_ERROR(H5E_VFL, H5E_CANTGET, FAIL, "driver get_rank request failed")
@@ -4208,7 +3151,7 @@ H5F_mpi_get_comm(const H5F_t *f)
     FUNC_ENTER_NOAPI(H5F_mpi_get_comm, MPI_COMM_NULL)
 
     assert(f && f->shared);
-    
+
     /* Dispatch to driver */
     if ((ret_value=H5FD_mpi_get_comm(f->shared->lf))==MPI_COMM_NULL)
         HGOTO_ERROR(H5E_VFL, H5E_CANTGET, MPI_COMM_NULL, "driver get_comm request failed")
@@ -4239,7 +3182,8 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-H5RC_t *H5F_grp_btree_shared(const H5F_t *f)
+H5RC_t *
+H5F_grp_btree_shared(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_grp_btree_shared)
@@ -4252,6 +3196,39 @@ H5RC_t *H5F_grp_btree_shared(const H5F_t *f)
 
 
 /*-------------------------------------------------------------------------
+ * Function:	H5F_sieve_buf_size
+ *
+ * Purpose:	Replaced a macro to retrieve the dataset sieve buffer size
+ *              now that the generic properties are being used to store
+ *              the values.
+ *
+ * Return:	Success:	Non-void, and the dataset sieve buffer size
+ *                              is returned.
+ *
+ * 		Failure:	void (should not happen)
+ *
+ * Programmer:	Quincey Koziol
+ *		koziol@ncsa.uiuc.edu
+ *		Jul  8 2005
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+size_t
+H5F_sieve_buf_size(const H5F_t *f)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_sieve_buf_size)
+
+    assert(f);
+    assert(f->shared);
+
+    FUNC_LEAVE_NOAPI(f->shared->sieve_buf_size)
+} /* end H5F_sieve_buf_size() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	H5F_block_read
  *
  * Purpose:	Reads some data from a file/server/etc into a buffer.
@@ -4259,7 +3236,7 @@ H5RC_t *H5F_grp_btree_shared(const H5F_t *f)
  *		address for the file.
  *
  * Errors:
- *		IO	  READERROR	Low-level read failed. 
+ *		IO	  READERROR	Low-level read failed.
  *
  * Return:	Non-negative on success/Negative on failure
  *
@@ -4314,8 +3291,8 @@ done:
  *		address.
  *
  * Errors:
- *		IO	  WRITEERROR	Low-level write failed. 
- *		IO	  WRITEERROR	No write intent. 
+ *		IO	  WRITEERROR	Low-level write failed.
+ *		IO	  WRITEERROR	No write intent.
  *
  * Return:	Non-negative on success/Negative on failure
  *
@@ -4487,7 +3464,7 @@ H5F_addr_pack(H5F_t UNUSED *f, haddr_t *addr_p/*out*/,
 #if H5_SIZEOF_LONG<H5_SIZEOF_UINT64_T
     *addr_p |= ((uint64_t)objno[1]) << (8*sizeof(long));
 #endif
-    
+
     FUNC_LEAVE_NOAPI(SUCCEED)
 }
 
@@ -4535,7 +3512,7 @@ done:
 /*-------------------------------------------------------------------------
  * Function:    H5Fget_filesize
  *
- * Purpose:     Retrieves the file size of the HDF5 file. This function 
+ * Purpose:     Retrieves the file size of the HDF5 file. This function
  *              is called after an existing file is opened in order
  *		to learn the true size of the underlying file.
  *
@@ -4585,8 +3562,8 @@ done:
  *              just returning the number of characters required to store the name.
  *              If an error occurs then the buffer pointed to by `name' (NULL or non-NULL)
  *              is unchanged and the function returns a negative value.
- *              
- * Return:      Success:        The length of the file name 
+ *
+ * Return:      Success:        The length of the file name
  *              Failure:        Negative
  *
  * Programmer:  Raymond Lu
@@ -4599,21 +3576,33 @@ done:
 ssize_t
 H5Fget_name(hid_t obj_id, char *name/*out*/, size_t size)
 {
-    H5G_entry_t   *ent;       /*symbol table entry */
+    H5G_entry_t   *ent;         /*symbol table entry */
+    H5F_t   *f;               /* Top file in mount hierarchy */
     size_t        len=0;
     ssize_t       ret_value;
 
     FUNC_ENTER_API (H5Fget_name, FAIL)
     H5TRACE3("Zs","ixz",obj_id,name,size);
 
-    /* get symbol table entry */
-    if((ent = H5G_loc(obj_id))==NULL)
-         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not a valid object ID")
+    /* For file IDs, get the file object directly */
+    /* (This prevents the H5G_loc() call from returning the file pointer for
+     * the top file in a mount hierarchy)
+     */
+    if(H5I_get_type(obj_id) == H5I_FILE ) {
+        if (NULL==(f=H5I_object(obj_id)))
+            HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file")
+    } /* end if */
+    else {
+        /* Get symbol table entry */
+        if((ent = H5G_loc(obj_id))==NULL)
+             HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not a valid object ID")
+        f = ent->file;
+    } /* end else */
 
-    len = HDstrlen(ent->file->name);
+    len = HDstrlen(f->name);
 
     if(name) {
-        HDstrncpy(name, ent->file->name, MIN(len+1,size));
+        HDstrncpy(name, f->name, MIN(len+1,size));
         if(len >= size)
             name[size-1]='\0';
     } /* end if */

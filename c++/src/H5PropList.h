@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5PropList_H
 #define _H5PropList_H
@@ -25,7 +25,7 @@ class H5_DLLCPP PropList : public IdComponent {
 	// Default property list
         static const PropList DEFAULT;
 
-	// Creates a property list of a given type or creates a copy of an 
+	// Creates a property list of a given type or creates a copy of an
 	// existing property list giving the property list id.
 	PropList(const hid_t plist_id);
 
@@ -35,11 +35,18 @@ class H5_DLLCPP PropList : public IdComponent {
 	// Compares this property list or class against the given list or class.
 	bool operator==(const PropList& rhs) const;
 
+	// Close this property list.
+	virtual void close();
+
 	// Close a property list class.
 	void closeClass() const;
 
 	// Makes a copy of the given property list.
 	void copy( const PropList& like_plist );
+
+	// Copies a property from this property list or class to another
+	void copyProp( PropList& dest, const char* name) const;
+	void copyProp( PropList& dest, const string& name) const;
 
 	// Copies a property from one property list or property class to another
 	void copyProp( PropList& dest, PropList& src, const char* name) const;
@@ -60,13 +67,13 @@ class H5_DLLCPP PropList : public IdComponent {
 
 	// Query the value of a property in a property list.
 	void getProperty(const char* name, void* value) const;
-	string getProperty(const char* name) const;
 	void getProperty(const string& name, void* value) const;
+	string getProperty(const char* name) const;
 	string getProperty(const string& name) const;
 
 	// Set a property's value in a property list.
-	void setProperty(const char* name, void* charptr) const;
-	void setProperty(const char* name, const char* value) const;
+	void setProperty(const char* name, void* value) const;
+	void setProperty(const char* name, const char* charptr) const;
 	void setProperty(const char* name, string& strg) const;
 	void setProperty(const string& name, void* value) const;
 	void setProperty(const string& name, string& strg) const;
@@ -86,16 +93,14 @@ class H5_DLLCPP PropList : public IdComponent {
 	void removeProp(const char *name) const;
 	void removeProp(const string& name) const;
 
+	// Returns this class name
+	virtual string fromClass () const { return ("PropList"); }
+
 	// Default constructor: creates a stub PropList object.
 	PropList();
 
 	// Copy constructor: creates a copy of a PropList object.
 	PropList(const PropList& original);
-
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-	// Used by the API to close the property list.
-	void p_close() const;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 	// Destructor: properly terminates access to this property list.
 	virtual ~PropList();

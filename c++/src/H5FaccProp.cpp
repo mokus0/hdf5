@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 
@@ -27,18 +27,18 @@ namespace H5 {
 //--------------------------------------------------------------------------
 ///\brief	Constant for default property
 //--------------------------------------------------------------------------
-const FileAccPropList FileAccPropList::DEFAULT( H5P_DEFAULT );
+const FileAccPropList FileAccPropList::DEFAULT;
 
 //--------------------------------------------------------------------------
 // Function:	Default Constructor
-///\brief	  Default constructor: creates a file access property list
+///\brief	Default constructor: creates a file access property list
 // Programmer:	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 FileAccPropList::FileAccPropList() : PropList( H5P_FILE_ACCESS ) {}
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList copy constructor
-///\brief	  Copy Constructor: makes a copy of the original
+///\brief	Copy Constructor: makes a copy of the original
 ///             FileAccPropList object.
 // Programmer:	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -46,7 +46,7 @@ FileAccPropList::FileAccPropList(const FileAccPropList& orig) : PropList(orig) {
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList overloaded constructor
-///\brief	  Creates a file access property list using the id of an
+///\brief	Creates a file access property list using the id of an
 ///             existing one.
 // Programmer:  Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -55,6 +55,7 @@ FileAccPropList::FileAccPropList(const hid_t plist_id) : PropList(plist_id) {}
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::setStdio
 ///\brief	Modifies this property list to use the \c H5FD_STDIO driver.
+///
 ///\exception	H5::PropListIException
 // Programmer:  Binh-Minh Ribler - April, 2004
 //--------------------------------------------------------------------------
@@ -69,8 +70,8 @@ void FileAccPropList::setStdio() const
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::getDriver
-///\brief	  Return the ID of the low-level file driver.
-///\return	A low-level driver ID which is the same ID used when the 
+///\brief	Return the ID of the low-level file driver.
+///\return	A low-level driver ID which is the same ID used when the
 ///		driver was set for the property list.  The driver ID is
 ///		only valid as long as the file driver remains registered.
 ///		Valid driver identifiers can be found at:
@@ -95,7 +96,7 @@ hid_t FileAccPropList::getDriver() const
 ///\param	new_driver_info - IN: Struct containing the driver-specific properites
 ///\exception	H5::PropListIException
 ///\par Description
-///		For a list of valid driver identifiers, please see the C 
+///		For a list of valid driver identifiers, please see the C
 ///		layer Reference Manual at:
 /// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-GetDriver
 // Programmer:  Binh-Minh Ribler - April, 2004
@@ -147,13 +148,13 @@ hsize_t FileAccPropList::getFamilyOffset() const
 // Function:	FileAccPropList::setCore
 ///\brief	Modifies this file access property list to use the \c H5FD_CORE
 ///		driver.
-///\param	increment - IN: Specifies how much memory to increase each 
+///\param	increment - IN: Specifies how much memory to increase each
 ///				time more memory is needed, in bytes
-///\param	backing_store - IN: Indicating whether to write the file 
+///\param	backing_store - IN: Indicating whether to write the file
 ///				contents to disk when the file is closed
 ///\exception	H5::PropListIException
 ///\par Description
-///		For more details on the use of \c H5FD_CORE driver, please 
+///		For more details on the use of \c H5FD_CORE driver, please
 ///		refer to
 /// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetFaplCore
 // Programmer:  Binh-Minh Ribler - April, 2004
@@ -171,7 +172,7 @@ void FileAccPropList::setCore (size_t increment, hbool_t backing_store) const
 // Function:	FileAccPropList::getCore
 ///\brief	Queries core file driver properties.
 ///\param	increment - OUT: Size of memory increment, in bytes
-///\param	backing_store - OUT: Indicating whether to write the file 
+///\param	backing_store - OUT: Indicating whether to write the file
 ///				contents to disk when the file is closed
 ///\exception	H5::PropListIException
 // Programmer:  Binh-Minh Ribler - April, 2004
@@ -228,7 +229,7 @@ void FileAccPropList::getFamily(hsize_t& memb_size, FileAccPropList& memb_plist)
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::getFamily
-///\brief	  This is an overloaded member function, provided for convenience.
+///\brief	This is an overloaded member function, provided for convenience.
 ///             It differs from the above function only in what arguments it
 ///             accepts and its return value.
 ///\param	memb_size  - OUT: Size in bytes of each file member
@@ -250,7 +251,7 @@ FileAccPropList FileAccPropList::getFamily(hsize_t& memb_size) const
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::setSplit
-///\brief	Emulates the old split file driver, which stored meta data 
+///\brief	Emulates the old split file driver, which stored meta data
 ///		in one file and raw data in another file.
 ///\param	meta_plist  - IN: File access plist for the metadata file
 ///\param	raw_plist   - IN: File access plist for the raw data file
@@ -275,7 +276,7 @@ void FileAccPropList::setSplit( FileAccPropList& meta_plist, FileAccPropList& ra
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::setSplit
-///\brief	  This is an overloaded member function, provided for convenience.
+///\brief	This is an overloaded member function, provided for convenience.
 ///             It differs from the above function only in what arguments it
 ///             accepts.
 ///\param	meta_plist  - IN: File access plist for the metadata file
@@ -373,7 +374,7 @@ void FileAccPropList::setSieveBufSize(size_t bufsize) const
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::setMetaBlockSize
 ///\brief	Sets the minimum size of metadata block allocations.
-///\param	block_size - IN: Minimum size, in bytes, of metadata 
+///\param	block_size - IN: Minimum size, in bytes, of metadata
 ///		block allocations
 ///\exception	H5::PropListIException
 ///\par Description
@@ -449,6 +450,7 @@ void FileAccPropList::setLog(const string& logfile, unsigned flags, size_t buf_s
 // Function:	FileAccPropList::setSec2
 ///\brief	Modifies this file access property list to use the sec2
 ///		driver.
+///
 ///\exception	H5::PropListIException
 // Programmer:  Binh-Minh Ribler - April, 2004
 //--------------------------------------------------------------------------
@@ -468,9 +470,9 @@ void FileAccPropList::setSec2() const
 ///\param	alignment - IN: Alignment value
 ///\exception	H5::PropListIException
 ///\par Description
-///		The parameter \a threshold must have a non-negative value.  
-///		Note that setting the threshold value to 0 (zero) has the 
-///		effect of a special case, forcing everything to be aligned.  
+///		The parameter \a threshold must have a non-negative value.
+///		Note that setting the threshold value to 0 (zero) has the
+///		effect of a special case, forcing everything to be aligned.
 ///		The parameter \a alignment must have a positive value.
 ///
 ///		For detail on \a setting alignment, please refer to
@@ -488,7 +490,7 @@ void FileAccPropList::setAlignment( hsize_t threshold, hsize_t alignment ) const
 
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::getAlignment
-///\brief	Returns the current settings for alignment properties from 
+///\brief	Returns the current settings for alignment properties from
 ///		this property list.
 ///\param	threshold - OUT: Retrieved threshold value for file object size
 ///\param	alignment - OUT: Retrieved alignment value
@@ -553,12 +555,12 @@ H5FD_mem_t FileAccPropList::getMultiType() const
 ///\param	rdcc_w0 - IN: Preemption policy
 ///\exception   H5::PropListIException
 ///\par Description
-///		The argument \a rdcc_w0 should hold a value between 0 and 1 
-///		inclusive.  This value indicates how much chunks that have 
-///		been fully read are favored for preemption. A value of zero 
-///		means fully read chunks are treated no differently than other 
-///		chunks (the preemption is strictly LRU) while a value of one 
-///		means fully read chunks are always preempted before other chunks. 
+///		The argument \a rdcc_w0 should hold a value between 0 and 1
+///		inclusive.  This value indicates how much chunks that have
+///		been fully read are favored for preemption. A value of zero
+///		means fully read chunks are treated no differently than other
+///		chunks (the preemption is strictly LRU) while a value of one
+///		means fully read chunks are always preempted before other chunks.
 //--------------------------------------------------------------------------
 #ifdef H5_WANT_H5_V1_4_COMPAT
 void FileAccPropList::setCache( int mdc_nelmts, int rdcc_nelmts, size_t rdcc_nbytes, double rdcc_w0 ) const
@@ -597,12 +599,12 @@ void FileAccPropList::getCache( int& mdc_nelmts, int& rdcc_nelmts, size_t& rdcc_
 ///\param	rdcc_w0 - IN: Preemption policy
 ///\exception   H5::PropListIException
 ///\par Description
-///		The argument \a rdcc_w0 should hold a value between 0 and 1 
-///		inclusive.  This value indicates how much chunks that have 
-///		been fully read are favored for preemption. A value of zero 
-///		means fully read chunks are treated no differently than other 
-///		chunks (the preemption is strictly LRU) while a value of one 
-///		means fully read chunks are always preempted before other chunks. 
+///		The argument \a rdcc_w0 should hold a value between 0 and 1
+///		inclusive.  This value indicates how much chunks that have
+///		been fully read are favored for preemption. A value of zero
+///		means fully read chunks are treated no differently than other
+///		chunks (the preemption is strictly LRU) while a value of one
+///		means fully read chunks are always preempted before other chunks.
 // Programmer:	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileAccPropList::setCache( int mdc_nelmts, size_t rdcc_nelmts, size_t rdcc_nbytes, double rdcc_w0 ) const
@@ -637,7 +639,7 @@ void FileAccPropList::getCache( int& mdc_nelmts, size_t& rdcc_nelmts, size_t& rd
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::setFcloseDegree
 ///\brief	Sets the degree for the file close behavior.
-///\param	degree - IN: 
+///\param	degree - IN:
 ///\exception	H5::PropListIException
 // Programmer:  Binh-Minh Ribler - April, 2004
 //--------------------------------------------------------------------------
@@ -671,8 +673,8 @@ H5F_close_degree_t FileAccPropList::getFcloseDegree()
 //--------------------------------------------------------------------------
 // Function:	FileAccPropList::setGcReferences
 ///\brief	Sets garbage collecting references flag.
-///\param	gc_ref - IN: Flag setting reference garbage collection to 
-///				on (1) or off (0). 
+///\param	gc_ref - IN: Flag setting reference garbage collection to
+///				on (1) or off (0).
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For detail on \a fapl, please refer to
@@ -709,9 +711,9 @@ unsigned FileAccPropList::getGcReferences() const
 }
 
 //--------------------------------------------------------------------------
-// Function:  FileAccPropList destructor
+// Function:	FileAccPropList destructor
 ///\brief	Noop destructor
-// Programmer Binh-Minh Ribler - 2000
+// Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 FileAccPropList::~FileAccPropList() {}
 

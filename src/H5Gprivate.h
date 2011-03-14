@@ -50,6 +50,7 @@
 #define H5G_NODE_MAGIC  "SNOD"          /*symbol table node magic number     */
 #define H5G_NODE_SIZEOF_MAGIC 4         /*sizeof symbol node magic number    */
 #define H5G_NO_CHANGE   (-1)            /*see H5G_ent_modified()             */
+#define H5G_NLINKS	16		/*max symlinks to follow per lookup  */
 
 /*
  * The disk size for a symbol table entry...
@@ -103,10 +104,10 @@ typedef union H5G_cache_t {
  */
 typedef struct H5G_entry_t {
     hbool_t     dirty;                  /*entry out-of-date?                 */
-    size_t      name_off;               /*offset of name within name heap    */
-    haddr_t     header;                 /*file address of object header      */
     H5G_type_t  type;                   /*type of information cached         */
     H5G_cache_t cache;                  /*cached data from object header     */
+    size_t      name_off;               /*offset of name within name heap    */
+    haddr_t     header;                 /*file address of object header      */
     H5F_t       *file;                  /*file to which this obj hdr belongs */
     H5RS_str_t  *user_path_r;           /* Path to object, as opened by user */
     H5RS_str_t  *canon_path_r;          /* Path to object, as found in file  */
@@ -150,12 +151,15 @@ H5_DLL herr_t H5G_get_objinfo(H5G_entry_t *loc, const char *name,
 H5_DLL herr_t H5G_insert(H5G_entry_t *loc, const char *name,
 			  H5G_entry_t *ent, hid_t dxpl_id);
 H5_DLL herr_t H5G_find(H5G_entry_t *loc, const char *name,
-			H5G_entry_t *grp_ent/*out*/, H5G_entry_t *ent/*out*/, hid_t dxpl_id);
+                        H5G_entry_t *ent/*out*/, hid_t dxpl_id);
 H5_DLL H5F_t *H5G_insertion_file(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
 H5_DLL  herr_t H5G_replace_name(int type, H5G_entry_t *loc,
         H5RS_str_t *src_name, H5G_entry_t *src_loc,
         H5RS_str_t *dst_name, H5G_entry_t *dst_loc, H5G_names_op_t op);
 H5_DLL  herr_t H5G_free_grp_name(H5G_t *grp);
+H5_DLL herr_t H5G_get_shared_count(H5G_t *grp);
+H5_DLL herr_t H5G_mount(H5G_t *grp);
+H5_DLL herr_t H5G_unmount(H5G_t *grp);
 
 /*
  * These functions operate on symbol table nodes.
@@ -173,10 +177,11 @@ H5_DLL herr_t H5G_node_close(const H5F_t *f);
 H5_DLL herr_t H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent);
 H5_DLL herr_t H5G_ent_decode(H5F_t *f, const uint8_t **pp,
 			      H5G_entry_t *ent/*out*/);
-H5_DLL H5G_cache_t *H5G_ent_cache(H5G_entry_t *ent, H5G_type_t *cache_type);
-H5_DLL  herr_t H5G_ent_copy(H5G_entry_t *dst, const H5G_entry_t *src,
+H5_DLL const H5G_cache_t *H5G_ent_cache(const H5G_entry_t *ent, H5G_type_t *cache_type);
+H5_DLL herr_t H5G_ent_copy(H5G_entry_t *dst, const H5G_entry_t *src,
             H5G_ent_copy_depth_t depth);
-H5_DLL  herr_t H5G_free_ent_name(H5G_entry_t *ent);
+H5_DLL herr_t H5G_ent_reset(H5G_entry_t *ent);
+H5_DLL herr_t H5G_free_ent_name(H5G_entry_t *ent);
 H5_DLL herr_t H5G_ent_debug(H5F_t *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * stream,
 			     int indent, int fwidth, haddr_t heap);
 #endif

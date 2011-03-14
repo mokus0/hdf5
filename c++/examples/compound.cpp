@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * This example shows how to create a compound datatype,
@@ -45,7 +45,7 @@ int main(void)
    typedef struct s1_t {
 	int      a;
 	float  b;
-	double c; 
+	double c;
    } s1_t;
 
    /* Second structure (subset of s1_t)  and dataset*/
@@ -87,21 +87,21 @@ int main(void)
       H5File* file = new H5File( FILE_NAME, H5F_ACC_TRUNC );
 
       /*
-       * Create the memory datatype. 
+       * Create the memory datatype.
        */
       CompType mtype1( sizeof(s1_t) );
       mtype1.insertMember( MEMBER1, HOFFSET(s1_t, a), PredType::NATIVE_INT);
       mtype1.insertMember( MEMBER3, HOFFSET(s1_t, c), PredType::NATIVE_DOUBLE);
       mtype1.insertMember( MEMBER2, HOFFSET(s1_t, b), PredType::NATIVE_FLOAT);
 
-      /* 
+      /*
        * Create the dataset.
        */
       DataSet* dataset;
       dataset = new DataSet( file->createDataSet( DATASET_NAME, mtype1, space ));
 
       /*
-       * Wtite data to the dataset; 
+       * Wtite data to the dataset;
        */
       dataset->write( s1, mtype1 );
 
@@ -110,7 +110,7 @@ int main(void)
        */
       delete dataset;
       delete file;
- 
+
       // Get the class of the first member in mtype1, then get its type
       H5T_class_t member1_class = mtype1.getMemberClass( 2 );
       if( member1_class == H5T_FLOAT )
@@ -127,7 +127,7 @@ int main(void)
       file = new H5File( FILE_NAME, H5F_ACC_RDONLY );
       dataset = new DataSet (file->openDataSet( DATASET_NAME ));
 
-      /* 
+      /*
        * Create a datatype for s2
        */
       CompType mtype2( sizeof(s2_t) );
@@ -151,11 +151,11 @@ int main(void)
       cout << endl;
 
       cout << endl << "Field a : " << endl;
-      for( i = 0; i < LENGTH; i++) 
+      for( i = 0; i < LENGTH; i++)
 	 cout << s2[i].a << " ";
       cout << endl;
 
-      /* 
+      /*
        * Create a datatype for s3.
        */
       CompType mtype3( sizeof(float) );

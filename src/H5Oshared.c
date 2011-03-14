@@ -40,7 +40,7 @@ static void *H5O_shared_decode (H5F_t*, hid_t dxpl_id, const uint8_t*, H5O_share
 static herr_t H5O_shared_encode (H5F_t*, uint8_t*, const void*);
 static void *H5O_shared_copy(const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_shared_size (const H5F_t*, const void *_mesg);
-static herr_t H5O_shared_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg);
+static herr_t H5O_shared_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t adj_link);
 static herr_t H5O_shared_link(H5F_t *f, hid_t dxpl_id, const void *_mesg);
 static herr_t H5O_shared_debug (H5F_t*, hid_t dxpl_id, const void*, FILE*, int, int);
 
@@ -209,7 +209,7 @@ H5O_shared_decode (H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *buf, H5O_share
     H5O_shared_t	*mesg=NULL;
     unsigned		flags, version;
     void                *ret_value;     /* Return value */
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5O_shared_decode);
 
     /* Check args */
@@ -283,7 +283,7 @@ H5O_shared_encode (H5F_t *f, uint8_t *buf/*out*/, const void *_mesg)
 {
     const H5O_shared_t	*mesg = (const H5O_shared_t *)_mesg;
     unsigned		flags;
-    
+
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_shared_encode);
 
     /* Check args */
@@ -353,7 +353,7 @@ H5O_shared_copy(const void *_mesg, void *_dest, unsigned UNUSED update_flags)
     assert(mesg);
     if (!dest && NULL==(dest = H5MM_malloc (sizeof(H5O_shared_t))))
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    
+
     /* copy */
     *dest = *mesg;
 
@@ -386,12 +386,12 @@ H5O_shared_size (const H5F_t *f, const void *_mesg)
 {
     const H5O_shared_t  *shared = (const H5O_shared_t *) _mesg;
     size_t	ret_value;
-    
+
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_shared_size);
 
     ret_value = 1 +			/*version			*/
             1 +				/*the flags field		*/
-            (shared->in_gh ? 
+            (shared->in_gh ?
                (H5F_SIZEOF_ADDR(f)+4) :	/*sharing via global heap	*/
 		H5F_SIZEOF_ADDR(f));	/*sharing by another obj hdr	*/
 
@@ -414,7 +414,7 @@ H5O_shared_size (const H5F_t *f, const void *_mesg)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_shared_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg)
+H5O_shared_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t adj_link)
 {
     const H5O_shared_t       *shared = (const H5O_shared_t *) _mesg;
     herr_t ret_value=SUCCEED;   /* Return value */
@@ -425,9 +425,10 @@ H5O_shared_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg)
     assert(f);
     assert(shared);
 
-    /* Decrement the reference count on the shared object */
-    if(H5O_shared_link_adj(f,dxpl_id,shared,-1)<0)
-        HGOTO_ERROR (H5E_OHDR, H5E_LINK, FAIL, "unable to adjust shared object link count");
+    /* Decrement the reference count on the shared object, if requested */
+    if(adj_link)
+        if(H5O_shared_link_adj(f, dxpl_id, shared, -1)<0)
+            HGOTO_ERROR (H5E_OHDR, H5E_LINK, FAIL, "unable to adjust shared object link count")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -516,6 +517,6 @@ H5O_shared_debug (H5F_t UNUSED *f, hid_t dxpl_id, const void *_mesg,
 	H5G_ent_debug (f, dxpl_id, &(mesg->u.ent), stream, indent, fwidth,
 		       HADDR_UNDEF);
     }
-    
+
     FUNC_LEAVE_NOAPI(SUCCEED);
 }

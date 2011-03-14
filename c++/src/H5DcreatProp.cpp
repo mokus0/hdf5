@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 
@@ -30,7 +30,7 @@ namespace H5 {
 //--------------------------------------------------------------------------
 ///\brief	Constant for dataset creation default property
 //--------------------------------------------------------------------------
-const DSetCreatPropList DSetCreatPropList::DEFAULT( H5P_DEFAULT );
+const DSetCreatPropList DSetCreatPropList::DEFAULT;
 
 //--------------------------------------------------------------------------
 // Function:	DSetCreatPropList default constructor
@@ -49,7 +49,7 @@ DSetCreatPropList::DSetCreatPropList( const DSetCreatPropList& orig ) : PropList
 
 //--------------------------------------------------------------------------
 // Function:	DSetCreatPropList overloaded constructor
-///\brief	Creates a DSetCreatPropList object using the id of an 
+///\brief	Creates a DSetCreatPropList object using the id of an
 ///		existing dataset creation property list.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -93,7 +93,7 @@ int DSetCreatPropList::getChunk( int max_ndims, hsize_t* dim ) const
    int chunk_size = H5Pget_chunk( id, max_ndims, dim );
    if( chunk_size < 0 )
    {
-      throw PropListIException("DSetCreatPropList::getChunk", 
+      throw PropListIException("DSetCreatPropList::getChunk",
 		"H5Pget_chunk returns negative chunk size");
    }
    return( chunk_size );
@@ -140,7 +140,7 @@ H5D_layout_t DSetCreatPropList::getLayout() const
    H5D_layout_t layout = H5Pget_layout( id );
    if( layout == H5D_LAYOUT_ERROR )
    {
-      throw PropListIException("DSetCreatPropList::getLayout", 
+      throw PropListIException("DSetCreatPropList::getLayout",
 		"H5Pget_layout returns H5D_LAYOUT_ERROR");
    }
    return( layout );
@@ -314,10 +314,10 @@ int DSetCreatPropList::getNfilters() const
 //--------------------------------------------------------------------------
 // Function:	DSetCreatPropList::getFilter
 ///\brief	Returns information about a filter in a pipeline
-///\param	filter_number  - IN: Filter to get, range [0..N-1], where 
+///\param	filter_number  - IN: Filter to get, range [0..N-1], where
 ///				     N is returned by H5Pget_nfilters()
 ///\param	flags         - OUT: General properties of the filter
-///\param	cd_nelmts  - IN/OUT: Number of elements in \a cd_values /Number 
+///\param	cd_nelmts  - IN/OUT: Number of elements in \a cd_values /Number
 ///				     of values defined by the filter
 ///\param	cd_values     - OUT: Array to hold the data; allocated by the user
 ///\param	namelen       - OUT: Length of \a name
@@ -331,7 +331,7 @@ H5Z_filter_t DSetCreatPropList::getFilter(int filter_number, unsigned int &flags
                     unsigned int* cd_values, size_t namelen, char name[] ) const
 {
    H5Z_filter_t filter_id;
-   filter_id = H5Pget_filter( id, filter_number, &flags, &cd_nelmts, 
+   filter_id = H5Pget_filter( id, filter_number, &flags, &cd_nelmts,
 				cd_values, namelen, name);
    if( filter_id == H5Z_FILTER_ERROR )
    {
@@ -348,7 +348,7 @@ H5Z_filter_t DSetCreatPropList::getFilter(int filter_number, unsigned int &flags
 ///		filter id
 ///\param	filter_id -      IN: Filter to get
 ///\param	flags     -     OUT: General properties of the filter
-///\param	cd_nelmts -  IN/OUT: Number of elements in \a cd_values /Number 
+///\param	cd_nelmts -  IN/OUT: Number of elements in \a cd_values /Number
 ///				     of values defined by the filter
 ///\param	cd_values -     OUT: Array to hold the data; allocated by the user
 ///\param	namelen   -      IN: Length of \a name
@@ -424,6 +424,7 @@ bool DSetCreatPropList::allFiltersAvail()
 //--------------------------------------------------------------------------
 // Function:	DSetCreatPropList::setShuffle
 ///\brief	Sets method of the shuffle filter
+///
 ///\exception	H5::PropListIException
 ///\par Description
 ///		Please refer to the Reference Manual of \c H5Pset_shuffle for
@@ -539,6 +540,7 @@ void DSetCreatPropList::setFillTime(H5D_fill_time_t fill_time)
 //--------------------------------------------------------------------------
 // Function:	DSetCreatPropList::setFletcher32
 ///\brief	Sets Fletcher32 checksum of EDC for this property list.
+///
 ///\exception	H5::PropListIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------

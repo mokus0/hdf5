@@ -1,11 +1,11 @@
-HDF5 version 1.6.4 released on Tue Mar 15 20:38:48 CST 2005
+HDF5 version 1.6.5 released on Thu Nov 10 18:17:53 CST 2005
 ================================================================================
 
 INTRODUCTION
 ============
-This document describes the differences between HDF5-1.6.3 and
-HDF5-1.6.4, and contains information on the platforms tested and
-known problems in HDF5-1.6.4. For more details check the HISTORY.txt
+This document describes the differences between HDF5-1.6.4 and
+HDF5-1.6.5.  It contains information on the platforms tested and
+known problems in HDF5-1.6.5. For more details, check the HISTORY.txt
 file in the HDF5 source.
 
 The HDF5 documentation can be found on the NCSA ftp server
@@ -13,8 +13,12 @@ The HDF5 documentation can be found on the NCSA ftp server
 
      /HDF/HDF5/docs/
 
+Documentation for the current release is also on the HDF web site:
+
+     http://hdf.ncsa.uiuc.edu/HDF5/doc/
+
 For more information look at the HDF5 home page at:
-   
+
     http://hdf.ncsa.uiuc.edu/HDF5/
 
 If you have any questions or comments, please send them to:
@@ -25,8 +29,8 @@ If you have any questions or comments, please send them to:
 CONTENTS
 ========
 - New Features
-- Support for new platforms and languages
-- Bug Fixes since HDF5-1.6.3
+- Support for New Platforms, Languages and Compilers
+- Bug Fixes since HDF5-1.6.4
 - Documentation
 - Platforms Tested
 - Supported Configuration Features Summary
@@ -35,141 +39,193 @@ CONTENTS
 
 New Features
 ============
+    Configuration:
+    -------------------------
+	- Added yodconfigure, a configure tool, that patches up the configure
+	  file to allow configure to launch executable via the proper
+	  launching command like "yod -sz 1".  AKC - 2005/11/10
+	- Configure now recognizes the TR variable as the location of the
+          tr utility.  JML 2005/10/20
+
     Source code distribution:
     -------------------------
-
-    The High-Level (HL) C APIs were added to the source code distribution.
-    For HL documentation, see
-    http://hdf.ncsa.uiuc.edu/HDF5/hdf5_hl/doc/RM_hdf5hl.html.
-
-    The HL library, libhdf5_hl.a(so), is built and installed by default. 
-    Use --disable-hl configure flag to disable the HL library.
+	- Added g95 as a testing "platform" informally. AKC - 2005/10/04.
+        - Added MD5 checksumming to snapshot releases.  Releases will now
+          produce an .md5 file as well as a .tar archive.  md5sum can be
+          used to verify the arvhice with the .md5 checksum.  -JL 2005/09/06
 
     Library:
     --------
-        - We recommend you to use SZIP v2.0 with this release. 
-          For more information see
-          http://hdf.ncsa.uiuc.edu/doc_resource/SZIP/ 
-        - The compound datatype has been enhanced with a new feature of size 
-            adjustment.  The size can be increased and decreased (without
-            cutting the last member).  No API change is involved.  SLU - 
-            2004/10/1
-        - Removed PABLO support.  2005/01/20 EIP 
+        - Added HSYS_ERROR which retrieves the system error message and pushes
+          it to the error stack.  This provides more information regarding the 
+	  failed system call. AKC - 2005/08/04
+        - Added H5F_OBJ_LOCAL flag to H5Fget_obj_count() & H5Fget_obj_ids(), to
+          allow querying for objects in a file that was opened with a particular
+          file ID, instead of all objects opened in the file with any file ID.
+          QAK - 2005/06/01
 
     Parallel Library:
     -----------------
-        - Allow compressed, chunked datasets to be read in parallel.
-            QAK - 2004/10/04
+	- Added mpich2 as a testing "platform" informally. AKC - 2005/10/04.
+	- HDF5 supports collective MPI-IO for irregular selection with HDF5
+	  dataset. Irregular selection is when users use API H5Sselect_hyperslab
+	  more than once for the same dataset.
+	  Currently, not all MPI-IO packages support the complicated 
+	  MPI derived datatypes used in the implementation of irregular 
+	  selections INSIDE HDF5. 
+	  1) DEC 5.x wdoes not support complicated derived datatypes.
+	  2) For AIX 5.1:
+	     If your poe version number is 3.2.0.20 or lower,
+	     please edit powerpc-ibm-aix5.x in the directory hdf5/config/.
+	     Find the line with
+	          << hdf5_mpi_complex_derived_datatype_works >>
+	     and UNCOMMENT this line before the configure.
+	     check poe version with the following command:
+	     lpp -l all | grep ppe.poe
+	  3) For Linux cluster,:
+	     If mpich version is 1.2.5 or lower, collective irregular selection
+	     IO is not supported; internally independent IO is used.
+	  4) For IRIX 6.5:
+	     if C compiler version is 7.3 or lower, collective irregular 
+	     selection IO is not supported; internally independent IO is used.
+	  5) For platforms which internally used mpich: 
+	     If the mpich version is 1.2.5 or lower, please find the 
+	     corresponding config (in hdf5/config) file and add
+	         hdf5_mpi_complex_derived_datatype_works='no' 
+	     at the end of the configuration file. For example, on the 
+	     NCSA SGI Altix, the internal mpich library is 1.2.5. So 
+	         hdf5_mpi_complex_derived_datatype_works='no' 
+	     should be added at the end of the config file ia64-linux-gnu.
+	     KY - 2005/09/12
 
     Tools:
     ------
-	- New tool, h5jam.  See HDF5 Reference Manual.  2004/10/08	      
+        - Removed obsolete pdb2hdf tool.  JML - 2005/10/28
+        - Sped up h5dump on files with large numbers of objects.
+            QAK - 2005/08/25
 
     F90 API:
     --------
-          No new features in this release.
-
+        - Added missing h5tget_member_class_f function
+                                            EIP 2005/04/06
     C++ API:
     --------
-	- Started using C library's reference counting in place of the class
-	  RefCounter, which existed before the C mechanism was available.  
-	  As a result, RefCounter has been removed.  2005/03/12 BMR
+        - Added missing member functions:
+		H5::CompType::getMemberArrayType
+		H5::CompType::getMemberVarLenType
+		H5::AbstractDs::getArrayType
+		H5::AbstractDs::getVarLenType
+		H5::CommonFG::openArrayType
+		H5::CommonFG::openVarLenType
+		H5::PropList::copyProp -- this will replace the current
+			H5::PropList::copyProp in later releases due
+			to incorrect prototype.
+		BMR - 2005/07/27
 
 
-Support for new platforms, languages and compilers.
-=======================================
+Support for New Platforms, Languages and Compilers
+==================================================
+    - Added support for RedStorm platform (serial only.)  AKC 2005/11/10
+    - Added support for BG/L platform (serial only.)  LA 2005/11/10
+    - Added support for HPUX 11.23 (IA64); only C and C++ are supported
+      with the +DD64 flag 
+                                             EIP 2005/10/05
+ 
 
     Configuration
     -------------
-	- Upgraded from GNU autoconf 2.53 to autoconf 2.59.  JML - 2005/01/31
+        - Added support for Cray X1.  JML 2005/10/03
 
 
-Bug Fixes since HDF5-1.6.3 release
+Bug Fixes since HDF5-1.6.4 Release
 ==================================
 
     Library
     -------
-        - Fixed a racing condition in MPIPOSIX virtual file drive close
-	  function.  Now all processes must completed the close before any
-	  of them is returned.  This prevents some "faster" processes start
-	  accessing the file for another purpose (e.g., open with truncate)
-	  while other "slower" processes have not closed the same file with
-	  the previous purpose.  AKC - 2005/03/01
-	- H5Tget_member_value calls for enum datatype didn't return correct 
-          value if H5Tenum_valueof was called first.  It's fixed.  SLU - 
-          2005/02/08
-        - For variable-length string, H5Tget_class returned H5T_STRING as its
-          class.  But H5Tdetect_class and H5Tget_member_class considered it
-          as H5T_VLEN.  This is fixed to let all these 3 functions treat it
-          as H5T_STRING.  SLU - 2005/02/08
-        - The byte order of all 1-byte integer types was fixed as
-          little-endian even on a big-endian machine.  It's corrected.
-          SLU - 2005/02/07
-        - Fixed segmentation fault when calling H5Fflush with an attribute that
-          hasn't had a value written to it open.  QAK - 2004/10/18
-        - Backed out support for bitfield and time types in H5Tget_native_type.
-          Leave it to future support.  The function simply returns error 
-          message of "not support" for bitfield and time types. SLU - 2004/10/5
-        - Fixed address check in Core VFL driver to avoid spurious address/size
-          overflows for odd valued addresses and/or sizes.  QAK - 2004/09/27
-        - Fixed problem where chunked datasets were not able to be deleted
-          from a file under certain circumstances.  QAK - 2004/09/27/
+        - Fixed collective IO in chunking-storage.  HDF5 may have called the 
+            wrong routine when the shape of the dataspace in the file and in 
+            the bufferred chunk were different. This bug was fixed to make sure
+            the correct routine is called. KY - 2005/10/19
+        - Fixed core dump when closing root groups opened through two different
+            file handles that operate on the same actual file.  QAK - 2005/10/02
+        - The ./dsets tests used to fail in the TFLOPS machine if the
+            test program, dsets.c, was compiled with the -O option.
+            The HDF5 library still worked correctly with the -O option. Only
+            the ./dsets failed.  It is fixed. AKC - 2005/09/14
+        - Corrected errors when performing various operations on a group opened
+            by dereferencing an object reference.  QAK - 2005/07/30
+        - Fixed a bug with named datatypes where a copy of a named datatype
+            used to create a dataset would accidentally use the original
+            named datatype for the dataset's datatype.  QAK - 2005/07/23
+        - Made H5Fget_name() to be consistent and always return name of actual
+            file the ID is in.  (Instead of the name of the top file in a
+            file mounting hierarchy).  QAK - 2005/07/19
+        - Reworked internal file mounting semantics to hopefully eliminate
+            mounting problems.  We now require that files that are mounting
+            together all have the same "file close degree".  QAK - 2005/07/19
+        - More bug fixes on holding open files that are mounted and have
+            IDs open.  QAK - 2005/07/14
+        - Dataset sieve buffer cache was inadvertantly disabled; it has been
+            re-enabled.  QAK - 2005/07/08
+        - Don't unmount child files until the parent file actually closes.
+            (Previously, if an object was holding open a file, the child files
+            would get unmounted too early).  QAK - 2005/07/05
+        - Fixed bug where unmounted files could cause the library to go into
+            an infinite loop when shutting down.  QAK - 2005/06/30
+        - Fixed bug with hyperslab selections that use selection offsets and
+            operate on chunked datasets going into infinite loop or dumping
+            core.  QAK - 2005/06/17
+        - Corrected memory leak and possible corruption when opening a group.
+            QAK - 2005/06/17
+        - Added check for opaque datatype tags being too long (check against
+            H5T_OPAQUE_TAG_MAX, currently set to 256).  QAK - 2005/06/14
+        - Fixed various errors in maintaining names for open objects in the
+            face of unusual mount & unmount operations.  QAK - 2005/06/08
+        - "SEMI" and "STRONG" file close degree settings now apply only to the
+            particular file ID being closed, instead of operating on all open
+            file IDs for a given file.  QAK - 2005/06/01
+        - Fixed error in opening object in a group that was opened in a mounted
+            file which has been unmounted.  QAK - 2005/03/17
 
     Configuration
     -------------
-	- IRIX64 MIPSpro compiler of 7.4.x supports C99 features.  Default
-	  to use the 'c99' compiler if available. AKC - 2004/12/13
-	- Intel v8.0 compiler would infinite loop when compiling some test
-	  code with -O3 option.  Changed enable-production default compiler
-	  option to -O2. AKC - 2004/12/06
-	- Long double is assumed to be a supported C data type.  It is a
-	  standard C89 type. AKC - 2004/10/22
+	- Configure can recognize -lmpich as a form of MPI library. -AKC-
+	  2005/9/28.
+	- Changed default C++ compiler for the IA64 platform from icc to
+	    icpc which is the preferred compiler for Intel Compiler version
+	    8. AKC - 2005/09/02
 
     Performance
     -------------
-    Many changes were made to the library to improve performance,
-    especially for the variable-length datatypes and metadata cache.
+        - Optimized I/O for enumerated datatypes that are a superset of a 
+            source enumerated datatype.  QAK - 2005/03/19
    
     Tools
     -----
-        - h5fc and h5c++ work correctly when -c compiler flag
-          is used.  EIP - 2005/03/14        
-	- Fixed h5dump to print attributes data in ASCII if -r option is used.
-	  AKC - 2004/11/18
-        - Fixed space utilization reported in h5ls to correct error 
-          in formula used.  QAK - 2004/10/22
 
     Documentation 
     ------------- 
 
     F90 API
     -------
-       - On windows, previously Fortran DLL built and tested failed.
-         Now Fortran DLL has been built and tested successfully
-         with Dec Fortran 6.6c or Dec Fortran 6.0.
-
+       - h5pget_driver_f was returning information that could not be
+         interpreted by a Fortran application program; fixed. EIP - 2005/04/10
+                                
     C++ API
     -------
+	- Several member functions' prototype changed due to the 
+	  "int -> unsigned" change in the main library.  They are:
+		H5::CompType::getMemberDataType(unsigned member_num)
+		H5::CompType::getMemberCompType(unsigned member_num)
+		H5::CompType::getMemberEnumType(unsigned member_num)
+		H5::CompType::getMemberIntType(unsigned member_num)
+		H5::CompType::getMemberFloatType(unsigned member_num)
+		H5::CompType::getMemberStrType(unsigned member_num)
+		BMR - 2005/07/27
 
 
-Documentation
-=============
 
-    HDF5 Library documentation
-    --------------------------
-    No substantive changes to the structure or types of content in the 
-    HDF5 Library documentation.
-
-    Windows installation documentation
-    ----------------------------------
-    1. On Windows zlib has been updated to 1.2.2. You may find the binary at
-       either http://www.zlib.net/zlib122-dll.zip or
-              ftp://hdf.ncsa.uiuc.edu/lib-external/zlib/bin/windows
-
-    2. Only DLLs of external libraries (zlib and szip) are linked with the 
-       HDF5 Library. We will no longer provide binary to link static library 
-       with HDF5. For details, please check INSTALL_Windows in this directory.
-        
+   
 
 Platforms Tested
 ================
@@ -194,17 +250,21 @@ Platforms Tested
                                   xlf 8.1.1.7
                                   mpcc_r 6.0.0.8
                                   mpxlf_r 8.1.1.7
-    Cray T90 sn7001 10.0.0md      Cray Standard C Version 6.4.0.3
-                                  Cray Fortran Version 3.4.0.0
-    Cray SV1 sn9617 10.0.1.2      Cray Standard C Version 6.6.0.3.6
-                                  Cray Fortran Version 3.6.0.3.1
-    FreeBSD 4.9                   gcc 2.95.4
+    AIX 5.3 (32/64 bit)           xlc 7.0.0.0
+                                  xlC 7.0.
+                                  xlf 9.1.0.3
+    Cray X1 water 3.0.35          Cray Standard C Version 5.4.0.7.4
+                                  Cray Fortran 5.4.0.7.3
+                                  Cray C++ 5.4.0.7.4
+    FreeBSD 4.11                  gcc 2.95.4
                                   g++ 2.95.4
                                   gcc 3.2.3, 3.3.6, 3.4.4, 4.0.0
     HP-UX B.11.00                 HP C  HP92453-01 A.11.01.20 
                                   HP F90 v2.4
                                   HP ANSI C++ B3910B A.03.13
-                                  MPIch 1.2.4
+    HP-UX B.11.23                 HP aC++/ANSI C B3910B A.06.00
+                                  HP F90 v2.9
+                                  HP aC++/ANSI C B3910B A.06.00
     IRIX64 6.5 (tesla -64)        MIPSpro cc 7.4.2m
                                   F90 MIPSpro 7.4.2m
                                   C++ MIPSpro cc 7.4.2m
@@ -224,7 +284,7 @@ Platforms Tested
     (mir)                         PGI 5.2-1 C and F90 (with k3-32) 
                          	  Intel(R) C++ 32-bit Version 8.1
     				  Intel(R) Fortran 32-bit Version 8.1
-    Linux 2.4.21-sgi303r2 Altix 
+    Linux 2.4.21-sgi306rp21 Altix 
           SMP ia64                Intel(R) C++ Version 8.1
     (cobalt)                      Intel(R) Fortran Itanium(R) Version 8.1
                                   SGI MPI
@@ -235,26 +295,25 @@ Platforms Tested
     OSF1 V5.1 (PSC)               Compaq C V6.5-303 
                                   HP Fortran V5.5A-3548
 				  Compaq C++ V6.5-040  
-				  MPIX200_64_r13.4
-                                  FORTRAN 90 2.0 Patch 107356-04 
     SunOS 5.8 32,46               Sun WorkShop 6 update 2 C 5.3
      (Solaris 2.8)                Sun WorkShop 6 update 2 Fortran 90
                                   Sun WorkShop 6 update 2 C++ 5.3
     SunOS 5.9 32,64               Sun C 5.6 2004/07/15
      (Solaris 2.9)                Sun Fortran 95 8.0 2004/07/15
                                   Sun C++ 5.6 2004/07/15
-    TFLOPS r1.0.4 v4.5.2 i386     pgcc Rel 3.1-4i with mpich-1.2.4 with
-                                          local modifications
-    Xeon Linux 2.4.20-31.9smp_perfctr_lustre
-    (tungsten)	                  Intel(R) C++ Version 8.0
-                                  Intel(R) Fortran Compiler Version 8.0
-    IA-64 Linux 2.4.21.SuSE_128.bef1 ia64
+    SunOS 5.10                    Sun WorkShop 6 update 2 C 5.3
+                                  Sun WorkShop 6 update 2 Fortran 95 6.2
+                                  Sun WorkShop 6 update 2 C++ 5.3
+                                  Patch 111685-13 
+    Xeon Linux 2.4.21-32.0.1.ELsmp-perfctr-lustre
+    (tungsten)	                  Intel(R) C++ Version 9.0
+                                  Intel(R) Fortran Compiler Version 9.0
+    IA-64 Linux 2.4.21.SuSE_292.til1 ia64
     (NCSA tg-login)               Intel(R) C++ Version 8.0
                                   Intel(R) Fortran Compiler Version 8.0
-				  mpich-gm-1.2.5..intel
+				  mpich-gm-1.2.5..10-intel-r2
     Windows XP                    MSVC++.NET
                                   MSVC++ 6.0
-                                  Compaq Visual Fortran 6.6C
                                   Intel 8.1 C++
     MAC OS X                      Darwin 7.5
                                   gcc and g++ Apple Computer, Inc. GCC 
@@ -274,26 +333,30 @@ Key:   y   = tested and supported
 
 Platform                             C        F90    F90      C++  zlib  SZIP
                                      parallel        parallel      
+IBM BG/L (16)			     n        n      n        n    y     y
 Solaris2.8 64-bit                    y        y      y(1)     y    y     y
 Solaris2.8 32-bit                    y        y      y(1)     y    y     y
 Solaris2.9 64-bit                    y(1)     y      y(1)     y    y     y
 Solaris2.9 32-bit                    y(1)     y      y(1)     y    y     y
+Solaris2.10 64-bit                   y(1)     y      n        y    y     y
+Solaris2.10 32-bit                   y(1)     y      n        y    y     y
 IRIX64_6.5 64-bit                    y(2)     y      y        y    y     y
 IRIX64_6.5 32-bit                    y(2)     n      n        n    y     y
 HPUX11.00                            y(1)     y      y        y    y     y
+HPUX11.23-32bit                      n        y      n        y    y     y
+HPUX11.23-64bit                      n        n      n        y    y     y
 OSF1 v5.1                            y        y      y        y    y     y
-T90 IEEE                             n        y      n        n    y     n
-SV1                                  y(5)     y      y(5)     n    y     n
-TFLOPS                               y(1)     n      n        n    y     n
-AIX-5.1 & 5.2 32-bit                 y        y      y        y    y     y
-AIX-5.1 & 5.2 64-bit                 y        y      y        y    y     y
-WinXP Visual Studio 6.0              n        y(9)   n        y    y     y
+X1                                   y        y      y        y    y     n
+AIX-5.1, 5.2 & 5.3 32-bit            y        y      y        y    y     y
+AIX-5.1, 5.2 & 5.3 64-bit            y        y      y        y    y     y
+WinXP Visual Studio 6.0              n        n(9)   n        y    y     y
 WinXP .Net                           n        n      n        y(8) y     y
 Mac OS X 10.3                        n        y(10)  n        y    y     y
-FreeBSD 4.9                          y(1)     n      n        y    y     y
+FreeBSD 4.11                         n        n      n        y    y     y
 RedHat 7.3  W (3)                    y(1)     y(11)  n        y    y     y
 RedHat 7.3  W Intel (3)              n        y      n        y    y     y
 RedHat 7.3  W PGI (3)                n        y      n        y    y     y
+RedStorm (16)			     n        y      n        y    y     n
 SuSe x86_64 gcc (3,13)               n        y(12)  n        y    y     y
 SuSe x86_64 icc (3,13)               n        y(14)  n        y    y     y
 Linux 2.4 Xeon C Lustre Intel (3,6)  n        y      n        y    y     y
@@ -303,26 +366,29 @@ Linux 2.4 SGI Altix ia64 Intel (3)   y        y      y        y    y     y
 
 Platform                             Shared        static-  Thread-  STREAM- 
                                      libraries(4)  exec     safe     VFD    
+IBM BG/L 			     n              y       n        n
 Solaris2.8 64-bit                    y              x       y        y
 Solaris2.8 32-bit                    y              x       y        y
 Solaris2.9 64-bit                    y              x       y        y
 Solaris2.9 32-bit                    y              x       y        y
+Solaris2.10 64-bit                   y              x       y        y
+Solaris2.10 32-bit                   y              x       y        y
 IRIX64_6.5 64-bit                    y              y       y        y
 IRIX64_6.5 32-bit                    y              y       y        y
 HPUX11.00                            y              x       n        y
+HPUX11.23                            y              y       n        y
 OSF1 v5.1                            y              y       n        y
-T90 IEEE                             n              y       n        y
-SV1                                  n              y       n        y
-TFLOPS                               n              y       n        n
-AIX-5.1 & 5.2 32-bit                 n              y       n        y
-AIX-5.1 & 5.2 64-bit                 n              y       n        y
+X1                                   n              y       n        y
+AIX-5.1, 5.2 & 5.3 32-bit            n              y       n        y
+AIX-5.1, 5.2 & 5.3 64-bit            n              y       n        y
 WinXP Visual Studio 6.0              y              y       n        n
 WinXP .Net                           y              y       n        n
 Mac OS X 10.3                        y              y       n        y
-FreeBSD 4.9                          y              y       y        y
+FreeBSD 4.11                         y              y       y        y
 RedHat 7.3   W (3)                   y              y       y        y
 RedHat 7.3  W  Intel (3)             n              y       n        y
 RedHat 7.3  W  PGI (3)               n              y       n        y
+RedStorm 			     n              y       n        y
 SuSe x86_64 gcc (3,13)               n              y       n        y
 SuSe x86_64 icc (3,13)               y              y(15)   n        y
 Linux 2.4 Xeon C Lustre Intel (3,6)  y              y       n        y
@@ -341,11 +407,15 @@ Footnotes:  (1) Using mpich 1.2.6
             (4) Shared libraries are provided only for the C library, 
                 except on Windows where they are provided for C and C++.
             (5) Using mpt.
-            (6) Linux 2.4.20-31.9.  Xeon cluster with smp_perfctr_lustre 
+            (6) Linux 2.4.21-32.0.1.  Xeon cluster with ELsmp-perfctr-lustre 
                 and Intel compilers
-            (7) Linux 2.4.21, SuSE_128.befl.  Ia64 cluster with Intel compilers
+            (7) Linux 2.4.21, SuSE_292.til1.  Ia64 cluster with Intel compilers
             (8) Intel 8.1
-            (9) Compaq Visual Fortran 6.6C
+            (9) One test of this release failed with Compaq Visual Fortran 6.6c.
+                No binary fortran release will be provided. Users should build
+                the library by themselves and use it at their own risk. 
+                We recommend that users use HDF5 1.7 instead 
+                or use Compaq Visual Fortran 6.0.
            (10) IBM XLF and Absoft
            (11) PGI, Absoft.  No shared libraries with Absoft; 
                 use '--disable-shared'.
@@ -353,19 +423,60 @@ Footnotes:  (1) Using mpich 1.2.6
            (13) AMD Opteron x86_64
            (14) ifort
            (15) Yes with C and Fortran, but not with C++
-       FMB/EIP - 2005/03/15
+           (16) Only serial is ported.  PFS does not work for PHDF5 yet.
+           FMB/EIP - 2005/11/10
 
 
 Known Problems
 ==============
+* Intel Compilers for Linux x86_86 platforms (EM64T-based, v8.1) has
+  optimization error in the data types conversion code.  Before running
+  configure, edit the file config/intel-flags by changing the setting of
+  PROD_CFLAGS from -O3 to -O0, then run configure.  AKC - 2005/11/10.
+
+* Fortran testing and compiling failures on windows XP 
+  1. Compaq visual fortran 6.6c with VS 6.0
+     The Fortran tests failed for both release, release dll, debug and debug
+     dll. The failure is a random one. We won't provide fortran libraries. The
+     same test passed with the 1.7.51 snapshot. You may find the 1.7.51 
+     snapshot under ftp://hdf.ncsa.uiuc.edu/pub/outgoing/hdf5/snapshots/.
+  2. Intel fortran 8.1 under .Net environment
+     The fortran library cannot even be compiled. Some users have pointed this
+     to intel forum.
+
+* When testing parallel HDF5 with the C compiler version MIPSpro 7.4.3 at IRIX
+  6.5, set enviroment variable MPI_TYPE_MAX to be a bigger number, for example 
+  120000, in order to pass the complicated collective IO tests inside parallel 
+  HDF5 library. This is not a problem inside parallel HDF5 library. You can 
+  always set a bigger number in your system.
+                                  KY - 2005/10/6
+
+* A contiguous or chunked dataset created by a sequential version may
+  not be modified with a parallel version of the library. 
+  Use the H5Pset_alloc_time function with H5D_ALLOC_TIME_EARLY to set up the 
+  dataset creation property list to avoid the problem.
+                                    EIP - 2005/09/09
+
+* The dataset created or rewritten with the v1.6.3 library or after can't 
+  be read with the v1.6.2 library or before when Fletcher32 EDC(filter) is 
+  enabled.  There was a bug in the calculating code of the Fletcher32 
+  checksum in the library before v1.6.3.  The checksum value wasn't consistent 
+  between big-endian and little-endian systems.  This bug was fixed in 
+  Release 1.6.3.  However, after fixing the bug, the checksum value is no 
+  longer the same as before on little-endian system.  The library release 
+  after 1.6.4 can still read the dataset created or rewritten with the library
+  of v1.6.2 or before.  SLU - 2005/7/8
+
+* For version 6 (6.02 and 6.04) of the Portland Group compiler on AMD Opteron
+  processor, there's a bug in the compiler for optimization(-O2).  The library
+  failed in several tests but all related to multi driver.  The problem has 
+  been reported to the vendor.  
+
 * test/big fails sometimes with the message "Possible overlap with another
   region."  The test selects regions randomly, and this error occurs when
-  two regions overlap each other; it is an bug in the test and not in
+  two regions overlap each other; it is a bug in the test and not in
   HDF5.  Since the error is triggered by a random situation, it will
   usually disappear if the test is re-run.
-
-* Cray SV1 fails to correctly convert between floating-point and "long double"
-  for software conversion.  Problem is being investigated. SLU - 2005/03/04
 
 * Newer SGI MIPSpro compilers (version 7.4.x) support C99 features but it
   has a "guard" statement in stdint.h that will #error and skip the rest
@@ -382,14 +493,11 @@ Known Problems
   Check if there are many old /tmp/s.pedb.* staying around.  These are
   sockets used by the poe command and left behind due to failed commands.
   Ask your system administrator to clean them out.  Lastly, request IBM
-  to provide a mean to run poe without the debug socket.
+  to provide a means to run poe without the debug socket.
 
-* Fortran subroutine h5pget_driver_f doesn't return a correct driver 
-  information.
-
-* There are two h5dump xml tests(h5dump --xml thlink.h5 and 
-  h5dump --xml tmany.h5) failed on windows xp with .NET for debug and 
-  debug dll. Release and Release dll work fine. 
+* Two h5dump xml tests(h5dump --xml thlink.h5 and h5dump --xml tmany.h5) 
+  failed on windows xp with .NET for debug and debug dll. Release and 
+  Release dll work fine. 
 
 * The h5dump tests may fail to match the expected output on some platforms
   (e.g. parallel jobs, Windows) where the error messages directed to
@@ -409,24 +517,15 @@ Known Problems
   The --enable-static-exec configure flag also fails to correctly compile
   on IBM SP2 platform for the serial mode. The parallel mode works fine
   with this option.
+
+  The --enable-static-exec configure flag also fails to correctly compile
+  on the HPUX 11.00.
   
   It is suggested that you don't use this option on these platforms
   during configuration.
 
-* The Stream VFD was not tested yet under Windows. It is not supported
-  in the TFLOPS machine.
+* The Stream VFD was not tested yet under Windows.
 
-* The ./dsets tests failed in the TFLOPS machine if the test program,
-  dsets.c, is compiled with the -O option.  The hdf5 library still works
-  correctly with the -O option.  The test program works fine if it is
-  compiled with -O1 or -O0.  Only -O (same as -O2) causes the test
-  program to fail.
-
-* Certain platforms give false negatives when testing h5ls:
-    - Cray T90IEEE give errors during testing when displaying
-      some floating-point values. These are benign differences due to
-      the different precision in the values displayed.
-      h5ls appears to be dumping floating-point numbers correctly.
 
 * Before building HDF5 F90 Library from source on Crays 
   replace H5Aff.f90, H5Dff.f90 and H5Pff.f90 files in the fortran/src
@@ -434,16 +533,11 @@ Known Problems
   from the site:
   ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/current/src/patches/
 
-* On some platforms that use Intel and Absoft compilers to build HDF5 fortran 
-  library, compilation may fail for fortranlib_test.f90, fflush1.f90 and 
-  fflush2.f90 complaining about exit subroutine. Comment out the line 
-  IF (total_error .ne. 0) CALL exit (total_error)
-
 * Use --disable-shared configure flag if building with Absoft Fortran
-  compiler
+  compiler.
 
 * Information about building with PGI and Intel compilers is available in
-  INSTALL file sections 5.7 and 5.8
+  INSTALL file sections 5.7 and 5.8.
 
 * In LANL QSC, the new cc compiler has problems converting small values of
   long long (absolute values less than 1**-308) to double.  This triggers
@@ -454,22 +548,16 @@ Known Problems
   occasionally as 1**-308.  This has been reported to the system staff.
   All other tests have passed.
 
-* The C++ library's tests fails when compiling with PGI C++ compiler.  The
-  workaround until the problem is correctly handled is to use the
-  flag "--instantiate=local" prior to the configure and build steps, as:
-        setenv CXX "pgCC --instantiate=local"  for pgCC 5.02 and higher
-        setenv CXX "pgCC -tlocal" for others
-
-* Fortran release DLL randomly failed with compaq visual fortran 6.6c on
-  windows. 
+* Fortran release DLL randomly failed with Compaq Visual Fortran 6.6c on
+  Windows. 
 
 * Fortran DLL built with Intel 8.1 in .NET environment crushed the compiler,
-  To build Fortran Static library with Intel 8.1 in .NET environment 
-  needs manually setting the project file,
-  please contact to hdfhelp@ncsa.uiuc.edu if you need to build
-  fortran static library with Intel 8.1 with .NET environment.
+  Building Fortran static library with Intel 8.1 in .NET environment 
+  requires manually setting the project file.
+  Please contact to hdfhelp@ncsa.uiuc.edu if you need to build
+  Fortran static library with Intel 8.1 with .NET environment.
 
-* On at least one system, (SDSC DataStar), the scheduler (in this case
+* On at least one system, SDSC DataStar, the scheduler (in this case
   LoadLeveler) sends job status updates to standard error when you run
   any executable that was compiled with the parallel compilers.
 
@@ -518,8 +606,8 @@ Known Problems
   "unsetenv RUNSERIAL" before running configure for a serial build.
 
   Note that the RUNSERIAL environment variable exists so that we can
-  can prefix serial runs as necessary on the target system.  On DataStar,
-  no prefix is necessary.  However on an MPICH system, the prefix might
+  prefix serial runs as necessary on the target system.  On DataStar,
+  no prefix is necessary.  However, on an MPICH system, the prefix might
   have to be set to something like "/usr/local/mpi/bin/mpirun -np 1" to
   get the serial tests to run at all.
 

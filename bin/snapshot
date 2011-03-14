@@ -59,8 +59,8 @@ ARCHIVES=$ARCHIVES_default
 ZLIB_default=
 ZLIB=$ZLIB_default
 
-# What compression methods to use?
-METHODS="gzip bzip2"
+# What compression methods to use? (md5 does checksum).
+METHODS="gzip bzip2 md5"
 
 # Use User's MAKE if set.  Else use generic make.
 MAKE=${MAKE:-make}
@@ -342,8 +342,6 @@ if [ "$cmd" = "all" -o -n "$cmdtest" -o -n "$cmddiff" ]; then
 	TESTDIR=${BASEDIR}/TestDir/${SRCDIRNAME}
 	test -d ${TESTDIR} || mkdir ${TESTDIR}
     fi
-    INSTALLDIR=${TESTDIR}/installdir
-    test -d $INSTALLDIR || mkdir $INSTALLDIR
     # Make sure current version exists and is clean
     if [ -d ${TESTDIR} ]; then
 	(cd ${TESTDIR} && ${MAKE} distclean)
@@ -386,7 +384,7 @@ if [ "$cmd" = "all" -o -n "$cmdtest" -o -n "$cmddiff" ]; then
     if [ "$snapshot" = "yes" ]; then
 	if (cd ${TESTDIR} && \
 	    TIMESTAMP "configure" && \
-	    ${srcdir:+${CURRENT}/}${CONFIGURE} --prefix=$INSTALLDIR && \
+	    ${srcdir:+${CURRENT}/}${CONFIGURE} && \
 	    TIMESTAMP "make" && \
 	    ${MAKE} && \
 	    TIMESTAMP "check" && \
@@ -414,6 +412,8 @@ if [ -n "$DEPLOYDIRNAME" ]; then
     if [ "$snapshot" = "yes" ]; then
 	TIMESTAMP "deploy"
 	if (cd ${TESTDIR} && ${CURRENT}/bin/deploy ${deploydir}/${DEPLOYDIRNAME}); then
+	    :	#continue
+	else
 	    errcode=$?
 	    exit $errcode
 	fi
@@ -469,9 +469,9 @@ if [ -n "$cmdclean" ]; then
 	esac
 	TESTDIR=${BASEDIR}/TestDir/${SRCDIRNAME}
     fi
-    # Make sure current version exists and is clean
-    if [ -d ${TESTDIR} ]; then
-	(cd ${TESTDIR} && ${MAKE} $cmdclean )
+    # clean it
+    if (cd ${TESTDIR} && ${MAKE} $cmdclean ) then
+	:
     else
 	errcode=$?
         snapshot=no

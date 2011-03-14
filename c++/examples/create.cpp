@@ -1,21 +1,21 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/*  
+/*
  *  This example writes a dataset to a new HDF5 file.
  */
- 
+
 #include <string>
 
 #ifdef OLD_HEADER_FILENAME
@@ -37,8 +37,8 @@ const int 	RANK = 2;
 
 int main (void)
 {
-   /* 
-    * Data initialization. 
+   /*
+    * Data initialization.
     */
    int i, j;
    int data[NX][NY];          // buffer for data to write
@@ -46,9 +46,9 @@ int main (void)
    {
       for (i = 0; i < NY; i++)
 	 data[j][i] = i + j;
-   }     
+   }
    /*
-    * 0 1 2 3 4 5 
+    * 0 1 2 3 4 5
     * 1 2 3 4 5 6
     * 2 3 4 5 6 7
     * 3 4 5 6 7 8
@@ -73,12 +73,12 @@ int main (void)
 
       /*
        * Define the size of the array and create the data space for fixed
-       * size dataset. 
+       * size dataset.
        */
       hsize_t     dimsf[2];              // dataset dimensions
       dimsf[0] = NX;
       dimsf[1] = NY;
-      DataSpace dataspace( RANK, dimsf ); 
+      DataSpace dataspace( RANK, dimsf );
 
       /*
        * Define datatype for the data in the file.
@@ -129,5 +129,5 @@ int main (void)
    }
 
    return 0;  // successfully terminated
-}    
+}
 

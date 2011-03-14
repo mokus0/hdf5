@@ -1,16 +1,16 @@
-
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Scientific Data Technologies                                             *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING f.                                                        *
- *                                                                          *
- ****************************************************************************/
-
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
 #include "H5IM.h"
@@ -49,12 +49,12 @@ int main( void )
  150,150,150,
  175,175,175,
  200,200,200};
-    
+
  for (i = 0; i < WIDTH*HEIGHT; i++ )
   image_in1[i] = (unsigned char)i;
  for (i = 0; i < WIDTH*HEIGHT*3; i++)
   image_in2[i] = (unsigned char)i;
- 
+
  /* Create a new HDF5 file using default properties. */
  file_id = H5Fcreate(FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT );
 
@@ -76,7 +76,7 @@ int main( void )
   /* Attach a palette to the image dataset */
  if ( H5IMlink_palette( file_id, "Image1", "Pallete" ) < 0 )
   goto out;
- 
+
  /* Read image */
  if ( H5IMget_image_info( file_id, "Image1", &width, &height, &planes, interlace, &npals ) < 0 )
   goto out;
@@ -99,7 +99,7 @@ int main( void )
  */
 
  TESTING("true color image");
- 
+
  /* Write image */
  if ( H5IMmake_image_24bit( file_id, "Image2", WIDTH, HEIGHT, "INTERLACE_PIXEL", image_in2 ) )
   goto out;

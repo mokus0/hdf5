@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // PredType holds the definition of all the HDF5 predefined datatypes.
 // These types can only be made copy of, not created by H5Tcreate or
@@ -27,8 +27,11 @@ namespace H5 {
 
 class H5_DLLCPP PredType : public AtomType {
    public:
+	// Returns this class name
+	virtual string fromClass () const { return ("PredType"); }
+
 	// Makes a copy of the predefined type and stores the new
-	// id in the left hand side object.  
+	// id in the left hand side object.
 	PredType& operator=( const PredType& rhs );
 
 	// Copy constructor - makes copy of the original object
@@ -187,7 +190,7 @@ class H5_DLLCPP PredType : public AtomType {
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
    private:
-	// added this to work around the atexit/global destructor problem 
+	// added this to work around the atexit/global destructor problem
 	// temporarily - it'll prevent the use of atexit to clean up
 	static const PredType NotAtexit;	// not working yet
 
@@ -203,7 +206,7 @@ class H5_DLLCPP PredType : public AtomType {
 	    E_STD_I8BE, E_STD_I8LE, E_STD_I16BE, E_STD_I16LE, E_STD_I32BE,
 	    E_STD_I32LE, E_STD_I64BE, E_STD_I64LE, E_STD_U8BE, E_STD_U8LE,
 	    E_STD_U16BE, E_STD_U16LE, E_STD_U32BE, E_STD_U32LE, E_STD_U64BE,
-	    E_STD_U64LE, E_STD_B8BE, E_STD_B8LE, E_STD_B16BE, E_STD_B16LE, 
+	    E_STD_U64LE, E_STD_B8BE, E_STD_B8LE, E_STD_B16BE, E_STD_B16LE,
 	    E_STD_B32BE, E_STD_B32LE, E_STD_B64BE, E_STD_B64LE, E_STD_REF_OBJ,
 	    E_STD_REF_DSETREG,
 
@@ -219,8 +222,8 @@ class H5_DLLCPP PredType : public AtomType {
 	    E_ALPHA_U16, E_ALPHA_U32, E_ALPHA_U64, E_ALPHA_B8, E_ALPHA_B16,
 	    E_ALPHA_B32, E_ALPHA_B64, E_ALPHA_F32, E_ALPHA_F64,
 
-	    E_MIPS_I8, E_MIPS_I16, E_MIPS_I32, E_MIPS_I64, E_MIPS_U8, 
-	    E_MIPS_U16, E_MIPS_U32, E_MIPS_U64, E_MIPS_B8, E_MIPS_B16, 
+	    E_MIPS_I8, E_MIPS_I16, E_MIPS_I32, E_MIPS_I64, E_MIPS_U8,
+	    E_MIPS_U16, E_MIPS_U32, E_MIPS_U64, E_MIPS_B8, E_MIPS_B16,
 	    E_MIPS_B32, E_MIPS_B64, E_MIPS_F32, E_MIPS_F64,
 
 	    E_NATIVE_CHAR, E_NATIVE_INT, E_NATIVE_FLOAT, E_NATIVE_SCHAR,

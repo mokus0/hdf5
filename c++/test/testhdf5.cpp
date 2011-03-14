@@ -1,37 +1,44 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*****************************************************************************
    FILE
    testhdf5.cpp - HDF5 testing framework main file.
 
    REMARKS
-   General test wrapper for HDF5 base library test programs
+   General test wrapper for HDF5 C++ library test programs
 
    DESIGN
    Each test function should be implemented as function having no
    parameters and returning void (i.e. no return value).  They should be put
-   into the list of InitTest() calls in main() below.  Functions which depend
-   on other functionality should be placed below the InitTest() call for the
+   into the list of AddTest() calls in main() below.  Functions which depend
+   on other functionality should be placed below the AddTest() call for the
    base functionality testing.
    Each test module should include testhdf5.h and define a unique set of
    names for test files they create.
 
-   BUGS/LIMITATIONS
-
-   EXPORTED ROUTINES/VARIABLES:
-   Two variables are exported: num_errs, and Verbosity.
+   EXTERNAL ROUTINES/VARIABLES:
+	TestInit(...) -- Initialize testing framework
+	TestInfo(...) -- Print test info
+	AddTest(...)  -- Setup a test function and add it to the list of tests
+	TestParseCmdLine(...) -- Parse command line arguments
+	PerformTests() -- Perform requested testing
+	GetTestSummary() -- Retrieve Summary request value
+	TestSummary() -- Display test summary
+	GetTestCleanup() -- Retrieve Cleanup request value
+	TestCleanup() -- Clean up files from testing
+	GetTestNumErrs() -- Retrieve the number of testing errors
 
  ***************************************************************************/
 
@@ -44,7 +51,7 @@
 using namespace H5;
 #endif  /* !H5_NO_NAMESPACE */
 
-int 
+int
 main(int argc, char *argv[])
 {
     /* Initialize testing framework */

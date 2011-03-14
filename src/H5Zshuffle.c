@@ -99,7 +99,7 @@ done:
  *              each other and putting them together will increase compression.
  *
  * Return:	Success: Size of buffer filtered
- *		Failure: 0	
+ *		Failure: 0
  *
  * Programmer:	Kent Yang
  *              Wednesday, November 13, 2002
@@ -111,7 +111,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static size_t
-H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[], 
+H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
                    size_t nbytes, size_t *buf_size, void **buf)
 {
     void *dest = NULL;          /* Buffer to deposit [un]shuffled bytes into */
@@ -119,7 +119,10 @@ H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
     unsigned char *_dest=NULL;  /* Alias for destination buffer */
     unsigned bytesoftype;       /* Number of bytes per element */
     size_t numofelements;       /* Number of elements in buffer */
-    size_t i,j;                 /* Local index variables */
+    size_t i;                   /* Local index variables */
+#ifdef NO_DUFFS_DEVICE
+    size_t j;                   /* Local index variable */
+#endif /* NO_DUFFS_DEVICE */
     size_t leftover;            /* Extra bytes at end of buffer */
     size_t ret_value;           /* Return value */
 
@@ -132,11 +135,11 @@ H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
     /* Get the number of bytes per element from the parameter block */
     bytesoftype=cd_values[H5Z_SHUFFLE_PARM_SIZE];
 
-    /* Don't do anything for 1-byte elements */
-    if(bytesoftype>1) {
-        /* Compute the number of elements in buffer */
-        numofelements=nbytes/bytesoftype;
+    /* Compute the number of elements in buffer */
+    numofelements=nbytes/bytesoftype;
 
+    /* Don't do anything for 1-byte elements, or "fractional" elements */
+    if(bytesoftype > 1 && numofelements > 1) {
         /* Compute the leftover bytes if there are any */
         leftover = nbytes%bytesoftype;
 
@@ -151,13 +154,48 @@ H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
             /* Input; unshuffle */
             for(i=0; i<bytesoftype; i++) {
                 _dest=((unsigned char *)dest)+i;
-                for(j=0; j<numofelements; j++) {
-                    *_dest=*_src++;
-                    _dest+=bytesoftype;
+#define DUFF_GUTS							    \
+    *_dest=*_src++;                             \
+    _dest+=bytesoftype;
+#ifdef NO_DUFFS_DEVICE
+                j = numofelements;
+                while(j > 0) {
+                    DUFF_GUTS;
+
+                    j--;
                 } /* end for */
+#else /* NO_DUFFS_DEVICE */
+            {
+                size_t duffs_index; /* Counting index for Duff's device */
+
+                duffs_index = (numofelements + 7) / 8;
+                switch (numofelements % 8) {
+                    case 0:
+                        do
+                          {
+                            DUFF_GUTS
+                    case 7:
+                            DUFF_GUTS
+                    case 6:
+                            DUFF_GUTS
+                    case 5:
+                            DUFF_GUTS
+                    case 4:
+                            DUFF_GUTS
+                    case 3:
+                            DUFF_GUTS
+                    case 2:
+                            DUFF_GUTS
+                    case 1:
+                            DUFF_GUTS
+                      } while (--duffs_index > 0);
+                } /* end switch */
+            }
+#endif /* NO_DUFFS_DEVICE */
+#undef DUFF_GUTS
             } /* end for */
 
-            /* Add leftover to the end of data */ 
+            /* Add leftover to the end of data */
             if(leftover>0) {
                 /* Adjust back to end of shuffled bytes */
                 _dest -= (bytesoftype - 1);     /*lint !e794 _dest is initialized */
@@ -171,13 +209,48 @@ H5Z_filter_shuffle(unsigned flags, size_t cd_nelmts, const unsigned cd_values[],
             /* Output; shuffle */
             for(i=0; i<bytesoftype; i++) {
                 _src=((unsigned char *)(*buf))+i;
-                for(j=0; j<numofelements; j++) {
-                    *_dest++=*_src;
-                    _src+=bytesoftype;
+#define DUFF_GUTS							    \
+    *_dest++=*_src;                             \
+    _src+=bytesoftype;
+#ifdef NO_DUFFS_DEVICE
+                j = numofelements;
+                while(j > 0) {
+                    DUFF_GUTS;
+
+                    j--;
                 } /* end for */
+#else /* NO_DUFFS_DEVICE */
+            {
+                size_t duffs_index; /* Counting index for Duff's device */
+
+                duffs_index = (numofelements + 7) / 8;
+                switch (numofelements % 8) {
+                    case 0:
+                        do
+                          {
+                            DUFF_GUTS
+                    case 7:
+                            DUFF_GUTS
+                    case 6:
+                            DUFF_GUTS
+                    case 5:
+                            DUFF_GUTS
+                    case 4:
+                            DUFF_GUTS
+                    case 3:
+                            DUFF_GUTS
+                    case 2:
+                            DUFF_GUTS
+                    case 1:
+                            DUFF_GUTS
+                      } while (--duffs_index > 0);
+                } /* end switch */
+            }
+#endif /* NO_DUFFS_DEVICE */
+#undef DUFF_GUTS
             } /* end for */
 
-            /* Add leftover to the end of data */ 
+            /* Add leftover to the end of data */
             if(leftover>0) {
                 /* Adjust back to end of shuffled bytes */
                 _src -= (bytesoftype - 1);      /*lint !e794 _src is initialized */

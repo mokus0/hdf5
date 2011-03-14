@@ -1,3 +1,16 @@
+#
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+#
 #------------------------------------------------------------------------------
 # This is the list of files that are part of HDF5 source distribution. 
 # All files have a `./' prefix and appear in lexicographic order.
@@ -6,7 +19,8 @@
 # in column one with a '#'.
 #------------------------------------------------------------------------------
 
-./.autom4te.cfg             _DO_NOT_DISTRIBUTE_
+./.autom4te.cfg             		_DO_NOT_DISTRIBUTE_
+./.h5chkright.ini			_DO_NOT_DISTRIBUTE_
 ./COPYING
 ./MANIFEST
 ./Makefile.dist
@@ -43,6 +57,7 @@
 ./bin/snapshot_version			_DO_NOT_DISTRIBUTE_
 ./bin/timekeeper			_DO_NOT_DISTRIBUTE_
 ./bin/trace
+./bin/yodconfigure
 
 ./config/BlankForm
 ./config/commence.in
@@ -59,6 +74,7 @@
 ./config/gnu-flags
 ./config/hpux10.20
 ./config/hpux11.00
+./config/hpux11.23
 ./config/hpux9.03
 ./config/i386-pc-cygwin32
 ./config/i686-pc-cygwin
@@ -71,10 +87,13 @@
 ./config/linux-gnuaout
 ./config/linux-gnulibc1
 ./config/linux-gnulibc2
+./config/mpich
+./config/nv1-cray
 ./config/pgi-flags
 ./config/powerpc-apple
 ./config/powerpc-ibm-aix4.x
 ./config/powerpc-ibm-aix5.x
+./config/powerpc-ibm-linux-gnu
 ./config/rs6000-ibm-aix4.x
 ./config/solaris2.x
 ./config/sv1-cray
@@ -420,6 +439,9 @@
 ./doc/html/cpplus_RM/H5AbstractDs_8h.html
 ./doc/html/cpplus_RM/H5Alltypes_8h-source.html
 ./doc/html/cpplus_RM/H5Alltypes_8h.html
+./doc/html/cpplus_RM/H5ArrayType_8cpp.html
+./doc/html/cpplus_RM/H5ArrayType_8h-source.html
+./doc/html/cpplus_RM/H5ArrayType_8h.html
 ./doc/html/cpplus_RM/H5AtomType_8cpp.html
 ./doc/html/cpplus_RM/H5AtomType_8h-source.html
 ./doc/html/cpplus_RM/H5AtomType_8h.html
@@ -477,8 +499,6 @@
 ./doc/html/cpplus_RM/H5IdComponent_8cpp.html
 ./doc/html/cpplus_RM/H5IdComponent_8h-source.html
 ./doc/html/cpplus_RM/H5IdComponent_8h.html
-./doc/html/cpplus_RM/H5Idtemplates_8h-source.html
-./doc/html/cpplus_RM/H5Idtemplates_8h.html
 ./doc/html/cpplus_RM/H5Include_8h-source.html
 ./doc/html/cpplus_RM/H5Include_8h.html
 ./doc/html/cpplus_RM/H5IntType_8cpp.html
@@ -496,17 +516,22 @@
 ./doc/html/cpplus_RM/H5PropList_8cpp.html
 ./doc/html/cpplus_RM/H5PropList_8h-source.html
 ./doc/html/cpplus_RM/H5PropList_8h.html
-./doc/html/cpplus_RM/H5RefCounter_8cpp.html
-./doc/html/cpplus_RM/H5RefCounter_8h-source.html
-./doc/html/cpplus_RM/H5RefCounter_8h.html
 ./doc/html/cpplus_RM/H5StrType_8cpp.html
 ./doc/html/cpplus_RM/H5StrType_8h-source.html
 ./doc/html/cpplus_RM/H5StrType_8h.html
+./doc/html/cpplus_RM/H5VarLenType_8cpp.html
+./doc/html/cpplus_RM/H5VarLenType_8h-source.html
+./doc/html/cpplus_RM/H5VarLenType_8h.html
 ./doc/html/cpplus_RM/NCSAlogo.jpg
+./doc/html/cpplus_RM/RM_stylesheet.css
 ./doc/html/cpplus_RM/annotated.html
+./doc/html/cpplus_RM/chunks_8cpp-example.html
 ./doc/html/cpplus_RM/classH5_1_1AbstractDs-members.html
 ./doc/html/cpplus_RM/classH5_1_1AbstractDs.html
 ./doc/html/cpplus_RM/classH5_1_1AbstractDs.png
+./doc/html/cpplus_RM/classH5_1_1ArrayType.html
+./doc/html/cpplus_RM/classH5_1_1ArrayType.png
+./doc/html/cpplus_RM/classH5_1_1ArrayType-members.html
 ./doc/html/cpplus_RM/classH5_1_1AtomType-members.html
 ./doc/html/cpplus_RM/classH5_1_1AtomType.html
 ./doc/html/cpplus_RM/classH5_1_1AtomType.png
@@ -599,42 +624,73 @@
 ./doc/html/cpplus_RM/classH5_1_1PropListIException-members.html
 ./doc/html/cpplus_RM/classH5_1_1PropListIException.html
 ./doc/html/cpplus_RM/classH5_1_1PropListIException.png
-./doc/html/cpplus_RM/classH5_1_1RefCounter-members.html
-./doc/html/cpplus_RM/classH5_1_1RefCounter.html
-./doc/html/cpplus_RM/classH5_1_1RefCounter_1_1RefCounter.html
-./doc/html/cpplus_RM/classH5_1_1RefCounter_1_1abc.html
 ./doc/html/cpplus_RM/classH5_1_1ReferenceException-members.html
 ./doc/html/cpplus_RM/classH5_1_1ReferenceException.html
 ./doc/html/cpplus_RM/classH5_1_1ReferenceException.png
 ./doc/html/cpplus_RM/classH5_1_1StrType-members.html
 ./doc/html/cpplus_RM/classH5_1_1StrType.html
 ./doc/html/cpplus_RM/classH5_1_1StrType.png
-./doc/html/cpplus_RM/classH5_1_1UserData4Aiterate-members.html
-./doc/html/cpplus_RM/classH5_1_1UserData4Aiterate.html
+./doc/html/cpplus_RM/classH5_1_1VarLenType.html
+./doc/html/cpplus_RM/classH5_1_1VarLenType.png
+./doc/html/cpplus_RM/classH5_1_1VarLenType-members.html
+./doc/html/cpplus_RM/compound_8cpp-example.html
 ./doc/html/cpplus_RM/create_8cpp-example.html
 ./doc/html/cpplus_RM/doxygen.css
 ./doc/html/cpplus_RM/doxygen.png
-./doc/html/cpplus_RM/dsets_8cpp-example.html
 ./doc/html/cpplus_RM/examples.html
+./doc/html/cpplus_RM/extend__ds_8cpp-example.html
 ./doc/html/cpplus_RM/files.html
 ./doc/html/cpplus_RM/functions.html
 ./doc/html/cpplus_RM/functions_func.html
 ./doc/html/cpplus_RM/functions_vars.html
-./doc/html/cpplus_RM/globals.html
-./doc/html/cpplus_RM/globals_defs.html
-./doc/html/cpplus_RM/globals_func.html
-./doc/html/cpplus_RM/globals_type.html
-./doc/html/cpplus_RM/globals_vars.html
+
+
+./doc/html/cpplus_RM/functions_0x63.html
+./doc/html/cpplus_RM/functions_0x64.html
+./doc/html/cpplus_RM/functions_0x65.html
+./doc/html/cpplus_RM/functions_0x66.html
+./doc/html/cpplus_RM/functions_0x67.html
+./doc/html/cpplus_RM/functions_0x68.html
+./doc/html/cpplus_RM/functions_0x69.html
+./doc/html/cpplus_RM/functions_0x6c.html
+./doc/html/cpplus_RM/functions_0x6d.html
+./doc/html/cpplus_RM/functions_0x6e.html
+./doc/html/cpplus_RM/functions_0x6f.html
+./doc/html/cpplus_RM/functions_0x70.html
+./doc/html/cpplus_RM/functions_0x72.html
+./doc/html/cpplus_RM/functions_0x73.html
+./doc/html/cpplus_RM/functions_0x74.html
+./doc/html/cpplus_RM/functions_0x75.html
+./doc/html/cpplus_RM/functions_0x76.html
+./doc/html/cpplus_RM/functions_0x77.html
+./doc/html/cpplus_RM/functions_0x7e.html
+./doc/html/cpplus_RM/functions_func_0x63.html
+./doc/html/cpplus_RM/functions_func_0x64.html
+./doc/html/cpplus_RM/functions_func_0x65.html
+./doc/html/cpplus_RM/functions_func_0x66.html
+./doc/html/cpplus_RM/functions_func_0x67.html
+./doc/html/cpplus_RM/functions_func_0x68.html
+./doc/html/cpplus_RM/functions_func_0x69.html
+./doc/html/cpplus_RM/functions_func_0x6c.html
+./doc/html/cpplus_RM/functions_func_0x6d.html
+./doc/html/cpplus_RM/functions_func_0x6e.html
+./doc/html/cpplus_RM/functions_func_0x6f.html
+./doc/html/cpplus_RM/functions_func_0x70.html
+./doc/html/cpplus_RM/functions_func_0x72.html
+./doc/html/cpplus_RM/functions_func_0x73.html
+./doc/html/cpplus_RM/functions_func_0x74.html
+./doc/html/cpplus_RM/functions_func_0x75.html
+./doc/html/cpplus_RM/functions_func_0x76.html
+./doc/html/cpplus_RM/functions_func_0x77.html
+./doc/html/cpplus_RM/functions_func_0x7e.html
+./doc/html/cpplus_RM/h5group_8cpp-example.html
 ./doc/html/cpplus_RM/header.html
 ./doc/html/cpplus_RM/hierarchy.html
 ./doc/html/cpplus_RM/index.html
 ./doc/html/cpplus_RM/namespaceH5.html
-./doc/html/cpplus_RM/namespacemembers.html
-./doc/html/cpplus_RM/namespacemembers_func.html
-./doc/html/cpplus_RM/namespacemembers_type.html
-./doc/html/cpplus_RM/namespacemembers_vars.html
 ./doc/html/cpplus_RM/namespaces.html
 ./doc/html/cpplus_RM/namespacestd.html
+./doc/html/cpplus_RM/readdata_8cpp-example.html
 ./doc/html/cpplus_RM/writedata_8cpp-example.html
 
 ./doc/html/cpplus_RM/header_files/Dependencies
@@ -777,6 +833,7 @@
 ./fortran/config/gnu-flags
 ./fortran/config/hpux10.20
 ./fortran/config/hpux11.00
+./fortran/config/hpux11.23
 ./fortran/config/hpux9.03
 ./fortran/config/i386-pc-cygwin32
 ./fortran/config/ia64-linux-gnu
@@ -789,6 +846,7 @@
 ./fortran/config/linux-gnuaout
 ./fortran/config/linux-gnulibc1
 ./fortran/config/linux-gnulibc2
+./fortran/config/nv1-cray
 ./fortran/config/pgi-fflags
 ./fortran/config/pgi-flags
 ./fortran/config/powerpc-apple
@@ -919,11 +977,13 @@
 ./c++/config/dependN.in
 ./c++/config/freebsd
 ./c++/config/hpux11.00
+./c++/config/hpux11.23
 ./c++/config/ia64-linux-gnu
 ./c++/config/irix6.x
 ./c++/config/linux-gnu
 ./c++/config/linux-gnulibc1
 ./c++/config/linux-gnulibc2
+./c++/config/nv1-cray
 ./c++/config/powerpc-ibm-aix
 ./c++/config/rs6000-ibm-aix4.x
 ./c++/config/solaris2.x
@@ -1002,6 +1062,7 @@
 ./c++/src/H5VarLenType.cpp
 ./c++/src/H5VarLenType.h
 ./c++/src/Makefile.in
+./c++/src/RM_stylesheet.css
 ./c++/src/cpp_doc_config
 ./c++/src/h5c++.in
 ./c++/src/header.html
@@ -1091,6 +1152,9 @@
 ./src/H5Epublic.h
 ./src/H5F.c
 ./src/H5Fdbg.c
+./src/H5Fmount.c
+./src/H5Fsfile.c
+./src/H5Fsuper.c
 ./src/H5Fpkg.h
 ./src/H5Fprivate.h
 ./src/H5Fpublic.h
@@ -1260,8 +1324,11 @@
 ./test/enum.c
 ./test/extend.c
 ./test/external.c
+./test/family_v1.7_00000.h5
+./test/family_v1.7_00001.h5
+./test/family_v1.7_00002.h5
+./test/family_v1.7_00003.h5
 ./test/file_handle.c
-./test/filename.c
 ./test/fill_old.h5
 ./test/fillval.c
 ./test/flush1.c
@@ -1477,10 +1544,8 @@
 ./tools/misc/Makefile.in
 ./tools/misc/h5cc.in
 ./tools/misc/h5debug.c
-./tools/misc/h5import.c
 ./tools/misc/h5redeploy.in
 ./tools/misc/h5repart.c
-./tools/misc/pdb2hdf.c
 
 ./tools/testfiles/tall-1.ddl
 ./tools/testfiles/tall-2.ddl
@@ -1556,6 +1621,8 @@
 ./tools/testfiles/thlink.h5
 ./tools/testfiles/tlarge_objname.ddl
 ./tools/testfiles/tlarge_objname.h5
+./tools/testfiles/tlonglinks.ddl
+./tools/testfiles/tlonglinks.h5
 ./tools/testfiles/tloop-1.ddl
 ./tools/testfiles/tloop.h5
 ./tools/testfiles/tloop2.h5

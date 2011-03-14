@@ -1,5 +1,18 @@
 #							-*- shell-script -*-
 #
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+
+
 # This file is part of the HDF5 build script.  It is processed shortly
 # after configure starts and defines, among other things, flags for
 # the various compile modes.
@@ -43,7 +56,30 @@ else
         # The PGI and Intel compilers are automatically detected below
         ifc*|ifort*|pgf90*)
             ;;
-
+	g95)
+	    F9X_BASENAME=g95
+	    ;;
+	*mpif90)
+            # Probably an MPICH compiler script.  Find out what fortran
+            # compiler it uses. version flags used by known complers,
+	    # G95: g95 -v
+	    # Absoft: f95 -v
+	    # Intel: ifort -V
+	    # PGI: pgf90 -V
+	    # Try both options.
+            tmpfile=/tmp/cmpver.$$
+            ( $F9X -v; $F9X -V) >$tmpfile 2>&1
+	    if grep '(g95!)' $tmpfile > /dev/null; then
+		F9X_BASENAME=g95
+	    elif grep 'Absoft' $tmpfile > /dev/null; then
+		F9X_BASENAME=f95
+	    elif grep 'Portland Group' $tmpfile > /dev/null; then
+		    F9X_BASENAME=pgf90
+	    elif grep 'Intel(R)' $tmpfile > /dev/null; then
+		F9X_BASENAME=ifort
+	    fi
+            rm -f $tmpfile
+            ;;
         *)
             # Figure out which compiler we are using: pgf90 or Absoft f95
             RM='rm -f'
@@ -103,5 +139,8 @@ case $F9X_BASENAME in
         PROFILE_FFLAGS="-g"
         f9x_flags_set=yes
         ;;
-
+    g95)
+        # Set required flag for compiling C stubs
+        CFLAGS="$CFLAGS -DH5_G95" 
+	;;
 esac  

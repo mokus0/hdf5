@@ -14,16 +14,16 @@
 
 /*
  * FILE:	H5I.c - Internal storage routines for handling "IDs"
- *     
+ *
  * REMARKS:	ID's which allow objects (void *'s currently) to be bundled
  *		into "groups" for more general storage.
- * 
+ *
  * DESIGN:	The groups are stored in an array of pointers to store each
  *		group in an element. Each "group" node contains a link to a
  *		hash table to manage the IDs in each group.  The allowed
  *		"groups" are stored in an enum (called group_t) in
  *		H5Ipublic.h.
- *		
+ *
  * AUTHOR:	Quincey Koziol
  *
  * MODIFICATIONS:
@@ -114,7 +114,6 @@ H5FL_DEFINE_STATIC(H5I_id_info_t);
 /*--------------------- Local function prototypes ---------------------------*/
 static H5I_id_info_t *H5I_find_id(hid_t id);
 static hid_t H5I_get_file_id(hid_t obj_id);
-static int H5I_get_ref(hid_t id);
 #ifdef H5I_DEBUG_OUTPUT
 static herr_t H5I_debug(H5I_type_t grp);
 #endif /* H5I_DEBUG_OUTPUT */
@@ -129,13 +128,13 @@ static herr_t H5I_debug(H5I_type_t grp);
  *
  *		Failure:	Negative
  *
- * Programmer:	
+ * Programmer:
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
-static herr_t 
+static herr_t
 H5I_init_interface(void)
 {
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5I_init_interface);
@@ -162,7 +161,7 @@ H5I_init_interface(void)
  *
  * 		Failure:	Negative.
  *
- * Programmer:	
+ * Programmer:
  *
  * Modifications:
  *
@@ -234,7 +233,7 @@ H5I_term_interface(void)
  *
  *-------------------------------------------------------------------------
  */
-int 
+int
 H5I_init_group(H5I_type_t grp, size_t hash_size, unsigned reserved,
 	       H5I_free_t free_func)
 {
@@ -273,7 +272,7 @@ H5I_init_group(H5I_type_t grp, size_t hash_size, unsigned reserved,
 	if (NULL==grp_ptr->id_list)
 	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
     }
-    
+
     /* Increment the count of the times this group has been initialized */
     grp_ptr->count++;
 
@@ -311,9 +310,6 @@ int
 H5I_nmembers(H5I_type_t grp)
 {
     H5I_id_group_t	*grp_ptr = NULL;
-    H5I_id_info_t	*cur=NULL;
-    int		n=0;
-    unsigned		i;
     int		ret_value;
 
     FUNC_ENTER_NOAPI(H5I_nmembers, FAIL);
@@ -323,12 +319,8 @@ H5I_nmembers(H5I_type_t grp)
     if (NULL==(grp_ptr=H5I_id_group_list_g[grp]) || grp_ptr->count<=0)
 	HGOTO_DONE(0);
 
-    for (i=0; i<grp_ptr->hash_size; i++)
-	for (cur=grp_ptr->id_list[i]; cur; cur=cur->next)
-	    n++;
-
     /* Set return value */
-    ret_value=n;
+    H5_ASSIGN_OVERFLOW(ret_value, grp_ptr->ids, unsigned, int);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -379,7 +371,7 @@ H5I_clear_group(H5I_type_t grp, hbool_t force)
 
     if (grp <= H5I_BADID || grp >= H5I_NGROUPS)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
-    
+
     grp_ptr = H5I_id_group_list_g[grp];
     if (grp_ptr == NULL || grp_ptr->count <= 0)
 	HGOTO_ERROR(H5E_ATOM, H5E_BADGROUP, FAIL, "invalid group");
@@ -466,7 +458,7 @@ H5I_clear_group(H5I_type_t grp, hbool_t force)
             } /* end else */
         } /* end for */
     } /* end for */
-    
+
 done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
@@ -481,7 +473,7 @@ done:
  *		their reference counts.	 Destroying IDs involves calling
  *		the free-func for each ID's object and then adding the ID
  *		struct to the ID free list.
- *		
+ *
  * Return:	Non-negative on success/Negative on failure
  *
  * Programmer:	Unknown
@@ -503,7 +495,7 @@ H5I_destroy_group(H5I_type_t grp)
 
     if (grp <= H5I_BADID || grp >= H5I_NGROUPS)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
-    
+
     grp_ptr = H5I_id_group_list_g[grp];
     if (grp_ptr == NULL || grp_ptr->count <= 0)
 	HGOTO_ERROR(H5E_ATOM, H5E_BADGROUP, FAIL, "invalid group");
@@ -521,7 +513,7 @@ H5I_destroy_group(H5I_type_t grp)
     } else {
         --(grp_ptr->count);
     }
-    
+
   done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
@@ -548,7 +540,7 @@ H5I_destroy_group(H5I_type_t grp)
  *
  *-------------------------------------------------------------------------
  */
-hid_t 
+hid_t
 H5I_register(H5I_type_t grp, void *object)
 {
     H5I_id_group_t	*grp_ptr=NULL;	/*ptr to the group		*/
@@ -559,7 +551,7 @@ H5I_register(H5I_type_t grp, void *object)
     hid_t		ret_value=SUCCEED; /*return value		*/
     H5I_id_info_t	*curr_id;	/*ptr to the current atom	*/
     unsigned		i;		/*counter			*/
-    
+
     FUNC_ENTER_NOAPI(H5I_register, FAIL);
 
     /* Check arguments */
@@ -652,13 +644,13 @@ H5I_register(H5I_type_t grp, void *object)
  *
  *		Failure:	NULL
  *
- * Programmer:	
+ * Programmer:
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
-void * 
+void *
 H5I_object(hid_t id)
 {
     H5I_id_info_t	*id_ptr = NULL;		/*ptr to the new atom	*/
@@ -695,7 +687,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-void * 
+void *
 H5I_object_verify(hid_t id, H5I_type_t id_type)
 {
     H5I_id_info_t	*id_ptr = NULL;		/*ptr to the new atom	*/
@@ -735,7 +727,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-H5I_type_t 
+H5I_type_t
 H5I_get_type(hid_t id)
 {
     H5I_type_t		ret_value = H5I_BADID;
@@ -764,7 +756,7 @@ done:
  *
  *		Failure:	H5I_BADID, a negative value
  *
- * Programmer:	
+ * Programmer:
  *
  * Modifications:
  *		Robb Matzke, 1999-08-23
@@ -801,13 +793,13 @@ done:
  *
  *		Failure:	NULL
  *
- * Programmer:	
+ * Programmer:
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
-void * 
+void *
 H5I_remove(hid_t id)
 {
     H5I_id_group_t	*grp_ptr = NULL;/*ptr to the atomic group	*/
@@ -959,7 +951,7 @@ H5I_dec_ref(hid_t id)
     grp_ptr = H5I_id_group_list_g[grp];
     if (grp_ptr == NULL || grp_ptr->count <= 0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
-    
+
     /* General lookup of the ID */
     if ((id_ptr=H5I_find_id(id))==NULL)
 	HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't locate ID");
@@ -1127,7 +1119,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-static int
+int
 H5I_get_ref(hid_t id)
 {
     H5I_type_t		grp;		/*group the object is in*/
@@ -1203,20 +1195,23 @@ H5I_search(H5I_type_t grp, H5I_search_func_t func, void *key)
     if (grp_ptr == NULL || grp_ptr->count <= 0)
 	HGOTO_ERROR(H5E_ATOM, H5E_BADGROUP, NULL, "invalid group");
 
-    /* Start at the beginning of the array */
-    for (i=0; i<grp_ptr->hash_size; i++) {
-	id_ptr = grp_ptr->id_list[i];
-	while (id_ptr) {
-            next_id= id_ptr->next;      /* Protect against ID being deleted in callback */
-	    if ((*func)(id_ptr->obj_ptr, id_ptr->id, key))
-		HGOTO_DONE(id_ptr->obj_ptr);	/*found the item*/
-	    id_ptr = next_id;
-	}
-    }
+    /* Only iterate through hash table if there are IDs in group */
+    if(grp_ptr->ids > 0) {
+        /* Start at the beginning of the array */
+        for (i=0; i<grp_ptr->hash_size; i++) {
+            id_ptr = grp_ptr->id_list[i];
+            while (id_ptr) {
+                next_id= id_ptr->next;      /* Protect against ID being deleted in callback */
+                if ((*func)(id_ptr->obj_ptr, id_ptr->id, key))
+                    HGOTO_DONE(id_ptr->obj_ptr);	/*found the item*/
+                id_ptr = next_id;
+            } /* end while */
+        } /* end for */
+    } /* end if */
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
-}
+} /* end H5I_search() */
 
 
 /*-------------------------------------------------------------------------
@@ -1229,7 +1224,7 @@ done:
  *
  *		Failure:	NULL
  *
- * Programmer:	
+ * Programmer:
  *
  * Modifications:
  *
@@ -1288,10 +1283,10 @@ done:
 /*-------------------------------------------------------------------------
  * Function: H5Iget_name
  *
- * Purpose: Gets a name of an object from its ID. 
+ * Purpose: Gets a name of an object from its ID.
  *
  * Return: Success: The length of name.
- * 
+ *
  *         Failure: -1
  *
  * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
@@ -1438,14 +1433,14 @@ done:
  * Function:	H5Iget_file_id
  *
  * Purpose:	The public version of H5I_get_file_id(), obtains the file
- *              ID given an object ID.  User has to close this ID. 
+ *              ID given an object ID.  User has to close this ID.
  *
  * Return:	Success:	file ID
  *
  *		Failure:	a negative value
  *
  * Programmer:  Raymond Lu
- *              Oct 27, 2003	
+ *              Oct 27, 2003
  *
  * Modifications:
  *
@@ -1471,14 +1466,14 @@ done:
  * Function:	H5I_get_file_id
  *
  * Purpose:	The private version of H5Iget_file_id(), obtains the file
- *              ID given an object ID. 
+ *              ID given an object ID.
  *
  * Return:	Success:	file ID
  *
  *		Failure:	a negative value
  *
  * Programmer:  Raymond Lu
- *              Oct 27, 2003	
+ *              Oct 27, 2003
  *
  * Modifications:
  *
@@ -1496,7 +1491,7 @@ H5I_get_file_id(hid_t obj_id)
     switch(H5I_GROUP(obj_id)) {
         case H5I_FILE:
             ret_value = obj_id;
-            
+
             /* Increment reference count on atom. */
             if (H5I_inc_ref(ret_value)<0)
                 HGOTO_ERROR (H5E_ATOM, H5E_CANTSET, FAIL, "incrementing file ID failed");
@@ -1519,7 +1514,7 @@ H5I_get_file_id(hid_t obj_id)
 
         default:
 	    HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid object ID");
-    } 
+    }
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);

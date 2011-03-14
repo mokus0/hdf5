@@ -10,6 +10,9 @@
 /* Define if gettimeofday() populates the tz pointer passed in */
 #undef GETTIMEOFDAY_GIVES_TZ
 
+/* Define to 1 if you have the `alarm' function. */
+#undef HAVE_ALARM
+
 /* Define if the __attribute__(()) extension is present */
 #undef HAVE_ATTRIBUTE
 
@@ -160,20 +163,17 @@
 /* Define to 1 if you have the `mpi' library (-lmpi). */
 #undef HAVE_LIBMPI
 
+/* Define to 1 if you have the `mpich' library (-lmpich). */
+#undef HAVE_LIBMPICH
+
 /* Define to 1 if you have the `mpio' library (-lmpio). */
 #undef HAVE_LIBMPIO
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
 
-/* Define to 1 if you have the `pdb' library (-lpdb). */
-#undef HAVE_LIBPDB
-
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
-
-/* Define to 1 if you have the `silo' library (-lsilo). */
-#undef HAVE_LIBSILO
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
@@ -205,14 +205,14 @@
 /* Define to 1 if you have the <mpe.h> header file. */
 #undef HAVE_MPE_H
 
+/* Define to 1 if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
 
 /* Define if we have parallel support */
 #undef HAVE_PARALLEL
-
-/* Define to 1 if you have the <pdb.h> header file. */
-#undef HAVE_PDB_H
 
 /* Define to 1 if you have the <pthread.h> header file. */
 #undef HAVE_PTHREAD_H
@@ -362,6 +362,10 @@
 
 /* Define if `__tm_gmtoff' is a member of `struct tm' */
 #undef HAVE___TM_GMTOFF
+
+/* Define if your system can handle complicated MPI derived datatype
+   correctly. */
+#undef MPI_COMPLEX_DERIVED_DATATYPE_WORKS
 
 /* Define if your system's `MPI_File_set_size' function works for files over
    2GB. */

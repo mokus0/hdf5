@@ -43,11 +43,11 @@ const char *FILENAME[] = {
 /*-------------------------------------------------------------------------
  * Function:	main
  *
- * Purpose:	
+ * Purpose:
  *
- * Return:	Success:	
+ * Return:	Success:
  *
- *		Failure:	
+ *		Failure:
  *
  * Programmer:	Robb Matzke
  *              Tuesday, November 24, 1998
@@ -172,7 +172,7 @@ main(void)
 	goto error;
     }
     PASSED();
-	
+
     /*
      * Test modification of the second message with a symbol table.
      */
@@ -249,12 +249,12 @@ main(void)
      * Delete all time messages.
      */
     TESTING("message deletion");
-    if (H5O_remove(&oh_ent, H5O_MTIME_NEW_ID, H5O_ALL, H5P_DATASET_XFER_DEFAULT)<0) {
+    if (H5O_remove(&oh_ent, H5O_MTIME_NEW_ID, H5O_ALL, TRUE, H5P_DATASET_XFER_DEFAULT)<0) {
 	H5_FAILED();
 	H5Eprint(stdout);
 	goto error;
     }
-    if (H5O_remove(&oh_ent, H5O_MTIME_ID, H5O_ALL, H5P_DATASET_XFER_DEFAULT)<0) {
+    if (H5O_remove(&oh_ent, H5O_MTIME_ID, H5O_ALL, TRUE, H5P_DATASET_XFER_DEFAULT)<0) {
 	H5_FAILED();
 	H5Eprint(stdout);
 	goto error;
@@ -272,7 +272,7 @@ main(void)
 	goto error;
     }
     PASSED();
-    
+
 
     /* release resources */
     TESTING("object header closing");

@@ -20,7 +20,7 @@
  *
  * Purpose:             Symbol table messages.
  *
- * Modifications:       
+ * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -32,7 +32,6 @@
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5FLprivate.h"	/* Free lists                           */
 #include "H5Gpkg.h"		/* Groups				*/
-#include "H5MMprivate.h"	/* Memory management			*/
 #include "H5Opkg.h"             /* Object headers			*/
 
 
@@ -41,8 +40,8 @@ static void *H5O_stab_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shar
 static herr_t H5O_stab_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_stab_copy(const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_stab_size(const H5F_t *f, const void *_mesg);
-static herr_t H5O_stab_free (void *_mesg);
-static herr_t H5O_stab_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg);
+static herr_t H5O_stab_free(void *_mesg);
+static herr_t H5O_stab_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t adj_link);
 static herr_t H5O_stab_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg,
 			     FILE * stream, int indent, int fwidth);
 
@@ -72,7 +71,7 @@ H5FL_DEFINE_STATIC(H5O_stab_t);
  * Function:    H5O_stab_decode
  *
  * Purpose:     Decode a symbol table message and return a pointer to
- *              a new one created with malloc().
+ *              a newly allocated one.
  *
  * Return:      Success:        Ptr to new message in native order.
  *
@@ -97,7 +96,7 @@ H5O_stab_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t U
     /* check args */
     assert(f);
     assert(p);
-    assert (!sh);
+    assert(!sh);
 
     /* decode */
     if (NULL==(stab = H5FL_CALLOC(H5O_stab_t)))
@@ -231,7 +230,7 @@ H5O_stab_copy(const void *_mesg, void *_dest, unsigned UNUSED update_flags)
     assert(stab);
     if (!dest && NULL==(dest = H5FL_MALLOC(H5O_stab_t)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    
+
     /* copy */
     *dest = *stab;
 
@@ -318,23 +317,22 @@ H5O_stab_free (void *mesg)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_stab_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg)
+H5O_stab_delete(H5F_t *f, hid_t dxpl_id, const void *mesg, hbool_t adj_link)
 {
-    const H5O_stab_t       *stab = (const H5O_stab_t *) _mesg;
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_stab_delete);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_stab_delete)
 
     /* check args */
     assert(f);
-    assert(stab);
+    assert(mesg);
 
     /* Free the file space for the symbol table */
-    if (H5G_stab_delete(f, dxpl_id, stab->btree_addr, stab->heap_addr)<0)
-        HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free symbol table");
+    if (H5G_stab_delete(f, dxpl_id, mesg, adj_link)<0)
+        HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free symbol table")
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_stab_delete() */
 
 

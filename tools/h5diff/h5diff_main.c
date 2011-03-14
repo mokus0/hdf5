@@ -26,10 +26,10 @@ static int check_f_input( const char* );
  *
  * Purpose: h5diff main program
  *
- * Return: An  exit status of 0 means no differences were found, 1 means some 
+ * Return: An  exit status of 0 means no differences were found, 1 means some
  *   differences were found.
  *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
+ * Programmer: Pedro Vicente Nunes, pvn@ncsa.uiuc.edu
  *
  * Date: May 9, 2003
  *
@@ -40,8 +40,12 @@ static int check_f_input( const char* );
  *   Normal mode: print the number of differences found and where they occured
  *   Report mode: print the above plus the differences
  *   Verbose mode: print the above plus a list of objects and warnings
- *   Quiet mode: do not print output 
+ *   Quiet mode: do not print output
  *
+	* Modifications: October 2005
+	*  Introduced a new field 'not_cmp' to 'diff_opt_t' that detects
+	*  if some objects are not comparable and prints the message
+	*  "Some objects are not comparable"
  *-------------------------------------------------------------------------
  */
 
@@ -64,10 +68,10 @@ int main(int argc, const char *argv[])
  *-------------------------------------------------------------------------
  */
 
- if ( argc==2 && (strcmp("-h",argv[1])==0) ) 
+ if ( argc==2 && (strcmp("-h",argv[1])==0) )
   usage();
-  
- if ( argc<3 ) 
+
+ if ( argc<3 )
  {
   printf("Number of arguments is only %d\n", argc );
   usage();
@@ -86,32 +90,32 @@ int main(int argc, const char *argv[])
  * parse command line options
  *-------------------------------------------------------------------------
  */
- for (i=3; i<argc ; i++) 
+ for (i=3; i<argc ; i++)
  {
   /* get the single-letter switches */
   if ( '-'==argv[i][0] )
   {
-   for (s=argv[i]+1; *s; s++) 
+   for (s=argv[i]+1; *s; s++)
    {
     switch (*s) {
     default:
     printf("-%s is an invalid option\n", s );
     usage();
     break;
-    case 'h': 
+    case 'h':
      usage();
      break;
-    case 'v': 
+    case 'v':
      options.m_verbose = 1;
      break;
-    case 'q': 
+    case 'q':
      /* use quiet mode; supress the message "0 differences found" */
      options.m_quiet = 1;
      break;
-    case 'r': 
+    case 'r':
      options.m_report = 1;
      break;
-    case 'd': 
+    case 'd':
      /* if it is not another option */
      if ( i<argc-1 &&'-' != argv[i+1][0] )
      {
@@ -130,7 +134,7 @@ int main(int argc, const char *argv[])
       usage();
      }
      break;
-    case 'p': 
+    case 'p':
      if ( i<argc-1 &&'-' !=argv[i+1][0] )
      {
       options.p=1;
@@ -148,7 +152,7 @@ int main(int argc, const char *argv[])
       usage();
      }
      break;
-    case 'n': 
+    case 'n':
      if ( i<argc-1 && '-' !=argv[i+1][0] )
      {
       options.n=1;
@@ -157,7 +161,7 @@ int main(int argc, const char *argv[])
        printf("<-n %s> is not a valid option\n", argv[i+1] );
        usage();
       }
-      options.count = atoi(argv[i+1]);
+      options.count = atol(argv[i+1]);
       i++; /* go to next */
      }
      else
@@ -167,11 +171,11 @@ int main(int argc, const char *argv[])
      }
      break;
     } /*switch*/
-   } /*for*/ 
+   } /*for*/
   } /*if*/
-  
+
   else /* not single-letter switches */
-   
+
   {
    /* check if it is not a -d, -p parameter */
    if ( '-'==argv[i-1][0] && ('d'==argv[i-1][1] ||'p'==argv[i-1][1] ))
@@ -194,7 +198,7 @@ int main(int argc, const char *argv[])
     } /*objname2*/
    } /*else*/
   } /*else*/
-  
+
  }/*for*/
 
  nfound = h5diff(fname1,fname2,objname1,objname2,&options);
@@ -203,7 +207,7 @@ int main(int argc, const char *argv[])
  * print how many differences were found
  *-------------------------------------------------------------------------
  */
- if (!options.m_quiet) 
+ if (!options.m_quiet)
  {
   if (options.cmn_objs==0)
   {
@@ -216,10 +220,21 @@ int main(int argc, const char *argv[])
    if (!options.err_stat)
     print_found(nfound);
   }
+
+		if (options.not_cmp==1)
+  {
+			printf("--------------------------------\n");
+   printf("Some objects are not comparable\n");
+			printf("--------------------------------\n");
+   if (!options.m_verbose)
+    printf("Use -v for a list of objects.\n");
+  }
+
+
  }
 
 /*-------------------------------------------------------------------------
- * exit code 
+ * exit code
  *   >0 if differences, 0 if no differences, <0 if error
  *-------------------------------------------------------------------------
  */
@@ -228,7 +243,7 @@ int main(int argc, const char *argv[])
  if (options.err_stat)
   ret=-1;
  return ret;
- 
+
 }
 
 /*-------------------------------------------------------------------------
@@ -248,7 +263,7 @@ int main(int argc, const char *argv[])
  *
  *-------------------------------------------------------------------------
  */
-static 
+static
 int check_n_input( const char *str )
 {
  unsigned i;
@@ -284,18 +299,18 @@ int check_n_input( const char *str )
  *
  *-------------------------------------------------------------------------
  */
-static 
+static
 int check_f_input( const char *str )
 {
  double x;
 
- /* 
- the atof return value on a hexadecimal input is different 
+ /*
+ the atof return value on a hexadecimal input is different
  on some systems; we do a character check for this
  */
  if (strlen(str)>2 && str[0]=='0' && str[1]=='x')
   return -1;
- 
+
  x=atof(str);
  if (x==0)
   return -1;
@@ -306,13 +321,13 @@ int check_f_input( const char *str )
 /*-------------------------------------------------------------------------
  * Function: usage
  *
- * Purpose: print a usage message  
+ * Purpose: print a usage message
  *
  * Return: void
  *
  *-------------------------------------------------------------------------
  */
-static 
+static
 void usage(void)
 {
  printf("Usage: h5diff file1 file2 [OPTIONS] [obj1[obj2]] \n");

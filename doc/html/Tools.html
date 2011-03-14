@@ -27,8 +27,7 @@ HDF5/Tools API Specification
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
@@ -186,8 +185,6 @@ installed with HDF5.
 -->
 
 <!-- NEW PAGE -->
-<!-- HEADER RIGHT " " -->
-<!-- NEW PAGE -->
 <!-- HEADER RIGHT "h5dump" -->
 <hr>
 <dl>
@@ -292,7 +289,6 @@ installed with HDF5.
 	the output is "abc\0012\n" which is ambiguous.
         </p>
 
-<!-- NEW PAGE -->
 <dt><strong>XML Output:</strong>
     <dd>With the <code>--xml</code> option, <code>h5dump</code> generates
         XML output.  This output contains a complete description of the file, 
@@ -377,7 +373,6 @@ installed with HDF5.
 	        &nbsp;&nbsp; &nbsp;&nbsp;
 		":": no namespace, default: "hdf5:"</dd>
 
-<!-- NEW PAGE -->
         <dt>The next four options enable subsetting, which is 
             accomplished by selecting a hyperslab from a dataset.
             These options mirror the techniques used by an HDF5 
@@ -470,7 +465,6 @@ installed with HDF5.
           <blockquote>
               <code>h5dump --xml bobo.h5 > bobo.h5.xml</code>
           </blockquote>
-<!-- NEW PAGE -->
        <li>Dumping a subset of the dataset <code>/GroupFoo/databar/</code> 
            in the file <code>quux.h5</code>
           <blockquote>
@@ -743,6 +737,18 @@ installed with HDF5.
 <dt><strong>See Also:</strong>
     <dd>
 -->
+<dt><strong>History:</strong>
+    	<ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>Command Line Tool</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Tool introduced in this release.</td></tr>
+    </table></ul>
 </dl>
 
 <!-- NEW PAGE -->
@@ -1594,7 +1600,18 @@ installed with HDF5.
             COMPRESSION-TYPE GZIP
             COMPRESSION-PARAM 7
         </pre>
-
+<dt><strong>History:</strong>
+    	<ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>Command Line Tool</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Tool introduced in this release.</td></tr>
+    </table></ul>
 
 <!--
 <dt><strong>Current Status:</strong>
@@ -2138,6 +2155,18 @@ installed with HDF5.
             <dd>Sets the maximum transfer buffer size.
 	        (Default: <code>1M</code>)
     </dl>
+<dt><strong>History:</strong>
+    	<ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>Command Line Tool</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Tool introduced in this release.</td></tr>
+    </table></ul>
 <!--
 <dt><strong>Current Status:</strong>
     <dd>
@@ -2203,6 +2232,7 @@ Add text in file <code>mytext.txt</code> to front of HDF5 dataset, <code>file.h5
 Overwrite the user block (if any) in <code>file.h5</code> with the contents of <code>mytext.txt</code>.
   <pre>&nbsp;&nbsp;&nbsp;&nbsp;h5jam -u mytext.txt -i file.h5 --clobber</pre>
   
+<!-- NEW PAGE -->
 For an HDF5 file, <code>with_ub.h5</code>,&nbsp; with a user block, extract the user block to <code>user_block.txt</code> and the HDF5 file to <code>wo_ub.h5</code>.
   <pre>&nbsp;&nbsp;&nbsp;&nbsp;h5unjam -i with_ub.h5 -u user_block.txt -i wo_ub.h5</pre>
 
@@ -2285,6 +2315,18 @@ This tool moves the HDF5 file through byte copies, i.e., it does not read or int
             <dd>Shows all of the shell commands to be executed 
 	        without actually executing them.
     </dl>
+<dt><strong>History:</strong>
+    	<ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>Command Line Tool</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Tool introduced in this release.</td></tr>
+    </table></ul>
 <!--
 <dt><strong>Current Status:</strong>
     <dd>
@@ -2462,6 +2504,19 @@ This tool moves the HDF5 file through byte copies, i.e., it does not read or int
           <dt><code>HDF5_FLINKER</code>
             <dd>Use a different linker.
         </dl>
+<!-- NEW PAGE -->
+<dt><strong>History:</strong>
+    	<ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>Command Line Tool</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Tool introduced in this release.</td></tr>
+    </table></ul>
 <!--
 <dt><strong>Current Status:</strong>
     <dd>
@@ -2538,6 +2593,18 @@ This tool moves the HDF5 file through byte copies, i.e., it does not read or int
           <dt><code>HDF5_CXXLINKER</code>
             <dd>Use a different linker.
         </dl>
+<dt><strong>History:</strong>
+    	<ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>Command Line Tool</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Tool introduced in this release.</td></tr>
+    </table></ul>
 <!--
 <dt><strong>Current Status:</strong>
     <dd>
@@ -2593,8 +2660,7 @@ This tool moves the HDF5 file through byte copies, i.e., it does not read or int
 -->
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
@@ -2630,13 +2696,12 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </table>
 </center>
 <hr>
-<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
-<address>
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.4, March 2005
+Describes HDF5 Release 1.6.5, November 2005
 </address>
-<!-- #EndLibraryItem --><dt><dt>&nbsp;<dt><dt><SCRIPT LANGUAGE="JAVASCRIPT">
+<!-- #EndLibraryItem --><dt><dt>&nbsp;<dt><dt>&nbsp;<dt><dt>&nbsp;<dt><dt><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
 document.writeln("Last modified: 15 March 2005");
 -->

@@ -1,5 +1,18 @@
 #							-*- shell-script -*-
 #
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+
+
 # This file is part of the HDF5 build script.  It is processed shortly
 # after configure starts and defines, among other things, flags for
 # the various compile modes.
@@ -80,3 +93,20 @@ case "X-$CC_BASENAME" in
     PROFILE_CPPFLAGS=
     ;;
 esac
+
+# For IRIX 6.5, any version that is older than MIPSpro 7.3.1.3m, 
+# the MPI derived datatype is not working.
+# Versions 7.4.2m or newer work.
+# Fix $hdf5_mpi_complex_derived_datatype_works if it is not set and is using cc.
+if [ -z "$hdf5_mpi_complex_derived_datatype_works" -a $CC_BASENAME = cc ]; then
+    ccversion=`$CC -version 2>&1 | sed -e 's/.*Version //p'`
+    ccversion1=`echo $ccversion | cut -f1 -d.`
+    ccversion2=`echo $ccversion | cut -f2 -d.`
+    # Assume all versions 7.4.* or newer are okay
+    # and assume ccversion2 is never larger than 99.
+    ccversionval=`expr $ccversion1 \* 100 + $ccversion2`
+    if [ $ccversionval -lt 704 ]; then
+        hdf5_mpi_complex_derived_datatype_works='no'
+    fi
+fi
+

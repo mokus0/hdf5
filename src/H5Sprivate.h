@@ -202,7 +202,7 @@ H5_DLL herr_t H5S_modify(struct H5G_entry_t *ent, const H5S_t *space,
         hbool_t update_time, hid_t dxpl_id);
 H5_DLL herr_t H5S_append(H5F_t *f, hid_t dxpl_id, struct H5O_t *oh, const H5S_t *ds);
 H5_DLL size_t H5S_raw_size(const H5F_t *f, const H5S_t *space);
-H5_DLL H5S_t *H5S_read(struct H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL H5S_t *H5S_read(const struct H5G_entry_t *ent, hid_t dxpl_id);
 H5_DLL int H5S_extend(H5S_t *space, const hsize_t *size);
 H5_DLL int H5S_set_extent(H5S_t *space, const hsize_t *size);
 H5_DLL herr_t H5S_set_extent_real(H5S_t *space, const hsize_t *size);
@@ -258,7 +258,8 @@ H5_DLL htri_t H5S_hyper_intersect_block (H5S_t *space, hsize_t *start, hsize_t *
 H5_DLL herr_t H5S_hyper_adjust_u(H5S_t *space, const hsize_t *offset);
 H5_DLL herr_t H5S_hyper_adjust_s(H5S_t *space, const hssize_t *offset);
 H5_DLL herr_t H5S_hyper_move(H5S_t *space, const hssize_t *offset);
-H5_DLL herr_t H5S_hyper_normalize_offset(H5S_t *space);
+H5_DLL herr_t H5S_hyper_normalize_offset(H5S_t *space, hssize_t *old_offset);
+H5_DLL herr_t H5S_hyper_denormalize_offset(H5S_t *space, const hssize_t *old_offset);
 
 /* Operations on selection iterators */
 H5_DLL herr_t H5S_select_iter_init(H5S_sel_iter_t *iter, const H5S_t *space, size_t elmt_size);

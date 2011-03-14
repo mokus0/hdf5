@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 #ifdef OLD_HEADER_FILENAME
@@ -52,21 +52,21 @@ H5File::H5File() : IdComponent() {}
 ///\brief	Creates or opens an HDF5 file depending on the parameter flags.
 ///\param	name         - IN: Name of the file
 ///\param	flags        - IN: File access flags
-///\param	create_plist - IN: File creation property list, used when 
-///		modifying default file meta-data.  Default to 
+///\param	create_plist - IN: File creation property list, used when
+///		modifying default file meta-data.  Default to
 ///		FileCreatPropList::DEFAULT
-///\param	access_plist - IN: File access property list.  Default to 
+///\param	access_plist - IN: File access property list.  Default to
 ///		FileCreatPropList::DEFAULT
 ///\par Description
 ///		Valid values of \a flags include:
-///		\li \c H5F_ACC_TRUNC - Truncate file, if it already exists, 
-///				       erasing all data previously stored in 
-///				       the file. 
-///		\li \c H5F_ACC_EXCL - Fail if file already exists. 
+///		\li \c H5F_ACC_TRUNC - Truncate file, if it already exists,
+///				       erasing all data previously stored in
+///				       the file.
+///		\li \c H5F_ACC_EXCL - Fail if file already exists.
 ///			\c H5F_ACC_TRUNC and \c H5F_ACC_EXCL are mutually exclusive
-///		\li \c H5F_ACC_DEBUG - print debug information. This flag is 
-///			used only by HDF5 library developers; it is neither 
-///			tested nor supported for use in applications. 
+///		\li \c H5F_ACC_DEBUG - print debug information. This flag is
+///			used only by HDF5 library developers; it is neither
+///			tested nor supported for use in applications.
 ///\par
 ///		For info on file creation in the case of an already-open file,
 ///		please refer to the \b Special \b case section in the C layer
@@ -81,14 +81,14 @@ H5File::H5File( const char* name, unsigned int flags, const FileCreatPropList& c
 
 //--------------------------------------------------------------------------
 // Function:	H5File overloaded constructor
-///\brief	This is another overloaded constructor.  It differs from the 
+///\brief	This is another overloaded constructor.  It differs from the
 ///		above constructor only in the type of the \a name argument.
 ///\param	name - IN: Name of the file - \c std::string
 ///\param	flags - IN: File access flags
-///\param	create_plist - IN: File creation property list, used when 
-///		modifying default file meta-data.  Default to 
+///\param	create_plist - IN: File creation property list, used when
+///		modifying default file meta-data.  Default to
 ///		FileCreatPropList::DEFAULT
-///\param	access_plist - IN: File access property list.  Default to 
+///\param	access_plist - IN: File access property list.  Default to
 ///		FileCreatPropList::DEFAULT
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -98,7 +98,7 @@ H5File::H5File( const string& name, unsigned int flags, const FileCreatPropList&
 }
 
 //--------------------------------------------------------------------------
-// This function is private and contains common code between the 
+// This function is private and contains common code between the
 // constructors taking a string or a char*
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -111,7 +111,7 @@ void H5File::p_get_file(const char* name, unsigned int flags, const FileCreatPro
 	hid_t create_plist_id = create_plist.getId();
 	hid_t access_plist_id = access_plist.getId();
 	id = H5Fcreate( name, flags, create_plist_id, access_plist_id );
-	if( id <= 0 )  // throw an exception when open/create fail
+	if( id < 0 )  // throw an exception when open/create fail
 	{
 	    throw FileIException("H5File constructor", "H5Fcreate failed");
 	}
@@ -119,10 +119,9 @@ void H5File::p_get_file(const char* name, unsigned int flags, const FileCreatPro
     // Open the file if none of the bits above are set.
     else
     {
-	// use create_plist for access plist because of the default argument
-	hid_t access_plist_id = create_plist.getId();
+	hid_t access_plist_id = access_plist.getId();
 	id = H5Fopen( name, flags, access_plist_id );
-	if( id <= 0 )  // throw an exception when open/create fail
+	if( id < 0 )  // throw an exception when open/create fail
 	{
 	    throw FileIException("H5File constructor", "H5Fopen failed");
 	}
@@ -146,16 +145,16 @@ H5File::H5File( const H5File& original ) : IdComponent( original ) {}
 ///\exception	H5::FileIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-bool H5File::isHdf5(const char* name ) 
+bool H5File::isHdf5(const char* name )
 {
-   // Calls C routine H5Fis_hdf5 to determine whether the file is in 
+   // Calls C routine H5Fis_hdf5 to determine whether the file is in
    // HDF5 format.  It returns positive value, 0, or negative value
    htri_t ret_value = H5Fis_hdf5( name );
    if( ret_value > 0 )
       return true;
    else if( ret_value == 0 )
       return false;
-   else // Raise exception when H5Fis_hdf5 returns a negative value 
+   else // Raise exception when H5Fis_hdf5 returns a negative value
    {
       throw FileIException("H5File::isHdf5", "H5Fis_hdf5 returned negative value");
    }
@@ -168,7 +167,7 @@ bool H5File::isHdf5(const char* name )
 ///\param	name - IN: Name of the file - \c std::string
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-bool H5File::isHdf5(const string& name ) 
+bool H5File::isHdf5(const string& name )
 {
    return( isHdf5( name.c_str()) );
 }
@@ -176,6 +175,7 @@ bool H5File::isHdf5(const string& name )
 //--------------------------------------------------------------------------
 // Function:	H5File::reOpen
 ///\brief	Reopens this file.
+///
 ///\exception	H5::FileIException
 // Description
 //		If this object has represented another HDF5 file, the previous
@@ -184,8 +184,8 @@ bool H5File::isHdf5(const string& name )
 // Note:        This wrapper doesn't seem right regarding the 'id' and should
 //              be investigated.  BMR - 2/20/2005
 // Modification
-//              Replaced resetIdComponent with decRefCount to use new ID
-//              reference counting mechanisms by QAK, Feb 20, 2005
+//		Replaced resetIdComponent with decRefCount to use C library
+//		ID reference counting mechanism - BMR, Feb 20, 2005
 //--------------------------------------------------------------------------
 void H5File::reOpen()
 {
@@ -201,13 +201,14 @@ void H5File::reOpen()
    // call C routine to reopen the file - Note: not sure about this
    // does id need to be closed later?  which id to be the parameter?
    id = H5Freopen( id );
-   if( id <= 0 ) // Raise exception when H5Freopen returns a neg value
+   if( id < 0 ) // Raise exception when H5Freopen returns a neg value
       throw FileIException("H5File::reOpen", "H5Freopen failed");
 }
 
 //--------------------------------------------------------------------------
 // Function:	H5File::reopen
 ///\brief	Reopens this file.
+///
 ///\exception	H5::FileIException
 ///\par Description
 ///		This function will be replaced by the above function \c reOpen
@@ -287,20 +288,22 @@ hssize_t H5File::getFreeSpace() const
 
 //--------------------------------------------------------------------------
 // Function:	H5File::getObjCount
-///\brief	Returns the number of opened object IDs (files, datasets, 
+///\brief	Returns the number of opened object IDs (files, datasets,
 ///		groups and datatypes) in the same file.
-///\param	types - Type of object to retrieve the count 
+///\param	types - Type of object to retrieve the count
 ///\return	Number of opened object IDs
 ///\exception	H5::FileIException
 ///\par Description
 ///		The valid values for \a types include:
-///		\li \c H5F_OBJ_FILE  Files only  
-///		\li \c H5F_OBJ_DATASET  Datasets only  
-///		\li \c H5F_OBJ_GROUP  Groups only  
-///		\li \c H5F_OBJ_DATATYPE    Named datatypes only  
-///		\li \c H5F_OBJ_ATTR    Attributes only  
-///		\li \c H5F_OBJ_ALL  All of the above 
-///		\li \c (i.e., H5F_OBJ_FILE | H5F_OBJ_DATASET | H5F_OBJ_GROUP | H5F_OBJ_DATATYPE | H5F_OBJ_ATTR )  
+///		\li \c H5F_OBJ_FILE	- Files only
+///		\li \c H5F_OBJ_DATASET	- Datasets only
+///		\li \c H5F_OBJ_GROUP	- Groups only
+///		\li \c H5F_OBJ_DATATYPE	- Named datatypes only
+///		\li \c H5F_OBJ_ATTR	- Attributes only
+///		\li \c H5F_OBJ_ALL    - All of the above, i.e., \c H5F_OBJ_FILE
+///					| \c H5F_OBJ_DATASET | \c H5F_OBJ_GROUP
+///					| \c H5F_OBJ_DATATYPE | \c H5F_OBJ_ATTR
+///\par
 /// Multiple object types can be combined with the logical OR operator (|).
 // Programmer   Binh-Minh Ribler - May 2004
 //--------------------------------------------------------------------------
@@ -317,7 +320,7 @@ int H5File::getObjCount(unsigned types) const
 //--------------------------------------------------------------------------
 // Function:	H5File::getObjCount
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It takes no parameter and returns the object count of all 
+///		It takes no parameter and returns the object count of all
 ///		object types.
 ///\return	Number of opened object IDs
 ///\exception	H5::FileIException
@@ -335,22 +338,24 @@ int H5File::getObjCount() const
 
 //--------------------------------------------------------------------------
 // Function:	H5File::getObjIDs
-///\brief	Retrieves a list of opened object IDs (files, datasets, 
+///\brief	Retrieves a list of opened object IDs (files, datasets,
 ///		groups and datatypes) in the same file.
-///\param	types    - Type of object to retrieve the count 
-///\param	max_objs - Maximum number of object identifiers to place 
+///\param	types    - Type of object to retrieve the count
+///\param	max_objs - Maximum number of object identifiers to place
 ///			   into obj_id_list.
 ///\param	oid_list - List of open object identifiers
 ///\exception	H5::FileIException
 ///\par Description
 ///		The valid values for \a types include:
-///		\li \c H5F_OBJ_FILE  Files only  
-///		\li \c H5F_OBJ_DATASET  Datasets only  
-///		\li \c H5F_OBJ_GROUP  Groups only  
-///		\li \c H5F_OBJ_DATATYPE    Named datatypes only  
-///		\li \c H5F_OBJ_ATTR    Attributes only  
-///		\li \c H5F_OBJ_ALL  All of the above 
-///		\li \c (I.e., H5F_OBJ_FILE | H5F_OBJ_DATASET | H5F_OBJ_GROUP | H5F_OBJ_DATATYPE | H5F_OBJ_ATTR )  
+///		\li \c H5F_OBJ_FILE	- Files only
+///		\li \c H5F_OBJ_DATASET	- Datasets only
+///		\li \c H5F_OBJ_GROUP	- Groups only
+///		\li \c H5F_OBJ_DATATYPE	- Named datatypes only
+///		\li \c H5F_OBJ_ATTR	- Attributes only
+///		\li \c H5F_OBJ_ALL    - All of the above, i.e., \c H5F_OBJ_FILE
+///					| \c H5F_OBJ_DATASET | \c H5F_OBJ_GROUP
+///					| \c H5F_OBJ_DATATYPE | \c H5F_OBJ_ATTR
+///\par
 /// Multiple object types can be combined with the logical OR operator (|).
 //
 // Notes: will do the overload for this one after hearing from Quincey???
@@ -374,13 +379,13 @@ void H5File::getObjIDs(unsigned types, int max_objs, hid_t *oid_list) const
 ///			      the low-level virtual file driver
 ///\exception	H5::FileIException
 ///\par Description
-///		For the FAMILY or MULTI drivers, \a fapl should be 
-///		defined through the property list functions: 
-///		\c FileAccPropList::setFamilyOffset for the FAMILY driver 
-///		and \c FileAccPropList::setMultiType for the MULTI driver.
+///		For the \c FAMILY or \c MULTI drivers, \a fapl should be
+///		defined through the property list functions:
+///		\c FileAccPropList::setFamilyOffset for the \c FAMILY driver
+///		and \c FileAccPropList::setMultiType for the \c MULTI driver.
 ///
-///		The obtained file handle is dynamic and is valid only while 
-///		the file remains open; it will be invalid if the file is 
+///		The obtained file handle is dynamic and is valid only while
+///		the file remains open; it will be invalid if the file is
 ///		closed and reopened or opened during a subsequent session.
 // Programmer   Binh-Minh Ribler - May 2004
 //--------------------------------------------------------------------------
@@ -422,7 +427,12 @@ void H5File::getVFDHandle(void **file_handle) const
 //--------------------------------------------------------------------------
 string H5File::getFileName() const
 {
-   return(p_get_file_name());
+   try {
+      return(p_get_file_name());
+   }
+   catch (IdComponentException E) {
+      throw FileIException("H5File::getFileName", E.getDetailMsg());
+   }
 }
 
 //--------------------------------------------------------------------------
@@ -432,14 +442,19 @@ string H5File::getFileName() const
 ///\param	dataspace - IN: Dataspace with selection
 ///\param	ref_type - IN: Type of reference; default to \c H5R_DATASET_REGION
 ///\return	A reference
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 ///\par Description
 ///		Note that name must be an absolute path to the object in the file.
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void* H5File::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type) const
 {
-   return(p_reference(name, dataspace.getId(), ref_type));
+   try {
+      return(p_reference(name, dataspace.getId(), ref_type));
+   }
+   catch (IdComponentException E) {
+      throw FileIException("H5File::Reference", E.getDetailMsg());
+   }
 }
 
 //--------------------------------------------------------------------------
@@ -449,19 +464,37 @@ void* H5File::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_t
 ///		a reference to an HDF5 object, not to a dataset region.
 ///\param	name - IN: Name of the object to be referenced
 ///\return	A reference
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 ///\par Description
-//		This function passes H5R_OBJECT and -1 to the protected 
+//		This function passes H5R_OBJECT and -1 to the protected
 //		function for it to pass to the C API H5Rcreate
 //		to create a reference to the named object.
 ///\par
-///		Note that, for H5File, name must be an absolute path to the 
+///		Note that, for H5File, name must be an absolute path to the
 ///		object in the file.
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void* H5File::Reference(const char* name) const
 {
-   return(p_reference(name, -1, H5R_OBJECT));
+   try {
+      return(p_reference(name, -1, H5R_OBJECT));
+   }
+   catch (IdComponentException E) {
+      throw FileIException("H5File::Reference", E.getDetailMsg());
+   }
+}
+
+//--------------------------------------------------------------------------
+// Function:	H5File::Reference
+///\brief	This is an overloaded function, provided for your convenience.
+///		It differs from the above function in that it takes an
+///		\c std::string for the object's name.
+///\param	name - IN: Name of the object to be referenced - \c std::string
+// Programmer	Binh-Minh Ribler - May, 2004
+//--------------------------------------------------------------------------
+void* H5File::Reference(const string& name) const
+{
+   return(Reference(name.c_str()));
 }
 
 //--------------------------------------------------------------------------
@@ -470,11 +503,11 @@ void* H5File::Reference(const char* name) const
 ///\param	ref      - IN: Reference to query
 ///\param	ref_type - IN: Type of reference to query
 ///\return	Object type, which can be one of the following:
-///		\li \c H5G_LINK    - Object is a symbolic link.  
-///		\li \c H5G_GROUP   - Object is a group.  
-///		\li \c H5G_DATASET - Object is a dataset.  
-///		\li \c H5G_TYPE    - Object is a named datatype 
-///\exception	H5::ReferenceIException
+///		\li \c H5G_LINK    - Object is a symbolic link.
+///		\li \c H5G_GROUP   - Object is a group.
+///		\li \c H5G_DATASET - Object is a dataset.
+///		\li \c H5G_TYPE    - Object is a named datatype
+///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 H5G_obj_t H5File::getObjType(void *ref, H5R_type_t ref_type) const
@@ -488,7 +521,7 @@ H5G_obj_t H5File::getObjType(void *ref, H5R_type_t ref_type) const
 ///\param	ref      - IN: Reference to get region of
 ///\param	ref_type - IN: Type of reference to get region of - default
 ///\return	DataSpace instance
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 DataSpace H5File::getRegion(void *ref, H5R_type_t ref_type) const
@@ -503,7 +536,7 @@ DataSpace H5File::getRegion(void *ref, H5R_type_t ref_type) const
 ///\return	File size
 ///\exception	H5::FileIException
 ///\par Description
-///		This function is called after an existing file is opened in 
+///		This function is called after an existing file is opened in
 ///		order to learn the true size of the underlying file.
 // Programmer   Raymond Lu - June 24, 2004
 //--------------------------------------------------------------------------
@@ -531,25 +564,23 @@ hid_t H5File::getLocId() const
    return( getId() );
 }
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //--------------------------------------------------------------------------
-// Function:    H5File::p_close (private)
-// Purpose:     Closes this HDF5 file.
-// Exception    H5::FileIException
-// Description
-//              This function will be obsolete because its functionality
-//              is recently handled by the C library layer. - May, 2004
-// Programmer   Binh-Minh Ribler - 2000
+// Function:	H5File::close
+///\brief	Closes this HDF5 file.
+///
+///\exception	H5::FileIException
+// Programmer	Binh-Minh Ribler - Mar 9, 2005
 //--------------------------------------------------------------------------
-void H5File::p_close() const
+void H5File::close()
 {
    herr_t ret_value = H5Fclose( id );
    if( ret_value < 0 )
    {
-      throw FileIException(0, "H5Fclose failed");
+      throw FileIException("H5File::close", "H5Fclose failed");
    }
+   // reset the id because the file that it represents is now closed
+   id = 0;
 }
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
 // Function:	H5File::throwException
@@ -558,30 +589,30 @@ void H5File::p_close() const
 ///\param	msg       - Message describing the failure
 ///\exception	H5::FileIException
 // Description
-// 		This function is used in CommonFG implementation so that 
-//		proper exception can be thrown for file or group.  The 
-//		argument func_name is a member of CommonFG and "H5File::" 
-//		will be inserted to indicate the function called is an 
+// 		This function is used in CommonFG implementation so that
+//		proper exception can be thrown for file or group.  The
+//		argument func_name is a member of CommonFG and "H5File::"
+//		will be inserted to indicate the function called is an
 //		implementation of H5File.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void H5File::throwException(const string func_name, const string msg) const
 {
    string full_name = func_name;
-   full_name.insert(0, "H5File::"); 
+   full_name.insert(0, "H5File::");
    throw FileIException(full_name, msg);
 }
 
 //--------------------------------------------------------------------------
 // Function:	H5File destructor
-///\brief	Properly terminates access to this file. 
+///\brief	Properly terminates access to this file.
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
-//              Replaced resetIdComponent with decRefCount to use new ID
-//              reference counting mechanisms by QAK, Feb 20, 2005
+//		Replaced resetIdComponent with decRefCount to use C library
+//		ID reference counting mechanism - BMR, Feb 20, 2005
 //--------------------------------------------------------------------------
-H5File::~H5File() 
-{  
+H5File::~H5File()
+{
    // The HDF5 file id will be closed properly
     try {
         decRefCount();
@@ -589,7 +620,7 @@ H5File::~H5File()
     catch (Exception close_error) {
         cerr << "H5File::~H5File - " << close_error.getDetailMsg() << endl;
     }
-}  
+}
 
 #ifndef H5_NO_NAMESPACE
 } // end namespace

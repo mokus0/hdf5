@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 
@@ -33,11 +33,11 @@ namespace H5 {
 ///\brief	Default constructor: Creates a stub ArrayType
 // Programmer	Binh-Minh Ribler - May 2004
 //--------------------------------------------------------------------------
-ArrayType::ArrayType() : DataType() 
+ArrayType::ArrayType() : DataType()
 {
    // Initialize members
    rank = -1;
-   dimensions = NULL;  
+   dimensions = NULL;
 }
 
 //--------------------------------------------------------------------------
@@ -47,7 +47,7 @@ ArrayType::ArrayType() : DataType()
 ///\exception	H5::DataTypeIException
 // Programmer	Binh-Minh Ribler - May 2004
 //--------------------------------------------------------------------------
-ArrayType::ArrayType( const hid_t existing_id ) : DataType( existing_id ) 
+ArrayType::ArrayType( const hid_t existing_id ) : DataType( existing_id )
 {
    // Get the rank of the existing array and store it in this array
    rank = H5Tget_array_ndims(existing_id);
@@ -71,17 +71,17 @@ ArrayType::ArrayType( const hid_t existing_id ) : DataType( existing_id )
 ///\brief	Copy constructor: makes a copy of the original ArrayType object.
 // Programmer	Binh-Minh Ribler - May 2004
 //--------------------------------------------------------------------------
-ArrayType::ArrayType( const ArrayType& original ) : DataType( original ) 
+ArrayType::ArrayType( const ArrayType& original ) : DataType( original )
 {
    rank = original.rank;
    dimensions = new hsize_t[rank];
    for (int i = 0; i < rank; i++)
-      dimensions[i] = original.dimensions[i]; 
+      dimensions[i] = original.dimensions[i];
 }
 
 //--------------------------------------------------------------------------
 // Function:	ArrayType overloaded constructor
-///\brief	Creates a new array data type based on the specified 
+///\brief	Creates a new array data type based on the specified
 ///		\a base_type.
 ///\param	base_type - IN: Existing datatype
 ///\param	ndims     - IN: Rank of the array, [0..H5S_MAX_RANK]
@@ -92,7 +92,7 @@ ArrayType::ArrayType( const ArrayType& original ) : DataType( original )
 ArrayType::ArrayType(const DataType& base_type, int ndims, const hsize_t* dims) : DataType()
 {
    hid_t new_type_id = H5Tarray_create(base_type.getId(), ndims, dims, NULL);
-   if (new_type_id <= 0)
+   if (new_type_id < 0)
    {
       throw DataTypeIException("ArrayType constructor", "H5Tarray_create failed");
    }
@@ -100,7 +100,7 @@ ArrayType::ArrayType(const DataType& base_type, int ndims, const hsize_t* dims) 
    rank = ndims;
    dimensions = new hsize_t[rank];
    for (int i = 0; i < rank; i++)
-      dimensions[i] = dims[i]; 
+      dimensions[i] = dims[i];
 }
 
 //--------------------------------------------------------------------------
@@ -147,11 +147,11 @@ int ArrayType::getArrayDims(hsize_t* dims)
       rank = ndims;
       dimensions = new hsize_t[rank];
       for (int i = 0; i < rank; i++)
-         dimensions[i] = dims[i]; 
+         dimensions[i] = dims[i];
    }
    // otherwise, simply copy what's in 'dimensions' to 'dims'
    for (int i = 0; i < rank; i++)
-      dims[i] = dimensions[i]; 
+      dims[i] = dimensions[i];
    return(rank);
 }
 
@@ -160,11 +160,11 @@ int ArrayType::getArrayDims(hsize_t* dims)
 ///\brief	Properly terminates access to this array datatype.
 // Programmer	Binh-Minh Ribler - May 2004
 //--------------------------------------------------------------------------
-ArrayType::~ArrayType() 
+ArrayType::~ArrayType()
 {
    // Free allocated memory
    if (dimensions != NULL)
-      delete [] dimensions;
+      delete []dimensions;
 }
 
 #ifndef H5_NO_NAMESPACE

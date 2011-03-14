@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5FileCreatPropList_H
 #define _H5FileCreatPropList_H
@@ -25,7 +25,7 @@ class H5_DLLCPP FileCreatPropList : public PropList {
    public:
 	// Default file creation property list.
 	static const FileCreatPropList DEFAULT;
-	
+
 	// Retrieves version information for various parts of a file.
 	void getVersion( unsigned& super, unsigned& freelist, unsigned& stab, unsigned& shhdr ) const;
 
@@ -35,7 +35,7 @@ class H5_DLLCPP FileCreatPropList : public PropList {
 	// Gets the size of a user block in this file creation property list.
 	hsize_t getUserblock() const;
 
-	// Retrieves the size-of address and size quantities stored in a 
+	// Retrieves the size-of address and size quantities stored in a
 	// file according to this file creation property list.
 	void getSizes( size_t& sizeof_addr, size_t& sizeof_size ) const;
 
@@ -64,6 +64,9 @@ class H5_DLLCPP FileCreatPropList : public PropList {
 	// Sets the size of parameter used to control the B-trees for
 	// indexing chunked datasets.
 	void setIstorek( unsigned ik ) const;
+
+	// Returns this class name
+	virtual string fromClass () const { return("FileCreatPropList"); }
 
 	// Creates a file create property list.
 	FileCreatPropList();

@@ -18,7 +18,7 @@ dnl ----------------------------------------------------------------------
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.67.2.79 2005/03/03 13:37:30 epourmal Exp $)
+AC_REVISION($Id: configure.in,v 1.67.2.100 2005/11/06 23:46:38 hdfadmin Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -27,12 +27,18 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 C++], [1.6.4], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5 C++], [1.6.5], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/H5Library.cpp])
 AC_CONFIG_AUX_DIR([../bin])
 
 AC_CANONICAL_HOST
 AC_SUBST(CPPFLAGS)
+
+dnl These hold flags which we want to use when compiling HDF5, but which
+dnl the user might not want in h5c++.
+AC_SUBST(H5_CPPFLAGS)
+AC_SUBST(H5_CFLAGS)
+AC_SUBST(H5_CXXFLAGS)
 
 dnl ----------------------------------------------------------------------
 dnl Dump all shell variables values.

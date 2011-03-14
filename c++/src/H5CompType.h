@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Class CompType inherits from DataType and provides accesses to a compound
 // datatype.
@@ -36,51 +36,62 @@ class H5_DLLCPP CompType : public DataType {
 	// to create another datatype of the same class
 	H5T_class_t getMemberClass( unsigned member_num ) const;
 
-	// Returns the dimensionality of the specified member. 
-	int getMemberDims( int member_num, size_t* dims, int* perm ) const;
+	// Returns the dimensionality of the specified member.
+	int getMemberDims( unsigned member_num, size_t* dims, int* perm ) const; // obsolete
 
 	// Returns the index of a member in this compound data type.
 	int getMemberIndex(const char* name) const;
 	int getMemberIndex(const string& name) const;
 
-	// Returns the offset of a member of this compound datatype. 
+	// Returns the offset of a member of this compound datatype.
 	size_t getMemberOffset( unsigned memb_no ) const;
 
-	// Returns the name of a member of this compound datatype. 
+	// Returns the name of a member of this compound datatype.
 	string getMemberName( unsigned member_num ) const;
 
-	// Returns the compound datatype of the specified member in 
+	// Returns the generic datatype of the specified member in
 	// this compound datatype.
-	CompType getMemberCompType( int member_num ) const;
+	DataType getMemberDataType( unsigned member_num ) const;
 
-	// Returns the generic datatype of the specified member in 
+	// Returns the compound datatype of the specified member in
 	// this compound datatype.
-	DataType getMemberDataType( int member_num ) const;
+	ArrayType getMemberArrayType( unsigned member_num ) const;
 
-	// Returns the enumeration datatype of the specified member in 
+	// Returns the compound datatype of the specified member in
 	// this compound datatype.
-	EnumType getMemberEnumType( int member_num ) const;
+	CompType getMemberCompType( unsigned member_num ) const;
 
-	// Returns the integer datatype of the specified member in 
+	// Returns the enumeration datatype of the specified member in
 	// this compound datatype.
-	IntType getMemberIntType( int member_num ) const;
+	EnumType getMemberEnumType( unsigned member_num ) const;
 
-	// Returns the floating-point datatype of the specified member in 
+	// Returns the integer datatype of the specified member in
 	// this compound datatype.
-	FloatType getMemberFloatType( int member_num ) const;
+	IntType getMemberIntType( unsigned member_num ) const;
 
-	// Returns the string datatype of the specified member in 
+	// Returns the floating-point datatype of the specified member in
 	// this compound datatype.
-	StrType getMemberStrType( int member_num ) const;
+	FloatType getMemberFloatType( unsigned member_num ) const;
 
-	// Returns the number of members in this compound datatype. 
+	// Returns the string datatype of the specified member in
+	// this compound datatype.
+	StrType getMemberStrType( unsigned member_num ) const;
+
+	// Returns the compound datatype of the specified member in
+	// this compound datatype.
+	VarLenType getMemberVarLenType( unsigned member_num ) const;
+
+	// Returns the number of members in this compound datatype.
 	int getNmembers() const;
 
 	// Adds a new member to this compound datatype.
 	void insertMember( const string& name, size_t offset, const DataType& new_member ) const;
 
-	// Recursively removes padding from within this compound datatype. 
+	// Recursively removes padding from within this compound datatype.
 	void pack() const;
+
+	// Returns this class name
+	virtual string fromClass () const { return("CompType"); }
 
 	// Default constructor
 	CompType();
@@ -97,7 +108,7 @@ class H5_DLLCPP CompType : public DataType {
    private:
 	// Contains common code that is used by the member functions
 	// getMemberXxxType
-	hid_t p_get_member_type(unsigned member_num) const; 
+	hid_t p_get_member_type(unsigned member_num) const;
 };
 #ifndef H5_NO_NAMESPACE
 }

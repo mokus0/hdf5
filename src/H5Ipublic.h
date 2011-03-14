@@ -35,7 +35,6 @@
 typedef enum {
     H5I_BADID		= (-1),	/*invalid Group				    */
     H5I_FILE		= 1,	/*group ID for File objects		    */
-    H5I_FILE_CLOSING,		/*files pending close due to open objhdrs   */
     H5I_GROUP,		        /*group ID for Group objects		    */
     H5I_DATATYPE,	        /*group ID for Datatype objects		    */
     H5I_DATASPACE,	        /*group ID for Dataspace objects	    */
@@ -45,7 +44,7 @@ typedef enum {
     H5I_VFL,			/*group ID for virtual file layer	    */
     H5I_GENPROP_CLS,            /*group ID for generic property list classes */
     H5I_GENPROP_LST,            /*group ID for generic property lists       */
-    
+
     H5I_NGROUPS		        /*number of valid groups, MUST BE LAST!	    */
 } H5I_type_t;
 

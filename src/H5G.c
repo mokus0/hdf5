@@ -24,7 +24,7 @@
  *
  *		The functions that begin with `H5G_node_' operate on the leaf
  *		nodes of a symbol table B-tree.  They should be defined in
- *		the H5Gnode.c file. 
+ *		the H5Gnode.c file.
  *
  *		The remaining functions know how to traverse the group
  *		directed graph.
@@ -85,8 +85,8 @@
  *-------------------------------------------------------------------------
  */
 
-#define H5G_PACKAGE     /*suppress error message about including H5Gpkg.h */
-#define H5F_PACKAGE     /*suppress error about including H5Fpkg	  */
+#define H5G_PACKAGE		/*suppress error about including H5Gpkg   */
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 
 /* Interface initialization */
 #define H5_INTERFACE_INIT_FUNC	H5G_init_interface
@@ -95,7 +95,6 @@
 /* Packages needed by this file... */
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Aprivate.h"		/* Attributes				*/
-#include "H5Bprivate.h"		/* B-link trees				*/
 #include "H5Dprivate.h"		/* Datasets				*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5Fpkg.h"		/* File access				*/
@@ -104,13 +103,11 @@
 #include "H5HLprivate.h"	/* Local Heaps				*/
 #include "H5Iprivate.h"		/* IDs			  		*/
 #include "H5MMprivate.h"	/* Memory management			*/
-#include "H5Oprivate.h"		/* Object headers		  	*/
 
 /* Local macros */
 #define H5G_INIT_HEAP		8192
 #define H5G_RESERVED_ATOMS	0
 #define H5G_SIZE_HINT   256             /*default root grp size hint         */
-#define H5G_NLINKS	16		/*max symlinks to follow per lookup  */
 
 /*
  * During name lookups (see H5G_namei()) we sometimes want information about
@@ -131,7 +128,7 @@ typedef struct H5G_names_t {
     H5RS_str_t *dst_name;
     H5G_entry_t	*dst_loc;
     H5G_names_op_t op;
-} H5G_names_t;  
+} H5G_names_t;
 
 /* Enum for H5G_namei actions */
 typedef enum {
@@ -165,34 +162,41 @@ H5FL_DEFINE(H5G_shared_t);
 H5FL_BLK_EXTERN(str_buf);
 
 /* Private prototypes */
+static herr_t H5G_register_type(int type, htri_t(*isa)(H5G_entry_t*, hid_t),
+				 const char *desc);
+static const char * H5G_component(const char *name, size_t *size_p);
+static const char * H5G_basename(const char *name, size_t *size_p);
+static char * H5G_normalize(const char *name);
+static herr_t H5G_namei(const H5G_entry_t *loc_ent, const char *name,
+    const char **rest/*out*/, H5G_entry_t *grp_ent/*out*/, H5G_entry_t *obj_ent/*out*/,
+    unsigned target, int *nlinks/*out*/, H5G_namei_act_t action,
+    H5G_entry_t *ent, hid_t dxpl_id);
+static herr_t H5G_traverse_slink(H5G_entry_t *grp_ent/*in,out*/,
+    H5G_entry_t *obj_ent/*in,out*/, int *nlinks/*in,out*/, hid_t dxpl_id);
 static H5G_t *H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id);
-#ifdef NOT_YET
-static H5G_t *H5G_reopen(H5G_t *grp);
-#endif /* NOT_YET */
 static htri_t H5G_isa(H5G_entry_t *ent, hid_t dxpl_id);
 static htri_t H5G_link_isa(H5G_entry_t *ent, hid_t dxpl_id);
-static herr_t H5G_link(H5G_entry_t *cur_loc, const char *cur_name, 
-			H5G_entry_t *new_loc, const char *new_name, 
-			H5G_link_t type, unsigned namei_flags, hid_t dxpl_id);
-static herr_t H5G_linkval(H5G_entry_t *loc, const char *name, size_t size,
-			   char *buf/*out*/, hid_t dxpl_id);
-static herr_t H5G_move(H5G_entry_t *src_loc, const char *src_name,
-			H5G_entry_t *dst_loc, const char *dst_name, hid_t dxpl_it);
 static H5G_t * H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id);
-static herr_t H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
+static H5G_t *H5G_rootof(H5F_t *f);
+static herr_t H5G_link(H5G_entry_t *cur_loc, const char *cur_name,
+    H5G_entry_t *new_loc, const char *new_name, H5G_link_t type,
+    unsigned namei_flags, hid_t dxpl_id);
 static herr_t H5G_get_num_objs(H5G_entry_t *grp, hsize_t *num_objs, hid_t dxpl_id);
 static ssize_t H5G_get_objname_by_idx(H5G_entry_t *loc, hsize_t idx, char* name, size_t size, hid_t dxpl_id);
 static int H5G_get_objtype_by_idx(H5G_entry_t *loc, hsize_t idx, hid_t dxpl_id);
-static int H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key);
-static herr_t H5G_traverse_slink(H5G_entry_t *grp_ent/*in,out*/,
-                  H5G_entry_t *obj_ent/*in,out*/, int *nlinks/*in,out*/, hid_t dxpl_id);
+static herr_t H5G_linkval(H5G_entry_t *loc, const char *name, size_t size,
+    char *buf/*out*/, hid_t dxpl_id);
 static herr_t H5G_set_comment(H5G_entry_t *loc, const char *name,
-			       const char *buf, hid_t dxpl_id);
+    const char *buf, hid_t dxpl_id);
 static int H5G_get_comment(H5G_entry_t *loc, const char *name,
-			     size_t bufsize, char *buf, hid_t dxpl_id);
-static herr_t H5G_register_type(int type, htri_t(*isa)(H5G_entry_t*, hid_t),
-				 const char *desc);
-static H5G_t *H5G_rootof(H5F_t *f);
+    size_t bufsize, char *buf, hid_t dxpl_id);
+static herr_t H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
+static herr_t H5G_move(H5G_entry_t *src_loc, const char *src_name,
+    H5G_entry_t *dst_loc, const char *dst_name, hid_t dxpl_id);
+static htri_t H5G_common_path(const H5RS_str_t *fullpath_r,
+    const H5RS_str_t *prefix_r);
+static H5RS_str_t *H5G_build_fullpath(const H5RS_str_t *prefix_r, const H5RS_str_t *name_r);
+static int H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key);
 
 
 /*-------------------------------------------------------------------------
@@ -239,7 +243,7 @@ H5Gcreate(hid_t loc_id, const char *name, size_t size_hint)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if (!name || !*name)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no name given");
-    
+
     /* Create the group */
     if (NULL == (grp = H5G_create(loc, name, size_hint, H5AC_dxpl_id)))
 	HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to create group");
@@ -252,7 +256,7 @@ done:
             H5G_close(grp);
     } /* end if */
 
-    FUNC_LEAVE_API(ret_value);
+    FUNC_LEAVE_API(ret_value)
 }
 
 
@@ -293,7 +297,7 @@ H5Gopen(hid_t loc_id, const char *name)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no name");
 
     /* Open the parent group, making sure it's a group */
-    if (H5G_find(loc, name, NULL, &ent/*out*/, H5AC_dxpl_id) < 0)
+    if (H5G_find(loc, name, &ent/*out*/, H5AC_dxpl_id) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "group not found");
 
     /* Open the group */
@@ -384,11 +388,12 @@ herr_t
 H5Giterate(hid_t loc_id, const char *name, int *idx_p,
 	    H5G_iterate_t op, void *op_data)
 {
+    H5O_stab_t		stab;		/*info about B-tree	*/
     int			idx;
-    H5G_bt_ud2_t	udata;
+    H5G_bt_it_ud1_t	udata;
     H5G_t		*grp = NULL;
     herr_t		ret_value;
-    
+
     FUNC_ENTER_API(H5Giterate, FAIL);
     H5TRACE5("e","is*Isxx",loc_id,name,idx_p,op,op_data);
 
@@ -414,9 +419,13 @@ H5Giterate(hid_t loc_id, const char *name, int *idx_p,
         HGOTO_ERROR (H5E_ATOM, H5E_BADATOM, FAIL, "bad group atom");
     }
 
+    /* Get the B-tree info */
+    if (NULL==H5O_read (&(grp->ent), H5O_STAB_ID, 0, &stab, H5AC_dxpl_id))
+	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to determine local heap address")
+
     /* Build udata to pass through H5B_iterate() to H5G_node_iterate() */
     udata.skip = idx;
-    udata.ent = &(grp->ent);
+    udata.heap_addr = stab.heap_addr;
     udata.op = op;
     udata.op_data = op_data;
 
@@ -425,15 +434,15 @@ H5Giterate(hid_t loc_id, const char *name, int *idx_p,
 
     /* Iterate over the group members */
     if ((ret_value = H5B_iterate (H5G_fileof(grp), H5AC_dxpl_id, H5B_SNODE,
-              H5G_node_iterate, udata.ent->cache.stab.btree_addr, &udata))<0)
+              H5G_node_iterate, stab.btree_addr, &udata))<0)
         HERROR (H5E_SYM, H5E_CANTNEXT, "iteration operator failed");
 
     H5I_dec_ref (udata.group_id); /*also closes 'grp'*/
 
     /* Check for too high of a starting index (ex post facto :-) */
     /* (Skipping exactly as many entries as are in the group is currently an error) */
-    if (idx>0 && idx>=udata.final_ent)
-	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid index specified");
+    if(idx>0 && idx>=udata.final_ent)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "invalid index specified");
 
     /* Set the index we stopped at */
     *idx_p=udata.final_ent;
@@ -446,15 +455,15 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5Gget_num_objs
  *
- * Purpose:     Returns the number of objects in the group.  It iterates 
+ * Purpose:     Returns the number of objects in the group.  It iterates
  *              all B-tree leaves and sum up total number of group members.
  *
- * Return:	Success:        Non-negative	
+ * Return:	Success:        Non-negative
  *
- *		Failure:	Negative 
+ *		Failure:	Negative
  *
  * Programmer:	Raymond Lu
- *	        Nov 20, 2002	
+ *	        Nov 20, 2002
  *
  * Modifications:
  *
@@ -465,7 +474,7 @@ H5Gget_num_objs(hid_t loc_id, hsize_t *num_objs)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
     herr_t		ret_value;
-    
+
     FUNC_ENTER_API(H5Gget_num_objs, FAIL);
     H5TRACE2("e","i*h",loc_id,num_objs);
 
@@ -498,12 +507,12 @@ done:
  *              If a zero is returned for the name's length, then there is no name
  *              associated with the ID.
  *
- * Return:	Success:        Non-negative	
+ * Return:	Success:        Non-negative
  *
- *		Failure:	Negative 
+ *		Failure:	Negative
  *
  * Programmer:	Raymond Lu
- *	        Nov 20, 2002	
+ *	        Nov 20, 2002
  *
  * Modifications:
  *
@@ -513,11 +522,8 @@ ssize_t
 H5Gget_objname_by_idx(hid_t loc_id, hsize_t idx, char *name, size_t size)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
-#ifdef OLD_WAY
-    hsize_t             num_objs;
-#endif /* OLD_WAY */
     ssize_t		ret_value = FAIL;
-    
+
     FUNC_ENTER_API(H5Gget_objname_by_idx, FAIL);
     H5TRACE4("Zs","ihsz",loc_id,idx,name,size);
 
@@ -526,19 +532,7 @@ H5Gget_objname_by_idx(hid_t loc_id, hsize_t idx, char *name, size_t size)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location ID");
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a group");
-        
-#ifdef OLD_WAY
-/* Don't check for the number of objects in the group currently, because this
- * has to iterate through the group in order to find out the information.
- * We might as well just iterate through all the group entries and error out
- * if we didn't find the index we are looking for. -QAK
- */
-    if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "unable to retrieve number of members");
-    if(idx >= num_objs)    
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "index out of bound");
-#endif /* OLD_WAY */
-        
+
     /*call private function*/
     ret_value = H5G_get_objname_by_idx(loc, idx, name, size, H5AC_ind_dxpl_id);
 
@@ -551,14 +545,14 @@ done:
  * Function:	H5Gget_objtype_by_idx
  *
  * Purpose:     Returns the type of objects in the group by giving index.
- *              
  *
- * Return:	Success:        H5G_GROUP(1), H5G_DATASET(2), H5G_TYPE(3)	
  *
- *		Failure:	H5G_UNKNOWN 
+ * Return:	Success:        H5G_GROUP(1), H5G_DATASET(2), H5G_TYPE(3)
+ *
+ *		Failure:	H5G_UNKNOWN
  *
  * Programmer:	Raymond Lu
- *	        Nov 20, 2002	
+ *	        Nov 20, 2002
  *
  * Modifications:
  *
@@ -569,11 +563,8 @@ int
 H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
-#ifdef OLD_WAY
-    hsize_t             num_objs;
-#endif /* OLD_WAY */
-    int 		ret_value = H5G_UNKNOWN;
-    
+    int 		ret_value;
+
     FUNC_ENTER_API(H5Gget_objtype_by_idx, FAIL);
     H5TRACE2("Is","ih",loc_id,idx);
 
@@ -582,19 +573,7 @@ H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location ID");
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a group");
-        
-#ifdef OLD_WAY
-/* Don't check for the number of objects in the group currently, because this
- * has to iterate through the group in order to find out the information.
- * We might as well just iterate through all the group entries and error out
- * if we didn't find the index we are looking for. -QAK
- */
-    if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "unable to retrieve number of members");
-    if(idx >= num_objs)    
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "index out of bound");
-#endif /* OLD_WAY */
-        
+
     /*call private function*/
     ret_value = H5G_get_objtype_by_idx(loc, idx, H5AC_ind_dxpl_id);
 
@@ -608,11 +587,8 @@ H5G_obj_t
 H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
-#ifdef OLD_WAY
-    hsize_t             num_objs;
-#endif /* OLD_WAY */
     H5G_obj_t		ret_value;
-    
+
     FUNC_ENTER_API(H5Gget_objtype_by_idx, H5G_UNKNOWN);
     H5TRACE2("Go","ih",loc_id,idx);
 
@@ -621,19 +597,7 @@ H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "not a location ID");
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "not a group");
-        
-#ifdef OLD_WAY
-/* Don't check for the number of objects in the group currently, because this
- * has to iterate through the group in order to find out the information.
- * We might as well just iterate through all the group entries and error out
- * if we didn't find the index we are looking for. -QAK
- */
-    if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "unable to retrieve number of members");
-    if(idx >= num_objs)    
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "index out of bound");
-#endif /* OLD_WAY */
-        
+
     /*call private function*/
     ret_value = (H5G_obj_t)H5G_get_objtype_by_idx(loc, idx, H5AC_ind_dxpl_id);
 
@@ -650,7 +614,7 @@ done:
  * Purpose:	Renames an object within an HDF5 file.  The original name SRC
  *		is unlinked from the group graph and the new name DST is
  *		inserted as an atomic operation.  Both names are interpreted
- *		relative to SRC_LOC_ID and DST_LOC_ID, which are either a file 
+ *		relative to SRC_LOC_ID and DST_LOC_ID, which are either a file
  *		ID or a group ID.
  *
  * Return:	Non-negative on success/Negative on failure
@@ -666,7 +630,7 @@ done:
  *-------------------------------------------------------------------------
  */
 herr_t
-H5Gmove2(hid_t src_loc_id, const char *src_name, hid_t dst_loc_id, 
+H5Gmove2(hid_t src_loc_id, const char *src_name, hid_t dst_loc_id,
 	 const char *dst_name)
 {
     H5G_entry_t		*src_loc=NULL;
@@ -695,7 +659,7 @@ H5Gmove2(hid_t src_loc_id, const char *src_name, hid_t dst_loc_id,
     }
     else if(src_loc->file != dst_loc->file)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "source and destination should be in the same file.");
-	
+
     if (H5G_move(src_loc, src_name, dst_loc, dst_name, H5AC_dxpl_id)<0)
 	HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to change object name");
 
@@ -711,8 +675,8 @@ done:
  *		CUR_NAME.
  *
  *		If TYPE is H5G_LINK_HARD then CUR_NAME must name an existing
- *		object.  CUR_NAME and NEW_NAME are interpreted relative to 
- *		CUR_LOC_ID and NEW_LOC_ID, which is either a file ID or a 
+ *		object.  CUR_NAME and NEW_NAME are interpreted relative to
+ *		CUR_LOC_ID and NEW_LOC_ID, which is either a file ID or a
  *		group ID.
  *
  * 		If TYPE is H5G_LINK_SOFT then CUR_NAME can be anything and is
@@ -732,7 +696,7 @@ done:
  *-------------------------------------------------------------------------
  */
 herr_t
-H5Glink2(hid_t cur_loc_id, const char *cur_name, H5G_link_t type, 
+H5Glink2(hid_t cur_loc_id, const char *cur_name, H5G_link_t type,
 	 hid_t new_loc_id, const char *new_name)
 {
     H5G_entry_t	*cur_loc = NULL;
@@ -798,7 +762,7 @@ H5Gunlink(hid_t loc_id, const char *name)
 {
     H5G_entry_t	*loc = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_API(H5Gunlink, FAIL);
     H5TRACE2("e","is",loc_id,name);
 
@@ -840,7 +804,7 @@ H5Gget_objinfo(hid_t loc_id, const char *name, hbool_t follow_link,
 {
     H5G_entry_t	*loc = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_API(H5Gget_objinfo, FAIL);
     H5TRACE4("e","isbx",loc_id,name,follow_link,statbuf);
 
@@ -882,7 +846,7 @@ H5Gget_linkval(hid_t loc_id, const char *name, size_t size, char *buf/*out*/)
 {
     H5G_entry_t	*loc = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_API(H5Gget_linkval, FAIL);
     H5TRACE4("e","iszx",loc_id,name,size,buf);
 
@@ -923,7 +887,7 @@ H5Gset_comment(hid_t loc_id, const char *name, const char *comment)
 {
     H5G_entry_t	*loc = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_API(H5Gset_comment, FAIL);
     H5TRACE3("e","iss",loc_id,name,comment);
 
@@ -968,7 +932,7 @@ H5Gget_comment(hid_t loc_id, const char *name, size_t bufsize, char *buf)
 {
     H5G_entry_t	*loc = NULL;
     int	ret_value;
-    
+
     FUNC_ENTER_API(H5Gget_comment, FAIL);
     H5TRACE4("Is","iszs",loc_id,name,bufsize,buf);
 
@@ -991,7 +955,7 @@ done:
  *-------------------------------------------------------------------------
  *   N O   A P I   F U N C T I O N S   B E Y O N D   T H I S   P O I N T
  *-------------------------------------------------------------------------
- *------------------------------------------------------------------------- 
+ *-------------------------------------------------------------------------
  */
 
 /*-------------------------------------------------------------------------
@@ -1011,7 +975,7 @@ done:
 static herr_t
 H5G_init_interface(void)
 {
-    herr_t      ret_value=SUCCEED;       /* Return value */
+    herr_t          ret_value=SUCCEED;       /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5G_init_interface);
 
@@ -1060,7 +1024,7 @@ H5G_term_interface(void)
     int	n=0;
 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_term_interface);
-    
+
     if (H5_interface_initialize_g) {
 	if ((n=H5I_nmembers(H5I_GROUP))) {
 	    H5I_clear_group(H5I_GROUP, FALSE);
@@ -1070,7 +1034,7 @@ H5G_term_interface(void)
 		H5MM_xfree(H5G_type_g[i].desc);
 	    H5G_ntypes_g = H5G_atypes_g = 0;
 	    H5G_type_g = H5MM_xfree(H5G_type_g);
-    
+
 	    /* Destroy the group object id group */
 	    H5I_destroy_group(H5I_GROUP);
 
@@ -1083,7 +1047,7 @@ H5G_term_interface(void)
 	    n = 1; /*H5I*/
 	}
     }
-    
+
     FUNC_LEAVE_NOAPI(n);
 }
 
@@ -1114,8 +1078,8 @@ H5G_register_type(int type, htri_t(*isa)(H5G_entry_t*, hid_t), const char *_desc
     char	*desc = NULL;
     size_t	i;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_register_type, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_register_type);
 
     assert(type>=0);
     assert(isa);
@@ -1148,7 +1112,7 @@ H5G_register_type(int type, htri_t(*isa)(H5G_entry_t*, hid_t), const char *_desc
 	H5G_atypes_g = n;
 	H5G_type_g = x;
     }
-    
+
     /* Add a new entry */
     H5G_type_g[H5G_ntypes_g].type = type;
     H5G_type_g[H5G_ntypes_g].isa = isa;
@@ -1227,7 +1191,7 @@ static const char *
 H5G_basename(const char *name, size_t *size_p)
 {
     size_t	i;
-    
+
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_basename);
 
     /* Find the end of the base name */
@@ -1270,7 +1234,7 @@ H5G_normalize(const char *name)
     size_t	s,d;    /* Positions within the strings */
     unsigned    last_slash;     /* Flag to indicate last character was a slash */
     char *ret_value;    /* Return value */
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5G_normalize);
 
     /* Sanity check */
@@ -1366,7 +1330,7 @@ done:
  *		component of the name is a mount point then H5F_mountpoint()
  *		is not called and information about the mount point itself is
  *		returned.
- *		
+ *
  * Errors:
  *
  * Return:	Success:	Non-negative if name can be fully resolved.
@@ -1406,7 +1370,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
+H5G_namei(const H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	  H5G_entry_t *grp_ent/*out*/, H5G_entry_t *obj_ent/*out*/,
 	  unsigned target, int *nlinks/*out*/, H5G_namei_act_t action,
           H5G_entry_t *ent, hid_t dxpl_id)
@@ -1418,11 +1382,12 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     const char		   *s = NULL;
     unsigned null_obj;          /* Flag to indicate this function was called with obj_ent set to NULL */
     unsigned null_grp;          /* Flag to indicate this function was called with grp_ent set to NULL */
+    unsigned obj_copy = 0;      /* Flag to indicate that the object entry is copied */
     unsigned group_copy = 0;    /* Flag to indicate that the group entry is copied */
     unsigned last_comp = 0;     /* Flag to indicate that a component is the last component in the name */
     unsigned did_insert = 0;    /* Flag to indicate that H5G_stab_insert was called */
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5G_namei);
 
     /* Set up "out" parameters */
@@ -1442,7 +1407,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
         null_obj = 0;
     if (!nlinks)
         nlinks = &_nlinks;
-    
+
     /* Check args */
     if (!name || !*name)
         HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "no name given");
@@ -1456,7 +1421,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     /* Check if we need to get the root group's entry */
     if ('/' == *name) {
         H5G_t *tmp_grp;         /* Temporary pointer to root group of file */
-     
+
         tmp_grp=H5G_rootof(loc_ent->file);
         assert(tmp_grp);
 
@@ -1464,12 +1429,12 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
         loc_ent=&(tmp_grp->ent);
     } /* end if */
 
-    /* Deep copy of the symbol table entry */
+    /* Deep copy of the symbol table entry (duplicates strings) */
     if (H5G_ent_copy(obj_ent, loc_ent,H5G_COPY_DEEP)<0)
         HGOTO_ERROR(H5E_DATATYPE, H5E_CANTOPENOBJ, FAIL, "unable to copy entry");
-    
-    HDmemset(grp_ent, 0, sizeof(H5G_entry_t));
-    grp_ent->header = HADDR_UNDEF;
+    obj_copy = 1;
+
+    H5G_ent_reset(grp_ent);
 
     /* traverse the name */
     while ((name = H5G_component(name, &nchars)) && *name) {
@@ -1511,8 +1476,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 
         /* Transfer "ownership" of the entry's information to the group entry */
         H5G_ent_copy(grp_ent,obj_ent,H5G_COPY_SHALLOW);
-	HDmemset(obj_ent, 0, sizeof(H5G_entry_t));
-	obj_ent->header = HADDR_UNDEF;
+        H5G_ent_reset(obj_ent);
 
 	/* Set flag that we've copied a new entry into the group entry */
 	group_copy =1;
@@ -1544,7 +1508,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
                 } /* end if */
                 else {
                     did_insert = 1;
-                    if (H5G_stab_insert(grp_ent, H5G_comp_g, ent, dxpl_id) < 0)
+                    if (H5G_stab_insert(grp_ent, H5G_comp_g, ent, TRUE, dxpl_id) < 0)
                         HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, FAIL, "unable to insert name");
                     HGOTO_DONE(SUCCEED);
                 } /* end else */
@@ -1559,7 +1523,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	if(H5G_CACHED_SLINK==obj_ent->type &&
                 (0==(target & H5G_TARGET_SLINK) || !last_comp)) {
 	    if ((*nlinks)-- <= 0)
-		HGOTO_ERROR (H5E_SYM, H5E_SLINK, FAIL, "too many symbolic links");
+		HGOTO_ERROR (H5E_SYM, H5E_SLINK, FAIL, "too many links");
 	    if (H5G_traverse_slink (grp_ent, obj_ent, nlinks, dxpl_id)<0)
 		HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "symbolic link traversal failed");
 	}
@@ -1571,11 +1535,11 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	 */
 	if (0==(target & H5G_TARGET_MOUNT) || !last_comp)
 	    H5F_mountpoint(obj_ent/*in,out*/);
-	
+
 	/* next component */
 	name += nchars;
     } /* end while */
-    
+
     /* Update the "rest of name" pointer */
     if (rest)
         *rest = name; /*final null */
@@ -1587,7 +1551,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 
 done:
     /* If we started with a NULL obj_ent, free the entry information */
-    if(null_obj)
+    if(null_obj || (ret_value < 0 && obj_copy))
         H5G_free_ent_name(obj_ent);
     /* If we started with a NULL grp_ent and we copied something into it, free the entry information */
     if(null_grp && group_copy)
@@ -1632,11 +1596,11 @@ H5G_traverse_slink (H5G_entry_t *grp_ent/*in,out*/,
     H5RS_str_t          *tmp_user_path_r=NULL, *tmp_canon_path_r=NULL; /* Temporary pointer to object's user path & canonical path */
     const H5HL_t        *heap;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_traverse_slink, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_traverse_slink);
 
     /* Portably initialize the temporary group entry */
-    HDmemset(&tmp_grp_ent,0,sizeof(H5G_entry_t));
+    H5G_ent_reset(&tmp_grp_ent);
 
     /* Get the link value */
     if (NULL==H5O_read (grp_ent, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
@@ -1652,7 +1616,7 @@ H5G_traverse_slink (H5G_entry_t *grp_ent/*in,out*/,
 
     if (H5HL_unprotect(grp_ent->file, dxpl_id, heap, stab_mesg.heap_addr) < 0)
 	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read unprotect link value")
-		
+
     /* Hold the entry's name (& old_name) to restore later */
     tmp_user_path_r=obj_ent->user_path_r;
     obj_ent->user_path_r=NULL;
@@ -1677,7 +1641,7 @@ H5G_traverse_slink (H5G_entry_t *grp_ent/*in,out*/,
     tmp_user_path_r=NULL;
     obj_ent->canon_path_r = tmp_canon_path_r;
     tmp_canon_path_r=NULL;
-	
+
 done:
     /* Error cleanup */
     if(tmp_user_path_r)
@@ -1720,8 +1684,7 @@ herr_t
 H5G_mkroot (H5F_t *f, hid_t dxpl_id, H5G_entry_t *ent)
 {
     H5G_entry_t	new_root;		/*new root object		*/
-    H5O_stab_t	stab;			/*symbol table message		*/
-    herr_t      ret_value=SUCCEED;       /* Return value */
+    herr_t      ret_value=SUCCEED;      /* Return value */
 
     FUNC_ENTER_NOAPI(H5G_mkroot, FAIL);
 
@@ -1735,13 +1698,13 @@ H5G_mkroot (H5F_t *f, hid_t dxpl_id, H5G_entry_t *ent)
         HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to create group node info")
 
     /*
-     * If there is no root object then create one. The root group always has
-     * a hard link count of one since it's pointed to by the boot block.
+     * If there is no root object then create one. The root group always starts
+     * with a hard link count of one since it's pointed to by the boot block.
      */
     if (!ent) {
 	ent = &new_root;
-        HDmemset(ent, 0, sizeof(H5G_entry_t));
-	if (H5G_stab_create (f, dxpl_id, H5G_SIZE_HINT, ent/*out*/)<0)
+        H5G_ent_reset(ent);
+	if (H5G_stab_create (f, dxpl_id, (size_t)H5G_SIZE_HINT, ent/*out*/)<0)
 	    HGOTO_ERROR (H5E_SYM, H5E_CANTINIT, FAIL, "unable to create root group");
 	if (1 != H5O_link (ent, 1, dxpl_id))
 	    HGOTO_ERROR (H5E_SYM, H5E_LINK, FAIL, "internal error (wrong link count)");
@@ -1751,11 +1714,6 @@ H5G_mkroot (H5F_t *f, hid_t dxpl_id, H5G_entry_t *ent)
 	 */
 	if (H5O_open (ent)<0)
 	    HGOTO_ERROR (H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open root group");
-	if (NULL==H5O_read (ent, H5O_STAB_ID, 0, &stab, dxpl_id)) {
-	    H5O_close(ent);
-	    HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "root object is not a group");
-	}
-	H5O_reset (H5O_STAB_ID, &stab);
     }
 
     /* Create the path names for the root group's entry */
@@ -1776,7 +1734,10 @@ H5G_mkroot (H5F_t *f, hid_t dxpl_id, H5G_entry_t *ent)
         H5FL_FREE(H5G_t, f->shared->root_grp);
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
     }
-    f->shared->root_grp->ent = *ent;
+    /* Shallow copy (take ownership) of the group entry object */
+    if(H5G_ent_copy(&(f->shared->root_grp->ent), ent, H5G_COPY_SHALLOW)<0)
+        HGOTO_ERROR (H5E_SYM, H5E_CANTCOPY, FAIL, "can't copy group entry")
+
     f->shared->root_grp->shared->fo_count = 1;
     assert (1==f->nopen_objs);
     f->nopen_objs = 0;
@@ -1819,7 +1780,7 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id)
     unsigned    stab_init=0;    /* Flag to indicate that the symbol table was created successfully */
     H5G_t	*ret_value;	/* Return value */
 
-    FUNC_ENTER_NOAPI(H5G_create, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_create);
 
     /* check args */
     assert(loc);
@@ -1839,12 +1800,14 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id)
     if (H5G_stab_create(file, dxpl_id, size_hint, &(grp->ent)/*out*/) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, NULL, "can't create grp");
     stab_init=1;    /* Indicate that the symbol table information is valid */
-    
+
     /* insert child name into parent */
     if(H5G_insert(loc,name,&(grp->ent), dxpl_id)<0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group");
 
     /* Add group to list of open objects in file */
+    if(H5FO_top_incr(grp->ent.file, grp->ent.header)<0)
+        HGOTO_ERROR(H5E_SYM, H5E_CANTINC, NULL, "can't incr object ref. count")
     if(H5FO_insert(grp->ent.file, grp->ent.header, grp->shared)<0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group into list of open objects")
 
@@ -1896,7 +1859,7 @@ static htri_t
 H5G_isa(H5G_entry_t *ent, hid_t dxpl_id)
 {
     htri_t	ret_value;
-    
+
     FUNC_ENTER_NOAPI_NOINIT(H5G_isa);
 
     assert(ent);
@@ -1931,7 +1894,7 @@ static htri_t
 H5G_link_isa(H5G_entry_t *ent, hid_t UNUSED dxpl_id)
 {
     htri_t	ret_value;
-    
+
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_link_isa);
 
     assert(ent);
@@ -1995,7 +1958,12 @@ H5G_open(H5G_entry_t *ent, hid_t dxpl_id)
             HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group into list of open objects")
         }
 
-        grp->shared->fo_count =1;
+        /* Increment object count for the object in the top file */
+        if(H5FO_top_incr(grp->ent.file, grp->ent.header) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINC, NULL, "can't increment object count")
+
+        /* Set open object count */
+        grp->shared->fo_count = 1;
     }
     else {
         if(NULL == (grp = H5FL_CALLOC(H5G_t)))
@@ -2003,10 +1971,24 @@ H5G_open(H5G_entry_t *ent, hid_t dxpl_id)
 
         /* Shallow copy (take ownership) of the group entry object */
         if(H5G_ent_copy(&(grp->ent), ent, H5G_COPY_SHALLOW)<0)
-            HGOTO_ERROR (H5E_SYM, H5E_CANTCOPY, NULL, "can't copy group entry")
+            HGOTO_ERROR(H5E_SYM, H5E_CANTCOPY, NULL, "can't copy group entry")
 
-        grp->shared=shared_fo;
+        /* Point to shared group info */
+        grp->shared = shared_fo;
+
+        /* Increment shared reference count */
         shared_fo->fo_count++;
+
+        /* Check if the object has been opened through the top file yet */
+        if(H5FO_top_count(grp->ent.file, grp->ent.header) == 0) {
+            /* Open the object through this top file */
+            if(H5O_open(&(grp->ent)) < 0)
+                HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, NULL, "unable to open object header")
+        } /* end if */
+
+        /* Increment object count for the object in the top file */
+        if(H5FO_top_incr(grp->ent.file, grp->ent.header) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINC, NULL, "can't increment object count")
     }
 
     /* Set return value */
@@ -2045,9 +2027,9 @@ H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id)
 {
     H5G_t		*grp = NULL;
     H5G_t		*ret_value = NULL;
-    H5O_stab_t		mesg;
+    hbool_t             ent_opened = FALSE;
 
-    FUNC_ENTER_NOAPI(H5G_open_oid, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_open_oid);
 
     /* Check args */
     assert(ent);
@@ -2055,7 +2037,7 @@ H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id)
     /* Open the object, making sure it's a group */
     if (NULL==(grp = H5FL_CALLOC(H5G_t)))
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    if (NULL==(grp->shared = H5FL_CALLOC(H5G_t)))
+    if (NULL==(grp->shared = H5FL_CALLOC(H5G_shared_t)))
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* Copy over (take ownership) of the group entry object */
@@ -2063,62 +2045,29 @@ H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id)
 
     /* Grab the object header */
     if (H5O_open(&(grp->ent)) < 0)
-        HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, NULL, "unable to open group");
-    if (NULL==H5O_read (&(grp->ent), H5O_STAB_ID, 0, &mesg, dxpl_id)) {
-        H5O_close(&(grp->ent));
-        HGOTO_ERROR (H5E_SYM, H5E_CANTOPENOBJ, NULL, "not a group");
-    }
+        HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, NULL, "unable to open group")
+    ent_opened = TRUE;
+
+    /* Check if this object has the right message(s) to be treated as a group */
+    if(H5O_exists(&(grp->ent), H5O_STAB_ID, 0, dxpl_id) <= 0)
+        HGOTO_ERROR (H5E_SYM, H5E_CANTOPENOBJ, NULL, "not a group")
 
     /* Set return value */
     ret_value = grp;
 
 done:
-    if (!ret_value && grp) {
-        if(grp->shared)
-            H5FL_FREE(H5G_shared_t, grp->shared);
-        H5FL_FREE(H5G_t,grp);
-    }
+    if(!ret_value) {
+        if(grp) {
+            if(ent_opened)
+                H5O_close(&(grp->ent));
+            if(grp->shared)
+                H5FL_FREE(H5G_shared_t, grp->shared);
+            H5FL_FREE(H5G_t,grp);
+        } /* end if */
+    } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value);
 }
-
-#ifdef NOT_YET
-
-/*-------------------------------------------------------------------------
- * Function:	H5G_reopen
- *
- * Purpose:	Reopens a group by incrementing the open count.
- *
- * Return:	Success:	The GRP argument.
- *
- *		Failure:	NULL
- *
- * Programmer:	Robb Matzke
- *		Monday, January	 5, 1998
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-H5G_t *
-H5G_reopen(H5G_t *grp)
-{
-    H5G_t *ret_value;   /* Return value */
-
-    FUNC_ENTER_NOAPI(H5G_reopen, NULL);
-
-    assert(grp);
-    assert(grp->nref > 0);
-
-    grp->nref++;
-
-    /* Set return value */
-    ret_value=grp;
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
-}
-#endif /* NOT_YET */
 
 
 /*-------------------------------------------------------------------------
@@ -2151,17 +2100,37 @@ H5G_close(H5G_t *grp)
     if (0 == grp->shared->fo_count) {
         assert (grp!=H5G_rootof(H5G_fileof(grp)));
 
-        /* Remove the dataset from the list of opened objects in the file */
+        /* Remove the group from the list of opened objects in the file */
+        if(H5FO_top_decr(grp->ent.file, grp->ent.header) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "can't decrement count for object")
         if(H5FO_delete(grp->ent.file, H5AC_dxpl_id, grp->ent.header)<0)
             HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "can't remove group from list of open objects")
-        if (H5O_close(&(grp->ent)) < 0)
-            HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close");
+        if(H5O_close(&(grp->ent)) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close")
         H5FL_FREE (H5G_shared_t, grp->shared);
     } else {
+        /* Decrement the ref. count for this object in the top file */
+        if(H5FO_top_decr(grp->ent.file, grp->ent.header) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "can't decrement count for object")
+
+        /* Check reference count for this object in the top file */
+        if(H5FO_top_count(grp->ent.file, grp->ent.header) == 0)
+            if(H5O_close(&(grp->ent)) < 0)
+                HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close")
+
+        /* If this group is a mount point and the mount point is the last open
+         * reference to the group, then attempt to close down the file hierarchy
+         */
+        if(grp->shared->mounted && grp->shared->fo_count == 1) {
+            /* Attempt to close down the file hierarchy */
+            if(H5F_try_close(grp->ent.file) < 0)
+                HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEFILE, FAIL, "problem attempting file close")
+        } /* end if */
+
         if(H5G_free_ent_name(&(grp->ent))<0)
         {
             H5FL_FREE (H5G_t,grp);
-            HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't free group entry name"); 
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't free group entry name");
         }
     }
 
@@ -2169,7 +2138,7 @@ H5G_close(H5G_t *grp)
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
-}
+} /* end H5G_close() */
 
 
 /*-------------------------------------------------------------------------
@@ -2229,17 +2198,12 @@ done:
 static H5G_t *
 H5G_rootof(H5F_t *f)
 {
-    H5G_t *ret_value;   /* Return value */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_rootof);
 
-    FUNC_ENTER_NOAPI(H5G_rootof, NULL);
     while (f->mtab.parent)
         f = f->mtab.parent;
 
-    /* Set return value */
-    ret_value=f->shared->root_grp;
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(f->shared->root_grp);
 }
 
 
@@ -2280,11 +2244,6 @@ H5G_insert(H5G_entry_t *loc, const char *name, H5G_entry_t *ent, hid_t dxpl_id)
     if (H5G_namei(loc, name, NULL, NULL, NULL, H5G_TARGET_NORMAL, NULL, H5G_NAMEI_INSERT, ent, dxpl_id)<0)
 	HGOTO_ERROR(H5E_SYM, H5E_EXISTS, FAIL, "already exists");
 
-    /*
-     * Insert the object into a symbol table.
-     */
-    if (H5O_link(ent, 1, dxpl_id) < 0)
-	HGOTO_ERROR(H5E_SYM, H5E_LINK, FAIL, "unable to increment hard link count");
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -2315,12 +2274,15 @@ done:
  *		Aug 12 1997
  *
  * Modifications:
+ *              Removed the "H5G_entry_t *grp_ent" parameter, since it was unused
+ *              Quincey Koziol
+ *		Aug 29 2005
  *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5G_find(H5G_entry_t *loc, const char *name,
-	 H5G_entry_t *grp_ent/*out*/, H5G_entry_t *obj_ent/*out*/, hid_t dxpl_id)
+         H5G_entry_t *obj_ent/*out*/, hid_t dxpl_id)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
@@ -2330,7 +2292,7 @@ H5G_find(H5G_entry_t *loc, const char *name,
     assert (loc);
     assert (name && *name);
 
-    if (H5G_namei(loc, name, NULL, grp_ent, obj_ent, H5G_TARGET_NORMAL, NULL, H5G_NAMEI_TRAVERSE, NULL, dxpl_id)<0)
+    if (H5G_namei(loc, name, NULL, NULL, obj_ent, H5G_TARGET_NORMAL, NULL, H5G_NAMEI_TRAVERSE, NULL, dxpl_id)<0)
 	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "object not found");
 
 done:
@@ -2427,6 +2389,14 @@ H5G_loc (hid_t loc_id)
                 HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, NULL, "invalid file ID");
             if (NULL==(ret_value=H5G_entof(H5G_rootof(f))))
                 HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry for root group");
+
+            /* Patch up root group's symbol table entry to reflect this file */
+            /* (Since the root group info is only stored once for files which
+             *  share an underlying low-level file)
+             */
+            /* (but only for non-mounted files) */
+            if(!f->mtab.parent)
+                ret_value->file = f;
             break;
 
         case H5I_GENPROP_CLS:
@@ -2463,7 +2433,7 @@ H5G_loc (hid_t loc_id)
             if (NULL==(ret_value=H5A_entof(attr)))
                 HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of attribute");
             break;
-                
+
         case H5I_REFERENCE:
             HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of reference");
 
@@ -2505,12 +2475,11 @@ H5G_link (H5G_entry_t *cur_loc, const char *cur_name, H5G_entry_t *new_loc,
     const char		*rest = NULL;	/*last component of new name	*/
     char		*norm_cur_name = NULL;	/* Pointer to normalized current name */
     char		*norm_new_name = NULL;	/* Pointer to normalized current name */
-    char		_comp[1024];	/*name component		*/
     size_t		nchars;		/*characters in component	*/
     size_t		offset;		/*offset to sym-link value	*/
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_link, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_link);
 
     /* Check args */
     assert (cur_loc);
@@ -2530,7 +2499,7 @@ H5G_link (H5G_entry_t *cur_loc, const char *cur_name, H5G_entry_t *new_loc,
              * Lookup the the new_name so we can get the group which will contain
              * the new entry.  The entry shouldn't exist yet.
              */
-            if (H5G_namei(new_loc, norm_new_name, &rest, &grp_ent, NULL, 
+            if (H5G_namei(new_loc, norm_new_name, &rest, &grp_ent, NULL,
                             H5G_TARGET_NORMAL, NULL, H5G_NAMEI_TRAVERSE, NULL, dxpl_id)>=0)
                 HGOTO_ERROR (H5E_SYM, H5E_EXISTS, FAIL, "already exists");
             H5E_clear (); /*it's okay that we didn't find it*/
@@ -2540,15 +2509,7 @@ H5G_link (H5G_entry_t *cur_loc, const char *cur_name, H5G_entry_t *new_loc,
              * There should be one component left.  Make sure it's null
              * terminated and that `rest' points to it.
              */
-            if (rest[nchars]) {
-                if (nchars+1 > sizeof _comp) {
-                    HGOTO_ERROR (H5E_SYM, H5E_COMPLEN, FAIL, "name component is too long");
-                } else {
-                    HDmemcpy (_comp, rest, nchars);
-                    _comp[nchars] = '\0';
-                    rest = _comp;
-                }
-            }
+            assert(!rest[nchars]);
 
             /*
              * Add the link-value to the local heap for the symbol table which
@@ -2565,8 +2526,7 @@ H5G_link (H5G_entry_t *cur_loc, const char *cur_name, H5G_entry_t *new_loc,
              * Create a symbol table entry for the link.  The object header is
              * undefined and the cache contains the link-value offset.
              */
-            HDmemset (&cur_obj, 0, sizeof cur_obj);
-            cur_obj.header = HADDR_UNDEF;
+            H5G_ent_reset(&cur_obj);
             cur_obj.file = grp_ent.file;
             cur_obj.type = H5G_CACHED_SLINK;
             cur_obj.cache.slink.lval_offset = offset;
@@ -2578,8 +2538,10 @@ H5G_link (H5G_entry_t *cur_loc, const char *cur_name, H5G_entry_t *new_loc,
              * exist and the file is writable (because the local heap is
              * writable).  But if it does, the only side effect is that the local
              * heap has some extra garbage in it.
+             *
+             * Note: We don't increment the link count of the destination object
              */
-            if (H5G_stab_insert (&grp_ent, rest, &cur_obj, dxpl_id)<0)
+            if (H5G_stab_insert (&grp_ent, rest, &cur_obj, FALSE, dxpl_id)<0)
                 HGOTO_ERROR (H5E_SYM, H5E_CANTINIT, FAIL, "unable to create new name/link for object");
             break;
 
@@ -2599,7 +2561,7 @@ done:
     /* Free the group's ID to name buffer, if creating a soft link */
     if(type == H5G_LINK_SOFT)
         H5G_free_ent_name(&grp_ent);
-			  
+
     /* Free the ID to name buffer */
     if(cur_obj_init)
         H5G_free_ent_name(&cur_obj);
@@ -2636,7 +2598,7 @@ H5G_get_type(H5G_entry_t *ent, hid_t dxpl_id)
     htri_t	isa;
     size_t	i;
     int         ret_value=H5G_UNKNOWN;       /* Return value */
-    
+
     FUNC_ENTER_NOAPI(H5G_get_type, H5G_UNKNOWN);
 
     for (i=H5G_ntypes_g; i>0; --i) {
@@ -2680,11 +2642,9 @@ herr_t
 H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 		 H5G_stat_t *statbuf/*out*/, hid_t dxpl_id)
 {
-    H5O_stab_t		stab_mesg;
     H5G_entry_t		grp_ent, obj_ent;
-    const char		*s = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
+
     FUNC_ENTER_NOAPI(H5G_get_objinfo, FAIL);
 
     assert (loc);
@@ -2702,13 +2662,21 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
      * length is specific to symbolic links.
      */
     if (statbuf) {
+        /* Common code to retrieve the file's fileno */
+        if(H5F_get_fileno(obj_ent.file,statbuf->fileno)<0)
+            HGOTO_ERROR (H5E_FILE, H5E_BADVALUE, FAIL, "unable to read fileno");
+
+        /* Retrieve information specific to each type of entry */
 	if (H5G_CACHED_SLINK==obj_ent.type) {
-            const H5HL_t *heap;
+            H5O_stab_t	stab_mesg;      /* Symbol table message info */
+            const char	*s;             /* Pointer to link value */
+            const H5HL_t *heap;         /* Pointer to local heap for group */
 
 	    /* Named object is a symbolic link */
 	    if (NULL == H5O_read(&grp_ent, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
 		HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to read symbolic link value")
 
+            /* Lock the local heap */
             if (NULL == (heap = H5HL_protect(grp_ent.file, dxpl_id, stab_mesg.heap_addr)))
                 HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read protect link value")
 
@@ -2716,12 +2684,12 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 
 	    statbuf->linklen = HDstrlen(s) + 1; /*count the null terminator*/
 
+            /* Release the local heap */
             if (H5HL_unprotect(grp_ent.file, dxpl_id, heap, stab_mesg.heap_addr) < 0)
                 HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read unprotect link value")
-	    statbuf->objno[0] = statbuf->objno[1] = 0;
-	    statbuf->nlink = 0;
+
+            /* Set object type */
 	    statbuf->type = H5G_LINK;
-	    statbuf->mtime = 0;
 	} else {
 	    /* Some other type of object */
 	    statbuf->objno[0] = (unsigned long)(obj_ent.header);
@@ -2739,6 +2707,7 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
                     statbuf->mtime = 0;
                 }
 	    }
+            /* Get object type */
 	    statbuf->type =
 #ifndef H5_WANT_H5_V1_4_COMPAT
                 (H5G_obj_t)
@@ -2750,11 +2719,7 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
             if(H5O_get_info(&obj_ent, &(statbuf->ohdr), dxpl_id)<0)
                 HGOTO_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "unable to get object header information")
 	}
-
-        /* Common code to retrieve the file's fileno */
-        if(H5F_get_fileno(obj_ent.file,statbuf->fileno)<0)
-            HGOTO_ERROR (H5E_FILE, H5E_BADVALUE, FAIL, "unable to read fileno");
-    }
+    } /* end if */
 
 done:
     /* Free the ID to name buffers */
@@ -2768,43 +2733,47 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5G_get_num_objs
  *
- * Purpose:     Private function for H5Gget_num_objs.  Returns the number 
- *              of objects in the group.  It iterates all B-tree leaves 
+ * Purpose:     Private function for H5Gget_num_objs.  Returns the number
+ *              of objects in the group.  It iterates all B-tree leaves
  *              and sum up total number of group members.
  *
- * Return:	Success:        Non-negative	
+ * Return:	Success:        Non-negative
  *
- *		Failure:	Negative 
+ *		Failure:	Negative
  *
  * Programmer:	Raymond Lu
- *	        Nov 20, 2002	
+ *	        Nov 20, 2002
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
-static herr_t 
+static herr_t
 H5G_get_num_objs(H5G_entry_t *loc, hsize_t *num_objs, hid_t dxpl_id)
 {
+    H5O_stab_t		stab_mesg;		/*info about B-tree	*/
     herr_t		ret_value;
-    
-    FUNC_ENTER_NOAPI(H5G_get_num_objs, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_get_num_objs);
 
     /* Sanity check */
     assert(loc);
-    assert(loc->type==H5G_CACHED_STAB);
     assert(num_objs);
 
     /* Reset the number of objects in the group */
     *num_objs = 0;
 
+    /* Get the B-tree info */
+    if (NULL==H5O_read (loc, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
+	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to determine local heap address");
+
     /* Iterate over the group members */
     if ((ret_value = H5B_iterate (loc->file, dxpl_id, H5B_SNODE,
-              H5G_node_sumup, loc->cache.stab.btree_addr, num_objs))<0)
+              H5G_node_sumup, stab_mesg.btree_addr, num_objs))<0)
         HERROR (H5E_SYM, H5E_CANTINIT, "iteration operator failed");
-        
+
 done:
-    FUNC_LEAVE_NOAPI(ret_value);   
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -2814,40 +2783,44 @@ done:
  * Purpose:     Private function for H5Gget_objname_by_idx.
  *              Returns the name of objects in the group by giving index.
  *
- * Return:	Success:        Non-negative	
+ * Return:	Success:        Non-negative
  *
- *		Failure:	Negative 
+ *		Failure:	Negative
  *
  * Programmer:	Raymond Lu
- *	        Nov 20, 2002	
+ *	        Nov 20, 2002
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
-static ssize_t 
+static ssize_t
 H5G_get_objname_by_idx(H5G_entry_t *loc, hsize_t idx, char* name, size_t size, hid_t dxpl_id)
 {
-    H5G_bt_ud3_t	udata;          /* Iteration information */
+    H5O_stab_t		stab;		/*info about local heap	& B-tree */
+    H5G_bt_it_ud2_t	udata;          /* Iteration information */
     ssize_t		ret_value;      /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_get_objname_by_idx, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_get_objname_by_idx);
 
     /* Sanity check */
     assert(loc);
-    assert(loc->type==H5G_CACHED_STAB);
+
+    /* Get the B-tree & local heap info */
+    if (NULL==H5O_read (loc, H5O_STAB_ID, 0, &stab, dxpl_id))
+	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to determine local heap address");
 
     /* Set iteration information */
     udata.idx = idx;
     udata.num_objs = 0;
-    udata.ent = loc;
+    udata.heap_addr = stab.heap_addr;
     udata.name = NULL;
 
     /* Iterate over the group members */
     if ((ret_value = H5B_iterate (loc->file, dxpl_id, H5B_SNODE,
-              H5G_node_name, loc->cache.stab.btree_addr, &udata))<0)
+              H5G_node_name, stab.btree_addr, &udata))<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "iteration operator failed");
-    
+
     /* If we don't know the name now, we almost certainly went out of bounds */
     if(udata.name==NULL)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "index out of bound");
@@ -2876,40 +2849,43 @@ done:
  * Purpose:     Private function for H5Gget_objtype_by_idx.
  *              Returns the type of objects in the group by giving index.
  *
- * Return:	Success:        H5G_GROUP(1), H5G_DATASET(2), H5G_TYPE(3)	
+ * Return:	Success:        H5G_GROUP(1), H5G_DATASET(2), H5G_TYPE(3)
  *
- *		Failure:	UNKNOWN 
+ *		Failure:	UNKNOWN
  *
  * Programmer:	Raymond Lu
- *	        Nov 20, 2002	
+ *	        Nov 20, 2002
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
-static int 
+static int
 H5G_get_objtype_by_idx(H5G_entry_t *loc, hsize_t idx, hid_t dxpl_id)
 {
-    H5G_bt_ud3_t    udata;              /* User data for B-tree callback */
+    H5O_stab_t		stab_mesg;	/*info about local heap	& B-tree */
+    H5G_bt_it_ud3_t	udata;          /* User data for B-tree callback */
     int	    ret_value;          /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_get_objtype_by_idx, H5G_UNKNOWN);
-    
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_get_objtype_by_idx);
+
     /* Sanity check */
     assert(loc);
-    assert(loc->type==H5G_CACHED_STAB);
+
+    /* Get the B-tree & local heap info */
+    if (NULL==H5O_read (loc, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
+	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to determine local heap address");
 
     /* Set iteration information */
     udata.idx = idx;
     udata.num_objs = 0;
-    udata.ent = loc;
     udata.type = H5G_UNKNOWN;
-    
+
     /* Iterate over the group members */
     if (H5B_iterate (loc->file, dxpl_id, H5B_SNODE,
-              H5G_node_type, loc->cache.stab.btree_addr, &udata)<0)
+              H5G_node_type, stab_mesg.btree_addr, &udata)<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "iteration operator failed");
-    
+
     /* If we don't know the type now, we almost certainly went out of bounds */
     if(udata.type==H5G_UNKNOWN)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "index out of bound");
@@ -2952,8 +2928,8 @@ H5G_linkval (H5G_entry_t *loc, const char *name, size_t size, char *buf/*out*/, 
     H5O_stab_t		stab_mesg;
     const H5HL_t        *heap;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_linkval, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_linkval);
 
     /*
      * Get the symbol table entry for the link head and the symbol table
@@ -2974,7 +2950,7 @@ H5G_linkval (H5G_entry_t *loc, const char *name, size_t size, char *buf/*out*/, 
 
     if (NULL == (heap = H5HL_protect(grp_ent.file, dxpl_id, stab_mesg.heap_addr)))
         HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read protect link value")
-    
+
     s = H5HL_offset_into(grp_ent.file, heap, obj_ent.cache.slink.lval_offset);
 
     /* Copy to output buffer */
@@ -3016,16 +2992,15 @@ H5G_set_comment(H5G_entry_t *loc, const char *name, const char *buf, hid_t dxpl_
     H5G_entry_t	obj_ent;
     H5O_name_t	comment;
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_set_comment, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_set_comment);
 
     /* Get the symbol table entry for the object */
-    if (H5G_namei(loc, name, NULL, NULL, &obj_ent/*out*/, H5G_TARGET_NORMAL,
-		  NULL, H5G_NAMEI_TRAVERSE, NULL, dxpl_id)<0)
+    if (H5G_find(loc, name, &obj_ent/*out*/, dxpl_id)<0)
 	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "object not found");
 
     /* Remove the previous comment message if any */
-    if (H5O_remove(&obj_ent, H5O_NAME_ID, 0, dxpl_id)<0)
+    if (H5O_remove(&obj_ent, H5O_NAME_ID, 0, TRUE, dxpl_id)<0)
         H5E_clear();
 
     /* Add the new message */
@@ -3071,12 +3046,11 @@ H5G_get_comment(H5G_entry_t *loc, const char *name, size_t bufsize, char *buf, h
     H5O_name_t	comment;
     H5G_entry_t	obj_ent;
     int	ret_value;
-    
-    FUNC_ENTER_NOAPI(H5G_get_comment, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_get_comment);
 
     /* Get the symbol table entry for the object */
-    if (H5G_namei(loc, name, NULL, NULL, &obj_ent/*out*/, H5G_TARGET_NORMAL,
-		  NULL, H5G_NAMEI_TRAVERSE, NULL, dxpl_id)<0)
+    if (H5G_find(loc, name, &obj_ent/*out*/, dxpl_id)<0)
 	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "object not found");
 
     /* Get the message */
@@ -3098,7 +3072,7 @@ done:
 
     FUNC_LEAVE_NOAPI(ret_value);
 }
-    
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5G_unlink
@@ -3121,14 +3095,14 @@ static herr_t
 H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id)
 {
     H5G_entry_t		grp_ent, obj_ent;
-    size_t		len;
     const char		*base=NULL;
     char		*norm_name = NULL;	/* Pointer to normalized name */
-    H5G_stat_t		statbuf;        /* Info about object to unlink */
-    H5RS_str_t          *name_r;        /* Ref-counted version of name */
+    int                 obj_type;       /* Object type */
     herr_t      ret_value=SUCCEED;       /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_unlink, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_unlink);
+
+    /* Sanity check */
     assert(loc);
     assert(name && *name);
 
@@ -3137,12 +3111,8 @@ H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id)
         HGOTO_ERROR (H5E_SYM, H5E_BADVALUE, FAIL, "can't normalize name");
 
     /* Reset the group entries to known values in a portable way */
-    HDmemset(&grp_ent,0,sizeof(H5G_entry_t));
-    HDmemset(&obj_ent,0,sizeof(H5G_entry_t));
-
-    /* Get object type before unlink */
-    if (H5G_get_objinfo(loc, norm_name, FALSE, &statbuf, dxpl_id)<0)
-	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "object not found");
+    H5G_ent_reset(&grp_ent);
+    H5G_ent_reset(&obj_ent);
 
     /* Get the entry for the group that contains the object to be unlinked */
     if (H5G_namei(loc, norm_name, NULL, &grp_ent, &obj_ent,
@@ -3150,19 +3120,20 @@ H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id)
 	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "object not found");
     if (!H5F_addr_defined(grp_ent.header))
 	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "no containing group specified");
-    if (NULL==(base=H5G_basename(norm_name, &len)) || '/'==*base)
+    if (NULL==(base=H5G_basename(norm_name, NULL)) || '/'==*base)
 	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "problems obtaining object base name");
-    
+
+    /* Get object type before unlink */
+    if((obj_type = H5G_get_type(&obj_ent, dxpl_id)) < 0)
+	HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "can't determine object type");
+
     /* Remove the name from the symbol table */
     if (H5G_stab_remove(&grp_ent, base, dxpl_id)<0)
 	HGOTO_ERROR(H5E_SYM, H5E_CANTDELETE, FAIL, "unable to unlink name from symbol table");
 
     /* Search the open IDs and replace names for unlinked object */
-    name_r=H5RS_wrap(norm_name);
-    assert(name_r);
-    if (H5G_replace_name(statbuf.type, &obj_ent, name_r, NULL, NULL, NULL, OP_UNLINK )<0)
+    if (H5G_replace_name(obj_type, &obj_ent, NULL, NULL, NULL, NULL, OP_UNLINK )<0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTDELETE, FAIL, "unable to replace name");
-    H5RS_decr(name_r);
 
 done:
     /* Free the ID to name buffers */
@@ -3198,7 +3169,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5G_move(H5G_entry_t *src_loc, const char *src_name, H5G_entry_t *dst_loc, 
+H5G_move(H5G_entry_t *src_loc, const char *src_name, H5G_entry_t *dst_loc,
 		const char *dst_name, hid_t dxpl_id)
 {
     H5G_stat_t		sb;
@@ -3208,8 +3179,10 @@ H5G_move(H5G_entry_t *src_loc, const char *src_name, H5G_entry_t *dst_loc,
     H5RS_str_t         *src_name_r;     /* Ref-counted version of src name */
     H5RS_str_t         *dst_name_r;     /* Ref-counted version of dest name */
     herr_t      ret_value=SUCCEED;      /* Return value */
-    
-    FUNC_ENTER_NOAPI(H5G_move, FAIL);
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_move);
+
+    /* Sanity check */
     assert(src_loc);
     assert(dst_loc);
     assert(src_name && *src_name);
@@ -3233,7 +3206,7 @@ H5G_move(H5G_entry_t *src_loc, const char *src_name, H5G_entry_t *dst_loc,
 		     H5G_TARGET_NORMAL, dxpl_id)<0)
 	    HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to rename symbolic link");
 	H5MM_xfree(linkval);
-	
+
     } else {
 	/*
 	 * Rename the object.
@@ -3244,7 +3217,7 @@ H5G_move(H5G_entry_t *src_loc, const char *src_name, H5G_entry_t *dst_loc,
     }
 
     /* Search the open ID list and replace names for the move operation
-     * This has to be done here because H5G_link and H5G_unlink have 
+     * This has to be done here because H5G_link and H5G_unlink have
      * internal object entries, and do not modify the entries list
     */
     if (H5G_namei(src_loc, src_name, NULL, NULL, &obj_ent, H5G_TARGET_NORMAL|H5G_TARGET_SLINK, NULL, H5G_NAMEI_TRAVERSE, NULL, dxpl_id))
@@ -3365,9 +3338,9 @@ H5G_free_grp_name(H5G_t *grp)
 {
     H5G_entry_t *ent;           /* Group object's entry */
     herr_t ret_value=SUCCEED;   /* Return value */
- 
+
     FUNC_ENTER_NOAPI(H5G_free_grp_name, FAIL);
- 
+
     /* Check args */
     assert(grp && grp->shared);
     assert(grp->shared->fo_count > 0);
@@ -3395,7 +3368,7 @@ done:
  *
  * Date: August 22, 2002
  *
- * Comments: 
+ * Comments:
  *
  * Modifications:
  *
@@ -3405,9 +3378,9 @@ herr_t
 H5G_free_ent_name(H5G_entry_t *ent)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
- 
+
     FUNC_ENTER_NOAPI(H5G_free_ent_name, FAIL);
- 
+
     /* Check args */
     assert(ent);
 
@@ -3419,7 +3392,7 @@ H5G_free_ent_name(H5G_entry_t *ent)
         H5RS_decr(ent->canon_path_r);
         ent->canon_path_r=NULL;
     } /* end if */
- 
+
 done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
@@ -3441,7 +3414,7 @@ done:
  *
  * Date: June 11, 2002
  *
- * Comments: 
+ * Comments:
  *
  * Modifications:
  *
@@ -3456,7 +3429,7 @@ H5G_replace_name(int type, H5G_entry_t *loc,
     unsigned search_group=0;    /* Flag to indicate that groups are to be searched */
     unsigned search_dataset=0;  /* Flag to indicate that datasets are to be searched */
     unsigned search_datatype=0; /* Flag to indicate that datatypes are to be searched */
-    herr_t  ret_value = SUCCEED;       
+    herr_t  ret_value = SUCCEED;
 
     FUNC_ENTER_NOAPI(H5G_replace_name, FAIL);
 
@@ -3519,7 +3492,7 @@ H5G_replace_name(int type, H5G_entry_t *loc,
     if(search_datatype)
         H5I_search(H5I_DATATYPE, H5G_replace_ent, &names);
 
-done: 
+done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
 
@@ -3536,7 +3509,7 @@ done:
  *
  * Date: September 24, 2002
  *
- * Comments: 
+ * Comments:
  *
  * Modifications:
  *
@@ -3549,9 +3522,9 @@ H5G_common_path(const H5RS_str_t *fullpath_r, const H5RS_str_t *prefix_r)
     const char *prefix;         /* Pointer to actual prefix string */
     size_t  nchars1,nchars2;    /* Number of characters in components */
     htri_t ret_value=FALSE;     /* Return value */
-  
+
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_common_path);
-  
+
     /* Get component of each name */
     fullpath=H5RS_get_str(fullpath_r);
     assert(fullpath);
@@ -3595,6 +3568,72 @@ done:
 
 
 /*-------------------------------------------------------------------------
+ * Function: H5G_build_fullpath
+ *
+ * Purpose: Build a full path from a prefix & base pair of reference counted
+ *              strings
+ *
+ * Return: Pointer to reference counted string on success, NULL on error
+ *
+ * Programmer: Quincey Koziol, koziol@ncsa.uiuc.edu
+ *
+ * Date: August 19, 2005
+ *
+ * Comments:
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static H5RS_str_t *
+H5G_build_fullpath(const H5RS_str_t *prefix_r, const H5RS_str_t *name_r)
+{
+    const char *prefix;         /* Pointer to raw string of prefix */
+    const char *name;           /* Pointer to raw string of name */
+    char *full_path;            /* Full user path built */
+    size_t path_len;            /* Length of the path */
+    unsigned need_sep;          /* Flag to indicate if separator is needed */
+    H5RS_str_t *ret_value;      /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_build_fullpath)
+
+    /* Get the pointer to the prefix */
+    prefix=H5RS_get_str(prefix_r);
+
+    /* Get the length of the prefix */
+    path_len=HDstrlen(prefix);
+
+    /* Determine if there is a trailing separator in the name */
+    if(prefix[path_len-1]=='/')
+        need_sep=0;
+    else
+        need_sep=1;
+
+    /* Get the pointer to the raw src user path */
+    name=H5RS_get_str(name_r);
+
+    /* Add in the length needed for the '/' separator and the relative path */
+    path_len+=HDstrlen(name)+need_sep;
+
+    /* Allocate space for the path */
+    if(NULL==(full_path = H5FL_BLK_MALLOC(str_buf,path_len+1)))
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+
+    /* Build full path */
+    HDstrcpy(full_path,prefix);
+    if(need_sep)
+        HDstrcat(full_path,"/");
+    HDstrcat(full_path,name);
+
+    /* Create reference counted string for path */
+    ret_value=H5RS_own(full_path);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5G_build_fullpath() */
+
+
+/*-------------------------------------------------------------------------
  * Function: H5G_replace_ent
  *
  * Purpose: H5I_search callback function to replace group entry names
@@ -3605,7 +3644,7 @@ done:
  *
  * Date: June 5, 2002
  *
- * Comments: 
+ * Comments:
  *
  * Modifications:
  *
@@ -3619,11 +3658,11 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
     H5F_t *top_ent_file;        /* Top file in entry's mounted file chain */
     H5F_t *top_loc_file;        /* Top file in location's mounted file chain */
     herr_t      ret_value = SUCCEED;       /* Return value */
-  
+
     FUNC_ENTER_NOAPI_NOINIT(H5G_replace_ent);
-  
+
     assert(obj_ptr);
- 
+
     /* Get the symbol table entry */
     switch(H5I_get_type(obj_id)) {
         case H5I_GROUP:
@@ -3638,7 +3677,7 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
             /* Avoid non-named datatypes */
             if(!H5T_is_named((H5T_t*)obj_ptr))
                 HGOTO_DONE(SUCCEED); /* Do not exit search over IDs */
- 
+
             ent = H5T_entof((H5T_t*)obj_ptr);
             break;
 
@@ -3646,32 +3685,34 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "unknown data object");
     } /* end switch */
     assert(ent);
-  
+
     switch(names->op) {
         /*-------------------------------------------------------------------------
         * OP_MOUNT
         *-------------------------------------------------------------------------
         */
         case OP_MOUNT:
-            if(ent->file->mtab.parent && H5RS_cmp(ent->user_path_r,ent->canon_path_r)) {
-                /* Find the "top" file in the chain of mounted files */
-                top_ent_file=ent->file->mtab.parent;
-                while(top_ent_file->mtab.parent!=NULL)
-                    top_ent_file=top_ent_file->mtab.parent;
-            } /* end if */
-            else
-                top_ent_file=ent->file;
+	    if(ent->user_path_r) {
+		if(ent->file->mtab.parent && H5RS_cmp(ent->user_path_r,ent->canon_path_r)) {
+		    /* Find the "top" file in the chain of mounted files */
+		    top_ent_file=ent->file->mtab.parent;
+		    while(top_ent_file->mtab.parent!=NULL)
+			top_ent_file=top_ent_file->mtab.parent;
+		} /* end if */
+		else
+		    top_ent_file=ent->file;
 
-            /* Check for entry being in correct file (or mounted file) */
-            if(top_ent_file->shared == names->loc->file->shared) {
-                /* Check if the source is along the entry's path */
-                /* (But not actually the entry itself) */
-                if(H5G_common_path(ent->user_path_r,names->src_name) &&
-                        H5RS_cmp(ent->user_path_r,names->src_name)!=0) {
-                    /* Hide the user path */
-                    ent->user_path_hidden++;
-                } /* end if */
-            } /* end if */
+		/* Check for entry being in correct file (or mounted file) */
+		if(top_ent_file->shared == names->loc->file->shared) {
+		    /* Check if the source is along the entry's path */
+		    /* (But not actually the entry itself) */
+		    if(H5G_common_path(ent->user_path_r,names->src_name) &&
+			    H5RS_cmp(ent->user_path_r,names->src_name)!=0) {
+			/* Hide the user path */
+			ent->user_path_hidden++;
+		    } /* end if */
+		} /* end if */
+	    } /* end if */
             break;
 
         /*-------------------------------------------------------------------------
@@ -3679,45 +3720,42 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
         *-------------------------------------------------------------------------
         */
         case OP_UNMOUNT:
-            if(ent->file->mtab.parent) {
-                /* Find the "top" file in the chain of mounted files for the entry */
-                top_ent_file=ent->file->mtab.parent;
-                while(top_ent_file->mtab.parent!=NULL)
-                    top_ent_file=top_ent_file->mtab.parent;
-            } /* end if */
-            else
-                top_ent_file=ent->file;
+	    if(ent->user_path_r) {
+		if(ent->file->mtab.parent) {
+		    /* Find the "top" file in the chain of mounted files for the entry */
+		    top_ent_file=ent->file->mtab.parent;
+		    while(top_ent_file->mtab.parent!=NULL)
+			top_ent_file=top_ent_file->mtab.parent;
+		} /* end if */
+		else
+		    top_ent_file=ent->file;
 
-            if(names->loc->file->mtab.parent) {
-                /* Find the "top" file in the chain of mounted files for the location */
-                top_loc_file=names->loc->file->mtab.parent;
-                while(top_loc_file->mtab.parent!=NULL)
-                    top_loc_file=top_loc_file->mtab.parent;
-            } /* end if */
-            else
-                top_loc_file=names->loc->file;
+		if(names->loc->file->mtab.parent) {
+		    /* Find the "top" file in the chain of mounted files for the location */
+		    top_loc_file=names->loc->file->mtab.parent;
+		    while(top_loc_file->mtab.parent!=NULL)
+			top_loc_file=top_loc_file->mtab.parent;
+		} /* end if */
+		else
+		    top_loc_file=names->loc->file;
 
-            if(ent->user_path_hidden) {
-                /* If the ID's entry is not in the file we operated on, skip it */
-                if(top_ent_file->shared == top_loc_file->shared) {
-                    if(H5G_common_path(ent->user_path_r,names->src_name)) {
-                        /* Un-hide the user path */
-                        ent->user_path_hidden--;
-                    } /* end if */
-                } /* end if */
-            } /* end if */
-            else {
-                /* If the ID's entry is not in the file we operated on, skip it */
-                if(top_ent_file->shared == top_loc_file->shared) {
-                    if(ent->user_path_r && H5G_common_path(ent->user_path_r,names->src_name)) {
-                        /* Free user path */
-                        if(ent->user_path_r!=NULL) {
-                            H5RS_decr(ent->user_path_r);
-                            ent->user_path_r=NULL;
-                        } /* end if */
-                    } /* end if */
-                } /* end if */
-            } /* end else */
+		/* If the ID's entry is not in the file we operated on, skip it */
+		if(top_ent_file->shared == top_loc_file->shared) {
+		    if(ent->user_path_hidden) {
+			if(H5G_common_path(ent->user_path_r,names->src_name)) {
+			    /* Un-hide the user path */
+			    ent->user_path_hidden--;
+			} /* end if */
+		    } /* end if */
+		    else {
+			if(H5G_common_path(ent->user_path_r,names->src_name)) {
+			    /* Free user path */
+			    H5RS_decr(ent->user_path_r);
+			    ent->user_path_r=NULL;
+			} /* end if */
+		    } /* end else */
+		} /* end if */
+	    } /* end if */
             break;
 
         /*-------------------------------------------------------------------------
@@ -3726,26 +3764,23 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
         */
         case OP_UNLINK:
             /* If the ID's entry is not in the file we operated on, skip it */
-            if(ent->file->shared == names->loc->file->shared) {
+            if(ent->file->shared == names->loc->file->shared && 
+                    names->loc->canon_path_r && ent->canon_path_r && ent->user_path_r) {
                 /* Check if we are referring to the same object */
                 if(H5F_addr_eq(ent->header, names->loc->header)) {
                     /* Check if the object was opened with the same canonical path as the one being moved */
                     if(H5RS_cmp(ent->canon_path_r,names->loc->canon_path_r)==0) {
                         /* Free user path */
-                        if(ent->user_path_r!=NULL) {
-                            H5RS_decr(ent->user_path_r);
-                            ent->user_path_r=NULL;
-                        } /* end if */
+			H5RS_decr(ent->user_path_r);
+			ent->user_path_r=NULL;
                     } /* end if */
                 } /* end if */
                 else {
                     /* Check if the location being unlinked is in the canonical path for the current object */
                     if(H5G_common_path(ent->canon_path_r,names->loc->canon_path_r)) {
                         /* Free user path */
-                        if(ent->user_path_r!=NULL) {
-                            H5RS_decr(ent->user_path_r);
-                            ent->user_path_r=NULL;
-                        } /* end if */
+			H5RS_decr(ent->user_path_r);
+			ent->user_path_r=NULL;
                     } /* end if */
                 } /* end else */
             } /* end if */
@@ -3758,214 +3793,250 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
         case OP_MOVE: /* H5Gmove case, check for relative names case */
             /* If the ID's entry is not in the file we operated on, skip it */
             if(ent->file->shared == names->loc->file->shared) {
-                H5RS_str_t *src_path_r; /* Full user path of source name */
-                H5RS_str_t *dst_path_r; /* Full user path of destination name */
-                H5RS_str_t *canon_src_path_r;   /* Copy of canonical part of source path */
-                H5RS_str_t *canon_dst_path_r;   /* Copy of canonical part of destination path */
+		if(ent->user_path_r && names->loc->user_path_r &&
+			names->src_loc->user_path_r && names->dst_loc->user_path_r) {
+		    H5RS_str_t *src_path_r; /* Full user path of source name */
+		    H5RS_str_t *dst_path_r; /* Full user path of destination name */
+		    H5RS_str_t *canon_src_path_r;   /* Copy of canonical part of source path */
+		    H5RS_str_t *canon_dst_path_r;   /* Copy of canonical part of destination path */
 
-                /* Make certain that the source and destination names are full (not relative) paths */
-                if(*(H5RS_get_str(names->src_name))!='/') {
-                    const char *src_name;         /* Pointer to raw string of src_name */
-                    char *src_path;         /* Full user path of source name */
-                    const char *src_user_path;    /* Pointer to raw string of src path */
-                    size_t src_path_len;    /* Length of the source path */
-                    unsigned need_sep;      /* Flag to indicate if separator is needed */
+		    /* Sanity check */
+		    HDassert(names->src_name);
+		    HDassert(names->dst_name);
 
-                    /* Get the pointer to the raw src user path */
-                    src_user_path=H5RS_get_str(names->src_loc->user_path_r);
+		    /* Make certain that the source and destination names are full (not relative) paths */
+		    if(*(H5RS_get_str(names->src_name))!='/') {
+			/* Create reference counted string for full src path */
+			if((src_path_r = H5G_build_fullpath(names->src_loc->user_path_r, names->src_name)) == NULL)
+			    HGOTO_ERROR (H5E_SYM, H5E_PATH, FAIL, "can't build source path name")
+		    } /* end if */
+		    else
+                        src_path_r=H5RS_dup(names->src_name);
+		    if(*(H5RS_get_str(names->dst_name))!='/') {
+			/* Create reference counted string for full dst path */
+			if((dst_path_r = H5G_build_fullpath(names->dst_loc->user_path_r, names->dst_name)) == NULL)
+			    HGOTO_ERROR (H5E_SYM, H5E_PATH, FAIL, "can't build destination path name")
+		    } /* end if */
+		    else
+                        dst_path_r=H5RS_dup(names->dst_name);
 
-                    /* Get the length of the name for the source group's user path */
-                    src_path_len=HDstrlen(src_user_path);
+		    /* Get the canonical parts of the source and destination names */
 
-                    /* Determine if there is a trailing separator in the name */
-                    if(src_user_path[src_path_len-1]=='/')
-                        need_sep=0;
-                    else
-                        need_sep=1;
+		    /* Check if the object being moved was accessed through a mounted file */
+		    if(H5RS_cmp(names->loc->user_path_r,names->loc->canon_path_r)!=0) {
+			size_t non_canon_name_len;   /* Length of non-canonical part of name */
 
-                    /* Get the pointer to the raw src user path */
-                    src_name=H5RS_get_str(names->src_name);
+			/* Get current string lengths */
+			non_canon_name_len=H5RS_len(names->loc->user_path_r)-H5RS_len(names->loc->canon_path_r);
 
-                    /* Add in the length needed for the '/' separator and the relative path */
-                    src_path_len+=HDstrlen(src_name)+need_sep;
+			canon_src_path_r=H5RS_create(H5RS_get_str(src_path_r)+non_canon_name_len);
+			canon_dst_path_r=H5RS_create(H5RS_get_str(dst_path_r)+non_canon_name_len);
+		    } /* end if */
+		    else {
+			canon_src_path_r=H5RS_dup(src_path_r);
+			canon_dst_path_r=H5RS_dup(dst_path_r);
+		    } /* end else */
 
-                    /* Allocate space for the path */
-                    if(NULL==(src_path = H5FL_BLK_MALLOC(str_buf,src_path_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+		    /* Check if the link being changed in the file is along the canonical path for this object */
+		    if(H5G_common_path(ent->canon_path_r,canon_src_path_r)) {
+			size_t user_dst_len;    /* Length of destination user path */
+			size_t canon_dst_len;   /* Length of destination canonical path */
+			const char *old_user_path;    /* Pointer to previous user path */
+			char *new_user_path;    /* Pointer to new user path */
+			char *new_canon_path;   /* Pointer to new canonical path */
+			const char *tail_path;  /* Pointer to "tail" of path */
+			size_t tail_len;    /* Pointer to "tail" of path */
+			char *src_canon_prefix;     /* Pointer to source canonical path prefix of component which is moving */
+			size_t src_canon_prefix_len;/* Length of the source canonical path prefix */
+			char *dst_canon_prefix;     /* Pointer to destination canonical path prefix of component which is moving */
+			size_t dst_canon_prefix_len;/* Length of the destination canonical path prefix */
+			char *user_prefix;      /* Pointer to user path prefix of component which is moving */
+			size_t user_prefix_len; /* Length of the user path prefix */
+			char *src_comp;     /* The source name of the component which is actually changing */
+			char *dst_comp;     /* The destination name of the component which is actually changing */
+			const char *canon_src_path;   /* pointer to canonical part of source path */
+			const char *canon_dst_path;   /* pointer to canonical part of destination path */
 
-                    HDstrcpy(src_path,src_user_path);
-                    if(need_sep)
-                        HDstrcat(src_path,"/");
-                    HDstrcat(src_path,src_name);
+			/* Get the pointers to the raw strings */
+			canon_src_path=H5RS_get_str(canon_src_path_r);
+			canon_dst_path=H5RS_get_str(canon_dst_path_r);
 
-                    /* Create reference counted string for src path */
-                    src_path_r=H5RS_own(src_path);
-                } /* end if */
-                else
-                    src_path_r=H5RS_dup(names->src_name);
-                if(*(H5RS_get_str(names->dst_name))!='/') {
-                    const char *dst_name;         /* Pointer to raw string of dst_name */
-                    char *dst_path;         /* Full user path of destination name */
-                    const char *dst_user_path;    /* Pointer to raw string of dst path */
-                    size_t dst_path_len;    /* Length of the destination path */
-                    unsigned need_sep;      /* Flag to indicate if separator is needed */
+			/* Get the source & destination components */
+			src_comp=HDstrrchr(canon_src_path,'/');
+			assert(src_comp);
+			dst_comp=HDstrrchr(canon_dst_path,'/');
+			assert(dst_comp);
 
-                    /* Get the pointer to the raw dst user path */
-                    dst_user_path=H5RS_get_str(names->dst_loc->user_path_r);
+			/* Find the canonical prefixes for the entry */
+			src_canon_prefix_len=HDstrlen(canon_src_path)-HDstrlen(src_comp);
+			if(NULL==(src_canon_prefix = H5MM_malloc(src_canon_prefix_len+1)))
+			    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+			HDstrncpy(src_canon_prefix,canon_src_path,src_canon_prefix_len);
+			src_canon_prefix[src_canon_prefix_len]='\0';
 
-                    /* Get the length of the name for the destination group's user path */
-                    dst_path_len=HDstrlen(dst_user_path);
+			dst_canon_prefix_len=HDstrlen(canon_dst_path)-HDstrlen(dst_comp);
+			if(NULL==(dst_canon_prefix = H5MM_malloc(dst_canon_prefix_len+1)))
+			    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+			HDstrncpy(dst_canon_prefix,canon_dst_path,dst_canon_prefix_len);
+			dst_canon_prefix[dst_canon_prefix_len]='\0';
 
-                    /* Determine if there is a trailing separator in the name */
-                    if(dst_user_path[dst_path_len-1]=='/')
-                        need_sep=0;
-                    else
-                        need_sep=1;
+			/* Hold this for later use */
+			old_user_path=H5RS_get_str(ent->user_path_r);
 
-                    /* Get the pointer to the raw dst user path */
-                    dst_name=H5RS_get_str(names->dst_name);
+			/* Find the user prefix for the entry */
+			user_prefix_len=HDstrlen(old_user_path)-H5RS_len(ent->canon_path_r);
+			if(NULL==(user_prefix = H5MM_malloc(user_prefix_len+1)))
+			    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+			HDstrncpy(user_prefix,old_user_path,user_prefix_len);
+			user_prefix[user_prefix_len]='\0';
 
-                    /* Add in the length needed for the '/' separator and the relative path */
-                    dst_path_len+=HDstrlen(dst_name)+need_sep;
+			/* Set the tail path info */
+			tail_path=old_user_path+user_prefix_len+src_canon_prefix_len+HDstrlen(src_comp);
+			tail_len=HDstrlen(tail_path);
 
-                    /* Allocate space for the path */
-                    if(NULL==(dst_path = H5FL_BLK_MALLOC(str_buf,dst_path_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+			/* Get the length of the destination paths */
+			user_dst_len=user_prefix_len+dst_canon_prefix_len+HDstrlen(dst_comp)+tail_len;
+			canon_dst_len=dst_canon_prefix_len+HDstrlen(dst_comp)+tail_len;
 
-                    HDstrcpy(dst_path,dst_user_path);
-                    if(need_sep)
-                        HDstrcat(dst_path,"/");
-                    HDstrcat(dst_path,dst_name);
+			/* Allocate space for the new user path */
+			if(NULL==(new_user_path = H5FL_BLK_MALLOC(str_buf,user_dst_len+1)))
+			    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
 
-                    /* Create reference counted string for dst path */
-                    dst_path_r=H5RS_own(dst_path);
-                } /* end if */
-                else
-                    dst_path_r=H5RS_dup(names->dst_name);
+			/* Allocate space for the new canonical path */
+			if(NULL==(new_canon_path = H5FL_BLK_MALLOC(str_buf,canon_dst_len+1)))
+			    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
 
-                /* Get the canonical parts of the source and destination names */
+			/* Create the new names */
+			HDstrcpy(new_user_path,user_prefix);
+			HDstrcat(new_user_path,dst_canon_prefix);
+			HDstrcat(new_user_path,dst_comp);
+			HDstrcat(new_user_path,tail_path);
+			HDstrcpy(new_canon_path,dst_canon_prefix);
+			HDstrcat(new_canon_path,dst_comp);
+			HDstrcat(new_canon_path,tail_path);
 
-                /* Check if the object being moved was accessed through a mounted file */
-                if(H5RS_cmp(names->loc->user_path_r,names->loc->canon_path_r)!=0) {
-                    size_t non_canon_name_len;   /* Length of non-canonical part of name */
+			/* Release the old user & canonical paths */
+			H5RS_decr(ent->user_path_r);
+			H5RS_decr(ent->canon_path_r);
 
-                    /* Get current string lengths */
-                    non_canon_name_len=H5RS_len(names->loc->user_path_r)-H5RS_len(names->loc->canon_path_r);
+			/* Take ownership of the new user & canonical paths */
+			ent->user_path_r=H5RS_own(new_user_path);
+			ent->canon_path_r=H5RS_own(new_canon_path);
 
-                    canon_src_path_r=H5RS_create(H5RS_get_str(src_path_r)+non_canon_name_len);
-                    canon_dst_path_r=H5RS_create(H5RS_get_str(dst_path_r)+non_canon_name_len);
-                } /* end if */
-                else {
-                    canon_src_path_r=H5RS_dup(src_path_r);
-                    canon_dst_path_r=H5RS_dup(dst_path_r);
-                } /* end else */
-
-                /* Check if the link being changed in the file is along the canonical path for this object */
-                if(H5G_common_path(ent->canon_path_r,canon_src_path_r)) {
-                    size_t user_dst_len;    /* Length of destination user path */
-                    size_t canon_dst_len;   /* Length of destination canonical path */
-                    const char *old_user_path;    /* Pointer to previous user path */
-                    char *new_user_path;    /* Pointer to new user path */
-                    char *new_canon_path;   /* Pointer to new canonical path */
-                    const char *tail_path;  /* Pointer to "tail" of path */
-                    size_t tail_len;    /* Pointer to "tail" of path */
-                    char *src_canon_prefix;     /* Pointer to source canonical path prefix of component which is moving */
-                    size_t src_canon_prefix_len;/* Length of the source canonical path prefix */
-                    char *dst_canon_prefix;     /* Pointer to destination canonical path prefix of component which is moving */
-                    size_t dst_canon_prefix_len;/* Length of the destination canonical path prefix */
-                    char *user_prefix;      /* Pointer to user path prefix of component which is moving */
-                    size_t user_prefix_len; /* Length of the user path prefix */
-                    char *src_comp;     /* The source name of the component which is actually changing */
-                    char *dst_comp;     /* The destination name of the component which is actually changing */
-                    const char *canon_src_path;   /* pointer to canonical part of source path */
-                    const char *canon_dst_path;   /* pointer to canonical part of destination path */
-
-                    /* Get the pointers to the raw strings */
-                    canon_src_path=H5RS_get_str(canon_src_path_r);
-                    canon_dst_path=H5RS_get_str(canon_dst_path_r);
-
-                    /* Get the source & destination components */
-                    src_comp=HDstrrchr(canon_src_path,'/');
-                    assert(src_comp);
-                    dst_comp=HDstrrchr(canon_dst_path,'/');
-                    assert(dst_comp);
-
-                    /* Find the canonical prefixes for the entry */
-                    src_canon_prefix_len=HDstrlen(canon_src_path)-HDstrlen(src_comp);
-                    if(NULL==(src_canon_prefix = H5MM_malloc(src_canon_prefix_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-                    HDstrncpy(src_canon_prefix,canon_src_path,src_canon_prefix_len);
-                    src_canon_prefix[src_canon_prefix_len]='\0';
-
-                    dst_canon_prefix_len=HDstrlen(canon_dst_path)-HDstrlen(dst_comp);
-                    if(NULL==(dst_canon_prefix = H5MM_malloc(dst_canon_prefix_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-                    HDstrncpy(dst_canon_prefix,canon_dst_path,dst_canon_prefix_len);
-                    dst_canon_prefix[dst_canon_prefix_len]='\0';
-
-                    /* Hold this for later use */
-                    old_user_path=H5RS_get_str(ent->user_path_r);
-
-                    /* Find the user prefix for the entry */
-                    user_prefix_len=HDstrlen(old_user_path)-H5RS_len(ent->canon_path_r);
-                    if(NULL==(user_prefix = H5MM_malloc(user_prefix_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-                    HDstrncpy(user_prefix,old_user_path,user_prefix_len);
-                    user_prefix[user_prefix_len]='\0';
-
-                    /* Set the tail path info */
-                    tail_path=old_user_path+user_prefix_len+src_canon_prefix_len+HDstrlen(src_comp);
-                    tail_len=HDstrlen(tail_path);
-
-                    /* Get the length of the destination paths */
-                    user_dst_len=user_prefix_len+dst_canon_prefix_len+HDstrlen(dst_comp)+tail_len;
-                    canon_dst_len=dst_canon_prefix_len+HDstrlen(dst_comp)+tail_len;
-
-                    /* Allocate space for the new user path */
-                    if(NULL==(new_user_path = H5FL_BLK_MALLOC(str_buf,user_dst_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-                    
-                    /* Allocate space for the new canonical path */
-                    if(NULL==(new_canon_path = H5FL_BLK_MALLOC(str_buf,canon_dst_len+1)))
-                        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-                    
-                    /* Create the new names */
-                    HDstrcpy(new_user_path,user_prefix);
-                    HDstrcat(new_user_path,dst_canon_prefix);
-                    HDstrcat(new_user_path,dst_comp);
-                    HDstrcat(new_user_path,tail_path);
-                    HDstrcpy(new_canon_path,dst_canon_prefix);
-                    HDstrcat(new_canon_path,dst_comp);
-                    HDstrcat(new_canon_path,tail_path);
-
-                    /* Release the old user & canonical paths */
-                    H5RS_decr(ent->user_path_r);
-                    H5RS_decr(ent->canon_path_r);
-
-                    /* Take ownership of the new user & canonical paths */
-                    ent->user_path_r=H5RS_own(new_user_path);
-                    ent->canon_path_r=H5RS_own(new_canon_path);
-
-                    /* Free the extra paths allocated */
-                    H5MM_xfree(src_canon_prefix);
-                    H5MM_xfree(dst_canon_prefix);
-                    H5MM_xfree(user_prefix);
-                } /* end if */
+			/* Free the extra paths allocated */
+			H5MM_xfree(src_canon_prefix);
+			H5MM_xfree(dst_canon_prefix);
+			H5MM_xfree(user_prefix);
+		    } /* end if */
 
 
-                /* Free the extra paths allocated */
-                H5RS_decr(src_path_r);
-                H5RS_decr(dst_path_r);
-                H5RS_decr(canon_src_path_r);
-                H5RS_decr(canon_dst_path_r);
+		    /* Free the extra paths allocated */
+		    H5RS_decr(src_path_r);
+		    H5RS_decr(dst_path_r);
+		    H5RS_decr(canon_src_path_r);
+		    H5RS_decr(canon_dst_path_r);
+		} /* end if */
+		else {
+		    /* Release the old user path */
+		    if(ent->user_path_r) {
+			H5RS_decr(ent->user_path_r);
+			ent->user_path_r = NULL;
+		    } /* end if */
+		} /* end else */
             } /* end if */
             break;
 
         default:
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "invalid call");
     } /* end switch */
- 
+
 done:
-    FUNC_LEAVE_NOAPI(ret_value); 
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5G_get_shared_count
+ *
+ * Purpose:	Queries the group object's "shared count"
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *		Tuesday, July	 5, 2005
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5G_get_shared_count(H5G_t *grp)
+{
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_get_shared_count);
+
+    /* Check args */
+    HDassert(grp && grp->shared);
+
+    FUNC_LEAVE_NOAPI(grp->shared->fo_count);
+} /* end H5G_get_shared_count() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5G_mount
+ *
+ * Purpose:	Sets the 'mounted' flag for a group
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *		Tuesday, July 19, 2005
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5G_mount(H5G_t *grp)
+{
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_mount);
+
+    /* Check args */
+    HDassert(grp && grp->shared);
+    HDassert(grp->shared->mounted == FALSE);
+
+    /* Set the 'mounted' flag */
+    grp->shared->mounted = TRUE;
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+} /* end H5G_mount() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5G_unmount
+ *
+ * Purpose:	Resets the 'mounted' flag for a group
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *		Tuesday, July 19, 2005
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5G_unmount(H5G_t *grp)
+{
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_unmount);
+
+    /* Check args */
+    HDassert(grp && grp->shared);
+    HDassert(grp->shared->mounted == TRUE);
+
+    /* Reset the 'mounted' flag */
+    grp->shared->mounted = FALSE;
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+} /* end H5G_unmount() */
 

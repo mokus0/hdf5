@@ -43,8 +43,8 @@
 #   include <stdint.h>		/*for C9x types				     */
 #endif
 #endif
-#ifdef H5_HAVE_INTTYPES_H 
-#   include <inttypes.h>        /* For uint64_t on some platforms            */ 
+#ifdef H5_HAVE_INTTYPES_H
+#   include <inttypes.h>        /* For uint64_t on some platforms            */
 #endif
 #ifdef H5_HAVE_STDDEF_H
 #   include <stddef.h>
@@ -74,10 +74,10 @@ extern "C" {
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	6	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	4	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	5	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.6.4"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.6.5"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -203,7 +203,7 @@ typedef ssize_t			hssize_t;
 #   define H5_PRINTF_HADDR_FMT  "%lu"
 #elif H5_SIZEOF_HADDR_T ==H5_SIZEOF_LONG_LONG
 #   define H5_PRINTF_HADDR_FMT  "%"H5_PRINTF_LL_WIDTH"u"
-#elif H5_SIZEOF_HADDR_T ==H5_SIZEOF___INT64 
+#elif H5_SIZEOF_HADDR_T ==H5_SIZEOF___INT64
 #   define H5_PRINTF_HADDR_FMT  "%"H5_PRINTF_LL_WIDTH"u"
 #else
 #   error "nothing appropriate for H5_PRINTF_HADDR_FMT"

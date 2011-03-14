@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5Attribute_H
 #define _H5Attribute_H
@@ -30,6 +30,9 @@ class H5_DLLCPP Attribute : public AbstractDs {
 	// Gets a copy of the dataspace for this attribute.
 	virtual DataSpace getSpace() const;
 
+	// Returns the amount of storage size required for this attribute.
+	virtual hsize_t getStorageSize() const;
+
 	// Reads data from this attribute.
 	void read( const DataType& mem_type, void *buf ) const;
 	void read( const DataType& mem_type, string& strg ) const;
@@ -38,32 +41,36 @@ class H5_DLLCPP Attribute : public AbstractDs {
 	void write(const DataType& mem_type, const void *buf ) const;
 	void write(const DataType& mem_type, const string& strg ) const;
 
+	// Returns this class name
+	virtual string fromClass () const { return("Attribute"); }
+
         // Creates a copy of an existing attribute using the attribute id
         Attribute( const hid_t attr_id );
 
 	// Copy constructor: makes a copy of an existing Attribute object.
 	Attribute( const Attribute& original );
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-	// Used by the API to appropriately close an attribute
-	virtual void p_close() const;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
+	// Default constructor
+	Attribute();
+
+	// Close this attribute.
+	virtual void close();
 
 	// Destructor: properly terminates access to this attribute.
 	virtual ~Attribute();
 
    private:
-	// This function contains the common code that is used by 
-	// getTypeClass and various API functions getXxxType 
-	// defined in AbstractDs for generic datatype and specific 
+	// This function contains the common code that is used by
+	// getTypeClass and various API functions getXxxType
+	// defined in AbstractDs for generic datatype and specific
 	// sub-types
 	virtual hid_t p_get_type() const;
 
-	// do not inherit iterateAttrs from H5Object
+	// do not inherit 'iterateAttrs' from H5Object
 	int iterateAttrs() { return 0; }
 
-	// Default constructor
-	Attribute();
+        // do not inherit 'rename' from H5Object
+        void rename() {}
 };
 #ifndef H5_NO_NAMESPACE
 }

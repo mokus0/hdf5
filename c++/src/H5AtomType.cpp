@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 
@@ -55,7 +55,7 @@ AtomType::AtomType( const AtomType& original ) : DataType( original ) {}
 
 //--------------------------------------------------------------------------
 // Function:	AtomType::setSize
-///\brief	Sets the total size for an atomic datatype. 
+///\brief	Sets the total size for an atomic datatype.
 ///\param	size - IN: Size to set
 ///\exception	H5::DataTypeIException
 // Programmer	Binh-Minh Ribler - 2000
@@ -66,22 +66,21 @@ void AtomType::setSize( size_t size ) const
    herr_t ret_value = H5Tset_size( id, size );
    if( ret_value < 0 )
    {
-      throw DataTypeIException("AtomType::setSize", "H5Tset_size failed");
+      throw DataTypeIException(inMemFunc("setSize"), "H5Tset_size failed");
    }
 }
 
 //--------------------------------------------------------------------------
-// Function:	AtomType::getOrder
-///\brief	Returns the byte order of an atomic datatype.
-///\param	order_string - OUT: Text description of the returned byte order
-///\return	Byte order, which can be:
-///		\li \c H5T_ORDER_LE
-///		\li \c H5T_ORDER_BE
-///		\li \c H5T_ORDER_VAX
-///\exception	H5::DataTypeIException
-// Programmer	Binh-Minh Ribler - 2000
+// Function:    AtomType::getOrder
+///\brief       Returns the byte order of an atomic datatype.
+///\return      Byte order, which can be:
+///             \li \c H5T_ORDER_LE
+///             \li \c H5T_ORDER_BE
+///             \li \c H5T_ORDER_VAX
+///\exception   H5::DataTypeIException
+// Programmer   Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
-H5T_order_t AtomType::getOrder( string& order_string ) const
+H5T_order_t AtomType::getOrder() const
 {
    // Call C routine to get the byte ordering
    H5T_order_t type_order = H5Tget_order( id );
@@ -89,9 +88,35 @@ H5T_order_t AtomType::getOrder( string& order_string ) const
    // return a byte order constant if successful
    if( type_order == H5T_ORDER_ERROR )
    {
-      throw DataTypeIException("AtomType::getOrder", 
-		"H5Tget_order returns H5T_ORDER_ERROR");
+      throw DataTypeIException(inMemFunc("getOrder"),
+                "H5Tget_order returns H5T_ORDER_ERROR");
    }
+   return( type_order );
+}
+
+//--------------------------------------------------------------------------
+// Function:    AtomType::getOrder
+///\brief       This is an overloaded member function, provided for convenience.
+///             It takes a reference to a \c std::string for the buffer that
+///             provide the text description of the returned byte order.
+///             The text description can be either of the following:
+///             "Little endian byte ordering (0)";
+///             "Big endian byte ordering (1)";
+///             "VAX mixed byte ordering (2)";
+///\param       order_string - OUT: Text description of the returned byte order
+///\return      Byte order, which can be:
+///             \li \c H5T_ORDER_LE
+///             \li \c H5T_ORDER_BE
+///             \li \c H5T_ORDER_VAX
+///\exception   H5::DataTypeIException
+// Programmer   Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
+H5T_order_t AtomType::getOrder( string& order_string ) const
+{
+   // Call the overloaded to get the type order without text
+   H5T_order_t type_order = getOrder();
+
+   // Then provide the text and return the type order
    if( type_order == H5T_ORDER_LE )
       order_string = "Little endian byte ordering (0)";
    else if( type_order == H5T_ORDER_BE )
@@ -117,18 +142,18 @@ void AtomType::setOrder( H5T_order_t order ) const
    herr_t ret_value = H5Tset_order( id, order );
    if( ret_value < 0 )
    {
-      throw DataTypeIException("AtomType::setOrder", "H5Tset_order failed");
+      throw DataTypeIException(inMemFunc("setOrder"), "H5Tset_order failed");
    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	AtomType::getPrecision
-///\brief	Returns the precision of an atomic datatype. 
-///\return	Number of significant bits 
+///\brief	Returns the precision of an atomic datatype.
+///\return	Number of significant bits
 ///\exception	H5::DataTypeIException
 ///\par Description
-///		The precision is the number of significant bits which, 
-///		unless padding is present, is 8 times larger than the 
+///		The precision is the number of significant bits which,
+///		unless padding is present, is 8 times larger than the
 ///		value returned by \c DataType::getSize().
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -139,7 +164,7 @@ size_t AtomType::getPrecision() const
    // returns number of significant bits if successful
    if( num_signi_bits == 0 )
    {
-      throw DataTypeIException("AtomType::getPrecision",
+      throw DataTypeIException(inMemFunc("getPrecision"),
 		"H5Tget_precision returns invalid number of significant bits");
    }
    return( num_signi_bits );
@@ -147,7 +172,7 @@ size_t AtomType::getPrecision() const
 
 //--------------------------------------------------------------------------
 // Function:	AtomType::setPrecision
-///\brief	Sets the precision of an atomic datatype. 
+///\brief	Sets the precision of an atomic datatype.
 ///\param	precision - IN: Number of bits of precision
 ///\exception	H5::DataTypeIException
 ///\par Description
@@ -161,13 +186,13 @@ void AtomType::setPrecision( size_t precision ) const
    herr_t ret_value = H5Tset_precision( id, precision );
    if( ret_value < 0 )
    {
-      throw DataTypeIException("AtomType::setPrecision", "H5Tset_precision failed");
+      throw DataTypeIException(inMemFunc("setPrecision"), "H5Tset_precision failed");
    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	AtomType::getOffset
-///\brief	Retrieves the bit offset of the first significant bit. 
+///\brief	Retrieves the bit offset of the first significant bit.
 ///\return	Offset value
 ///\exception	H5::DataTypeIException
 ///\par Description
@@ -186,7 +211,7 @@ int AtomType::getOffset() const
    // returns a non-negative offset value if successful
    if( offset == -1 )
    {
-      throw DataTypeIException("AtomType::getOffset",
+      throw DataTypeIException(inMemFunc("getOffset"),
 		"H5Tget_offset returns a negative offset value");
    }
    return( offset );
@@ -194,7 +219,7 @@ int AtomType::getOffset() const
 
 //--------------------------------------------------------------------------
 // Function:	AtomType::setOffset
-///\brief	Sets the bit offset of the first significant bit. 
+///\brief	Sets the bit offset of the first significant bit.
 ///\param	offset - IN: Offset of first significant bit
 ///\exception	H5::DataTypeIException
 ///\par Description
@@ -208,22 +233,22 @@ void AtomType::setOffset( size_t offset ) const
    herr_t ret_value = H5Tset_offset( id, offset );
    if( ret_value < 0 )
    {
-      throw DataTypeIException("AtomType::setOffset", "H5Tset_offset failed");
+      throw DataTypeIException(inMemFunc("setOffset"), "H5Tset_offset failed");
    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	AtomType::getPad
-///\brief	Retrieves the padding type of the least and most-significant 
-///		bit padding. 
+///\brief	Retrieves the padding type of the least and most-significant
+///		bit padding.
 ///\param	lsb - OUT: Least-significant bit padding type
 ///\param	msb - OUT: Most-significant bit padding type
 ///\exception	H5::DataTypeIException
 ///\par Description
 ///		Possible values for \a lsb and \a msb include:
-///		\li \c H5T_PAD_ZERO (0) - Set background to zeros. 
-///		\li \c H5T_PAD_ONE (1) - Set background to ones. 
-///		\li \c H5T_PAD_BACKGROUND (2) - Leave background alone. 
+///		\li \c H5T_PAD_ZERO (0) - Set background to zeros.
+///		\li \c H5T_PAD_ONE (1) - Set background to ones.
+///		\li \c H5T_PAD_BACKGROUND (2) - Leave background alone.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void AtomType::getPad( H5T_pad_t& lsb, H5T_pad_t& msb ) const
@@ -232,7 +257,7 @@ void AtomType::getPad( H5T_pad_t& lsb, H5T_pad_t& msb ) const
    herr_t ret_value = H5Tget_pad( id, &lsb, &msb );
    if( ret_value < 0 )
    {
-      throw DataTypeIException("AtomType::getPad", "H5Tget_pad failed");
+      throw DataTypeIException(inMemFunc("getPad"), "H5Tget_pad failed");
    }
 }
 
@@ -244,9 +269,9 @@ void AtomType::getPad( H5T_pad_t& lsb, H5T_pad_t& msb ) const
 ///\exception	H5::DataTypeIException
 ///\par Description
 ///		Valid values for \a lsb and \a msb include:
-///		\li \c H5T_PAD_ZERO (0) - Set background to zeros. 
-///		\li \c H5T_PAD_ONE (1) - Set background to ones. 
-///		\li \c H5T_PAD_BACKGROUND (2) - Leave background alone. 
+///		\li \c H5T_PAD_ZERO (0) - Set background to zeros.
+///		\li \c H5T_PAD_ONE (1) - Set background to ones.
+///		\li \c H5T_PAD_BACKGROUND (2) - Leave background alone.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void AtomType::setPad( H5T_pad_t lsb, H5T_pad_t msb ) const
@@ -255,7 +280,7 @@ void AtomType::setPad( H5T_pad_t lsb, H5T_pad_t msb ) const
    herr_t ret_value = H5Tset_pad( id, lsb, msb );
    if( ret_value < 0 )
    {
-      throw DataTypeIException("AtomType::setPad", "H5Tset_pad failed");
+      throw DataTypeIException(inMemFunc("setPad"), "H5Tset_pad failed");
    }
 }
 

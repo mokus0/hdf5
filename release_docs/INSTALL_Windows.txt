@@ -1149,6 +1149,7 @@ Warning: When you modify the H5pubconf.h file as described below,
 
              #define H5_HAVE_SZLIB_H 1
              #define H5_HAVE_FILTER_SZIP 1
+             #define H5_SZIP_CAN_ENCODE 1
 		   
           then save the file.
 	

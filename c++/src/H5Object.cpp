@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 
@@ -32,7 +32,7 @@ namespace H5 {
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 // userAttrOpWrpr simply interfaces between the user's function and the
-// C library function H5Aiterate; used to resolve the different prototype 
+// C library function H5Aiterate; used to resolve the different prototype
 // problem.  May be moved to Iterator later.
 extern "C" herr_t userAttrOpWrpr( hid_t loc_id, const char* attr_name, void* op_data )
 {
@@ -49,7 +49,7 @@ extern "C" herr_t userAttrOpWrpr( hid_t loc_id, const char* attr_name, void* op_
 //--------------------------------------------------------------------------
 // Function:	H5Object default constructor (protected)
 // Description
-//		The id is set by IdComponent() but subclass constructor will 
+//		The id is set by IdComponent() but subclass constructor will
 //		set it to a valid HDF5 id.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -57,7 +57,7 @@ H5Object::H5Object() : IdComponent() {}
 
 //--------------------------------------------------------------------------
 // Function:	H5Object overloaded constructor (protected)
-// Purpose	Creates an H5Object object using the id of an existing HDF5 
+// Purpose	Creates an H5Object object using the id of an existing HDF5
 // 		object.
 // Parameters	object_id - IN: Id of an existing HDF5 object
 // Programmer	Binh-Minh Ribler - 2000
@@ -68,7 +68,7 @@ H5Object::H5Object( const hid_t object_id ) : IdComponent( object_id ) {}
 
 //--------------------------------------------------------------------------
 // Function:	H5Object copy constructor
-///\brief	Copy constructor: makes a copy of the original H5Object 
+///\brief	Copy constructor: makes a copy of the original H5Object
 ///		instance.
 ///\param	original - IN: H5Object instance to copy
 // Programmer	Binh-Minh Ribler - 2000
@@ -80,18 +80,18 @@ H5Object::H5Object( const H5Object& original ) : IdComponent( original ) {}
 ///\brief	Creates an attribute for a group, dataset, or named datatype.
 ///\param	name - IN: Name of the attribute
 ///\param	data_type - IN: Datatype for the attribute
-///\param	data_space - IN: Dataspace for the attribute - only simple 
+///\param	data_space - IN: Dataspace for the attribute - only simple
 ///		dataspaces are allowed at this time
-///\param	create_plist - IN: Creation property list - default to 
+///\param	create_plist - IN: Creation property list - default to
 ///		PropList::DEFAULT
 ///\return	Attribute instance
 ///\exception	H5::AttributeIException
 ///\par Description
-///		The attribute name specified in \a name must be unique. 
-///		Attempting to create an attribute with the same name as an 
-///		existing attribute will raise an exception, leaving the 
-///		pre-existing attribute intact. To overwrite an existing 
-///		attribute with a new attribute of the same name, first 
+///		The attribute name specified in \a name must be unique.
+///		Attempting to create an attribute with the same name as an
+///		existing attribute will raise an exception, leaving the
+///		pre-existing attribute intact. To overwrite an existing
+///		attribute with a new attribute of the same name, first
 ///		delete the existing one with \c H5Object::removeAttr, then
 ///		recreate it with this function.
 // Programmer	Binh-Minh Ribler - 2000
@@ -111,14 +111,14 @@ Attribute H5Object::createAttribute( const char* name, const DataType& data_type
    }
    else
    {
-      throw AttributeIException("H5Object::createAttribute", "H5Acreate failed");
+      throw AttributeIException(inMemFunc("createAttribute"), "H5Acreate failed");
    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	H5Object::createAttribute
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It differs from the above function in that it takes 
+///		It differs from the above function in that it takes
 ///		a reference to an \c std::string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -145,14 +145,14 @@ Attribute H5Object::openAttribute( const char* name ) const
    }
    else
    {
-      throw AttributeIException("H5Object::openAttribute", "H5Aopen_name failed");
+      throw AttributeIException(inMemFunc("openAttribute"), "H5Aopen_name failed");
    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	H5Object::openAttribute
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It differs from the above function in that it takes 
+///		It differs from the above function in that it takes
 ///		a reference to an \c std::string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
@@ -179,7 +179,7 @@ Attribute H5Object::openAttribute( const unsigned int idx ) const
    }
    else
    {
-      throw AttributeIException("H5Object::openAttribute", "H5Aopen_idx failed");
+      throw AttributeIException(inMemFunc("openAttribute"), "H5Aopen_idx failed");
    }
 }
 
@@ -189,7 +189,7 @@ Attribute H5Object::openAttribute( const unsigned int idx ) const
 ///		object, which may be a group, dataset or named datatype.
 ///\param	user_op - IN: User's function to operate on each attribute
 ///\param	idx - IN/OUT: Starting (IN) and ending (OUT) attribute indices
-///\param	op_data - IN: User's data to pass to user's operator function 
+///\param	op_data - IN: User's data to pass to user's operator function
 ///\return	Returned value of the last operator if it was non-zero, or
 ///		zero if all attributes were processed
 ///\exception	H5::AttributeIException
@@ -217,7 +217,7 @@ int H5Object::iterateAttrs( attr_operator_t user_op, unsigned * idx, void *op_da
       return( ret_value );
    else  // raise exception when H5Aiterate returns a negative value
    {
-      throw AttributeIException("H5Object::iterateAttrs", "H5Aiterate failed");
+      throw AttributeIException(inMemFunc("iterateAttrs"), "H5Aiterate failed");
    }
 }
 
@@ -233,7 +233,7 @@ int H5Object::getNumAttrs() const
    int num_attrs = H5Aget_num_attrs( id );
    if( num_attrs < 0 )
    {
-      throw AttributeIException("H5Object::getNumAttrs", 
+      throw AttributeIException(inMemFunc("getNumAttrs"),
 		"H5Aget_num_attrs failed - returned negative number of attributes");
    }
    else
@@ -252,20 +252,49 @@ void H5Object::removeAttr( const char* name ) const
    herr_t ret_value = H5Adelete( id, name );
    if( ret_value < 0 )
    {
-      throw AttributeIException("H5Object::removeAttr", "H5Adelete failed");
+      throw AttributeIException(inMemFunc("removeAttr"), "H5Adelete failed");
    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	H5Object::removeAttr
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It differs from the above function in that it takes 
+///		It differs from the above function in that it takes
 ///		a reference to an \c std::string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void H5Object::removeAttr( const string& name ) const
 {
    removeAttr( name.c_str() );
+}
+
+//--------------------------------------------------------------------------
+// Function:	H5Object::renameAttr
+///\brief	Renames the named attribute from this object.
+///\param	oldname - IN: Name of the attribute to be renamed
+///\param	newname - IN: New name ame of the attribute
+///\exception	H5::AttributeIException
+// Programmer	Binh-Minh Ribler - Mar, 2005
+//--------------------------------------------------------------------------
+void H5Object::renameAttr(const char* oldname, const char* newname) const
+{
+   herr_t ret_value = H5Arename(id, oldname, newname);
+   if (ret_value < 0)
+   {
+      throw AttributeIException(inMemFunc("renameAttr"), "H5Arename failed");
+   }
+}
+
+//--------------------------------------------------------------------------
+// Function:	H5Object::renameAttr
+///\brief	This is an overloaded member function, provided for convenience.
+///		It differs from the above function in that it takes
+///		a reference to an \c std::string for the names.
+// Programmer	Binh-Minh Ribler - Mar, 2005
+//--------------------------------------------------------------------------
+void H5Object::renameAttr(const string& oldname, const string& newname) const
+{
+   renameAttr (oldname.c_str(), newname.c_str());
 }
 
 //--------------------------------------------------------------------------
@@ -285,7 +314,7 @@ void H5Object::flush(H5F_scope_t scope ) const
    herr_t ret_value = H5Fflush( id, scope );
    if( ret_value < 0 )
    {
-      throw FileIException("H5Object::flush", "H5Fflush failed");
+      throw FileIException(inMemFunc("flush"), "H5Fflush failed");
    }
 }
 
@@ -298,7 +327,12 @@ void H5Object::flush(H5F_scope_t scope ) const
 //--------------------------------------------------------------------------
 string H5Object::getFileName() const
 {
-   return(p_get_file_name());
+   try {
+      return(p_get_file_name());
+   }
+   catch (IdComponentException E) {
+      throw FileIException(inMemFunc("getFileName"), E.getDetailMsg());
+   }
 }
 
 //--------------------------------------------------------------------------

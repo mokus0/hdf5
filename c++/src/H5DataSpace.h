@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5DataSpace_H
 #define _H5DataSpace_H
@@ -65,7 +65,7 @@ class H5_DLLCPP DataSpace : public IdComponent {
 	int getSimpleExtentNdims() const;
 
 	// Gets the number of elements in this dataspace.
-	// 12/05/00 - changed return type to hssize_t from hsize_t - C API 
+	// 12/05/00 - changed return type to hssize_t from hsize_t - C API
 	hssize_t getSimpleExtentNpoints() const;
 
 	// Gets the current class of this dataspace.
@@ -80,7 +80,7 @@ class H5_DLLCPP DataSpace : public IdComponent {
 	// Selects the entire dataspace.
 	void selectAll() const;
 
-	// Selects array elements to be included in the selection for 
+	// Selects array elements to be included in the selection for
 	// this dataspace.
 	void selectElements( H5S_seloper_t op, const size_t num_elements, const hsize_t *coord[ ] ) const;
 
@@ -99,16 +99,17 @@ class H5_DLLCPP DataSpace : public IdComponent {
 	// Sets or resets the size of this dataspace.
 	void setExtentSimple( int rank, const hsize_t *current_size, const hsize_t *maximum_size = NULL ) const;
 
+	// Returns this class name
+	virtual string fromClass () const { return("DataSpace"); }
+
 	// Creates a DataSpace object using an existing dataspace id.
 	DataSpace(const hid_t space_id);
 
 	// Copy constructor: makes a copy of the original DataSpace object.
 	DataSpace(const DataSpace& original);
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-	// Used by the API to close the dataspace 
-	void p_close() const;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
+	// Close this dataspace.
+	virtual void close();
 
 	// Destructor: properly terminates access to this dataspace.
 	virtual ~DataSpace();

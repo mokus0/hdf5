@@ -16,13 +16,13 @@
 #ifndef _H5f90i_H
 #define _H5f90i_H
 
-/* 
- * Standard header files needed all the time 
+/*
+ * Standard header files needed all the time
  */
 
 #include "H5private.h"
 
-#if (defined (UNICOS) || (defined (_UNICOS)))
+#if (defined (UNICOS) || defined (_UNICOS)) && !defined(__crayx1)
 
 #include <fortran.h>
 
@@ -34,7 +34,7 @@ typedef long               size_t_f;
 typedef long               int_f;
 typedef long               hid_t_f;
 typedef double             real_f;
-#define DF_CAPFNAMES 
+#define DF_CAPFNAMES
 /*#define _fcdtocp(desc) (desc)*/
 
 #endif /* UNICOS */
@@ -62,7 +62,7 @@ typedef int               size_t_f;
 typedef int               int_f;
 typedef int               hid_t_f;
 typedef float             real_f;
-#define FNAME(x) x 
+#define FNAME(x) x
 #if defined H5_ABSOFT
 #define DF_CAPFNAMES
 #endif /*H5_ABSOFT*/
@@ -89,6 +89,8 @@ typedef long long         hssize_t_f;
 typedef int               size_t_f;
 #if defined H5_ABSOFT
 #define DF_CAPFNAMES
+#elif defined H5_G95
+#define FNAME_POST2_UNDERSCORE
 #else
 #define FNAME_POST_UNDERSCORE
 #endif /*H5_ABSOFT*/
@@ -127,6 +129,20 @@ typedef float         real_f;
 #define FNAME_POST_UNDERSCORE
 #define _fcdtocp(desc) (desc)
 #endif /* IRIX */
+
+#if defined(__crayx1)
+
+typedef char          *_fcd;
+typedef long          haddr_t_f;
+typedef long          hsize_t_f;
+typedef long          hssize_t_f;
+typedef long          size_t_f;
+typedef int           int_f;
+typedef int           hid_t_f;
+typedef float         real_f;
+#define FNAME_POST_UNDERSCORE
+#define _fcdtocp(desc) (desc)
+#endif /* Cray X1 */
 
 #if (defined(SUN) || defined(sun) || defined(__sun__) || defined(__SUNPRO_C)) & !defined(__i386)
 
@@ -185,6 +201,9 @@ typedef int            hid_t_f;
 typedef float          real_f;
 #define _fcdtocp(desc) (desc)
 
+#if defined __ia64
+#define FNAME_POST_UNDERSCORE
+#endif
 #endif /* HP9000 */
 
 

@@ -1,3 +1,17 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
  * Copyright © 2000 The author.
  * The author prefers this code not be used for military purposes.
@@ -15,6 +29,12 @@
  */
 #ifndef H5FDstream_H
 #define H5FDstream_H
+
+#ifdef H5_HAVE_STREAM
+#   define H5FD_STREAM  (H5FD_stream_init())
+#else
+#   define H5FD_STREAM (-1)
+#endif /*H5_HAVE_STREAM */
 
 #ifdef H5_HAVE_STREAM
 
@@ -39,8 +59,6 @@
 #define H5FD_STREAM_INVALID_SOCKET         INVALID_SOCKET
 
 #endif
-
-#define H5FD_STREAM	(H5FD_stream_init())
 
 #ifdef __cplusplus
 extern "C" {

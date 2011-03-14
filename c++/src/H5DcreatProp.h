@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5DSCreatPropList_H
 #define _H5DSCreatPropList_H
@@ -21,11 +21,11 @@ namespace H5 {
 #endif
 
 class H5_DLLCPP DSetCreatPropList : public PropList {
-   public: 
+   public:
 	// Default dataset creation property list.
 	static const DSetCreatPropList DEFAULT;
 
-	// Queries whether all the filters set in this property list are 
+	// Queries whether all the filters set in this property list are
 	// available currently.
 	bool allFiltersAvail();
 
@@ -69,7 +69,7 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	// property list.
 	H5D_layout_t getLayout() const;
 
-	// Sets the type of storage used to store the raw data for the 
+	// Sets the type of storage used to store the raw data for the
 	// dataset that uses this property list.
 	void setLayout(H5D_layout_t layout) const;
 
@@ -100,13 +100,16 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	// Sets method of the shuffle filter.
 	void setShuffle();
 
+	// Returns this class name
+	virtual string fromClass () const { return("DSetCreatPropList"); }
+
 	// Default constructor: creates a stub dataset creation property list.
 	DSetCreatPropList();
 
 	// Copy constructor: creates a copy of a DSetCreatPropList object.
 	DSetCreatPropList(const DSetCreatPropList& orig);
 
-	// Creates a copy of an existing dataset creation property list 
+	// Creates a copy of an existing dataset creation property list
 	// using the property list id.
 	DSetCreatPropList(const hid_t plist_id);
 

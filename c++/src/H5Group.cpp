@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 #ifdef OLD_HEADER_FILENAME
@@ -81,12 +81,17 @@ Group::Group( const hid_t group_id ) : H5Object( group_id ) {}
 ///\param	dataspace - IN: Dataspace with selection
 ///\param	ref_type - IN: Type of reference; default to \c H5R_DATASET_REGION
 ///\return	A reference
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void* Group::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type) const
 {
-   return(p_reference(name, dataspace.getId(), ref_type));
+   try {
+      return(p_reference(name, dataspace.getId(), ref_type));
+   }
+   catch (IdComponentException E) {
+      throw GroupIException("Group::Reference", E.getDetailMsg());
+   }
 }
 
 //--------------------------------------------------------------------------
@@ -96,16 +101,34 @@ void* Group::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_ty
 ///		a reference to an HDF5 object, not to a dataset region.
 ///\param	name - IN: Name of the object to be referenced
 ///\return	A reference
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 ///\par Description
-//		This function passes H5R_OBJECT and -1 to the protected 
+//		This function passes H5R_OBJECT and -1 to the protected
 //		function for it to pass to the C API H5Rcreate
 //		to create a reference to the named object.
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void* Group::Reference(const char* name) const
 {
-   return(p_reference(name, -1, H5R_OBJECT));
+   try {
+      return(p_reference(name, -1, H5R_OBJECT));
+   }
+   catch (IdComponentException E) {
+      throw GroupIException("Group::Reference", E.getDetailMsg());
+   }
+}
+
+//--------------------------------------------------------------------------
+// Function:	Group::Reference
+///\brief	This is an overloaded function, provided for your convenience.
+///		It differs from the above function in that it takes an
+///		\c std::string for the object's name.
+///\param	name - IN: Name of the object to be referenced
+// Programmer	Binh-Minh Ribler - May, 2004
+//--------------------------------------------------------------------------
+void* Group::Reference(const string& name) const
+{
+   return(Reference(name.c_str()));
 }
 
 //--------------------------------------------------------------------------
@@ -114,11 +137,11 @@ void* Group::Reference(const char* name) const
 ///\param		ref      - IN: Reference to query
 ///\param		ref_type - IN: Type of reference to query
 // Return	An object type, which can be one of the following:
-//			H5G_LINK Object is a symbolic link.  
-//			H5G_GROUP Object is a group.  
-//			H5G_DATASET   Object is a dataset.  
-//			H5G_TYPE Object is a named datatype 
-// Exception	H5::ReferenceIException
+//			H5G_LINK Object is a symbolic link.
+//			H5G_GROUP Object is a group.
+//			H5G_DATASET   Object is a dataset.
+//			H5G_TYPE Object is a named datatype
+// Exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 H5G_obj_t Group::getObjType(void *ref, H5R_type_t ref_type) const
@@ -132,7 +155,7 @@ H5G_obj_t Group::getObjType(void *ref, H5R_type_t ref_type) const
 ///\param	ref      - IN: Reference to get region of
 ///\param	ref_type - IN: Type of reference to get region of - default
 ///\return	DataSpace instance
-///\exception	H5::ReferenceIException
+///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 DataSpace Group::getRegion(void *ref, H5R_type_t ref_type) const
@@ -141,25 +164,23 @@ DataSpace Group::getRegion(void *ref, H5R_type_t ref_type) const
    return(dataspace);
 }
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //--------------------------------------------------------------------------
-// Function:    Group::p_close (private)
-// Purpose:     Closes this group.
-// Exception    H5::GroupIException
-// Description
-//              This function will be obsolete because its functionality
-//              is recently handled by the C library layer. - May, 2004
-// Programmer   Binh-Minh Ribler - 2000
+// Function:	Group::close
+///\brief	Closes this group.
+///
+///\exception	H5::GroupIException
+// Programmer	Binh-Minh Ribler - Mar 9, 2005
 //--------------------------------------------------------------------------
-void Group::p_close() const
+void Group::close()
 {
    herr_t ret_value = H5Gclose( id );
    if( ret_value < 0 )
    {
-      throw GroupIException(0, "H5Gclose failed");
+      throw GroupIException("Group::close", "H5Gclose failed");
    }
+   // reset the id because the group that it represents is now closed
+   id = 0;
 }
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
 // Function:	Group::throwException
@@ -187,11 +208,11 @@ void Group::throwException(const string func_name, const string msg) const
 ///\brief	Properly terminates access to this group.
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
-//              Replaced resetIdComponent with decRefCount to use new ID
-//              reference counting mechanisms by QAK, Feb 20, 2005
+//		Replaced resetIdComponent with decRefCount to use C library
+//		ID reference counting mechanism - BMR, Feb 20, 2005
 //--------------------------------------------------------------------------
 Group::~Group()
-{  
+{
    // The group id will be closed properly
     try {
         decRefCount();
@@ -199,7 +220,7 @@ Group::~Group()
     catch (Exception close_error) {
         cerr << "Group::~Group - " << close_error.getDetailMsg() << endl;
     }
-}  
+}
 
 #ifndef H5_NO_NAMESPACE
 } // end namespace

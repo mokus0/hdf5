@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 #ifdef OLD_HEADER_FILENAME
@@ -52,7 +52,7 @@ Attribute::Attribute( const Attribute& original ) : AbstractDs( original ) {}
 
 //--------------------------------------------------------------------------
 // Function:	Attribute overloaded constructor
-///\brief	Creates an Attribute object using the id of an existing 
+///\brief	Creates an Attribute object using the id of an existing
 ///		attribute.
 ///\param	existing_id - IN: Id of an existing attribute
 ///\exception	H5::AttributeIException
@@ -135,7 +135,7 @@ void Attribute::read( const DataType& mem_type, string& strg ) const
       throw AttributeIException("Attribute::read", "H5Aread failed");
    }
    strg = strg_C;
-   delete strg_C;
+   delete []strg_C;
 }
 
 //--------------------------------------------------------------------------
@@ -178,7 +178,7 @@ hid_t Attribute::p_get_type() const
       return( type_id );
    else
    {
-      throw AttributeIException(0, "H5Aget_type failed");
+      throw AttributeIException("", "H5Aget_type failed");
    }
 }
 
@@ -203,16 +203,16 @@ ssize_t Attribute::getName( size_t buf_size, string& attr_name ) const
    {
       throw AttributeIException("Attribute::getName", "H5Aget_name failed");
    }
-   // otherwise, convert the C attribute name and return 
+   // otherwise, convert the C attribute name and return
    attr_name = name_C;
-   delete name_C;
+   delete []name_C;
    return( name_size );
 }
 
 //--------------------------------------------------------------------------
 // Function:	Attribute::getName
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It differs from the above function in that it returns the 
+///		It differs from the above function in that it returns the
 ///		attribute's name, not the length.
 ///\return	Name of the attribute
 ///\param	buf_size  -  IN: Desired length of the name
@@ -223,7 +223,7 @@ string Attribute::getName( size_t buf_size ) const
 {
    string attr_name;
    ssize_t name_size = getName( buf_size, attr_name );
-   return( attr_name ); 
+   return( attr_name );
    // let caller catch exception if any
 }
 
@@ -238,8 +238,8 @@ string Attribute::getName( size_t buf_size ) const
 //--------------------------------------------------------------------------
 string Attribute::getName() const
 {
-   // Try with 256 characters for the name first, if the name's length 
-   // returned is more than that then, read the name again with the 
+   // Try with 256 characters for the name first, if the name's length
+   // returned is more than that then, read the name again with the
    // appropriate space allocation
    char* name_C = new char[256];  // temporary C-string for C API
    ssize_t name_size = H5Aget_name(id, 255, name_C);
@@ -248,41 +248,54 @@ string Attribute::getName() const
    if (name_size >= 256)
       name_size = getName(name_size, attr_name);
 
-   // otherwise, convert the C attribute name and return 
+   // otherwise, convert the C attribute name and return
    else
       attr_name = name_C;
 
-   delete name_C;
-   return( attr_name ); 
+   delete []name_C;
+   return( attr_name );
 }
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 //--------------------------------------------------------------------------
-// Function:    Attribute::p_close (private)
-// Purpose:     Closes this attribute.
-// Exception    H5::AttributeIException
-// Description
-//              This function will be obsolete because its functionality
-//              is recently handled by the C library layer. - May, 2004
-// Programmer   Binh-Minh Ribler - 2000
+// Function:	Attribute::getStorageSize
+///\brief	Returns the amount of storage size required for this attribute.
+///\return	Size of the storage or 0, for no data
+///\exception	H5::AttributeIException
+// Note:	H5Dget_storage_size returns 0 when there is no data.  This
+//		function should have no failure. (from SLU)
+// Programmer	Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
-void Attribute::p_close() const
+hsize_t Attribute::getStorageSize() const
 {
-   herr_t ret_value = H5Aclose( id );
+   hsize_t storage_size = H5Aget_storage_size(id);
+   return (storage_size);
+}
+
+//--------------------------------------------------------------------------
+// Function:	Attribute::close
+///\brief	Closes this attribute.
+///
+///\exception	H5::AttributeIException
+// Programmer	Binh-Minh Ribler - Mar 9, 2005
+//--------------------------------------------------------------------------
+void Attribute::close()
+{
+   herr_t ret_value = H5Aclose(id);
    if( ret_value < 0 )
    {
-      throw AttributeIException(0, "H5Aclose failed");
+      throw AttributeIException("Attribute::close", "H5Aclose failed");
    }
+   // reset the id because the attribute that it represents is now closed
+   id = 0;
 }
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 //--------------------------------------------------------------------------
 // Function:	Attribute destructor
 ///\brief	Properly terminates access to this attribute.
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
-//              Replaced resetIdComponent with decRefCount to use new ID
-//              reference counting mechanisms by QAK, Feb 20, 2005
+//		Replaced resetIdComponent with decRefCount to use C library
+//		ID reference counting mechanism - BMR, Feb 20, 2005
 //--------------------------------------------------------------------------
 Attribute::~Attribute()
 {

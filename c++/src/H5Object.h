@@ -1,25 +1,25 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5Object_H
 #define _H5Object_H
 
 #include "H5Classes.h"		// constains forward class declarations
 
-// H5Object is a baseclass.  It has these subclasses: 
-// Group, AbstractDs, and DataType. 
+// H5Object is a baseclass.  It has these subclasses:
+// Group, AbstractDs, and DataType.
 // AbstractDs, in turn, has subclasses DataSet and Attribute.
 // DataType, in turn, has several specific datatypes as subclasses.
 
@@ -31,8 +31,8 @@ namespace H5 {
 class H5_DLLCPP H5Object;  // forward declaration for UserData4Aiterate
 
 // Define the operator function pointer for H5Aiterate().
-typedef void (*attr_operator_t)( H5Object& loc/*in*/, 
-				 const string attr_name/*in*/, 
+typedef void (*attr_operator_t)( H5Object& loc/*in*/,
+				 const string attr_name/*in*/,
 				 void *operator_data/*in,out*/);
 
 class UserData4Aiterate { // user data for attribute iteration
@@ -75,6 +75,10 @@ class H5_DLLCPP H5Object : public IdComponent {
 	// Removes the named attribute from this object.
 	void removeAttr( const char* name ) const;
 	void removeAttr( const string& name ) const;
+
+	// Renames the attribute to a new name.
+	void renameAttr(const char* oldname, const char* newname) const;
+	void renameAttr(const string& oldname, const string& newname) const;
 
 	// Copy constructor: makes copy of an H5Object object.
 	H5Object(const H5Object& original);

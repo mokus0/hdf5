@@ -1,26 +1,26 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*****************************************************************************
    FILE
    dsets.cpp - HDF5 C++ testing the functionalities associated with the
-        C dataset interface (H5D)
+	       C dataset interface (H5D)
 
    EXTERNAL ROUTINES/VARIABLES:
      These routines are in the test directory of the C library:
-        h5_reset() -- in h5test.c, resets the library by closing it
-        h5_fileaccess() -- in h5test.c, returns a file access template
+	h5_reset() -- in h5test.c, resets the library by closing it
+	h5_fileaccess() -- in h5test.c, returns a file access template
 
  ***************************************************************************/
 
@@ -30,14 +30,14 @@
 #include <iostream>
 #endif
 
-#include "testhdf5.h"
-#include "H5Cpp.h"
+#include "testhdf5.h"	// C test header file
+#include "H5Cpp.h"	// C++ API header file
 
 #ifndef H5_NO_NAMESPACE
 using namespace H5;
 #endif
 
-#include "h5cpputil.h"
+#include "h5cpputil.h"	// C++ utilility header file
 
 const string	FILE1("dataset.h5");
 const string	DSET_DEFAULT_NAME("default");
@@ -50,7 +50,7 @@ const string	DSET_BOGUS_NAME	("bogus");
 const int H5Z_FILTER_BOGUS = 305;
 
 // Local prototypes
-static size_t bogus(unsigned int flags, size_t cd_nelmts, 
+static size_t bogus(unsigned int flags, size_t cd_nelmts,
     const unsigned int *cd_values, size_t nbytes, size_t *buf_size, void **buf);
 void cleanup_dsets(void);
 
@@ -74,51 +74,51 @@ void cleanup_dsets(void);
 static herr_t
 test_create( H5File& file)
 {
-   TESTING("create, open, close");
+    TESTING("create, open, close");
 
     // Setting this to NULL for cleaning up in failure situations
     DataSet *dataset = NULL;
     try {
-	// Create the data space
+	// Create a data space
 	hsize_t     dims[2];
 	dims[0] = 256;
 	dims[1] = 512;
 	DataSpace space (2, dims, NULL);
 
-	// Create a dataset using the default dataset creation properties.	
+	// Create a dataset using the default dataset creation properties.
 	// We're not sure what they are, so we won't check.
-	DataSet *dataset = new DataSet (file.createDataSet 
+	dataset = new DataSet (file.createDataSet
 		(DSET_DEFAULT_NAME, PredType::NATIVE_DOUBLE, space));
+
+	// Add a comment to the dataset
+	file.setComment (DSET_DEFAULT_NAME, "This is a dataset");
 
 	// Close the dataset
 	delete dataset;
 	dataset = NULL;
 
-	// Add a comment to the dataset
-	file.setComment (DSET_DEFAULT_NAME, "This is a dataset");
-
-        // Try creating a dataset that already exists.  This should fail since a
-        // dataset can only be created once.  If an exception is not thrown
-        // for this action by createDataSet, then display failure information
-        // and throw an exception.
+	// Try creating a dataset that already exists.  This should fail since a
+	// dataset can only be created once.  If an exception is not thrown for
+	// this action by createDataSet, then throw an invalid action exception.
 	try {
-	    dataset = new DataSet (file.createDataSet 
+	    dataset = new DataSet (file.createDataSet
 			(DSET_DEFAULT_NAME, PredType::NATIVE_DOUBLE, space));
-	    // continuation here, that means no exception has been thrown
-            throw InvalidActionException("H5File::createDataSet", "Library allowed overwrite of existing dataset");
-        }
-        catch (FileIException E ) // catching invalid creating dataset
-        {} // do nothing, exception expected
 
-	// Open the dataset we created above and then close it.  This is how
-	// existing datasets are accessed.
+	    // continuation here, that means no exception has been thrown
+	    throw InvalidActionException("H5File::createDataSet", "Library allowed overwrite of existing dataset");
+	}
+	catch (FileIException E)	// catching invalid creating dataset
+	{} // do nothing, exception expected
+
+	// Open the dataset we created above and then close it.  This is one
+	// way to open an existing dataset for accessing.
 	dataset = new DataSet (file.openDataSet (DSET_DEFAULT_NAME));
 
 	// Close the dataset when accessing is completed
 	delete dataset;
 
-        // This is another way to open an existing dataset for accessing.
-        DataSet another_dataset(file.openDataSet (DSET_DEFAULT_NAME));
+	// This is another way to open an existing dataset for accessing.
+	DataSet another_dataset(file.openDataSet (DSET_DEFAULT_NAME));
 
 	// Try opening a non-existent dataset.  This should fail so if an
 	// exception is not thrown for this action by openDataSet, then
@@ -140,7 +140,7 @@ test_create( H5File& file)
 	csize[1] = 100;
 	create_parms.setChunk( 2, csize );
 
-	dataset = new DataSet (file.createDataSet 
+	dataset = new DataSet (file.createDataSet
 		(DSET_CHUNKED_NAME, PredType::NATIVE_DOUBLE, space, create_parms));
 	// Note: this one has no error message in C when failure occurs?
 
@@ -149,7 +149,7 @@ test_create( H5File& file)
 
 	PASSED();
 	return 0;
-   }	// outer most try block
+    }	// outer most try block
 
     catch (InvalidActionException E)
     {
@@ -171,19 +171,18 @@ test_create( H5File& file)
 	    delete dataset;
 	return -1;
     }
-}
+}   // test_create
 
 /*-------------------------------------------------------------------------
  * Function:	check_values
  *
- * Purpose:	Checks a read value against the written value.  If they are 
- *		different, the function will
- *		print out a message and the different values.  This function
- *		is made to reuse the code segment that is used in various
- *		places throughout test_compression and in test_simple_io.  
- *		Where the C version
+ * Purpose:	Checks a read value against the written value.  If they are
+ *		different, the function will print out a message and the
+ *		different values.  This function is made to reuse the code
+ *		segment that is used in various places throughout
+ *		test_compression and in test_simple_io.  Where the C version
  *		of this code segment "goto error," this function will
- *		return -1, so that the caller can "goto error."
+ *		return -1.
  *
  * Return:	Success:	0
  *
@@ -196,14 +195,13 @@ test_create( H5File& file)
  *
  *-------------------------------------------------------------------------
  */
-static int 
+static int
 check_values (hsize_t i, hsize_t j, int apoint, int acheck)
 {
     if (apoint != acheck)
     {
-	H5_FAILED();
 	cerr << "    Read different values than written.\n" << endl;
-	cerr << "    At index " << (unsigned long)i << "," << 
+	cerr << "    At index " << (unsigned long)i << "," <<
    	(unsigned long)j << endl;
 	return -1;
     }
@@ -247,7 +245,7 @@ test_simple_io( H5File& file)
     }
 
     char* tconv_buf = new char [1000];
-    try 
+    try
     {
 	// Create the data space
 	hsize_t	dims[2];
@@ -278,6 +276,7 @@ test_simple_io( H5File& file)
 		    throw Exception("DataSet::read");
 	    }
 
+	// clean up and return with success
 	delete [] tconv_buf;
 	PASSED();
 	return 0;
@@ -286,15 +285,15 @@ test_simple_io( H5File& file)
     // catch all dataset, space, plist exceptions
     catch (Exception E)
     {
-        cerr << " FAILED" << endl;
-        cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
+	cerr << " FAILED" << endl;
+	cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
 
-        // clean up and return with failure
-        if (tconv_buf)
-            delete [] tconv_buf;
-        return -1;
+	// clean up and return with failure
+	if (tconv_buf)
+	    delete [] tconv_buf;
+	return -1;
     }
-}
+}   // test_simple_io
 
 /*-------------------------------------------------------------------------
  * Function:	test_tconv
@@ -323,7 +322,7 @@ test_tconv( H5File& file)
     //assert (in);
 
     TESTING("data type conversion");
-    
+
     // Initialize the dataset
     for (int i = 0; i < 1000000; i++) {
 	out[i*4+0] = 0x11;
@@ -353,7 +352,7 @@ test_tconv( H5File& file)
 	    if (in[4*i+0]!=out[4*i+3] ||
 		in[4*i+1]!=out[4*i+2] ||
 		in[4*i+2]!=out[4*i+1] ||
-		in[4*i+3]!=out[4*i+0]) 
+		in[4*i+3]!=out[4*i+0])
 	    {
 		throw Exception("DataSet::read", "Read with byte order conversion failed");
 	    }
@@ -369,22 +368,22 @@ test_tconv( H5File& file)
     // catch all dataset and space exceptions
     catch (Exception E)
     {
-        cerr << " FAILED" << endl;
-        cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
+	cerr << " FAILED" << endl;
+	cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
 
-        // clean up and return with failure
-        delete [] out;
-        delete [] in;
-        return -1;
+	// clean up and return with failure
+	delete [] out;
+	delete [] in;
+	return -1;
     }
-}
+}   // test_tconv
 
 /* This message derives from H5Z */
 const H5Z_class_t H5Z_BOGUS[1] = {{
     H5Z_FILTER_BOGUS,		/* Filter id number		*/
     "bogus",			/* Filter name for debugging	*/
-    NULL,                       /* The "can apply" callback     */
-    NULL,                       /* The "set local" callback     */
+    NULL,		       /* The "can apply" callback     */
+    NULL,		       /* The "set local" callback     */
     bogus,			/* The actual filter function	*/
 }};
 
@@ -398,7 +397,7 @@ const H5Z_class_t H5Z_BOGUS[1] = {{
  *		Failure:	0
  *
  * Programmer:	Robb Matzke
- *              Tuesday, April 21, 1998
+ *		Tuesday, April 21, 1998
  *
  * Modifications:
  *
@@ -436,7 +435,6 @@ bogus(unsigned int flags, size_t cd_nelmts,
  *
  *-------------------------------------------------------------------------
  */
-
 static herr_t
 test_compression(H5File& file)
 {
@@ -455,65 +453,64 @@ test_compression(H5File& file)
     }
     char* tconv_buf = new char [1000];
     DataSet* dataset = NULL;
-    try 
+    try
     {
 	const hsize_t	size[2] = {100, 200};
 	// Create the data space
 	DataSpace space1(2, size, NULL);
 
-	// Create a small conversion buffer to test strip mining. We
-	// might as well test all we can!
+	// Create a small conversion buffer to test strip mining
 	DSetMemXferPropList xfer;
 
 	xfer.setBuffer (1000, tconv_buf, NULL);
-  
+
 	// Use chunked storage with compression
 	DSetCreatPropList dscreatplist;
 
 	const hsize_t	chunk_size[2] = {2, 25};
 	dscreatplist.setChunk (2, chunk_size);
 	dscreatplist.setDeflate (6);
-  
+
 #ifdef H5_HAVE_FILTER_DEFLATE
-    TESTING("compression (setup)");
-    
+	TESTING("compression (setup)");
+
 	// Create the dataset
-	dataset = new DataSet (file.createDataSet 
+	dataset = new DataSet (file.createDataSet
 	    (DSET_COMPRESS_NAME, PredType::NATIVE_INT, space1, dscreatplist));
-  
-    PASSED();
+
+	PASSED();
 
 	/*----------------------------------------------------------------------
 	* STEP 1: Read uninitialized data.  It should be zero.
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (uninitialized read)");
-  
+
 	dataset->read ((void*) check, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
-    
+
 	for (i=0; i<size[0]; i++) {
 	    for (j=0; j<size[1]; j++) {
 		if (0!=check[i][j]) {
 		    H5_FAILED();
 		    cerr << "    Read a non-zero value." << endl;
-		    cerr << "    At index " << (unsigned long)i << "," << 
+		    cerr << "    At index " << (unsigned long)i << "," <<
 		   (unsigned long)j << endl;
 		    throw Exception("test_compression", "Failed in uninitialized read");
 		}
 	    }
 	}
-    PASSED();
+	PASSED();
 
 	/*----------------------------------------------------------------------
 	* STEP 2: Test compression by setting up a chunked dataset and writing
 	* to it.
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (write)");
-    
+
 	for (i=n=0; i<size[0]; i++)
 	{
-	    for (j=0; j<size[1]; j++) 
+	    for (j=0; j<size[1]; j++)
 	    {
 		points[i][j] = n++;
 	    }
@@ -521,11 +518,11 @@ test_compression(H5File& file)
 
 	dataset->write ((void*) points, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
 
-    PASSED();
+	PASSED();
 
 	/*----------------------------------------------------------------------
 	* STEP 3: Try to read the data we just wrote.
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (read)");
 
@@ -541,20 +538,20 @@ test_compression(H5File& file)
 		    throw Exception("test_compression", "Failed in read");
 	    }
 
-    PASSED();
+	PASSED();
 
 	/*----------------------------------------------------------------------
 	* STEP 4: Write new data over the top of the old data.  The new data is
 	* random thus not very compressible, and will cause the chunks to move
 	* around as they grow.  We only change values for the left half of the
 	* dataset although we rewrite the whole thing.
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (modify)");
-    
+
 	for (i=0; i<size[0]; i++)
 	{
-	    for (j=0; j<size[1]/2; j++) 
+	    for (j=0; j<size[1]/2; j++)
 	    {
 	    	points[i][j] = rand ();
 	    }
@@ -573,19 +570,19 @@ test_compression(H5File& file)
 		    throw Exception("test_compression", "Failed in modify");
 	    }
 
-    PASSED();
+	PASSED();
 
 	/*----------------------------------------------------------------------
 	* STEP 5: Close the dataset and then open it and read it again.  This
 	* insures that the compression message is picked up properly from the
 	* object header.
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (re-open)");
-    
-	// close this dataset
+
+	// close this dataset to reuse the var
 	delete dataset;
-    
+
 	dataset = new DataSet (file.openDataSet (DSET_COMPRESS_NAME));
 	dataset->read ((void*)check, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
 
@@ -598,14 +595,14 @@ test_compression(H5File& file)
 		    throw Exception("test_compression", "Failed in re-open");
 	    }
 
-    PASSED();
-    
+	PASSED();
+
 
 	/*----------------------------------------------------------------------
 	* STEP 6: Test partial I/O by writing to and then reading from a
 	* hyperslab of the dataset.  The hyperslab does not line up on chunk
 	* boundaries (we know that case already works from above tests).
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (partial I/O)");
 
@@ -619,7 +616,7 @@ test_compression(H5File& file)
 	space1.selectHyperslab( H5S_SELECT_SET, hs_size, hs_offset );
 	dataset->write ((void*)points, PredType::NATIVE_INT, space1, space1, xfer);
 	dataset->read ((void*)check, PredType::NATIVE_INT, space1, space1, xfer);
-    
+
 	// Check that the values read are the same as the values written
 	for (i=0; i<hs_size[0]; i++) {
 	for (j=0; j<hs_size[1]; j++) {
@@ -627,9 +624,9 @@ test_compression(H5File& file)
 		check[hs_offset[0]+i][hs_offset[1]+j]) {
 		H5_FAILED();
 		cerr << "    Read different values than written.\n" << endl;
-		cerr << "    At index " << (unsigned long)(hs_offset[0]+i) << 
+		cerr << "    At index " << (unsigned long)(hs_offset[0]+i) <<
 		   "," << (unsigned long)(hs_offset[1]+j) << endl;
-		
+
 		cerr << "    At original: " << (int)points[hs_offset[0]+i][hs_offset[1]+j] << endl;
 		cerr << "    At returned: " << (int)check[hs_offset[0]+i][hs_offset[1]+j] << endl;
 		throw Exception("test_compression", "Failed in partial I/O");
@@ -640,26 +637,26 @@ test_compression(H5File& file)
 	delete dataset;
 	dataset = NULL;
 
-    PASSED();
+	PASSED();
 
 #else
-    TESTING("deflate filter");
-    SKIPPED();
-    cerr << not_supported << endl;
+	TESTING("deflate filter");
+	SKIPPED();
+	cerr << not_supported << endl;
 #endif
 
 	/*----------------------------------------------------------------------
 	* STEP 7: Register an application-defined compression method and use it
 	* to write and then read the dataset.
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	TESTING("compression (app-defined method)");
 
 #ifdef H5_WANT_H5_V1_4_COMPAT
-        if (H5Zregister (H5Z_FILTER_BOGUS, "bogus", bogus)<0)
+	if (H5Zregister (H5Z_FILTER_BOGUS, "bogus", bogus)<0)
 	    throw Exception("test_compression", "Failed in app-defined method");
 #else /* H5_WANT_H5_V1_4_COMPAT */
-        if (H5Zregister (H5Z_BOGUS)<0)
+	if (H5Zregister (H5Z_BOGUS)<0)
 	    throw Exception("test_compression", "Failed in app-defined method");
 #endif /* H5_WANT_H5_V1_4_COMPAT */
 	if (H5Pset_filter (dscreatplist.getId(), H5Z_FILTER_BOGUS, 0, 0, NULL)<0)
@@ -671,21 +668,21 @@ test_compression(H5File& file)
 
 	dataset->write ((void*)points, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
 	dataset->read ((void*)check, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
-    
+
 	// Check that the values read are the same as the values written
 	for (i = 0; i < size[0]; i++)
 	    for (j = 0; j < size[1]; j++)
 	    {
 		int status = check_values (i, j, points[i][j], check[i][j]);
-		if (status == -1) 
+		if (status == -1)
 		    throw Exception("test_compression", "Failed in app-defined method");
 	    }
 
 	PASSED();
-  
+
 	/*----------------------------------------------------------------------
 	* Cleanup
-	*---------------------------------------------------------------------- 
+	*----------------------------------------------------------------------
 	*/
 	delete dataset;
 	delete [] tconv_buf;
@@ -695,17 +692,17 @@ test_compression(H5File& file)
     // catch all dataset, file, space, and plist exceptions
     catch (Exception E)
     {
-        cerr << " FAILED" << endl;
-        cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
+	cerr << " FAILED" << endl;
+	cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
 
-        // clean up and return with failure
-        if (dataset != NULL)
-            delete dataset;
-        if (tconv_buf)
-            delete [] tconv_buf;
-        return -1;
+	// clean up and return with failure
+	if (dataset != NULL)
+	    delete dataset;
+	if (tconv_buf)
+	    delete [] tconv_buf;
+	return -1;
     }
-}
+}   // test_compression
 
 /*-------------------------------------------------------------------------
  * Function:	test_multiopen
@@ -748,7 +745,7 @@ test_multiopen (H5File& file)
 
 	// Create first dataset
 	DataSet dset1 = file.createDataSet ("multiopen", PredType::NATIVE_INT, *space, dcpl);
-    
+
 	// Open again the first dataset from the file to another DataSet object.
 	DataSet dset2 = file.openDataSet ("multiopen");
 
@@ -765,13 +762,13 @@ test_multiopen (H5File& file)
 
 	hsize_t		tmp_size[1];
 	space->getSimpleExtentDims (tmp_size);
-	if (cur_size[0]!=tmp_size[0]) 
+	if (cur_size[0]!=tmp_size[0])
 	{
-	    cerr << "    Got " << (int)tmp_size[0] << " instead of " 
+	    cerr << "    Got " << (int)tmp_size[0] << " instead of "
 		    << (int)cur_size[0] << "!" << endl;
 	    throw Exception("test_multiopen", "Failed in multi-open with extending");
 	}
-    
+
 	// clean up and return with success
 	delete space;
 	PASSED();
@@ -781,14 +778,15 @@ test_multiopen (H5File& file)
     // catch all dataset, file, space, and plist exceptions
     catch (Exception E)
     {
-        cerr << " FAILED" << endl;
-        cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
+	cerr << " FAILED" << endl;
+	cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
 
-        if (space != NULL)
-            delete space;
-        return -1;
+	// clean up and return with failure
+	if (space != NULL)
+	    delete space;
+	return -1;
     }
-}
+}   // test_multiopen
 
 
 /*-------------------------------------------------------------------------
@@ -801,7 +799,7 @@ test_multiopen (H5File& file)
  *		Failure:	-1
  *
  * Programmer:  Binh-Minh Ribler (using C version)
- *              February 17, 2001
+ *		February 17, 2001
  *
  * Modifications:
  *
@@ -851,27 +849,26 @@ test_types(H5File& file)
 	    dset = new DataSet(grp.createDataSet("bitfield_1", type, space));
 
 	    // Fill buffer
-	    for (i=0; i<sizeof buf; i++) 
+	    for (i=0; i<sizeof buf; i++)
 	    	buf[i] = (unsigned char)0xff ^ (unsigned char)i;
 
-            // Write data from buf using all default dataspaces and property
-            // list
-            dset->write (buf, type);
+	    // Write data from buf using all default dataspaces and property list
+	    dset->write (buf, type);
 
-            // no failure in bitfield_1, close this dataset
-            delete dset;
+	    // no failure in bitfield_1, close this dataset
+	    delete dset;
 	} // end try block of bitfield_1
 
 	// catch exceptions thrown in try block of bitfield_1
-	catch (Exception E) 
-        {
-            cerr << " FAILED" << endl;
-            cerr << "    <<<  " << "bitfield_1: " << E.getFuncName()
-                 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
-            if (dset != NULL)
-                delete dset;
-            return -1;
-        }
+	catch (Exception E)
+	{
+	    cerr << " FAILED" << endl;
+	    cerr << "    <<<  " << "bitfield_1: " << E.getFuncName()
+		 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
+	    if (dset != NULL)
+		delete dset;
+	    return -1;
+	}
 
 	/* bitfield_2 */
 	nelmts = sizeof(buf)/2;
@@ -881,30 +878,30 @@ test_types(H5File& file)
 	    dset = new DataSet(grp.createDataSet("bitfield_2", type, space));
 
 	    // Fill buffer
-	    for (i=0; i<sizeof(buf); i++) 
+	    for (i=0; i<sizeof(buf); i++)
 		buf[i] = (unsigned char)0xff ^ (unsigned char)i;
 
-            // Write data from buf using all default dataspaces and property
-            // list; if writing fails, deallocate dset and return.
-            dset->write (buf, type);
+	    // Write data from buf using all default dataspaces and property
+	    // list; if writing fails, deallocate dset and return.
+	    dset->write (buf, type);
 
-            // no failure in bitfield_2, close this dataset and reset for
-            // variable reuse
-            delete dset;
-            dset = NULL;
+	    // no failure in bitfield_2, close this dataset and reset for
+	    // variable reuse
+	    delete dset;
+	    dset = NULL;
 	} // end try block of bitfield_2
 
 	// catch exceptions thrown in try block of bitfield_2
 	catch (Exception E) {
-            cerr << " FAILED" << endl;
-            cerr << "    <<<  " << "bitfield_2: " << E.getFuncName()
-                 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
-            if (dset != NULL)
-                delete dset;
-            throw E; // propagate the exception
-        }
+	    cerr << " FAILED" << endl;
+	    cerr << "    <<<  " << "bitfield_2: " << E.getFuncName()
+		 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
+	    if (dset != NULL)
+		delete dset;
+	    throw E; // propagate the exception
+	}
 
-        /* opaque_1 */
+	/* opaque_1 */
 	DataType* optype = NULL;
 	try { // opaque_1 block
 	    optype = new DataType(H5T_OPAQUE, 1);
@@ -914,30 +911,30 @@ test_types(H5File& file)
 	    dset = new DataSet(grp.createDataSet("opaque_1", *optype, space));
 
 	    // Fill buffer
-	    for (i=0; i<sizeof buf; i++) 
+	    for (i=0; i<sizeof buf; i++)
 		buf[i] = (unsigned char)0xff ^ (unsigned char)i;
 
-            // Write data from buf using all default dataspaces and property
-            // list; if writing fails, deallocate dset and return.
-            dset->write (buf, *optype);
+	    // Write data from buf using all default dataspaces and property
+	    // list; if writing fails, deallocate dset and return.
+	    dset->write (buf, *optype);
 
-            // no failure in opaque_1
-            delete dset; dset = NULL;
-            delete optype; optype = NULL;
+	    // no failure in opaque_1
+	    delete dset; dset = NULL;
+	    delete optype; optype = NULL;
 	} // end try block of opaque_1
 
 	// catch exceptions thrown in try block of opaque_1
-	catch (DataSetIException E) { 
-            cerr << " FAILED" << endl;
-            cerr << "    <<<  " << "opaque_1: " << E.getFuncName()
-                 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
-            if (dset != NULL)
-                delete dset;
-            if (optype != NULL)
-                delete optype;
-            throw E; // propagate the exception
+	catch (Exception E) {
+	    cerr << " FAILED" << endl;
+	    cerr << "    <<<  " << "opaque_1: " << E.getFuncName()
+		 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
+	    if (dset != NULL)
+		delete dset;
+	    if (optype != NULL)
+		delete optype;
+	    throw E; // propagate the exception
 	}
-    
+
 	/* opaque_2 */
 	try { // block opaque_2
 	    nelmts = sizeof(buf)/4;
@@ -947,39 +944,39 @@ test_types(H5File& file)
 	    dset = new DataSet(grp.createDataSet("opaque_2", *optype, space));
 
 	    // Fill buffer
-	    for (i=0; i<sizeof(buf); i++) 
-	        buf[i] = (unsigned char)0xff ^ (unsigned char)i;
+	    for (i=0; i<sizeof(buf); i++)
+		buf[i] = (unsigned char)0xff ^ (unsigned char)i;
 
-            // Write data from buf using all default dataspaces and property
-            // list; if writing fails, deallocate dset and return.
-            dset->write (buf, *optype);
+	    // Write data from buf using all default dataspaces and property
+	    // list; if writing fails, deallocate dset and return.
+	    dset->write (buf, *optype);
 
-            // no failure in opaque_1
-            delete dset; dset = NULL;
-            delete optype; optype = NULL;
+	    // no failure in opaque_1
+	    delete dset; dset = NULL;
+	    delete optype; optype = NULL;
 	} //end try block of opaque_2
 
 	// catch exceptions thrown in try block of opaque_2
 	catch (Exception E) {
-            cerr << " FAILED" << endl;
-            cerr << "    <<<  " << "opaque_2: " << E.getFuncName()
-                 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
-            if (dset != NULL)
-                delete dset;
-            if (optype != NULL)
-                delete optype;
-            throw E; // propagate the exception
+	    cerr << " FAILED" << endl;
+	    cerr << "    <<<  " << "opaque_2: " << E.getFuncName()
+		 << " - " << E.getDetailMsg() << "  >>>" << endl << endl;
+	    if (dset != NULL)
+		delete dset;
+	    if (optype != NULL)
+		delete optype;
+	    throw E; // propagate the exception
 	}
-    
-    PASSED();
-    return 0;
+
+	PASSED();
+	return 0;
     } // end top try block
 
     catch (Exception E)
     {
-        return -1;
+	return -1;
     }
-}
+}   // test_types
 
 /*-------------------------------------------------------------------------
  * Function:	main
@@ -997,7 +994,7 @@ test_types(H5File& file)
  *	Nov 12, 01:
  *		- moved h5_cleanup to outside of try block because
  *		  dataset.h5 cannot be removed until "file" is out of
- *		  scope and dataset.h5 is closed. 
+ *		  scope and dataset.h5 is closed.
  *	Feb 20, 05:
  *		- cleanup_dsets took care of the cleanup now.
  *
@@ -1010,11 +1007,11 @@ main(void)
 
     hid_t	fapl_id;
     fapl_id = h5_fileaccess(); // in h5test.c, returns a file access template
-    
+
     int		nerrors=0;	// keep track of number of failures occurr
-    try 
+    try
     {
-	// Turn of the auto-printing when failure occurs so that we can 
+	// Turn of the auto-printing when failure occurs so that we can
 	// handle the errors appropriately since sometime failures are
 	// caused deliberately and expected.
 	Exception::dontPrint();
@@ -1024,7 +1021,7 @@ main(void)
 	FileAccPropList fapl(fapl_id);
 
 	H5File file(FILE1, H5F_ACC_TRUNC, FileCreatPropList::DEFAULT, fapl);
-       
+
 	// Cause the library to emit initial messages
 	Group grp = file.createGroup( "emit diagnostics", 0);
 	grp.setComment( ".", "Causes diagnostic messages to be emitted");
@@ -1036,7 +1033,7 @@ main(void)
 	nerrors += test_multiopen (file)<0	?1:0;
 	nerrors += test_types(file)<0       ?1:0;
     }
-    catch (Exception E) 
+    catch (Exception E)
     {
 	return(test_report(nerrors, string(" Dataset")));
     }
@@ -1044,10 +1041,10 @@ main(void)
     // Clean up data file
     cleanup_dsets();
 
-    // Print out dsets test results 
+    // Print out dsets test results
     cerr << endl << endl;
     return(test_report(nerrors, string(" Dataset")));
-}
+}   // main
 
 /*-------------------------------------------------------------------------
  * Function:    cleanup_dsets

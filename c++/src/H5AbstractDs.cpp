@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
 
@@ -51,7 +51,7 @@ AbstractDs::AbstractDs( const AbstractDs& original ) : H5Object( original ) {}
 
 //--------------------------------------------------------------------------
 // Function:	AbstractDs::getTypeClass
-///\brief	Returns the class of the datatype that is used by this 
+///\brief	Returns the class of the datatype that is used by this
 ///		object, which can be a dataset or an attribute.
 ///\return	Datatype class identifier
 ///\exception	H5::DataTypeIException
@@ -60,7 +60,7 @@ AbstractDs::AbstractDs( const AbstractDs& original ) : H5Object( original ) {}
 H5T_class_t AbstractDs::getTypeClass() const
 {
    // Gets the datatype used by this dataset or attribute.
-   // p_get_type calls either H5Dget_type or H5Aget_type depending on 
+   // p_get_type calls either H5Dget_type or H5Aget_type depending on
    // which object invokes getTypeClass
    DataType datatype(p_get_type());
 
@@ -70,7 +70,7 @@ H5T_class_t AbstractDs::getTypeClass() const
       return( type_class );
    else
    {
-      throw DataTypeIException("AbstractDs::getTypeClass", 
+      throw DataTypeIException(inMemFunc("getTypeClass"),
 		"H5Tget_class returns H5T_NO_CLASS");
    }
 }
@@ -86,7 +86,7 @@ H5T_class_t AbstractDs::getTypeClass() const
 DataType AbstractDs::getDataType() const
 {
    // Gets the id of the datatype used by this dataset or attribute.
-   // p_get_type calls either H5Dget_type or H5Aget_type depending on 
+   // p_get_type calls either H5Dget_type or H5Aget_type depending on
    // which object invokes getTypeClass
    hid_t datatype_id = p_get_type();  // returned value is already validated
 
@@ -96,22 +96,22 @@ DataType AbstractDs::getDataType() const
 }
 
 //--------------------------------------------------------------------------
-// Function:	AbstractDs::getEnumType
-///\brief	Returns the enumeration datatype of this abstract dataset which 
+// Function:	AbstractDs::getArrayType
+///\brief	Returns the compound datatype of this abstract dataset which
 ///		can be a dataset or an attribute.
-///\return	EnumType instance
+///\return	ArrayType instance
 ///\exception	H5::DataTypeIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-EnumType AbstractDs::getEnumType() const
+ArrayType AbstractDs::getArrayType() const
 {
-   EnumType enumtype(p_get_type());
-   return(enumtype);
+   ArrayType arraytype(p_get_type());
+   return(arraytype);
 }
 
 //--------------------------------------------------------------------------
 // Function:	AbstractDs::getCompType
-///\brief	Returns the compound datatype of this abstract dataset which 
+///\brief	Returns the compound datatype of this abstract dataset which
 ///		can be a dataset or an attribute.
 ///\return	CompType instance
 ///\exception	H5::DataTypeIException
@@ -124,17 +124,17 @@ CompType AbstractDs::getCompType() const
 }
 
 //--------------------------------------------------------------------------
-// Function:	AbstractDs::getIntType
-///\brief	Returns the integer datatype of this abstract dataset which 
+// Function:	AbstractDs::getEnumType
+///\brief	Returns the enumeration datatype of this abstract dataset which
 ///		can be a dataset or an attribute.
-///\return	IntType instance
+///\return	EnumType instance
 ///\exception	H5::DataTypeIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-IntType AbstractDs::getIntType() const
+EnumType AbstractDs::getEnumType() const
 {
-   IntType inttype(p_get_type());
-   return(inttype);
+   EnumType enumtype(p_get_type());
+   return(enumtype);
 }
 
 //--------------------------------------------------------------------------
@@ -152,8 +152,22 @@ FloatType AbstractDs::getFloatType() const
 }
 
 //--------------------------------------------------------------------------
+// Function:	AbstractDs::getIntType
+///\brief	Returns the integer datatype of this abstract dataset which
+///		can be a dataset or an attribute.
+///\return	IntType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
+IntType AbstractDs::getIntType() const
+{
+   IntType inttype(p_get_type());
+   return(inttype);
+}
+
+//--------------------------------------------------------------------------
 // Function:	AbstractDs::getStrType
-///\brief	Returns the string datatype of this abstract dataset which 
+///\brief	Returns the string datatype of this abstract dataset which
 ///		can be a dataset or an attribute.
 ///\return	StrType instance
 ///\exception	H5::DataTypeIException
@@ -163,6 +177,20 @@ StrType AbstractDs::getStrType() const
 {
    StrType strtype(p_get_type());
    return(strtype);
+}
+
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getVarLenType
+///\brief	Returns the floating-point datatype of this abstract dataset,
+///		which can be a dataset or an attribute.
+///\return	VarLenType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
+VarLenType AbstractDs::getVarLenType() const
+{
+   VarLenType varlentype(p_get_type());
+   return(varlentype);
 }
 
 //--------------------------------------------------------------------------

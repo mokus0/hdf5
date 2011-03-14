@@ -22,7 +22,9 @@ HDF5/H5S API Specification
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem --></head>
+<!-- #EndLibraryItem -->
+
+</head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
@@ -566,6 +568,20 @@ END SUBROUTINE h5sget_select_bounds_f
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
+<dt><strong>History:</strong>
+    <ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>C</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    The <code>start</code> and <code>end</code> 
+			parameters have changed from type <em>hsize_t *</em> 
+			to <em>hssize_t *</em>.</td></tr>
+    </table></ul>
 </dl>
 
 <!-- NEW PAGE -->
@@ -922,6 +938,18 @@ END SUBROUTINE h5sget_select_type_f
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
+<dt><strong>History:</strong>
+    <ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>C</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.0</td>
+          <td valign="top">
+		    Function introduced in this release.</td></tr>
+    </table></ul>
 </dl>
 
 <!-- NEW PAGE -->
@@ -1376,6 +1404,26 @@ END SUBROUTINE h5sselect_elements_f
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
+<dt><strong>History</strong>:</strong>
+    <ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>C</strong></td>
+		  <td valign="top">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td valign="top" align="left">
+		    <strong>Fortran90</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.4</td>
+          <td valign="top">
+		    <code>coord</code> parameter type changed to 
+			<em>const hsize_t</em>.</td>
+		  <td valign="top">&nbsp;</td>
+		  <td valign="top">
+		    <code>coord</code> parameter type changed to 
+			<code>INTEGER(HSIZE_T)</code>.</td></tr>
+    </table></ul>
 </dl>
 
 <!-- NEW PAGE -->
@@ -1543,6 +1591,26 @@ END SUBROUTINE h5sselect_hyperslab_f
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
+<dt><strong>History</strong>:</strong>
+    <ul><table width="90%">
+        <tr>
+		  <td valign="top" align="left" width="10%">
+		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+		    <strong>C</strong></td>
+		  <td valign="top">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+		  <td valign="top" align="left">
+		    <strong>Fortran90</strong></td></tr>
+        <tr>
+		  <td valign="top">1.6.4</td>
+          <td valign="top">
+		    <code>start[]</code> parameter type changed to 
+			<em>const hsize_t</em>.</td>
+		  <td valign="top">&nbsp;</td>
+		  <td valign="top">
+		    <code>start</code> parameter type changed to 
+			<code>INTEGER(HSIZE_T)</code>.</td></tr>
+    </table></ul>
 </dl>
 
 <!-- NEW PAGE -->
@@ -1719,7 +1787,7 @@ END SUBROUTINE h5sset_extent_none_f
           <td valign="top">Array containing maximum size of dataspace.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
-    <dd>Returns a dataspace identifier if successful; 
+    <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
 <dt><strong>Fortran90 Interface:</strong> h5sset_extent_simple_f
     <dd>
@@ -1872,11 +1940,11 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.4, March 2005
+Describes HDF5 Release 1.6.5, November 2005
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 15 March 2004");
+document.writeln("Last modified: 3 October 2005");
 -->
 </SCRIPT> 
 

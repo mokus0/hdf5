@@ -1,3 +1,17 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -88,7 +102,7 @@ static hid_t create_fapl(MPI_Comm comm, MPI_Info info, int acc_type )
 
     /* set parallel access with communicator, using MPI-I/O driver */
     if (acc_type == FACC_MPIO) {
-	ret = H5Pset_fapl_mpio(fapl, comm, info);     
+	ret = H5Pset_fapl_mpio(fapl, comm, info);
         assert(ret>=0);
     } /* end if */
 
@@ -279,7 +293,7 @@ int main(int argc, char *argv[])
         printf("rank=%d, error, slice dim larger than rank: slice_dim=%d, rank=%d\n",mpi_rank,slice_dim,rank);
         goto done;
     } /* end if */
-    
+
     /* Set rest of defaults */
     if(file_name==NULL) {
         char *login;    /* Pointer to login name */

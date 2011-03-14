@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5File_H
 #define _H5File_H
@@ -30,6 +30,9 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	   const FileCreatPropList& create_plist = FileCreatPropList::DEFAULT,
 	   const FileAccPropList& access_plist = FileAccPropList::DEFAULT );
 
+	// Close this file.
+	virtual void close();
+
 	// Gets the access property list of this file.
 	FileAccPropList getAccessPlist() const;
 
@@ -45,12 +48,12 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	// Returns the amount of free space in the file.
 	hssize_t getFreeSpace() const;
 
-	// Returns the number of opened object IDs (files, datasets, groups 
+	// Returns the number of opened object IDs (files, datasets, groups
 	// and datatypes) in the same file.
 	int getObjCount(unsigned types) const;
 	int getObjCount() const;
 
-	// Retrieves a list of opened object IDs (files, datasets, groups 
+	// Retrieves a list of opened object IDs (files, datasets, groups
 	// and datatypes) in the same file.
 	void getObjIDs(unsigned types, int max_objs, hid_t *oid_list) const;
 
@@ -72,12 +75,16 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	void reOpen();	// added for better name
 	void reopen();
 
-	// Creates a reference to a named Hdf5 object or to a dataset region 
+	// Creates a reference to a named Hdf5 object or to a dataset region
 	// in this object.
 	void* Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type = H5R_DATASET_REGION) const;
 
 	// Creates a reference to a named Hdf5 object in this object.
 	void* Reference(const char* name) const;
+	void* Reference(const string& name) const;
+
+	// Returns this class name
+	virtual string fromClass () const { return ("H5File"); }
 
 	// Throw file exception.
 	virtual void throwException(const string func_name, const string msg) const;
@@ -90,11 +97,6 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 
 	// Copy constructor: makes a copy of the original H5File object.
 	H5File(const H5File& original);
-
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-	// Used by the API to appropriately close a file.
-	void p_close() const;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 	// H5File destructor.
 	virtual ~H5File();

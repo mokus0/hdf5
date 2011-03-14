@@ -35,7 +35,7 @@ NAME
    H5T_init_opaque_interface -- Initialize interface-specific information
 USAGE
     herr_t H5T_init_opaque_interface()
-   
+
 RETURNS
     Non-negative on success/Negative on failure
 DESCRIPTION
@@ -86,6 +86,8 @@ H5Tset_tag(hid_t type_id, const char *tag)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not an opaque data type")
     if (!tag)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no tag")
+    if (HDstrlen(tag) >= H5T_OPAQUE_TAG_MAX)
+	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "tag too long")
 
     /* Commit */
     H5MM_xfree(dt->shared->u.opaque.tag);
@@ -126,7 +128,7 @@ H5Tget_tag(hid_t type_id)
         dt = dt->shared->parent; /*defer to parent*/
     if (H5T_OPAQUE != dt->shared->type)
 	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "operation not defined for data type class")
-    
+
     /* result */
     if (NULL==(ret_value=H5MM_strdup(dt->shared->u.opaque.tag)))
 	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")

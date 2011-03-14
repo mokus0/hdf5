@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5Exception_H
 #define _H5Exception_H
@@ -43,7 +43,7 @@ class H5_DLLCPP Exception {
 	string getDetailMsg() const;
 	const char* getCDetailMsg() const;	// C string of detailed message
 	string getFuncName() const;	// function name as a string object
-	const char* getCFuncName() const;	// function name as a char string 
+	const char* getCFuncName() const;	// function name as a char string
 
 	// Turns on the automatic error printing.
 	static void setAutoPrint( H5E_auto_t& func, void* client_data);
@@ -51,16 +51,16 @@ class H5_DLLCPP Exception {
 	// Turns off the automatic error printing.
 	static void dontPrint();
 
-	// Retrieves the current settings for the automatic error stack 
+	// Retrieves the current settings for the automatic error stack
 	// traversal function and its data.
 	static void getAutoPrint( H5E_auto_t& func, void** client_data);
 
 	// Clears the error stack for the current thread.
 	static void clearErrorStack();
 
-	// Walks the error stack for the current thread, calling the 
+	// Walks the error stack for the current thread, calling the
 	// specified function.
-	static void walkErrorStack( H5E_direction_t direction, 
+	static void walkErrorStack( H5E_direction_t direction,
 				H5E_walk_t func, void* client_data);
 
 	// Prints the error stack in a default manner.
@@ -77,7 +77,7 @@ class H5_DLLCPP Exception {
 
    private:
 // Because 'string' is not instantiated at compilation time, this
-// warning is displayed when building DLL; but the class is exported 
+// warning is displayed when building DLL; but the class is exported
 // so the warning is harmless
 #if defined(WIN32)
 #pragma warning(disable: 4251)

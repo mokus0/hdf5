@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _IdComponent_H
 #define _IdComponent_H
@@ -21,27 +21,27 @@
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
+#ifndef H5_NO_STD
+    using std::string;
+#endif  // H5_NO_STD
 #endif
 
 class H5_DLLCPP IdComponent {
    public:
 	// Increment reference counter.
-	void incRefCount();
+	void incRefCount(hid_t obj_id) const;
+	void incRefCount() const;
 
 	// Decrement reference counter.
-	void decRefCount();
+	void decRefCount(hid_t obj_id) const;
+	void decRefCount() const;
 
 	// Get the reference counter to this identifier.
-	int getCounter();
-
-	// Decrements the reference counter then determines if there are no more
-	// reference to this object
-	bool noReference();
+	int getCounter(hid_t obj_id) const;
+	int getCounter() const;
 
 	// Assignment operator
 	IdComponent& operator=( const IdComponent& rhs );
-
-	void reset();
 
 	// Sets the identifier of this object to a new value.
 	void setId( hid_t new_id );
@@ -55,13 +55,19 @@ class H5_DLLCPP IdComponent {
 	// Gets the value of IdComponent's data member.
 	virtual hid_t getId () const;
 
-	// Pure virtual function so appropriate close function can
-	// be called by subclasses' for the corresponding object
-	// This function will be obsolete because its functionality
-	// is recently handled by the C library layer.
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
-	virtual void p_close() const = 0;
+	// Pure virtual function for there are various H5*close for the
+	// subclasses.
+	virtual void close() = 0;
+
 #endif // DOXYGEN_SHOULD_SKIP_THIS
+
+	// Makes and returns the string "<class-name>::<func_name>";
+	// <class-name> is returned by fromClass().
+	string inMemFunc(const char* func_name) const;
+
+	// Returns this class name.
+	virtual string fromClass() const {return ("IdComponent");}
 
 	// Destructor
 	virtual ~IdComponent();
@@ -80,17 +86,21 @@ class H5_DLLCPP IdComponent {
 	string p_get_file_name() const;
 #endif  // H5_NO_STD
 
-        // Gets the id of the H5 file in which the given object is located.
-        hid_t p_get_file_id();
+	// Gets the id of the H5 file in which the given object is located.
+	hid_t p_get_file_id();
 
-        // Creates a reference to an HDF5 object or a dataset region.
-        void* p_reference(const char* name, hid_t space_id, H5R_type_t ref_type) const;
+	// Creates a reference to an HDF5 object or a dataset region.
+	void* p_reference(const char* name, hid_t space_id, H5R_type_t ref_type) const;
 
-        // Retrieves the type of object that an object reference points to.
-        H5G_obj_t p_get_obj_type(void *ref, H5R_type_t ref_type) const;
+	// Retrieves the type of object that an object reference points to.
+	H5G_obj_t p_get_obj_type(void *ref, H5R_type_t ref_type) const;
 
-        // Retrieves a dataspace with the region pointed to selected.
-        hid_t p_get_region(void *ref, H5R_type_t ref_type) const;
+	// Retrieves a dataspace with the region pointed to selected.
+	hid_t p_get_region(void *ref, H5R_type_t ref_type) const;
+
+	// Verifies that the given id is valid.
+	bool p_valid_id(hid_t obj_id) const;
+
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 }; // end class IdComponent

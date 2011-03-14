@@ -17,7 +17,7 @@
  *              Tuesday, January  6, 2004
  *
  * Purpose:	Provides support functions for the testing framework.
- *		
+ *
  */
 
 #include "testhdf5.h"
@@ -25,7 +25,7 @@
 /*
  * Definitions for the testing structure.
  */
-#define MAXNUMOFTESTS   30
+#define MAXNUMOFTESTS   40
 #define MAXTESTNAME     16
 #define MAXTESTDESC     64
 
@@ -66,7 +66,7 @@ static int (*TestPrivateParser)(int ac, char *av[]) = NULL;
  * Parameters--pointer to extra parameters. Use NULL if none used.
  *    Since only the pointer is copied, the contents should not change.
  */
-void 
+void
 AddTest(const char *TheName, void (*TheCall) (void), void (*Cleanup) (void), const char *TheDescr, const void *Parameters)
 {
     /* Sanity checking */
@@ -133,7 +133,7 @@ void TestInit(const char *ProgName, void (*private_usage)(void), int (*private_p
      * half the functions this test calls are private, so automatic error
      * reporting wouldn't do much good since it's triggered at the API layer.
      */
-    H5Eset_auto (NULL, NULL);
+    H5Eset_auto(NULL, NULL);
 
     /*
      * Record the program name and private routines if provided.
@@ -298,7 +298,9 @@ void PerformTests(void)
             MESSAGE(5, ("===============================================\n"));
             Test[Loop].NumErrors = num_errs;
 	    Test_parameters = Test[Loop].Parameters;
+	    ALARM_ON;
             Test[Loop].Call();
+	    ALARM_OFF;
             Test[Loop].NumErrors = num_errs - Test[Loop].NumErrors;
             MESSAGE(5, ("===============================================\n"));
             MESSAGE(5, ("There were %d errors detected.\n\n", (int)Test[Loop].NumErrors));
@@ -417,6 +419,15 @@ int GetTestNumErrs(void)
 
 
 /*
+ * Increment the number of testing errors
+ */
+void IncTestNumErrs(void)
+{
+    num_errs++;
+}
+
+
+/*
  * Retrieve the current Test Parameters pointer.
  */
 const void *GetTestParameters(void)
@@ -429,7 +440,7 @@ const void *GetTestParameters(void)
  * This routine is designed to provide equivalent functionality to 'printf'
  * and also increment the error count for the testing framework.
  */
-int 
+int
 TestErrPrintf(const char *format, ...)
 {
     va_list arglist;
@@ -448,7 +459,7 @@ TestErrPrintf(const char *format, ...)
 }
 
 
-/* 
+/*
  * Set (control) which test will be tested.
  * SKIPTEST: skip this test
  * ONLYTEST: do only this test

@@ -1,17 +1,17 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Class DataSet inherits from AbstractDs and provides accesses to a dataset.
 
@@ -29,7 +29,7 @@ class H5_DLLCPP DataSet : public AbstractDs {
 
 	// Fills a selection in memory with a value
 	void fillMemBuf(const void *fill, DataType& fill_type, void *buf, DataType& buf_type, DataSpace& space);
-	// Fills a selection in memory with zero 
+	// Fills a selection in memory with zero
 	void fillMemBuf(void *buf, DataType& buf_type, DataSpace& space);
 
 	// Gets the creation property list of this dataset.
@@ -37,15 +37,15 @@ class H5_DLLCPP DataSet : public AbstractDs {
 
 	// Returns the address of this dataset in the file.
 	haddr_t getOffset() const;
-	
+
 	// Gets the dataspace of this dataset.
 	virtual DataSpace getSpace() const;
 
 	// Determines whether space has been allocated for a dataset.
 	void getSpaceStatus(H5D_space_status_t& status) const;
 
-	// Gets the storage size of this dataset.
-	hsize_t getStorageSize() const;
+	// Returns the amount of storage size required for this dataset.
+	virtual hsize_t getStorageSize() const;
 
 	// not yet implemented??
 	hsize_t getVlenBufSize( DataType& type, DataSpace& space ) const;
@@ -78,14 +78,16 @@ class H5_DLLCPP DataSet : public AbstractDs {
 
 	// Creates a reference to a named Hdf5 object in this object.
 	void* Reference(const char* name) const;
+	void* Reference(const string& name) const;
+
+	// Returns this class name
+	virtual string fromClass () const { return("DataSet"); }
 
 	// Creates a copy of an existing DataSet using its id.
 	DataSet(const hid_t existing_id);
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-	// Used by the API to appropriately close a dataset.
-	virtual void p_close() const;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
+	// Close this dataset.
+	virtual void close();
 
 	// Default constructor.
 	DataSet();
@@ -98,7 +100,7 @@ class H5_DLLCPP DataSet : public AbstractDs {
 
    private:
         // This function contains the common code that is used by
-        // getTypeClass and various API functions getXxxType 
+        // getTypeClass and various API functions getXxxType
         // defined in AbstractDs for generic datatype and specific
         // sub-types
 	virtual hid_t p_get_type() const;

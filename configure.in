@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 16022 2008-11-03 22:26:37Z epourmal $)
+AC_REVISION($Id: configure.in 16900 2009-04-30 22:04:36Z acheng $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -25,7 +25,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.6.8], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.6.9], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -1828,7 +1828,6 @@ if test -n "$PARALLEL"; then
     X-yes)
       AC_CHECK_HEADERS([mpe.h],, [unset MPE])
       AC_CHECK_LIB([mpe], [MPE_Init_log],, [unset MPE])
-      AC_CHECK_LIB([lmpe], [CLOG_Init],, [unset MPE])
       ;;
     *)
       case "$withval" in
@@ -1866,11 +1865,8 @@ if test -n "$PARALLEL"; then
         LDFLAGS="$LDFLAGS -L$mpe_lib"
         AC_CHECK_LIB([mpe], [MPE_Init_log],,
                      [LDFLAGS="$saved_LDFLAGS"; unset MPE])
-        AC_CHECK_LIB([lmpe], [CLOG_Init],,
-                     [LDFLAGS="$saved_LDFLAGS"; unset MPE])
       else
         AC_CHECK_LIB([mpe], [MPE_Init_log],, [unset MPE])
-        AC_CHECK_LIB([lmpe], [CLOG_Init],, [unset MPE])
       fi
       ;;
   esac
@@ -2054,6 +2050,15 @@ if test "X$ac_cv_c_bigendian" = "Xyes"; then
 else
   BYTESEX="little-endian"
 fi
+
+if test "X$ac_cv_c_bigendian" = "Xyes"; then
+  WORDS_BIGENDIAN="yes"
+else
+  WORDS_BIGENDIAN="no"
+fi
+AC_SUBST([WORDS_BIGENDIAN])
+
+
 
 dnl Are we compiling static libraries, shared libraries, or both?  This
 dnl is only used for the libhdf5.settings file. We can't just look at
@@ -2300,6 +2305,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/Makefile
                  tools/h5dump/Makefile
                  tools/h5dump/testh5dump.sh
+                 tools/h5ls/testh5ls.sh
                  tools/h5import/Makefile
                  tools/h5diff/Makefile
                  tools/h5jam/Makefile

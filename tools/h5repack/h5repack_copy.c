@@ -433,17 +433,44 @@ int do_copy_objects(hid_t fidin,
     unsigned u;
     int      j;
     
-   /*-------------------------------------------------------------------------
-    * copy the suppplied object list
-    *-------------------------------------------------------------------------
-    */
-    
+ 
     if (options->verbose) 
     {
         printf("-----------------------------------------\n");
         printf(" Type     Filter (Compression)     Name\n");
         printf("-----------------------------------------\n");
     }
+
+    /*-------------------------------------------------------------------------
+    * the root is a special case, we get an ID for the root group
+    * and copy its attributes using that ID
+    *-------------------------------------------------------------------------
+    */
+
+    if (options->verbose)
+        printf(FORMAT_OBJ,"group","/" );
+    
+    if ((grp_out = H5Gopen(fidout,"/"))<0)
+        goto error;
+    
+    if ((grp_in  = H5Gopen(fidin,"/"))<0)
+        goto error;
+    
+    if (copy_attr(grp_in,grp_out,options)<0)
+        goto error;
+    
+    if (H5Gclose(grp_out)<0)
+        goto error;
+    if (H5Gclose(grp_in)<0)
+    {
+        goto error;
+    }
+    
+    /*-------------------------------------------------------------------------
+    * copy the suppplied object list
+    *-------------------------------------------------------------------------
+    */
+    
     
     for ( i = 0; i < travt->nobjs; i++)
     {
@@ -574,8 +601,15 @@ int do_copy_objects(hid_t fidin,
                     /* apply the filter */
                     if (apply_s)
                     {
-                        if (apply_filters(travt->objs[i].name,rank,dims,dcpl_out,options,&has_filter)<0)
-                            goto error;
+                       
+                        if (apply_filters(travt->objs[i].name,
+                                    rank,
+                                    dims,
+                                    msize,
+                                    dcpl_out,
+                                    options,
+                                    &has_filter) < 0)
+                                    goto error;
                     }
                     
                    /*-------------------------------------------------------------------------
@@ -647,7 +681,10 @@ int do_copy_objects(hid_t fidin,
                             
                             for (k = rank; k > 0; --k) 
                             {
-                                sm_size[k - 1] = MIN(dims[k - 1], H5TOOLS_BUFSIZE / sm_nbytes);
+                                hsize_t size = H5TOOLS_BUFSIZE / sm_nbytes;
+                                if ( size == 0) /* datum size > H5TOOLS_BUFSIZE */
+                                    size = 1;
+                                sm_size[k - 1] = MIN(dims[k - 1], size);
                                 sm_nbytes *= sm_size[k - 1];
                                 assert(sm_nbytes > 0);
                             }
@@ -868,25 +905,7 @@ int do_copy_objects(hid_t fidin,
    
     } /* i */
  
-     /*-------------------------------------------------------------------------
-      * the root is a special case, we get an ID for the root group
-      * and copy its attributes using that ID
-      *-------------------------------------------------------------------------
-      */
-      
-      if ((grp_out = H5Gopen(fidout,"/"))<0)
-          goto error;
-      
-      if ((grp_in  = H5Gopen(fidin,"/"))<0)
-          goto error;
-      
-      if (copy_attr(grp_in,grp_out,options)<0)
-          goto error;
-      
-      if (H5Gclose(grp_out)<0)
-          goto error;
-      if (H5Gclose(grp_in)<0)
-          goto error;
+     
       
       return 0;
    

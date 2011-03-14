@@ -50,6 +50,7 @@ const int   SPACE1_RANK = 1;
 
 int main()
 {
+#ifdef SKIP_UNTIL_APRIL_2009
     const char *wdata[SPACE1_DIM1]= {
         "Four score and seven years ago our forefathers brought forth on this continent a new nation,",
         "conceived in liberty and dedicated to the proposition that all men are created equal.",
@@ -114,9 +115,7 @@ int main()
       cout << endl;
 
       /* Free memory for rdata */
-      for(i=0; i<SPACE1_DIM1; i++) {
-          free(rdata[i]);
-      }
+      dataset.vlenReclaim(rdata, dtype, sid1);
    } // end of try block
 
    // catch failure caused by the H5File operations
@@ -146,5 +145,6 @@ int main()
       error.printError();
       return -1;
    }
+#endif
    return 0;  // successfully terminated
 }

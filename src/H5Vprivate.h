@@ -53,9 +53,7 @@ H5_DLL hsize_t H5V_hyper_stride(unsigned n, const hsize_t *size,
 				 const hsize_t *offset,
 				 hsize_t *stride);
 H5_DLL htri_t H5V_hyper_disjointp(unsigned n, const hsize_t *offset1,
-				   const size_t *size1,
-				   const hsize_t *offset2,
-				   const size_t *size2);
+    const uint32_t *size1, const hsize_t *offset2, const uint32_t *size2);
 H5_DLL htri_t H5V_hyper_eq(unsigned n, const hsize_t *offset1,
 			    const hsize_t *size1, const hsize_t *offset2,
 			    const hsize_t *size2);
@@ -88,7 +86,7 @@ H5_DLL hsize_t H5V_array_offset(unsigned n, const hsize_t *total_size,
 H5_DLL herr_t H5V_array_calc(hsize_t offset, unsigned n,
     const hsize_t *total_size, hsize_t *coords);
 H5_DLL herr_t H5V_chunk_index(unsigned ndims, const hsize_t *coord,
-    const size_t *chunk, const hsize_t *down_nchunks, hsize_t *chunk_idx);
+    const uint32_t *chunk, const hsize_t *down_nchunks, hsize_t *chunk_idx);
 H5_DLL ssize_t H5V_memcpyvv(void *_dst,
     size_t dst_max_nseq, size_t *dst_curr_seq, size_t dst_len_arr[], hsize_t dst_off_arr[],
     const void *_src,
@@ -409,6 +407,26 @@ H5V_log2_of2(uint32_t n)
 #endif /* NDEBUG */
     return(MultiplyDeBruijnBitPosition[(n * (uint32_t)0x077CB531UL) >> 27]);
 } /* H5V_log2_of2() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5V_limit_enc_size
+ *
+ * Purpose:     Determine the # of bytes needed to encode values within a
+ *              range from 0 to a given limit
+ *
+ * Return:      Number of bytes needed
+ *
+ * Programmer:  Quincey Koziol
+ *              Thursday, March 13, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+static H5_inline unsigned UNUSED
+H5V_limit_enc_size(uint64_t limit)
+{
+    return (H5V_log2_gen(limit) / 8) + 1;
+} /* end H5V_limit_enc_size() */
 
 #endif /* H5Vprivate_H */
 

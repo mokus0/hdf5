@@ -190,6 +190,11 @@
 ./fortran/src/H5Gff.f90
 ./fortran/src/H5If.c
 ./fortran/src/H5Iff.f90
+./fortran/test/tH5O.f90
+./fortran/src/H5Lf.c
+./fortran/src/H5Lff.f90
+./fortran/src/H5Off.f90
+./fortran/src/H5Of.c
 ./fortran/src/H5Pf.c
 ./fortran/src/H5Pff.f90
 ./fortran/src/H5Rf.c
@@ -213,6 +218,7 @@
 ./fortran/src/Makefile.am
 ./fortran/src/Makefile.in
 ./fortran/src/README
+./fortran/src/README_DEVELOPEMENT       _DO_NOT_DISTRIBUTE_
 ./fortran/src/h5fc.in
 ./fortran/src/libhdf5_fortran.settings.in
 
@@ -221,14 +227,17 @@
 ./fortran/test/fflush1.f90
 ./fortran/test/fflush2.f90
 ./fortran/test/fortranlib_test.f90
+./fortran/test/fortranlib_test_1_8.f90
 ./fortran/test/t.c
 ./fortran/test/t.h
 ./fortran/test/tf.f90
 ./fortran/test/tH5A.f90
+./fortran/test/tH5A_1_8.f90
 ./fortran/test/tH5D.f90
 ./fortran/test/tH5E.f90
 ./fortran/test/tH5F.f90
 ./fortran/test/tH5G.f90
+./fortran/test/tH5G_1_8.f90
 ./fortran/test/tH5I.f90
 ./fortran/test/tH5P.f90
 ./fortran/test/tH5R.f90
@@ -267,7 +276,6 @@
 ./c++/examples/extend_ds.cpp
 ./c++/examples/h5group.cpp
 ./c++/examples/readdata.cpp
-./c++/examples/testexamples.sh
 ./c++/examples/testh5c++.sh.in
 ./c++/examples/writedata.cpp
 ./c++/examples/Makefile.am
@@ -381,10 +389,18 @@
 ./perform/pio_standalone.h
 ./perform/pio_timer.c
 ./perform/pio_timer.h
+./perform/sio_engine.c
+./perform/sio_perf.c
+./perform/sio_perf.h
+./perform/sio_standalone.c
+./perform/sio_standalone.h
+./perform/sio_timer.c
+./perform/sio_timer.h
 ./perform/zip_perf.c
 
 ./release_docs/COPYING
 ./release_docs/HISTORY-1_0-1_8_0_rc3.txt
+./release_docs/HISTORY-1_8.txt
 ./release_docs/INSTALL
 ./release_docs/INSTALL_Cygwin.txt
 ./release_docs/INSTALL_MinGW.txt
@@ -449,6 +465,7 @@
 ./src/H5CS.c
 ./src/H5CSprivate.h
 ./src/H5D.c
+./src/H5Dchunk.c
 ./src/H5Dcompact.c
 ./src/H5Dcontig.c
 ./src/H5Ddbg.c
@@ -463,6 +480,7 @@
 ./src/H5Dpkg.h
 ./src/H5Dprivate.h
 ./src/H5Dpublic.h
+./src/H5Dscatgath.c
 ./src/H5Dselect.c
 ./src/H5Dtest.c
 ./src/H5E.c
@@ -1228,6 +1246,8 @@
 ./tools/testfiles/torderattr3.ddl
 ./tools/testfiles/torderattr4.ddl
 ./tools/testfiles/torderattr.h5
+./tools/testfiles/tfpformat.ddl
+./tools/testfiles/tfpformat.h5
 
 
 
@@ -1763,6 +1783,8 @@
 ./windows/fortran/test/libtest_fortran/libtest_fortran.vfproj
 ./windows/fortran/test/libtest_fortrandll/libtest_fortrandll.vfproj
 ./windows/fortran/test/testhdf5_fortran/testhdf5_fortran.vfproj
+./windows/fortran/test/testhdf5_fortran_1_8/testhdf5_fortran_1_8.vfproj
+./windows/fortran/test/testhdf5_fortran_1_8dll/testhdf5_fortran_1_8dll.vfproj
 ./windows/fortran/test/testhdf5_fortrandll/testhdf5_fortrandll.vfproj
 
 # High-Leve C++ Tests
@@ -1774,16 +1796,46 @@
 ./windows/hl/examples/test_hl_cexamples.BAT
 ./windows/hl/examples/allhlcexamples/allhlcexamples.sln
 ./windows/hl/examples/allhlcexamples/allhlcexamples.vcproj
-./windows/hl/examples/ex_ds/ex_ds.vcproj
-./windows/hl/examples/ex_dsdll/ex_dsdll.vcproj
-./windows/hl/examples/ex_images/ex_images.vcproj
-./windows/hl/examples/ex_imagesdll/ex_imagesdll.vcproj
-./windows/hl/examples/ex_lite/ex_lite.vcproj
-./windows/hl/examples/ex_litedll/ex_litedll.vcproj
-./windows/hl/examples/ex_packet/ex_packet.vcproj
-./windows/hl/examples/ex_packetdll/ex_packetdll.vcproj
-./windows/hl/examples/ex_table/ex_table.vcproj
-./windows/hl/examples/ex_tabledll/ex_tabledll.vcproj
+./windows/hl/examples/ex_ds1/ex_ds1.vcproj
+./windows/hl/examples/ex_ds1dll/ex_ds1dll.vcproj
+./windows/hl/examples/ex_image1/ex_image1.vcproj
+./windows/hl/examples/ex_image1dll/ex_image1dll.vcproj
+./windows/hl/examples/ex_image2/ex_image2.vcproj
+./windows/hl/examples/ex_image2dll/ex_image2dll.vcproj
+./windows/hl/examples/ex_lite1/ex_lite1.vcproj
+./windows/hl/examples/ex_lite1dll/ex_lite1dll.vcproj
+./windows/hl/examples/ex_lite2/ex_lite2.vcproj
+./windows/hl/examples/ex_lite2dll/ex_lite2dll.vcproj
+./windows/hl/examples/ex_lite3/ex_lite3.vcproj
+./windows/hl/examples/ex_lite3dll/ex_lite3dll.vcproj
+./windows/hl/examples/ex_table01/ex_table01.vcproj
+./windows/hl/examples/ex_table01dll/ex_table01dll.vcproj
+./windows/hl/examples/ex_table02/ex_table02.vcproj
+./windows/hl/examples/ex_table02dll/ex_table02dll.vcproj
+./windows/hl/examples/ex_table03/ex_table03.vcproj
+./windows/hl/examples/ex_table03dll/ex_table03dll.vcproj
+./windows/hl/examples/ex_table04/ex_table04.vcproj
+./windows/hl/examples/ex_table04dll/ex_table04dll.vcproj
+./windows/hl/examples/ex_table05/ex_table05.vcproj
+./windows/hl/examples/ex_table05dll/ex_table05dll.vcproj
+./windows/hl/examples/ex_table06/ex_table06.vcproj
+./windows/hl/examples/ex_table06dll/ex_table06dll.vcproj
+./windows/hl/examples/ex_table07/ex_table07.vcproj
+./windows/hl/examples/ex_table07dll/ex_table07dll.vcproj
+./windows/hl/examples/ex_table08/ex_table08.vcproj
+./windows/hl/examples/ex_table08dll/ex_table08dll.vcproj
+./windows/hl/examples/ex_table09/ex_table09.vcproj
+./windows/hl/examples/ex_table09dll/ex_table09dll.vcproj
+./windows/hl/examples/ex_table10/ex_table10.vcproj
+./windows/hl/examples/ex_table10dll/ex_table10dll.vcproj
+./windows/hl/examples/ex_table11/ex_table11.vcproj
+./windows/hl/examples/ex_table11dll/ex_table11dll.vcproj
+./windows/hl/examples/ex_table12/ex_table12.vcproj
+./windows/hl/examples/ex_table12dll/ex_table12dll.vcproj
+./windows/hl/examples/ptExampleFL/ptExampleFL.vcproj
+./windows/hl/examples/ptExampleFLdll/ptExampleFLdll.vcproj
+./windows/hl/examples/ptExampleVL/ptExampleVL.vcproj
+./windows/hl/examples/ptExampleVLdll/ptExampleVLdll.vcproj
 
 # High-Level Fortran Examples
 ./windows/hl/fortran/examples/test_hl_f90examples.BAT
@@ -1930,7 +1982,6 @@
 ./windows/test/objcopydll/objcopydll.vcproj
 ./windows/test/ohdr/ohdr.vcproj
 ./windows/test/ohdrdll/ohdrdll.vcproj
-./windows/test/ohdr_gentst/ohdr_gentst.vcproj
 ./windows/test/overhead/overhead.vcproj
 ./windows/test/overheaddll/overheaddll.vcproj
 ./windows/test/pool/pool.vcproj
@@ -2045,16 +2096,46 @@
 ./windows_vnet/hl/c++/test/hl_test_table_cppdll/hl_test_table_cppdll.vcproj
 ./windows_vnet/hl/examples/allhlcexamples/allhlcexamples.vcproj
 ./windows_vnet/hl/examples/allhlcexamples/allhlcexamples.sln
-./windows_vnet/hl/examples/ex_ds/ex_ds.vcproj
-./windows_vnet/hl/examples/ex_dsdll/ex_dsdll.vcproj
-./windows_vnet/hl/examples/ex_images/ex_images.vcproj
-./windows_vnet/hl/examples/ex_imagesdll/ex_imagesdll.vcproj
-./windows_vnet/hl/examples/ex_lite/ex_lite.vcproj
-./windows_vnet/hl/examples/ex_litedll/ex_litedll.vcproj
-./windows_vnet/hl/examples/ex_packet/ex_packet.vcproj
-./windows_vnet/hl/examples/ex_packetdll/ex_packetdll.vcproj
-./windows_vnet/hl/examples/ex_table/ex_table.vcproj
-./windows_vnet/hl/examples/ex_tabledll/ex_tabledll.vcproj
+./windows_vnet/hl/examples/ex_ds1/ex_ds1.vcproj
+./windows_vnet/hl/examples/ex_ds1dll/ex_ds1dll.vcproj
+./windows_vnet/hl/examples/ex_image1/ex_image1.vcproj
+./windows_vnet/hl/examples/ex_image1dll/ex_image1dll.vcproj
+./windows_vnet/hl/examples/ex_image2/ex_image2.vcproj
+./windows_vnet/hl/examples/ex_image2dll/ex_image2dll.vcproj
+./windows_vnet/hl/examples/ex_lite1/ex_lite1.vcproj
+./windows_vnet/hl/examples/ex_lite1dll/ex_lite1dll.vcproj
+./windows_vnet/hl/examples/ex_lite2/ex_lite2.vcproj
+./windows_vnet/hl/examples/ex_lite2dll/ex_lite2dll.vcproj
+./windows_vnet/hl/examples/ex_lite3/ex_lite3.vcproj
+./windows_vnet/hl/examples/ex_lite3dll/ex_lite3dll.vcproj
+./windows_vnet/hl/examples/ex_table01/ex_table01.vcproj
+./windows_vnet/hl/examples/ex_table01dll/ex_table01dll.vcproj
+./windows_vnet/hl/examples/ex_table02/ex_table02.vcproj
+./windows_vnet/hl/examples/ex_table02dll/ex_table02dll.vcproj
+./windows_vnet/hl/examples/ex_table03/ex_table03.vcproj
+./windows_vnet/hl/examples/ex_table03dll/ex_table03dll.vcproj
+./windows_vnet/hl/examples/ex_table04/ex_table04.vcproj
+./windows_vnet/hl/examples/ex_table04dll/ex_table04dll.vcproj
+./windows_vnet/hl/examples/ex_table05/ex_table05.vcproj
+./windows_vnet/hl/examples/ex_table05dll/ex_table05dll.vcproj
+./windows_vnet/hl/examples/ex_table06/ex_table06.vcproj
+./windows_vnet/hl/examples/ex_table06dll/ex_table06dll.vcproj
+./windows_vnet/hl/examples/ex_table07/ex_table07.vcproj
+./windows_vnet/hl/examples/ex_table07dll/ex_table07dll.vcproj
+./windows_vnet/hl/examples/ex_table08/ex_table08.vcproj
+./windows_vnet/hl/examples/ex_table08dll/ex_table08dll.vcproj
+./windows_vnet/hl/examples/ex_table09/ex_table09.vcproj
+./windows_vnet/hl/examples/ex_table09dll/ex_table09dll.vcproj
+./windows_vnet/hl/examples/ex_table10/ex_table10.vcproj
+./windows_vnet/hl/examples/ex_table10dll/ex_table10dll.vcproj
+./windows_vnet/hl/examples/ex_table11/ex_table11.vcproj
+./windows_vnet/hl/examples/ex_table11dll/ex_table11dll.vcproj
+./windows_vnet/hl/examples/ex_table12/ex_table12.vcproj
+./windows_vnet/hl/examples/ex_table12dll/ex_table12dll.vcproj
+./windows_vnet/hl/examples/ptExampleFL/ptExampleFL.vcproj
+./windows_vnet/hl/examples/ptExampleFLdll/ptExampleFLdll.vcproj
+./windows_vnet/hl/examples/ptExampleVL/ptExampleVL.vcproj
+./windows_vnet/hl/examples/ptExampleVLdll/ptExampleVLdll.vcproj
 ./windows_vnet/hl/test/hl_test_ds/hl_test_ds.vcproj
 ./windows_vnet/hl/test/hl_test_dsdll/hl_test_dsdll.vcproj
 ./windows_vnet/hl/test/hl_test_image/hl_test_image.vcproj
@@ -2151,7 +2232,6 @@
 ./windows_vnet/test/objcopydll/objcopydll.vcproj
 ./windows_vnet/test/ohdr/ohdr.vcproj
 ./windows_vnet/test/ohdrdll/ohdrdll.vcproj
-./windows_vnet/test/ohdr_gentst/ohdr_gentst.vcproj
 ./windows_vnet/test/overhead/overhead.vcproj
 ./windows_vnet/test/overheaddll/overheaddll.vcproj
 ./windows_vnet/test/pool/pool.vcproj

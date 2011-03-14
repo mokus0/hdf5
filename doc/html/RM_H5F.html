@@ -37,7 +37,7 @@ HDF5/H5F API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -61,7 +61,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -819,7 +819,8 @@ END SUBROUTINE h5fget_name_f
 <dl>
 <dt><strong>Name:</strong> <a name="File-GetObjCount">H5Fget_obj_count</a>
 <dt><strong>Signature:</strong>
-    <dd><em>int </em><code>H5Fget_obj_count</code>(<em>hid_t</em> <code>file_id</code>,
+    <dd><em>ssize_t </em><code>H5Fget_obj_count</code>(
+            <em>hid_t</em> <code>file_id</code>,
 	    <em>unsigned int</em> <code>types</code>
             )
 <dt><strong>Purpose:</strong>
@@ -913,20 +914,25 @@ END SUBROUTINE h5fget_obj_count_f
 <dt><strong>History:</strong>
 	<ul><table width="90%">
         <tr>
-		  <td valign="top" align="left" width="10%">
-		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td valign="top" align="left">
-		    <strong>C</strong></td></tr>
+            <strong>Change</strong></td></tr>
         <tr>
-		  <td valign="top">1.6.5</td>
+          <td valign="top">1.6.5</td>
           <td valign="top">
-		    <code>H5F_OBJ_LOCAL</code> has been added as a qualifier 
-			on the types of objects to be counted. <code>H5F_OBJ_LOCAL</code> 
-			restricts the search to objects opened through current 
-			file identifier.</td></tr>
-    </table></ul>		
-		
-		<!--<dt><strong>Non-C API(s):</strong>
+            <code>H5F_OBJ_LOCAL</code> has been added as a qualifier 
+            on the types of objects to be counted. 
+            <code>H5F_OBJ_LOCAL</code> restricts the search to objects 
+            opened through current file identifier.</td></tr>
+        <tr>
+          <td valign="top">1.6.8</td>
+          <td valign="top">
+              C function return type changed to <code><em>ssize_t</em></code>.
+              </td></tr>
+    </table></ul>
+
+        <!--<dt><strong>Non-C API(s):</strong>
     	<dd>
         
         <img src="Graphics/Java.gif"> 
@@ -940,9 +946,10 @@ END SUBROUTINE h5fget_obj_count_f
 <dl>
 <dt><strong>Name:</strong> <a name="File-GetObjIDs">H5Fget_obj_ids</a>
 <dt><strong>Signature:</strong>
-    <dd><em>int </em><code>H5Fget_obj_ids</code>(<em>hid_t</em> <code>file_id</code>,
+    <dd><em>ssize_t </em><code>H5Fget_obj_ids</code>(
+            <em>hid_t</em> <code>file_id</code>,
             <em>unsigned int</em> <code>types</code>,
-            <em>int</em> <code>max_objs</code>,
+            <em>size_t</em> <code>max_objs</code>,
             <em>hid_t *</em><code>obj_id_list</code>
             )
 <dt><strong>Purpose:</strong>
@@ -973,7 +980,7 @@ END SUBROUTINE h5fget_obj_count_f
 		    <td valign="top"><em>unsigned int</em> <code>types</code></td>
             <td valign="top">IN: Type of object for which identifiers are to be returned.</td></tr> 
         <tr>
-		    <td valign="top"><em>int</em> <code>max_objs</code></td>
+            <td valign="top"><em>size_t</em> <code>max_objs</code></td>
             <td valign="top">IN: Maximum number of object identifiers to place into 
 			<code>obj_id_list</code>.</td></tr>
         <tr>
@@ -1015,14 +1022,21 @@ END SUBROUTINE h5fget_obj_ids_f
 <dt><strong>History:</strong>
     <ul><table width="90%">
         <tr>
-		  <td valign="top" align="left" width="10%">
-		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left" width="10%">
+              <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td valign="top" align="left">
-		    <strong>C</strong></td></tr>
+              <strong>Change</strong></td></tr>
         <tr>
-		  <td valign="top">1.6.0</td>
+          <td valign="top">1.6.0</td>
           <td valign="top">
-		    Function introduced in this release.</td></tr>
+              C function introduced in this release.</td></tr>
+        <tr>
+          <td valign="top">1.6.8</td>
+          <td valign="top">
+              C function return type changed to <code><em>ssize_t</em></code>
+              <br>&nbsp;&nbsp;&nbsp;&nbsp;
+              and <code>max_objs</code> parameter datatype changed to 
+              <code><em>size_t</em></code>.</td></tr>
     </table></ul>
 </dl>
 
@@ -1034,7 +1048,7 @@ END SUBROUTINE h5fget_obj_ids_f
 <dt><strong>Signature:</strong>
     <dd><em>herr_t </em><code>H5Fget_vfd_handle</code>(<em>hid_t</em> <code>file_id</code>,
                 <em>hid_t</em> <code>fapl_id</code>,
-                <em>void *</em><code>file_handle</code>
+                <em>void **</em><code>file_handle</code>
                 )
 <dt><strong>Purpose:</strong>
     <dd>Returns pointer to the file handle from the virtual file driver.
@@ -1066,7 +1080,7 @@ END SUBROUTINE h5fget_obj_ids_f
 		    driver and <code>H5Pset_multi_type</code> for the 
 		    <code>MULTI</code> driver.</td></tr>
         <tr>
-		    <td valign="top"><em>void&nbsp;*</em><code>file_handle&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>void&nbsp;**</em><code>file_handle&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">OUT: Pointer to the file handle being used by 
 	        the low-level virtual file driver.</td></tr>
     </table></ul>
@@ -1124,7 +1138,9 @@ SUBROUTINE
 <dt><strong>Returns:</strong>
     <dd>When successful, returns a positive value, for <code>TRUE</code>,
         or <code>0</code> (zero), for <code>FALSE</code>.
-        Otherwise returns a negative value.
+        <br>
+        On any error, including the case that the file does not exist, 
+        returns a negative value.
 <dt><strong>Fortran90 Interface:</strong> h5fis_hdf5_f
     <dd>
 	<pre>
@@ -1464,7 +1480,7 @@ END SUBROUTINE h5funmount_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -1488,7 +1504,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -1501,13 +1517,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <address>
 THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.7, January 2008 
+Describes HDF5 Release 1.6.8, November 2008 
 </address>
 
 
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 11 October 2006");
+document.writeln("Last modified: 16 October 2008");
 -->
 </SCRIPT>
  

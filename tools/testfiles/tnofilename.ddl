@@ -5,10 +5,9 @@ usage: h5dump [OPTIONS] file
   OPTIONS
      -h, --help           Print a usage message and exit
      -n, --contents       Print a list of the file contents and exit
-     -B, --bootblock      Print the content of the boot block
+     -B, --superblock     Print the content of the super block
      -H, --header         Print the header only; no data is displayed
-     -A, --onlyattr       Print the header and value of attributes; data 
-                          of datasets is not displayed
+     -A, --onlyattr       Print the header and value of attributes
      -i, --object-ids     Print the object ids
      -r, --string         Print 1-byte integer datasets as ASCII
      -e, --escape         Escape non printing characters
@@ -21,12 +20,10 @@ usage: h5dump [OPTIONS] file
      -g P, --group=P      Print the specified group and all members
      -l P, --soft-link=P  Print the value(s) of the specified soft link
      -o F, --output=F     Output raw data into file F
-     -b B, --binary=B     Binary file output, of form B. Recommended usage is
-                          with -o (output file) and -d (dataset). B can be:
-                          MEMORY for a memory type, FILE for the file type,
-                          LE or BE for pre-existing little or big endian types
+     -b B, --binary=B     Binary file output, of form B
      -t P, --datatype=P   Print the specified named data type
      -w N, --width=N      Set the number of columns of output
+     -m T, --format=T     Set the floating point output format
      -x, --xml            Output in XML using Schema
      -u, --use-dtd        Output in XML using DTD
      -D U, --xml-dtd=U    Use the DTD or schema at U
@@ -54,10 +51,15 @@ usage: h5dump [OPTIONS] file
   F - is a filename.
   P - is the full path from the root group to the object.
   N - is an integer greater than 1.
+  T - is a string containing the floating point format, e.g '%.3f'
   L - is a list of integers the number of which are equal to the
         number of dimensions in the dataspace being queried
   U - is a URI reference (as defined in [IETF RFC 2396],
         updated by [IETF RFC 2732])
+  B - is the form of binary output: MEMORY for a memory type, FILE for the
+        file type, LE or BE for pre-existing little or big endian types.
+        Must be used with -o (output file) and it is recommended that
+        -d (dataset) is used
 
   Examples:
 

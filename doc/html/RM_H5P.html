@@ -37,7 +37,7 @@ HDF5/H5P API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -61,7 +61,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -97,7 +97,6 @@ which require many different parameters to be easily manipulated.
   <i>Generic Properties</i> 
   <ul>
     <li><a href="#Property-CreateClass">H5Pcreate_class</a> 
-    <li><a href="#Property-CreateList">H5Pcreate_list</a> 
     <li><a href="#Property-Register">H5Pregister</a> 
     <li><a href="#Property-Insert">H5Pinsert</a> 
     <li><a href="#Property-Set">H5Pset</a> 
@@ -159,10 +158,6 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-GetCache">H5Pget_cache</a>
     <li><a href="#Property-SetGCReferences">H5Pset_gc_references</a>
     <li><a href="#Property-GetGCReferences">H5Pget_gc_references</a>
-    <li><a href="#Property-SetFaplGass">H5Pset_fapl_gass</a>
-    <li><a href="#Property-GetFaplGass">H5Pget_fapl_gass</a>
-    <li><a href="#Property-SetFaplSrb">H5Pset_fapl_srb</a>
-    <li><a href="#Property-GetFaplSrb">H5Pget_fapl_srb</a>
     <li><a href="#Property-SetSmallData">H5Pset_small_data_block_size</a>
     <li><a href="#Property-GetSmallData">H5Pget_small_data_block_size</a>
 <!-- FOR USE WITH PRINT VERSION ---------------------------------------->
@@ -297,7 +292,6 @@ which require many different parameters to be easily manipulated.
     <p><i>Generic Properties</i> 
     <ul>
     <li><a href="#Property-CreateClass">H5Pcreate_class</a> 
-    <li><a href="#Property-CreateList">H5Pcreate_list</a> 
     <li><a href="#Property-Register">H5Pregister</a> 
     <li><a href="#Property-Insert">H5Pinsert</a> 
     <li><a href="#Property-Set">H5Pset</a> 
@@ -389,10 +383,6 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-GetCache">H5Pget_cache</a>
     <li><a href="#Property-SetGCReferences">H5Pset_gc_references</a>
     <li><a href="#Property-GetGCReferences">H5Pget_gc_references</a>
-    <li><a href="#Property-SetFaplGass">H5Pset_fapl_gass</a>
-    <li><a href="#Property-GetFaplGass">H5Pget_fapl_gass</a>
-    <li><a href="#Property-SetFaplSrb">H5Pset_fapl_srb</a>
-    <li><a href="#Property-GetFaplSrb">H5Pget_fapl_srb</a>
     <li><a href="#Property-SetSmallData">H5Pset_small_data_block_size</a>
     <li><a href="#Property-GetSmallData">H5Pget_small_data_block_size</a>
 <!-- FOR USE WITH ELECTRONIC VERSION ----------------------------------->
@@ -498,7 +488,6 @@ See further notes in the description of each function.
       <li><a href="#Property-CopyProp">H5Pcopy_prop</a>
       <li><a href="#Property-Create">H5Pcreate</a>
       <li><a href="#Property-CreateClass">H5Pcreate_class</a>
-      <li><a href="#Property-CreateList">H5Pcreate_list</a>
       <li><a href="#Property-Equal">H5Pequal</a>
       <li><a href="#Property-Exist">H5Pexist</a>
       <li><a href="#Property-FillValueDefined">H5Pfill_value_defined</a>
@@ -522,11 +511,9 @@ See further notes in the description of each function.
       <li><a href="#Property-GetFamilyOffset">H5Pget_family_offset</a>
       <li><a href="#Property-GetFaplCore">H5Pget_fapl_core</a>
       <li><a href="#Property-GetFaplFamily">H5Pget_fapl_family</a>
-      <li><a href="#Property-GetFaplGass">H5Pget_fapl_gass</a>
       <li><a href="#Property-GetFaplMpio">H5Pget_fapl_mpio</a>&nbsp;&nbsp;&nbsp;||
       <li><a href="#Property-GetFaplMpiPosix">H5Pget_fapl_mpiposix</a>&nbsp;&nbsp;&nbsp;||
       <li><a href="#Property-GetFaplMulti">H5Pget_fapl_multi</a>
-      <li><a href="#Property-GetFaplSrb">H5Pget_fapl_srb</a>
 <!--  <li><a href="#Property-GetFaplStream">H5Pget_fapl_stream</a>       -->
       <li><a href="#Property-GetFcloseDegree">H5Pget_fclose_degree</a>
       <li><a href="#Property-GetFillTime">H5Pget_fill_time</a>
@@ -588,14 +575,12 @@ See further notes in the description of each function.
       <li><a href="#Property-SetFamilyOffset">H5Pset_family_offset</a>
       <li><a href="#Property-SetFaplCore">H5Pset_fapl_core</a>
       <li><a href="#Property-SetFaplFamily">H5Pset_fapl_family</a>
-      <li><a href="#Property-SetFaplGass">H5Pset_fapl_gass</a>
       <li><a href="#Property-SetFaplLog">H5Pset_fapl_log</a>
       <li><a href="#Property-SetFaplMpio">H5Pset_fapl_mpio</a>&nbsp;&nbsp;&nbsp;||
       <li><a href="#Property-SetFaplMpiPosix">H5Pset_fapl_mpiposix</a>&nbsp;&nbsp;&nbsp;||
       <li><a href="#Property-SetFaplMulti">H5Pset_fapl_multi</a>
       <li><a href="#Property-SetFaplSec2">H5Pset_fapl_sec2</a>
       <li><a href="#Property-SetFaplSplit">H5Pset_fapl_split</a>
-      <li><a href="#Property-SetFaplSrb">H5Pset_fapl_srb</a>
       <li><a href="#Property-SetFaplStdio">H5Pset_fapl_stdio</a>
 <!--  <li><a href="#Property-SetFaplStream">H5Pset_fapl_stream</a>       -->
       <li><a href="#Property-SetFcloseDegree">H5Pset_fclose_degree</a>
@@ -652,7 +637,6 @@ as the corresponding C function.
     <p><i>Generic Properties</i> 
     <ul>
     <li><a href="#Property-CreateClass">h5pcreate_class_f</a>
-<!--<li><a href="#Property-CreateList">H5Pcreate_list</a>           -->
     <li><a href="#Property-Register">h5pregister_f</a>
     <li><a href="#Property-Insert">h5pinsert_f</a>
     <li><a href="#Property-Set">h5pset_f</a>
@@ -1326,54 +1310,6 @@ END SUBROUTINE h5pcreate_class_f
         -->
 </dl>
 
-<!-- NEW PAGE -->
-<!-- HEADER RIGHT "H5Pcreate_list" -->
-<hr>
-<dl>
-  <dt><strong>Name:</strong> <a name="Property-CreateList">H5Pcreate_list</a>
-  
-  <dt><strong>Signature:</strong>
-    <dd><em>hid_t</em> <code>H5Pcreate_list</code>(
-                 <em>hid_t</em> <code>class</code>)
-
-  <dt><strong>Purpose:</strong>
-    <dd>Creates a new property list class of a given class.
-
-  <dt><strong>Description:</strong>
-    <dd><code>H5Pcreate_list</code> creates a new property list of a  
-	given class.  If a <code>create</code> callback exists for the 
-    property list class, it is called before the property list 
-    is passed back to the user.  
-	If <code>create</code> callbacks exist for any individual properties 
-    in the property list, they are called before the class 
-    <code>create</code> callback.
-	
-  <dt><strong>Parameter:</strong>
-    <ul><table>
-    <tr>
-        <td><em>hid_t</em>&nbsp;<code>class;&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-        <td>IN: Class of property list to create.</td></tr>
-    </table></ul>
-
-  <dt><strong>Returns:</strong>
-    <dd>Success: a valid property list identifier
-    <dd>Failure: a negative value
-
-  <dt><strong>Fortran90 Interface:</strong>
-    <dd>None.
-<!--
-	<pre>
-SUBROUTINE
-	</pre>		
--->
-
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
-        <img src="Graphics/Java.gif"> 
-        <img src="Graphics/C++.gif">
-        -->
-</dl>
 
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Premove_filter" -->
@@ -2062,7 +1998,7 @@ END SUBROUTINE h5pget_buffer_f
   <dt><strong>Signature:</strong>
     <dd><em>herr_t</em> <code>H5Pget_cache</code>(<em>hid_t</em> <code>plist_id</code>,
         <em>int</em> <code>*mdc_nelmts</code>,
-        <em>int</em> <code>*rdcc_nelmts</code>,
+        <em>size_t</em> <code>*rdcc_nelmts</code>,
         <em>size_t</em> <code>*rdcc_nbytes</code>,
         <em>double</em> <code>*rdcc_w0</code>
     )
@@ -2085,7 +2021,7 @@ END SUBROUTINE h5pget_buffer_f
 		    <td valign="top"><em>int</em> <code>*mdc_nelmts</code></td>
             <td valign="top">IN/OUT: Number of elements (objects) in the meta data cache.</td></tr>
         <tr>
-		    <td valign="top"><em>int</em> <code>*rdcc_nelmts</code></td>
+		    <td valign="top"><em>size_t</em> <code>*rdcc_nelmts</code></td>
             <td valign="top">IN/OUT: Number of elements (objects) in the raw data chunk cache.</td></tr>
         <tr>
 		    <td valign="top"><em>size_t</em>&nbsp;<code>*rdcc_nbytes&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
@@ -2132,7 +2068,8 @@ END SUBROUTINE h5pget_cache_f
         <tr>
           <td valign="top">1.6.0</td>
           <td valign="top">
-            The <code>rdcc_nbytes</code> parameter changed from 
+            The <code>rdcc_nbytes</code> and <code>rdcc_nelmts</code> 
+            parameters changed from 
             type <em>int</em> to <em>size_t</em>.</td></tr>
     </table></ul>
 </dl>
@@ -2376,7 +2313,6 @@ END SUBROUTINE h5pget_class_parent_f
         <pre>
            H5FD_CORE
            H5FD_FAMILY
-           H5FD_GASS
            H5FD_LOG
            H5FD_MPIO
            H5FD_MULTI
@@ -3017,59 +2953,6 @@ END SUBROUTINE h5pget_fapl_family_f
     </table></ul>
 </dl>
 
-<!-- NEW PAGE -->
-<!-- HEADER RIGHT "H5Pget_fapl_gass" -->
-<hr>
-<dl>
-  <dt><strong>Name:</strong> <a name="Property-GetFaplGass">H5Pget_fapl_gass</a>
-  <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Pget_fapl_gass</code>(
-                     <em>hid_t</em> <code>fapl_id</code>,
-                     <em>GASS_Info *</em><code>info</code>
-    )
-  <dt><strong>Purpose:</strong>
-    <dd>Retrieves GASS information.
-  <dt><strong>Description:</strong>
-    <dd>If the file access property list <code>fapl_id</code> is set 
-        for use of the <code>H5FD_GASS</code> driver, 
-        <code>H5Pget_fapl_gass</code> returns the <em>GASS_Info</em>
-        object through the <code>info</code> pointer.
-        <p>
-        The <em>GASS_Info</em> information is copied, so it is valid 
-        only until the file access property list is modified or closed.
-  <dt><strong>Note:</strong>
-    <dd><code>H5Pget_fapl_gass</code> is an experimental function.
-        It is designed for use only when accessing files via the 
-        GASS facility of the Globus environment. 
-        For further information, see 
-        <a href="http://www.globus.org/">http//www.globus.org/</a>.
-  <dt><strong>Parameters:</strong>
-    <ul><table>
-        <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code>,</td>
-            <td valign="top">IN: File access property list identifier.</td></tr>
-        <tr>
-		    <td valign="top"><em>GASS_Info&nbsp;*</em><code>info&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">OUT: Pointer to the GASS information structure.</td></tr>
-    </table></ul>
-  <dt><strong>Returns:</strong>
-    <dd>Returns a non-negative value if successful.
-        Otherwise returns a negative value.
-  <dt><strong>Fortran90 Interface:</strong>
-    <dd>None.
-<!--
-	<pre>
-SUBROUTINE
-	</pre>		
--->
-
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
-        <img src="Graphics/Java.gif"> 
-        <img src="Graphics/C++.gif">
-        -->
-</dl>
 
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Pget_fapl_mpio" -->
@@ -3158,7 +3041,8 @@ END SUBROUTINE h5pget_fapl_mpio_f
   <dt><strong>Signature:</strong>
     <dd><em>herr_t</em> <code>H5Pget_fapl_mpiposix</code>(
                      <em>hid_t</em> <code>fapl_id</code>,
-                     <em>MPI_Comm *</em><code>comm</code>
+                     <em>MPI_Comm *</em><code>comm</code>,
+                     <em>hbool_t *</em><code>use_gpfs_hints</code>
     )
   <dt><strong>Purpose:</strong>
     <dd> Returns MPI communicator information.
@@ -3170,14 +3054,24 @@ END SUBROUTINE h5pget_fapl_mpio_f
         <p>
         <code>comm</code> is not copied, so it is valid only 
         until the file access property list is either modified or closed.
+        <p>
+        <code>use_gpfs_hints</code> specifies whether to attempt to use
+        GPFS hints when accessing this file.
+        A value of <code>TRUE</code> (or <code>1</code>) indicates that
+        the hints are being used, where possible.
+        A value of <code>FALSE</code> (or <code>0</code>) indicates that
+        the hints are not being used.
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
+            <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
             <td valign="top">IN: File access property list identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>MPI_Comm&nbsp;*</em><code>comm&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>MPI_Comm&nbsp;*</em><code>comm</code></td>
             <td valign="top">OUT: MPI-2 communicator.</td></tr>
+        <tr>
+            <td valign="top"><em>hbool_t *</em><code>use_gpfs_hints&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">OUT: Use of GPFS hints.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful.
@@ -3203,31 +3097,29 @@ END SUBROUTINE h5pget_fapl_mpiposix_f
   <dt><strong>History:</strong>
 	<ul><table width="90%">
         <tr>
-		  <td valign="top" align="left" width="10%">
-		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td valign="top" align="left">
-		    <strong>C</strong></td>
-		  <td valign="top">&nbsp;&nbsp;&nbsp;&nbsp;</td>
-		  <td valign="top" align="left">
-		    <strong>Fortran90</strong></td>
-			</tr>
+            <strong>C</strong></td>
+          <td valign="top">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+            <strong>Fortran90</strong></td></tr>
         <tr>
-		  <td valign="top">1.6.1</td>
+          <td valign="top">1.6.1</td>
           <td valign="top">&nbsp;</td>
           <td valign="top">&nbsp;</td>
-		  <td valign="top">
-			Fortran subroutine introduced in this release.</td></tr>
-		<tr>
-		  <td valign="top">1.6.0</td>
-		  <td valign="top">Function introduced in this release.<br></td>
-		  <td valign="top">&nbsp;</td>
-		  <td valign="top">&nbsp;</td></tr>
-		<tr>
-		  <td valign="top">1.6.0</td>
-		  <td valign="top">A <code>use_gpfs</code> 
-		    parameter of type <em>hbool_t</em> has been added.</td>
-		  <td valign="top">&nbsp;</td>
-		  <td valign="top">&nbsp;</td></tr>
+          <td valign="top">
+        	Fortran subroutine introduced in this release.</td></tr>
+        <tr>
+          <td valign="top">1.6.0</td>
+          <td valign="top"><code>use_gpfs_hints</code> parameter added.</td>
+          <td valign="top">&nbsp;</td>
+          <td valign="top">&nbsp;</td></tr>
+        <tr>
+          <td valign="top">1.6.0</td>
+          <td valign="top">Function introduced in this release.<br></td>
+          <td valign="top">&nbsp;</td>
+          <td valign="top">&nbsp;</td></tr>
     </table></ul>
 </dl>
 
@@ -3322,57 +3214,6 @@ END SUBROUTINE h5pget_fapl_multi_f
     </table></ul>
 </dl>
 
-<!-- NEW PAGE -->
-<!-- HEADER RIGHT "H5Pget_fapl_srb" -->
-<hr>
-<dl>
-  <dt><strong>Name:</strong> <a name="Property-GetFaplSrb">H5Pget_fapl_srb</a>
-  <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Pget_fapl_srb</code>(
-                     <em>hid_t</em> <code>fapl_id</code>,
-                     <em>SRB_Info *</em><code>info</code>
-    )
-  <dt><strong>Purpose:</strong>
-    <dd>Retrieves SRB information.
-  <dt><strong>Description:</strong>
-    <dd>If the file access property list <code>fapl_id</code> is set 
-        for use of the <code>H5FD_SRB</code> driver, 
-        <code>H5Pget_fapl_srb</code> returns the <em>SRB_Info</em>
-        object through the <code>info</code> pointer.
-        <p>
-        The <em>SRB_Info</em> information is copied, so it is valid 
-        only until the file access property list is modified or closed.
-  <dt><strong>Note:</strong>
-    <dd><code>H5Pset_fapl_gass</code> is an experimental function.
-        It is designed for use only when accessing files via the 
-        Storage Resource Broker (SRB).  For further information, see 
-        <a href="http://www.npaci.edu/Research/DI/srb/">http//www.npaci.edu/Research/DI/srb/</a>.
-  <dt><strong>Parameters:</strong>
-    <ul><table>
-        <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
-            <td valign="top">IN: File access property list identifier.</td></tr>
-        <tr>
-		    <td valign="top"><em>SRB_Info&nbsp;*</em><code>info&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">OUT: Pointer to the SRB information structure.</td></tr>
-    </table></ul>
-  <dt><strong>Returns:</strong>
-    <dd>Returns a non-negative value if successful.
-        Otherwise returns a negative value.
-  <dt><strong>Fortran90 Interface:</strong>
-    <dd>None.
-<!--
-	<pre>
-SUBROUTINE
-	</pre>		
--->		
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
-        <img src="Graphics/Java.gif"> 
-        <img src="Graphics/C++.gif">
-        -->
-</dl>
 
 <!-- HEADER RIGHT "H5Pget_fapl_stream" -->
 <!--
@@ -6462,7 +6303,7 @@ END SUBROUTINE h5pset_buffer_f
   <dt><strong>Signature:</strong>
     <dd><em>herr_t</em> <code>H5Pset_cache</code>(<em>hid_t</em> <code>plist_id</code>,
         <em>int</em> <code>mdc_nelmts</code>,
-        <em>int</em> <code>rdcc_nelmts</code>,
+        <em>size_t</em> <code>rdcc_nelmts</code>,
         <em>size_t</em> <code>rdcc_nbytes</code>,
         <em>double</em> <code>rdcc_w0</code>
     )
@@ -6499,7 +6340,7 @@ END SUBROUTINE h5pset_buffer_f
 		    <td valign="top"><em>int</em> <code>mdc_nelmts</code></td>
             <td valign="top">IN: Number of elements (objects) in the meta data cache.</td></tr>
         <tr>
-		    <td valign="top"><em>int</em> <code>rdcc_nelmts</code></td>
+		    <td valign="top"><em>size_t</em> <code>rdcc_nelmts</code></td>
             <td valign="top">IN: Number of elements (objects) in the raw data chunk cache.</td></tr>
         <tr>
 		    <td valign="top"><em>size_t</em>&nbsp;<code>rdcc_nbytes&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
@@ -6552,7 +6393,8 @@ END SUBROUTINE h5pset_cache_f
 		    to <code>INTEGER(SIZE_T)</code>.</td></tr>
         <tr>
 		  <td valign="top">1.6.0</td>
-		  <td valign="top">The&nbsp;<code>rdcc_nbytes</code>&nbsp;parameter&nbsp;has&nbsp;changed 
+		  <td valign="top">The <code>rdcc_nbytes</code>
+                    and <code>rdcc_nelmts</code> parameters changed 
 		    from type <em>int</em> to <em>size_t</em>.</td>
 		  <td valign="top">&nbsp;</td>
           <td valign="top">&nbsp;</td></tr>
@@ -7302,63 +7144,6 @@ END SUBROUTINE h5pset_fapl_family_f
     </table></ul>
 </dl>
 
-<!-- NEW PAGE -->
-<!-- HEADER RIGHT "H5Pset_fapl_gass" -->
-<hr>
-<dl>
-  <dt><strong>Name:</strong> <a name="Property-SetFaplGass">H5Pset_fapl_gass</a>
-  <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Pset_fapl_gass</code>(
-                     <em>hid_t</em> <code>fapl_id</code>,
-                     <em>GASS_Info</em> <code>info</code>
-    )
-  <dt><strong>Purpose:</strong>
-    <dd>Stores user-supplied GASS information.
-  <dt><strong>Description:</strong>
-    <dd><code>H5Pset_fapl_gass</code> stores user-supplied GASS information,
-        the <em>GASS_Info</em> struct data as passed in <code>info</code>, 
-        to the file access property list <code>fapl_id</code>.
-        <code>fapl_id</code> can then be used to create and/or open the file. 
-        <p>
-        The <em>GASS_Info</em> object, <code>info</code>, is used for 
-        file open operations when using GASS in the Globus environment. 
-        <p>
-        Any modification to <code>info</code> after this function call 
-        returns may have undetermined effect to the access property list.  
-        Users must call <code>H5Pset_fapl_gass</code> again to setup 
-        the property list.   
-  <dt><strong>Note:</strong>
-    <dd><code>H5Pset_fapl_gass</code> is an experimental function.
-        It is designed for use only when accessing files via the 
-        GASS facility of the Globus environment. 
-        For further information, see 
-        <a href="http://www.globus.org/">http//www.globus.org/</a>.
-  <dt><strong>Parameters:</strong>
-    <ul><table>
-        <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code>,</td>
-            <td valign="top">IN: File access property list identifier.</td></tr>
-        <tr>
-		    <td valign="top"><em>GASS_Info</em>&nbsp;<code>info&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">IN: Pointer to the GASS information structure.</td></tr>
-    </table></ul>
-  <dt><strong>Returns:</strong>
-    <dd>Returns a non-negative value if successful.
-        Otherwise returns a negative value.
-  <dt><strong>Fortran90 Interface:</strong>
-    <dd>None.
-<!--
-	<pre>
-SUBROUTINE
-	</pre>		
--->		
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
-        <img src="Graphics/Java.gif"> 
-        <img src="Graphics/C++.gif">
-        -->
-</dl>
 
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Pset_fapl_log" -->
@@ -7768,7 +7553,8 @@ END SUBROUTINE h5pset_fapl_mpio_f
   <dt><strong>Signature:</strong>
     <dd><em>herr_t</em> <code>H5Pset_fapl_mpiposix</code>(
                      <em>hid_t</em> <code>fapl_id</code>,
-                     <em>MPI_Comm</em> <code>comm</code>
+                     <em>MPI_Comm</em> <code>comm</code>,
+                     <em>hbool_t</em> <code>use_gpfs_hints</code>
     )
   <dt><strong>Purpose:</strong>
     <dd>Stores MPI IO communicator information to a file access property list.
@@ -7788,14 +7574,31 @@ END SUBROUTINE h5pset_fapl_mpio_f
         returns may have an undetermined effect on the access property list. 
         Users should not modify the communicator while it is defined 
         in a property list.
+        <p>
+        <code>use_gpfs_hints</code> specifies whether to attempt to use
+        GPFS hints when accessing this file.
+        A value of <code>TRUE</code> (or <code>1</code>) indicates that
+        the hints should be used, if possible.
+        A value of <code>FALSE</code> (or <code>0</code>) indicates that
+        the hints should not be used.
+        <p>
+        Available GPFS hints are known to the HFD5 Library 
+        and are not user configurable.
+        They may be used <i>only</i> with GPFS file systems
+        and may improve file access for some applications; 
+        the user of a GPFS system is encouraged to experiment 
+        by running an application with and without this parameter set.
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
+            <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
             <td valign="top">IN: File access property list identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>MPI_Comm</em>&nbsp;<code>comm&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>MPI_Comm</em>&nbsp;<code>comm</code></td>
             <td valign="top">IN: MPI-2 communicator.</td></tr>
+        <tr>
+            <td valign="top"><em>hbool_t</em> <code>use_gpfs_hints&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">IN: Use of GPFS hints.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful.
@@ -7823,36 +7626,35 @@ END SUBROUTINE h5pset_fapl_mpiposix_f
   <dt><strong>History:</strong>
     <ul><table width="90%">
         <tr>
-		  <td valign="top" align="left" width="10%">
-		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td valign="top" align="left">
-		    <strong>C</strong></td>
-		  <td valign="top">&nbsp;&nbsp;&nbsp;&nbsp;</td>
-		  <td valign="top" align="left">
-		    <strong>Fortran90</strong></td></tr>
+            <strong>C</strong></td>
+          <td valign="top">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left">
+            <strong>Fortran90</strong></td></tr>
         <tr>
-		  <td valign="top">1.6.1</td>
+          <td valign="top">1.6.1</td>
           <td valign="top">&nbsp;</td>
-		  <td valign="top">&nbsp;</td>
-		  <td valign="top">
-		    Fortran subroutine introduced in this release.
-		  </td></tr>
-		<tr>
-		  <td valign="top">1.6.0</td>
-		  <td valign="top">
-		    A <code>use_gpfs</code> parameter of type 
-			<em>hbool_t</em> has been added.</td>
-		  <td valign="top">&nbsp;</td>
-		  <td valign="top">&nbsp;</td>
-		</tr>
-		<tr>
-		  <td valign="top">1.6.0</td>
-		  <td valign="top">
-		    Function introduced in this release.
-			</td>
-		  <td valign="top">&nbsp;</td>
-		  <td valign="top">&nbsp;</td>
-		</tr>
+          <td valign="top">&nbsp;</td>
+          <td valign="top">
+            Fortran subroutine introduced in this release.
+          </td></tr>
+        <tr>
+          <td valign="top">1.6.0</td>
+          <td valign="top">
+            <code>use_gpfs_hints</code> parameter added.</td>
+          <td valign="top">&nbsp;</td>
+          <td valign="top">&nbsp;</td>
+        </tr>
+        <tr>
+          <td valign="top">1.6.0</td>
+          <td valign="top">
+            Function introduced in this release.
+        	</td>
+          <td valign="top">&nbsp;</td>
+          <td valign="top">&nbsp;</td>
+        </tr>
     </table></ul>
 </dl>
 
@@ -8235,59 +8037,6 @@ END SUBROUTINE h5pset_fapl_split_f
     </table></ul>
 </dl>
 
-<!-- NEW PAGE -->
-<!-- HEADER RIGHT "H5Pset_fapl_srb" -->
-<hr>
-<dl>
-  <dt><strong>Name:</strong> <a name="Property-SetFaplSrb">H5Pset_fapl_srb</a>
-  <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Pset_fapl_srb</code>(
-                     <em>hid_t</em> <code>fapl_id</code>,
-                     <em>SRB_Info</em> <code>info</code>
-    )
-  <dt><strong>Purpose:</strong>
-    <dd>Saves SRB connection handler and sets SRB settings.
-  <dt><strong>Description:</strong>
-    <dd><code>H5Pset_fapl_srb</code> stores the SRB client-to-server 
-        connection handler <code>SRB_CONN</code> after the connection
-        is established and other user-supplied SRB information.
-        <p>
-        The  user-supplied SRB information is contained in the 
-        <em>SRB_Info</em> struct pointed to by <code>info</code>
-        and is stored in the file access property list <code>fapl_id</code>.
-        This information can then be used to create or open a file.           
-  <dt><strong>Note:</strong>
-    <dd><code>H5Pset_fapl_gass</code> is an experimental function.
-        It is designed for use only when accessing files via the 
-        Storage Resource Broker (SRB).  For further information, see 
-        <a href="http://www.npaci.edu/Research/DI/srb/">http//www.npaci.edu/Research/DI/srb/</a>.
-  <dt><strong>Parameters:</strong>
-    <ul><table>
-        <tr>
-		    <td valign="top"><em>hid_t</em>&nbsp;<code>fapl_id&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">IN: File access property list identifier.</td></tr>
-        <tr>
-		    <td valign="top"><em>SRB_Info</em> <code>info</code></td>
-            <td valign="top">IN: Pointer to the SRB information structure.</td></tr>
-    </table></ul>
-  <dt><strong>Returns:</strong>
-    <dd>Returns a non-negative value if successful.
-        Otherwise returns a negative value.
-  <dt><strong>Fortran90 Interface:</strong>
-    <dd>None.
-<!--
-	<pre>
-SUBROUTINE
-	</pre>		
--->
-		
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
-        <img src="Graphics/Java.gif"> 
-        <img src="Graphics/C++.gif">
-        -->
-</dl>
 
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Pset_fapl_stdio" -->
@@ -9578,7 +9327,7 @@ SUBROUTINE
     <dd><code>H5Pset_preserve</code> sets the 
         dataset transfer property list status to TRUE or FALSE.
         <p>
-        When reading or writing compound data types and the
+        When reading or writing compound datatypes and the
         destination is partially initialized and the read/write is
         intended to initialize the other members, one must set this
         property to TRUE.  Otherwise the I/O pipeline treats the
@@ -10025,8 +9774,10 @@ END SUBROUTINE h5pset_sym_k_f
     <dd><em>herr_t</em> <code>H5Pset_szip</code>(<em>hid_t</em> <code>plist</code>,
                 <em>unsigned int</em> <code>options_mask</code>,
                 <em>unsigned int</em> <code>pixels_per_block</code>)
+        <p>
   <dt><strong>Purpose:</strong>
     <dd>Sets up use of the SZIP compression filter.
+        <p>
   <dt><strong>Description:</strong>
     <dd><code>H5Pset_szip</code> sets an SZIP compression filter, 
         <code>H5Z_FILTER_SZIP</code>, for a dataset. 
@@ -10068,11 +9819,11 @@ END SUBROUTINE h5pset_sym_k_f
             variable-length datatypes, 
 	    enumerations, or 
             any other user-defined datatypes.
-        If an SZIP filter is set up for a dataset containing a non-allowed 
-        datatype, <code>H5Pset_szip</code> will succeed but the subsequent call
+        If an SZIP filter is set in a dataset creation property list used 
+        to create a dataset containing a non-allowed datatype, the call
         to <a href="RM_H5D.html#Dataset-Create"><code>H5Dcreate</code></a>
         will fail; 
-        the conflict is detected only when the property list is used.
+        the conflict can be detected only when the property list is used.
         
 
 	<p>
@@ -10137,7 +9888,7 @@ END SUBROUTINE h5pset_sym_k_f
         number of elements in a dataset chunk, 
         <code>H5Pset_szip</code> will succeed but the subsequent call to 
         <a href="RM_H5D.html#Dataset-Create"><code>H5Dcreate</code></a>
-        will fail; the conflict is detected only when the property list 
+        will fail; the conflict can be detected only when the property list 
         is used.
 	<p>
         To achieve optimal performance for SZIP compression, 
@@ -10147,11 +9898,11 @@ END SUBROUTINE h5pset_sym_k_f
         allowed by the SZIP library.
         In the current version of SZIP, <em>N</em> is set to 128.
         <p>
-		<code>H5Pset_szip</code> will fail if SZIP encoding is 
-		disabled in the available copy of the SZIP library.
-		<a href="RM_H5Z.html#Compression-GetFilterInfo">
-		<code>H5Zget_filter_info</code></a> can be employed 
-		to avoid such a failure.
+        SZIP compression is an optional HDF5 filter.
+        See the note below for information regarding its designed behavior, 
+        particularly under circumstances where SZIP is not available 
+        to an application.
+        <p>
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
@@ -10167,10 +9918,69 @@ END SUBROUTINE h5pset_sym_k_f
 		    <td valign="top"><em>unsigned&nbsp;int</em>&nbsp;<code>pixels_per_block&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: The number of pixels or data elements in each data block.</td></tr>
     </table></ul>
+        <p>
   <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
-  <dt><strong>Notes:</strong>
+        <p>
+  <dt><strong>Notes on Filter Behavior in HDF5:</strong>
+    <dd>SZIP is an optional filter in HDF5 and can therefore be set for 
+        HDF5 datasets even though it is not available at the moment.  
+        SZIP compression can then be applied to those datasets when the file 
+        containing the dataset is moved to a system on which is available.
+        <p>
+        Consider a situation where one is creating files that will normally 
+        be used only on systems where SZIP compression (encoding and decoding) 
+        is routinely available.
+        One can create those files on system A, which lacks SZIP, 
+        create chunked datasets in the files with SZIP defined in the 
+        dataset creation property list, and even write data to those datasets.
+        The dataset object header will indicate that the SZIP filter has
+        been associated with this dataset.
+        But since system A does not have SZIP, dataset chunks will
+        be written without SZIP compression.
+        <p>
+        HDF5 has a mechanism for determining whether chunks are actually 
+        written with filters specified in the object header, so until the file 
+        is moved from system A, system A will be able to read the data.
+        Once the file is moved to system B, where SZIP encoding is available,
+        HDF5 will use SZIP to compress any data written in these datasets. 
+        Dataset chunks that have been written on system B will then be 
+        unreadable on system A; chunks that have not been re-written since 
+        being written on system A will remain readable on system A.
+        <p>
+        The following table summarizes this behavior.
+        <div align=center>
+        <table border=0 width=80%>
+          <tr align=left valign=top> 
+            <td width=20%>&nbsp;</td>
+            <td width=25%><b>SZIP<br>not available</b>
+            <td width=25%><b>SZIP available<br>with encode</b>
+            <td width=25%><b>SZIP available<br>decode only</b>
+          </tr><tr align=left valign=top>
+            <td><b><code>H5Pset_szip</code>&nbsp;&nbsp;&nbsp;</b></td>
+            <td>Will succeed.<br>&nbsp;</td>
+            <td>Will succeed.</td>
+            <td>Will succeed.</td>
+          </tr><tr align=left valign=top>
+            <td><b><code>H5Dwrite</code><br>with SZIP set</b></td>
+            <td>Will succeed;<br>data will not be compressed.</td>
+            <td>Will succeed;<br>data will be compressed.</td>
+            <td>Will succeed;<br>data will not be compressed.</td>
+          </tr><tr align=left valign=top>
+            <td><b><code>H5Dread</code><br>with SZIP set</b></td>
+            <td>Will succeed if data has not actually been compressed.</td>
+            <td>Will succeed.</td>
+            <td>Will succeed.</td>
+          </tr>
+        </table>
+        </div>
+        <p>
+        The above principles apply generally in the use of 
+        HDF5 optional filters insofar as HDF5 does as much as possible
+        to complete an operation when a optional filter is unavailable.
+        <p>
+  <dt><strong>Notes for Users Familiar with SZIP in Other Contexts:</strong>
     <dd>The following notes are of interest primarily to those who have 
         used SZIP compression outside of the HDF5 context.
 	<p>
@@ -10245,7 +10055,7 @@ END SUBROUTINE h5pset_sym_k_f
         <code>ALLOW_K13_OPTION_MASK</code>, and one of
         <code>LSB_OPTION_MASK</code> or <code>MSB_OPTION_MASK</code>, 
         depending on endianness of the datatype.
- 
+        <p>
   <dt><strong>Fortran90 Interface:</strong> h5pset_szip_f
     <dd>
 	<pre>
@@ -10267,13 +10077,14 @@ SUBROUTINE h5pset_szip_f(prp_id, hdferr)
 END SUBROUTINE h5pset_szip_f
 	</pre>		
 		
-		<!--<dt><strong>Non-C API(s):</strong>
+        <!--<dt><strong>Non-C API(s):</strong>
     	<dd>
         
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
 		
+        <p>
   <dt><strong>History:</strong>
     <ul><table width="90%">
         <tr>
@@ -10772,7 +10583,7 @@ END SUBROUTINE h5punregister_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -10796,7 +10607,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -10809,13 +10620,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <address>
 THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.7, January 2008 
+Describes HDF5 Release 1.6.8, November 2008 
 </address>
 
 
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 30 January 2008");
+document.writeln("Last modified: 16 October 2008");
 -->
 </SCRIPT>
  

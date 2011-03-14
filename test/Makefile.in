@@ -27,9 +27,9 @@ CPPFLAGS=-I. -I$(srcdir) -I../src -I$(top_srcdir)/src @CPPFLAGS@
 ## executed, generally most specific tests to least specific tests.
 TEST_PROGS=testhdf5 lheap ohdr stab gheap cache hyperslab istore bittests    \
     dtypes dsets cmpd_dset extend external links unlink big mtime fillval    \
-    mount flush1 flush2 enum gass_write gass_read gass_append set_extent     \
-    srb_write srb_append srb_read ttsafe getname file_handle     \
-    ntypes dangle reserved
+    mount flush1 flush2 enum set_extent     \
+    ttsafe getname file_handle     \
+    ntypes dangle reserved err_vers
 
 TIMINGS=testmeta
 
@@ -62,7 +62,7 @@ MOSTLYCLEAN=cmpd_dset.h5 compact_dataset.h5 dataset.h5 extend.h5 istore.h5   \
             getname.h5 getname1.h5 getname2.h5 getname3.h5 sec2_file.h5      \
             family_file000[0-3][0-9].h5 multi_file-[rs].h5 core_file         \
             new_move_[ab].h5 ntypes.h5 dangle.h5 test_filters.h5 	     \
-	    tstint[1-2].h5 unlink_chunked.h5
+	    tstint[1-2].h5 unlink_chunked.h5 err_vers.h5
 
 CLEAN=$(TIMINGS)
 
@@ -78,9 +78,8 @@ TEST_SRC=big.c bittests.c cache.c cmpd_dset.c dsets.c dtypes.c extend.c      \
     tgenprop.c th5s.c theap.c titerate.c tmeta.c tmisc.c trefer.c trefstr.c  \
     tselect.c tskiplist.c ttime.c ttst.c tvltypes.c tvlstr.c                 \
     unlink.c enum.c ttsafe.c ttsafe_dcreate.c ttsafe_error.c                 \
-    ttsafe_cancel.c ttsafe_acreate.c gass_write.c gass_read.c                \
-    gass_append.c srb_read.c srb_write.c srb_append.c \
-    set_extent.c getname.c file_handle.c ntypes.c dangle.c reserved.c
+    ttsafe_cancel.c ttsafe_acreate.c set_extent.c getname.c file_handle.c    \
+    ntypes.c dangle.c reserved.c err_vers.c
 
 TEST_OBJ=$(TEST_SRC:.c=.lo)
 
@@ -98,6 +97,9 @@ timings _timings: $(TIMINGS)
 	      $(RUNTEST) ./$$timing $(TEST_FLAGS) || exit 1; 		      \
 	   fi;								      \
 	done;
+
+# The flush1 test must run before the flush2 test
+flush2.chkexe_: flush1.chkexe_
 
 ## Programs have to be built before they can be tested!
 ##
@@ -186,26 +188,8 @@ enum: enum.lo
 ttsafe: $(TTS_OBJ)
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ $(TTS_OBJ) $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
-gass_write: gass_write.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ gass_write.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
-gass_read: gass_read.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ gass_read.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
-gass_append: gass_append.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ gass_append.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
 set_extent: set_extent.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ set_extent.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
-srb_read: srb_read.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ srb_read.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
-srb_write: srb_write.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ srb_write.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
-srb_append: srb_append.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ srb_append.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
 testmeta: testmeta.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ testmeta.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
@@ -224,5 +208,8 @@ dangle: dangle.lo
 
 reserved: reserved.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ reserved.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+err_vers: err_vers.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ err_vers.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
 @CONCLUDE@

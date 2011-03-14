@@ -1,7 +1,7 @@
-HDF5 version 1.6.7 released on Thu Jan 31 21:09:10 CST 2008
+HDF5 version 1.6.8 released on Mon Nov 10 15:36:46 CST 2008
 Please refer to the release_docs/INSTALL file for installation instructions.
 ------------------------------------------------------------------------------
-January 28, 2007
+November 10, 2008
 
 This release is fully functional for the entire API defined in the
 documentation.  

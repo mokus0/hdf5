@@ -18,9 +18,11 @@ top_builddir=..
 srcdir=@srcdir@
 @COMMENCE@
 
+CONFIG = ordered
+
 ## All subdirectories except for the ``lib'' subdirectory.
 ##
-SUBDIRS=h5dump h5diff h5ls misc h5import h5repack h5jam
+SUBDIRS=h5diff h5ls misc h5import h5repack h5jam h5dump
 
 ## Add include directory to the C preprocessor flags, add -lh5tools and
 ## -lhdf5 to the list of libraries.
@@ -62,7 +64,7 @@ dep depend:
 	  fi;                                                                 \
 	done
 
-check check-s check-p tests test _test: $(PROGS)
+check check-s check-p check-clean tests test _test: $(PROGS)
 	@@SETX@; for d in X lib $(SUBDIRS); do                                \
 	  if test $$d != X; then                                              \
 	    (cd $$d && $(MAKE) $@) || exit 1;                                 \

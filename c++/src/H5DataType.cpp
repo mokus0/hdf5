@@ -38,6 +38,7 @@
 #include "H5AbstractDs.h"
 #include "H5DataSet.h"
 #include "H5File.h"
+#include "H5Attribute.h"
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
@@ -60,7 +61,10 @@ namespace H5 {
 //		- BMR 5/2004
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataType::DataType(const hid_t existing_id) : H5Object(existing_id) {}
+DataType::DataType(const hid_t existing_id) : H5Object()
+{
+    id = existing_id;
+}
 
 //--------------------------------------------------------------------------
 // Function:	DataType overloaded constructor
@@ -82,32 +86,99 @@ DataType::DataType( const H5T_class_t type_class, size_t size ) : H5Object()
 
 //--------------------------------------------------------------------------
 // Function:	DataType overload constructor - dereference
-///\brief	Given a reference to some object, returns that datatype
-///\param       obj - IN: Location reference object is in
+///\brief	Given a reference, ref, to an hdf5 group, creates a
+///		DataType object
+///\param       obj - IN: Specifying location referenced object is in
 ///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\exception	H5::ReferenceException
 ///\par Description
-///		\c obj can be DataSet, Group, H5File, or named DataType, that 
+///		\c obj can be DataSet, Group, or named DataType, that 
 ///		is a datatype that has been named by DataType::commit.
 // Programmer	Binh-Minh Ribler - Oct, 2006
+// Modification
+//	Jul, 2008
+//		Added for application convenience.
 //--------------------------------------------------------------------------
-DataType::DataType(IdComponent& obj, void* ref) : H5Object()
+DataType::DataType(H5Object& obj, void* ref, H5R_type_t ref_type) : H5Object()
 {
-   IdComponent::dereference(obj, ref);
+    try {
+	id = p_dereference(obj.getId(), ref, ref_type);
+    } catch (ReferenceException deref_error) {
+	throw ReferenceException("DataType constructor - located by an H5Object",
+		deref_error.getDetailMsg());
+    }
+}
+
+//--------------------------------------------------------------------------
+// Function:	DataType overload constructor - dereference
+///\brief	Given a reference, ref, to an hdf5 group, creates a
+///		DataType object
+///\param       h5file - IN: Location referenced object is in
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\exception	H5::ReferenceException
+// Programmer	Binh-Minh Ribler - Oct, 2006
+// Modification
+//	Jul, 2008
+//		Added for application convenience.
+//--------------------------------------------------------------------------
+DataType::DataType(H5File& h5file, void* ref, H5R_type_t ref_type) : H5Object()
+{
+    try {
+	id = p_dereference(h5file.getId(), ref, ref_type);
+    } catch (ReferenceException deref_error) {
+	throw ReferenceException("DataType constructor - located by an H5File",
+		deref_error.getDetailMsg());
+    }
+}
+
+//--------------------------------------------------------------------------
+// Function:	DataType overload constructor - dereference
+///\brief	Given a reference, ref, to an hdf5 group, creates a
+///		DataType object
+///\param       attr - IN: Specifying location where the referenced object is in
+///\param	ref - IN: Reference pointer
+///\param	ref_type - IN: Reference type - default to H5R_OBJECT
+///\exception	H5::ReferenceException
+// Programmer	Binh-Minh Ribler - Oct, 2006
+// Modification
+//	Jul, 2008
+//		Added for application convenience.
+//--------------------------------------------------------------------------
+DataType::DataType(Attribute& attr, void* ref, H5R_type_t ref_type) : H5Object()
+{
+    try {
+	id = p_dereference(attr.getId(), ref, ref_type);
+    } catch (ReferenceException deref_error) {
+	throw ReferenceException("DataType constructor - located by an Attribute",
+		deref_error.getDetailMsg());
+    }
 }
 
 //--------------------------------------------------------------------------
 // Function:	DataType default constructor
 ///\brief	Default constructor: Creates a stub datatype
 // Programmer	Binh-Minh Ribler - 2000
+// Modification
+//	Jul, 08 No longer inherit data member 'id' from IdComponent.
+//		- bugzilla 1068
 //--------------------------------------------------------------------------
-DataType::DataType() : H5Object() {}
+DataType::DataType() : H5Object(), id(0) {}
 
 //--------------------------------------------------------------------------
 // Function:	DataType copy constructor
 ///\brief	Copy constructor: makes a copy of the original DataType object.
 // Programmer	Binh-Minh Ribler - 2000
+// Modification
+//	Jul, 08 No longer inherit data member 'id' from IdComponent.
+//		- bugzilla 1068
 //--------------------------------------------------------------------------
-DataType::DataType(const DataType& original) : H5Object(original) {}
+DataType::DataType(const DataType& original) : H5Object(original)
+{
+    id = original.getId();
+    incRefCount(); // increment number of references to this id
+}
 
 //--------------------------------------------------------------------------
 // Function:	DataType::copy
@@ -660,72 +731,15 @@ bool DataType::isVariableStr() const
 }
 
 //--------------------------------------------------------------------------
-// Function:	DataType::Reference
-///\brief	Important!!! - This functions may not work correctly, it 
-///		will be removed in the near future.  Please use similar
-///		DataType::reference instead!
-// Programmer	Binh-Minh Ribler - May, 2004
-//--------------------------------------------------------------------------
-void* DataType::Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type) const
-{
-   try {
-      return(p_reference(name, dataspace.getId(), ref_type));
-   }
-   catch (IdComponentException E) {
-      throw DataTypeIException(inMemFunc("Reference"), E.getDetailMsg());
-   }
-}
-
-//--------------------------------------------------------------------------
-// Function:	DataType::Reference
-///\brief	Important!!! - This functions may not work correctly, it 
-///		will be removed in the near future.  Please use similar
-///		DataType::reference instead!
-// Programmer	Binh-Minh Ribler - May, 2004
-//--------------------------------------------------------------------------
-void* DataType::Reference(const char* name) const
-{
-   try {
-      return(p_reference(name, -1, H5R_OBJECT));
-   }
-   catch (IdComponentException E) {
-      throw DataTypeIException(inMemFunc("Reference"), E.getDetailMsg());
-   }
-}
-
-//--------------------------------------------------------------------------
-// Function:	DataType::Reference
-///\brief	Important!!! - This functions may not work correctly, it 
-///		will be removed in the near future.  Please use similar
-///		DataType::reference instead!
-// Programmer	Binh-Minh Ribler - May, 2004
-//--------------------------------------------------------------------------
-void* DataType::Reference(const H5std_string& name) const
-{
-   return(Reference(name.c_str()));
-}
-
-//--------------------------------------------------------------------------
 // Function:	DataType::getObjType
-///\brief	Retrieves the type of object that an object reference points to.
-///\param		ref      - IN: Reference to query
-///\param		ref_type - IN: Type of reference to query
-///\return	Object type, which can be one of the following:
-///			\li \c H5G_LINK Object is a symbolic link.
-///			\li \c H5G_GROUP Object is a group.
-///			\li \c H5G_DATASET   Object is a dataset.
-///			\li \c H5G_TYPE Object is a named datatype
-///\exception	H5::DataTypeIException
+///\brief	This function was misnamed and will be deprecated in favor of
+///		H5Object::getRefObjType; please use getRefObjType instead.
 // Programmer	Binh-Minh Ribler - May, 2004
+// Note:	Replaced by getRefObjType. - BMR - Jul, 2008
 //--------------------------------------------------------------------------
 H5G_obj_t DataType::getObjType(void *ref, H5R_type_t ref_type) const
 {
-   try {
-      return(p_get_obj_type(ref, ref_type));
-   }
-   catch (IdComponentException E) {
-      throw DataTypeIException(inMemFunc("getObjType"), E.getDetailMsg());
-   }
+    return(getRefObjType(ref, ref_type));
 }
 
 //--------------------------------------------------------------------------
@@ -749,6 +763,50 @@ DataSpace DataType::getRegion(void *ref, H5R_type_t ref_type) const
 }
 
 //--------------------------------------------------------------------------
+// Function:	DataType::getId
+// Purpose:	Get the id of this datatype
+// Modification:
+//	May 2008 - BMR
+//		Class hierarchy is revised to address bugzilla 1068.  Class
+//		AbstractDS and Attribute are moved out of H5Object.  In
+//		addition, member IdComponent::id is moved into subclasses, and
+//		IdComponent::getId now becomes pure virtual function.
+// Programmer	Binh-Minh Ribler - May, 2008
+//--------------------------------------------------------------------------
+hid_t DataType::getId() const
+{
+   return(id);
+}
+
+//--------------------------------------------------------------------------
+// Function:	DataType::p_setId
+///\brief	Sets the identifier of this datatype to a new value.
+///
+///\exception	H5::IdComponentException when the attempt to close the 
+///		currently open datatype fails
+// Description:
+//		The underlaying reference counting in the C library ensures
+//		that the current valid id of this object is properly closed.
+//		Then the object's id is reset to the new id.
+// Programmer	Binh-Minh Ribler - 2000
+// Modification
+//	Jul, 08 No longer inherit data member 'id' from IdComponent.
+//		- bugzilla 1068
+//--------------------------------------------------------------------------
+void DataType::p_setId(const hid_t new_id)
+{
+    // handling references to this old id
+    try {
+	close();
+    }
+    catch (Exception close_error) {
+	throw DataTypeIException(inMemFunc("p_setId"), close_error.getDetailMsg());
+    }
+    // reset object's id to the given id
+    id = new_id;
+}
+
+//--------------------------------------------------------------------------
 // Function:	DataType::close
 ///\brief	Closes the datatype if it is not a predefined type.
 ///
@@ -764,8 +822,10 @@ void DataType::close()
 	{
 	    throw DataTypeIException(inMemFunc("close"), "H5Tclose failed");
 	}
-	// reset the id because the datatype that it represents is now closed
-	id = 0;
+        // reset the id when the datatype that it represents is no longer
+        // referenced
+        if (getCounter() == 0)
+	    id = 0;
     }
 }
 

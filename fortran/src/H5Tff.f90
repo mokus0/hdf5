@@ -1129,6 +1129,7 @@
 ! Inputs:  
 !		type_id		- datatype identifier
 ! Outputs:  
+!		spos		- sign bit-position
 !		epos		- exponent bit-position
 !		esize		- size of exponent in bits
 !		mpos		- mantissa position
@@ -1149,7 +1150,7 @@
 ! Comment:		
 !----------------------------------------------------------------------
 
-          SUBROUTINE h5tget_fields_f(type_id, epos, esize, mpos, msize, hdferr) 
+          SUBROUTINE h5tget_fields_f(type_id, spos, epos, esize, mpos, msize, hdferr) 
 !
 !This definition is needed for Windows DLLs
 !DEC$if defined(BUILD_HDF5_DLL)
@@ -1158,30 +1159,32 @@
 !
             IMPLICIT NONE
             INTEGER(HID_T), INTENT(IN) :: type_id ! Datatype identifier 
-            INTEGER, INTENT(OUT) :: epos   ! exponent bit-position 
-            INTEGER, INTENT(OUT) :: esize  ! size of exponent in bits
-            INTEGER, INTENT(OUT) :: mpos   ! mantissa bit-position 
-            INTEGER, INTENT(OUT) :: msize  ! size of mantissa in bits
+            INTEGER(SIZE_T), INTENT(OUT) :: spos   ! sign bit-position 
+            INTEGER(SIZE_T), INTENT(OUT) :: epos   ! exponent bit-position 
+            INTEGER(SIZE_T), INTENT(OUT) :: esize  ! size of exponent in bits
+            INTEGER(SIZE_T), INTENT(OUT) :: mpos   ! mantissa bit-position 
+            INTEGER(SIZE_T), INTENT(OUT) :: msize  ! size of mantissa in bits
             INTEGER, INTENT(OUT) :: hdferr        ! Error code
 
 !            INTEGER, EXTERNAL :: h5tget_fields_c
 !  MS FORTRAN needs explicit interface for C functions called here.
 !
             INTERFACE
-              INTEGER FUNCTION h5tget_fields_c(type_id, epos, esize, mpos, msize)
+              INTEGER FUNCTION h5tget_fields_c(type_id, spos, epos, esize, mpos, msize)
               USE H5GLOBAL
               !DEC$ IF DEFINED(HDF5F90_WINDOWS)
               !MS$ATTRIBUTES C,reference,alias:'_H5TGET_FIELDS_C'::h5tget_fields_c
               !DEC$ ENDIF
               INTEGER(HID_T), INTENT(IN) :: type_id
-              INTEGER, INTENT(OUT) :: epos  
-              INTEGER, INTENT(OUT) :: esize
-              INTEGER, INTENT(OUT) :: mpos 
-              INTEGER, INTENT(OUT) :: msize
+              INTEGER(SIZE_T), INTENT(OUT) :: spos  
+              INTEGER(SIZE_T), INTENT(OUT) :: epos  
+              INTEGER(SIZE_T), INTENT(OUT) :: esize
+              INTEGER(SIZE_T), INTENT(OUT) :: mpos 
+              INTEGER(SIZE_T), INTENT(OUT) :: msize
               END FUNCTION h5tget_fields_c
             END INTERFACE
 
-            hdferr = h5tget_fields_c(type_id, epos, esize, mpos, msize)
+            hdferr = h5tget_fields_c(type_id, spos, epos, esize, mpos, msize)
           END SUBROUTINE h5tget_fields_f
 
 !----------------------------------------------------------------------
@@ -1191,6 +1194,7 @@
 !
 ! Inputs:  
 !		type_id		- datatype identifier
+!		spos		- sign bit-position
 !		epos		- exponent bit-position
 !		esize		- size of exponent in bits
 !		mpos		- mantissa position
@@ -1213,7 +1217,7 @@
 ! Comment:		
 !----------------------------------------------------------------------
 
-          SUBROUTINE h5tset_fields_f(type_id, epos, esize, mpos, msize, hdferr) 
+          SUBROUTINE h5tset_fields_f(type_id, spos, epos, esize, mpos, msize, hdferr) 
 !
 !This definition is needed for Windows DLLs
 !DEC$if defined(BUILD_HDF5_DLL)
@@ -1222,30 +1226,32 @@
 !
             IMPLICIT NONE
             INTEGER(HID_T), INTENT(IN) :: type_id ! Datatype identifier
-            INTEGER, INTENT(IN) :: epos   ! exponent bit-position 
-            INTEGER, INTENT(IN) :: esize  ! size of exponent in bits
-            INTEGER, INTENT(IN) :: mpos   ! mantissa bit-position 
-            INTEGER, INTENT(IN) :: msize  ! size of mantissa in bits
+            INTEGER(SIZE_T), INTENT(IN) :: spos   ! sign bit-position 
+            INTEGER(SIZE_T), INTENT(IN) :: epos   ! exponent bit-position 
+            INTEGER(SIZE_T), INTENT(IN) :: esize  ! size of exponent in bits
+            INTEGER(SIZE_T), INTENT(IN) :: mpos   ! mantissa bit-position 
+            INTEGER(SIZE_T), INTENT(IN) :: msize  ! size of mantissa in bits
             INTEGER, INTENT(OUT) :: hdferr        ! Error code
 
 !            INTEGER, EXTERNAL :: h5tset_fields_c
 !  MS FORTRAN needs explicit interface for C functions called here.
 !
             INTERFACE
-              INTEGER FUNCTION h5tset_fields_c(type_id, epos, esize, mpos, msize)
+              INTEGER FUNCTION h5tset_fields_c(type_id, spos, epos, esize, mpos, msize)
               USE H5GLOBAL
               !DEC$ IF DEFINED(HDF5F90_WINDOWS)
               !MS$ATTRIBUTES C,reference,alias:'_H5TSET_FIELDS_C'::h5tset_fields_c
               !DEC$ ENDIF
               INTEGER(HID_T), INTENT(IN) :: type_id
-              INTEGER, INTENT(IN) :: epos  
-              INTEGER, INTENT(IN) :: esize
-              INTEGER, INTENT(IN) :: mpos 
-              INTEGER, INTENT(IN) :: msize
+              INTEGER(SIZE_T), INTENT(IN) :: spos  
+              INTEGER(SIZE_T), INTENT(IN) :: epos  
+              INTEGER(SIZE_T), INTENT(IN) :: esize
+              INTEGER(SIZE_T), INTENT(IN) :: mpos 
+              INTEGER(SIZE_T), INTENT(IN) :: msize
               END FUNCTION h5tset_fields_c
             END INTERFACE
 
-            hdferr = h5tset_fields_c(type_id, epos, esize, mpos, msize)
+            hdferr = h5tset_fields_c(type_id, spos, epos, esize, mpos, msize)
           END SUBROUTINE h5tset_fields_f
 
 !----------------------------------------------------------------------
@@ -3249,4 +3255,62 @@
           END SUBROUTINE h5tget_member_class_f
 
 !----------------------------------------------------------------------
-      END MODULE H5T
+! Name:		h5tget_native_type_f 
+!
+! Purpose:  	Returns the native datatype of a specified datatype.
+!		
+! Inputs:  
+!		dtype_id   - Datatype identifier for the dataset datatype.
+!                        *
+!               direction  - Direction of search: 
+!                    H5T_DIR_DEFAULT     = 0,    /*default direction is inscendent */
+!                    H5T_DIR_ASCEND      = 1,    /*in inscendent order             */
+!                    H5T_DIR_DESCEND     = 2     /*in descendent order             */
+!               * NOTE: In C it is defined as a structure: H5T_direction_t
+!
+! Outputs:  
+!               native_dtype_id  - The native datatype identifier for the specified dataset datatype
+!		hdferr:          - Error code		
+!				     Success:  0
+!				     Failure: -1   
+! Optional parameters:
+!				NONE			
+!
+! Programmer:	M.S. Breitenfeld
+!		June 18, 2008	
+!
+! Modifications:  N/A
+!
+!----------------------------------------------------------------------
+
+  SUBROUTINE h5tget_native_type_f(dtype_id, direction, native_dtype_id, hdferr)
+!
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: h5tget_native_type_f
+!DEC$endif
+!
+    IMPLICIT NONE
+    INTEGER(HID_T), INTENT(IN) :: dtype_id  ! Datatype identifier
+    INTEGER, INTENT(IN) :: direction  ! Direction of search:
+                                      ! H5T_DIR_ASCEND_F      = 1  in inscendent order
+                                      ! H5T_DIR_DESCEND_F     = 2  in descendent order
+    INTEGER(HID_T), INTENT(OUT) :: native_dtype_id  ! The native datatype identifier
+    INTEGER, INTENT(OUT) :: hdferr    ! Error code:
+                                      ! 0 on success and -1 on failure
+    INTERFACE
+       INTEGER FUNCTION h5tget_native_type_c(dtype_id, direction, native_dtype_id)
+         USE H5GLOBAL
+         !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+         !DEC$ ATTRIBUTES C,reference,decorate,alias:'H5TGET_NATIVE_TYPE_C'::h5tget_native_type_c
+         !DEC$ ENDIF
+         INTEGER(HID_T), INTENT(IN) :: dtype_id 
+         INTEGER, INTENT(IN) :: direction
+         INTEGER(HID_T), INTENT(OUT) :: native_dtype_id
+       END FUNCTION h5tget_native_type_c
+    END INTERFACE
+    
+    hdferr = h5tget_native_type_c(dtype_id, direction, native_dtype_id)
+  END SUBROUTINE h5tget_native_type_f
+
+END MODULE H5T

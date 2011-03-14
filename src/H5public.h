@@ -57,15 +57,6 @@
 #endif
 #endif
 
-#ifdef H5_HAVE_GASS             /*for Globus GASS I/O                        */
-#include "globus_common.h"
-#include "globus_gass_file.h"
-#endif
-
-#ifdef H5_HAVE_SRB              /*for SRB I/O                                */
-#include <srbClient.h>
-#endif
-
 #include "H5api_adpt.h"
 
 #ifdef __cplusplus
@@ -75,10 +66,10 @@ extern "C" {
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	6	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	7	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	8	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.6.7"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.6.8"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -141,7 +132,6 @@ typedef __int64 ssize_t;
  * sizes are enabled then use a 64-bit data type, otherwise use the size of
  * memory objects.
  */
-#ifdef H5_HAVE_LARGE_HSIZET
 #   if H5_SIZEOF_LONG_LONG>=8
 typedef unsigned long long 	hsize_t;
 typedef signed long long	hssize_t;
@@ -151,11 +141,6 @@ typedef unsigned __int64	hsize_t;
 typedef signed __int64		hssize_t;
 #       define H5_SIZEOF_HSIZE_T H5_SIZEOF___INT64
 #   endif
-#else /* H5_HAVE_LARGE_HSIZET */
-typedef size_t			hsize_t;
-typedef ssize_t			hssize_t;
-#       define H5_SIZEOF_HSIZE_T H5_SIZEOF_SIZE_T
-#endif /* H5_HAVE_LARGE_HSIZET */
 
 /*
  * File addresses have there own types.

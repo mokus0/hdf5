@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 14461 2008-01-28 19:59:31Z epourmal $)
+AC_REVISION($Id: configure.in 16022 2008-11-03 22:26:37Z epourmal $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -25,7 +25,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.6.7], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.6.8], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -166,13 +166,6 @@ case $host_os in
     host_os_novers=$host_os
     ;;
 esac
-
-AC_MSG_CHECKING([for sizeof hsize_t and hssize_t])
-AC_SUBST(HSIZET)
-AC_MSG_RESULT([large])
-HSIZET=large
-AC_DEFINE([HAVE_LARGE_HSIZET], [1],
-          [Define if it's safe to use `long long' for hsize_t and hssize_t])
 
 host_config="none"
 for f in $host_cpu-$host_vendor-$host_os \
@@ -1176,201 +1169,6 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
         EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(no encoder)"
     fi
 
-fi
-
-dnl ----------------------------------------------------------------------
-dnl Is SSL library present? It is needed by GLOBUS-GASS and Grid Storage
-dnl driver. SSL must be tested before them.
-dnl
-AC_SUBST([SSL]) SSL=yes
-AC_ARG_WITH([ssl],
-            [AC_HELP_STRING([--with-ssl=LIB],
-                            [Use the SSL library [default=no]])],,
-            withval=no)
-
-case "$withval" in
-   yes)
-      AC_CHECK_LIB([crypto], [main],, [unset SSL])
-      AC_CHECK_LIB([ssl], [SSL_get_version],, [unset SSL])
-      ;;
-   no)
-      AC_MSG_CHECKING([for SSL])
-      AC_MSG_RESULT([suppressed])
-      unset SSL
-      ;;
-   *)
-      saved_LDFLAGS="$LDFLAGS"
-      if test "X$with_ssl" != "X/usr/lib"; then
-        LDFLAGS="$LDFLAGS -L$with_ssl"
-      fi
-      AC_CHECK_LIB([crypto], [main],, [LDFLAGS="$saved_LDFLAGS"; unset SSL])
-      AC_CHECK_LIB([ssl], [SSL_get_version],, [LDFLAGS="$saved_LDFLAGS"; unset SSL])
-      ;;
-esac
-
-dnl ----------------------------------------------------------------------
-dnl Is GLOBUS-GASS(1.1.0 or 1.1.1) Library present? It is also needed by 
-dnl the Grid Storage driver.
-dnl
-AC_SUBST([GASS]) GASS="yes"
-AC_SUBST([TESTGASS]) TESTGASS='$(srcdir)/testgass'
-AC_ARG_WITH([gass],
-            [AC_HELP_STRING([--with-gass=DIR],
-                            [Use the GASS library [default=no]])],,
-            withval=no)
-
-case "$withval" in
-  yes)
-    AC_CHECK_HEADERS(globus_common.h,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_common,globus_module_activate,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gass_cache,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gaa,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gss,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gss_assist,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_io,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gass_transfer_assist,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gass_transfer,main,,unset GASS TESTGASS)
-    AC_CHECK_LIB(globus_gass_file,globus_gass_open,,unset GASS TESTGASS)
-    ;;
-  no)
-    AC_MSG_CHECKING([for GASS])
-    AC_MSG_RESULT([suppressed])
-    unset GASS TESTGASS
-    ;;
-  *)
-    case "$withval" in
-      *,*)
-        gass_inc="`echo $withval | cut -f1 -d,`"
-        gass_lib="`echo $withval | cut -f2 -d, -s`"
-        ;;
-      *)
-        if test -n "$withval"; then
-          gass_inc="$withval/include"
-          gass_lib="$withval/lib"
-        fi
-        ;;
-    esac
-
-    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
-    dnl can mess some compilers up.
-    if test "X$gass_inc" = "X/usr/include"; then
-      gass_inc=""
-    fi
-    if test "X$gass_lib" = "X/usr/lib"; then
-      gass_lib=""
-    fi
-
-    if test -n "$gass_inc"; then
-      saved_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="$CPPFLAGS -I$gass_inc"
-      AC_CHECK_HEADERS([globus_common.h],,
-                       CPPFLAGS="$saved_CPPFLAGS"
-                       unset GASS TESTGASS)
-    else
-      AC_CHECK_HEADERS([globus_common.h])
-    fi
-
-    if test -n "$gass_lib"; then
-      saved_LDFLAGS="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -L$gass_lib"
-      AC_CHECK_LIB(globus_common,globus_module_activate,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_cache,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gaa,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gss,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gss_assist,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_io,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_transfer_assist,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_transfer,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_file,globus_gass_open,,unset GASS TESTGASS)
-    else
-      AC_CHECK_LIB(globus_common,globus_module_activate,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_cache,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gaa,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gss,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gss_assist,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_io,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_transfer_assist,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_transfer,main,,unset GASS TESTGASS)
-      AC_CHECK_LIB(globus_gass_file,globus_gass_open,,unset GASS TESTGASS)
-    fi
-    ;;
-esac
-
-if test -n "$GASS"; then
-  AC_DEFINE([HAVE_GASS], [1], [Define if the Globus GASS is defined])
-fi
-
-dnl ----------------------------------------------------------------------
-dnl Are SRB Client and other system libraries(socket, elf) present?  
-dnl
-AC_SUBST([SRB]) SRB="yes"
-AC_SUBST([TESTSRB]) TESTSRB='$(srcdir)/testsrb'
-AC_ARG_WITH([srb],
-            [AC_HELP_STRING([--with-srb=DIR],
-                            [Use the SRB library [default=no]])],,
-            withval=no)
-
-case "$withval" in
-  yes)
-    AC_CHECK_HEADERS([srbClient.h],, [unset SRB TESTSRB])
-    AC_CHECK_LIB([elf], [main],, [unset SRB TESTSRB])
-    AC_CHECK_LIB([socket], [main],, [unset SRB TESTSRB])
-    AC_CHECK_LIB([SrbClient], [clConnect],, [unset SRB TESTSRB])
-    ;;
-  no)
-    AC_MSG_CHECKING([for SRB])
-    AC_MSG_RESULT([suppressed])
-    unset SRB TESTSRB
-    ;;
-  *)
-    case "$withval" in
-      *,*)
-        srb_inc="`echo $withval | cut -f1 -d,`"
-        srb_lib="`echo $withval | cut -f2 -d, -s`"
-        ;;
-      *)
-        if test -n "$withval"; then
-          srb_inc="$withval/include"
-          srb_lib="$withval/lib"
-        fi
-        ;;
-    esac
-
-    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
-    dnl can mess some compilers up.
-    if test "X$srb_inc" = "X/usr/include"; then
-      srb_inc=""
-    fi
-    if test "X$srb_lib" = "X/usr/lib"; then
-      srb_lib=""
-    fi
-
-    if test -n "$srb_inc"; then
-      saved_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="$CPPFLAGS -I$srb_inc"
-      AC_CHECK_HEADERS(srbClient.h,,
-                       CPPFLAGS="$saved_CPPFLAGS"
-                       unset SRB TESTSRB)
-    else
-      AC_CHECK_HEADERS(srbClient.h)
-    fi
-
-    if test -n "$srb_lib"; then
-      saved_LDFLAGS="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -L$srb_lib"
-      AC_CHECK_LIB(elf,main,,unset SRB TESTSRB)
-      AC_CHECK_LIB(socket,main,,unset SRB TESTSRB)
-      AC_CHECK_LIB(SrbClient,clConnect,,unset SRB TESTSRB)
-    else
-      AC_CHECK_LIB(elf,main,,unset SRB TESTSRB)
-      AC_CHECK_LIB(socket,main,,unset SRB TESTSRB)
-      AC_CHECK_LIB(SrbClient,clConnect,,unset SRB TESTSRB)
-    fi
-    ;;
-esac
-
-if test -n "$SRB"; then
-  AC_DEFINE([HAVE_SRB], [1], [Define if the SRB is defined])
 fi
 
 dnl Checkpoint the cache
@@ -2701,9 +2499,6 @@ IF_YES_NO "$HAVE_DMALLOC"
 PRINT_N "         Function Stack Tracing"
 IF_ENABLED_DISABLED "$FUNCSTACK"
 
-PRINT_N "                           GASS"
-IF_YES_NO "$GASS"
-
 PRINT_N "                           GPFS"
 IF_YES_NO "$GPFS"
 
@@ -2712,12 +2507,6 @@ IF_ENABLED_DISABLED "$STRICT_FORMAT_CHECKS"
 
 PRINT_N "        HDF5 v1.4 Compatibility"
 IF_YES_NO "$HDF5_V1_4_COMPAT"
-
-PRINT_N "                        hsize_t"
-case "$HSIZET" in
-  no|small)  PRINT "Small" ;;
-  *)         PRINT "Large" ;;
-esac
 
 PRINT_N "         I/O filters (external)"
 PRINT "$EXTERNAL_FILTERS"
@@ -2738,9 +2527,6 @@ if test "$PARALLEL" != "no"; then
 else
   PRINT "No"
 fi
-
-PRINT_N "                            SRB"
-IF_YES_NO "$SRB"
 
 PRINT_N "                   Threadsafety"
 IF_ENABLED_DISABLED "$THREADSAFE"

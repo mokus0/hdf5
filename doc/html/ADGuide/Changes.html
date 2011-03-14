@@ -39,7 +39,7 @@
     -->
 </td>
 <td valign=top align=right>
-    <a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User's Guide</a>&nbsp;<br>
+    <a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User's Guide</a>&nbsp;<br>
     <a href="../RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
     <a href="../ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;<br>
 </td></tr>
@@ -57,16 +57,243 @@
 This document is intended to assist application developers who must keep 
 an application synchronized with the HDF5 library or related software.
 
+<a name="168">
+<h2>Release 1.6.8 (current release) versus Release 1.6.7,
+    November 2008</h2> 
+</a>
 
-<h2>Release 1.6.7 (current release) versus Release 1.6.6</h2> 
+<dir>
+
+This section lists API-level changes and changes in behavior 
+in the transition from HDF5 Release 1.6.7 to Release 1.6.8.
+
+
+    <h3>Functions with Changed Syntax</h3>
+
+        The following function syntaxes have changed;
+        the affected return values and parameter are noted as 
+        <font color=red><u>underscored red text</u></font>.
+        <p>
+        <dl>
+        <dt><u>C function:</u>
+        <dt><code>H5Fget_obj_count</code>
+          <dd><code>
+              <font color=red><u>
+              ssize_t</u></font> H5Fget_obj_count(
+              <em>hid_t </em><code>file_id</code>,
+              <em>unsigned int</em> <code>types</code>
+              )
+              </code>
+        <p>
+        <dt><code>H5Fget_obj_ids</code>
+          <dd><code>
+              <font color=red><u>
+              ssize_t</u></font> H5Fget_obj_ids(
+              <em>hid_t </em><code>file_id</code>,
+              <em>unsigned int</em> <code>types</code>,
+              <br>
+              &nbsp; &nbsp; &nbsp; &nbsp;
+              <font color=red><u>
+              <em>size_t</em> <code>max_objs</code></u></font>,
+              <em>hid_t *</em><code>obj_id_list</code>
+              )
+              </code>
+        </dl>
+        <p>
+
+</dir>
+<dir>
+
+    <h3>Tools with Changed Interface or Behavior</h3>
+    
+        <dl>    
+            <dt><code>h5repack</code> and <code>h5diff</code>
+                <dd>The standard command-line syntax of both tools
+                    has been changed to parallel that of <code>h5dump</code>.
+                    The new syntax of each is as follows:
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <code>
+                    h5repack [<i>OPTIONS</i>] <i>file1 file2</i> 
+                    </code>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;
+                    <code>
+                    h5diff [<i>OPTIONS</i>] <i>file1 file2</i> 
+                           [<i>object1</i> [<i>object2</i>]]
+                    </code>
+                    <p>
+                    In each case, 
+                    the old syntax remains available (though undocumented)
+                    to avoid breaking existing scripts. 
+                    <p>
+        </dl>    
+
+</dir>
+<dir>
+                   
+        <dl>    
+            <dt><code>h5diff</code>
+                <dd><code>h5diff</code> now returns <code>1</code>
+                    if the files differ in structure, 
+                    i.e., if the file graphs differ by any object. 
+                    <p>     
+                    The tool&rsquo;s error return code has been changed 
+                    to <code>2</code>.
+                    <p>     
+
+            <dt><code>h5repack</code> 
+                <dd>The following new options control the addition of
+                    user block data to an existing HDF5 file:
+                    <dir>
+                    <table>
+                    <tr valign=top><td>
+                          <code>-u <em>U</em></code>
+                          <br>
+                          <code>--ublock=<em>U</em></code>
+                        </td><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td>
+                          Specifies the name of the file containing the
+                          user block data to be added.
+                        </td></tr>
+                    <tr valign=top><td>
+                          <br>
+                          <code>-b <em>B</em></code>
+                          <br>
+                          <code>--block=<em>B</em></code>
+                        </td><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td>
+                          <br>
+                          Specifies the size of the block to be added.
+                        </td></tr>
+                    </table>
+                    </dir>
+                    <p>
+
+                <dd>The following new options set parameters
+                    governing the tool&rsquo;s use of
+                    <code>H5Pset_alignment</code>:
+                    <dir>
+                    <table>
+                    <tr valign=top><td>
+                          <code>-t <em>T</em></code>
+                          <br>
+                          <code>--threshold=<em>T</em></code>
+                        </td><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td>
+                          Specifies the threshold value for
+                          <code>H5Pset_alignment</code>.
+                        </td></tr>
+                    <tr valign=top><td>
+                          <br>
+                          <code>-a <em>A</em></code>
+                          <br>
+                          <code>--alignment=<em>A</em></code>
+                        </td><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td>
+                          <br>
+                          Specifies the alignment value for
+                          <code>H5Pset_alignment</code>.
+                        </td></tr>
+                    </table>
+                    </dir>
+                    <p>
+
+                <dd><code>h5repack</code> now supports multiple instances of
+                    the <code>'-f'</code> or <code>'--filter'</code> option, 
+                    allowing the use of multiple I/O filters with an object.
+                    <p>
+                <dd>With no change in the command-line syntax, 
+                    <code>h5repack</code> now retains an existing userblock
+                    when repacking an HDF5 file.
+                    <p>
+
+            <dt><code>h5import</code> 
+                <dd>The floating point format flag <code>TEXTFPE</code>,
+                    for scientific notation, has been deprecated.
+                    The flag <code>TEXTFP</code>, which accepts
+                    scientific notation, should be used instead.
+                    <p>
+
+                <dd><code>h5import</code> now imports string data 
+                    with the <code>STR</code> keyword 
+                    in the <code>INPUT-CLASS</code> configuration field.
+                    <p>
+                   
+            <dt><code>h5dump</code> 
+                <dd>The new <code>'-m <i>T</i>'</code> or 
+                    <code>'--format <i>T</i>'</code> option 
+                    enables a user-defined formatting string 
+                    for printing floating-point numbers.
+                    <p>
+                <dd>With no change in the command-line syntax, 
+                    <code>h5dump</code> now prints a compression ratio
+                    when compression filters are in use.
+                    
+        </dl>    
+
+</dir>
+<dir>
+
+
+    <h3>Deprecated Functions</h3>
+
+        The following functions are deprecated as of this release: 
+        <pre>
+              H5Pset_preserve
+              H5Pget_preserve
+        </pre>
+        <p>
+        The original role of these functions is now 
+        part of the core HDF5 Library functionality.
+        <p>
+
+
+    <h3>Changed File Installation</h3>
+        The file <code>libhdf5_fortran.settings</code> is no longer
+        installed with the HDF5 Library;
+        the original content of that file is now included in 
+        <code>libhdf5.settings</code>.
+    
+
+
+</dir>
+
+
+
+<a name="167">
+<h2>Release 1.6.7 versus Release 1.6.6</h2> 
+</a>
 
 <dir>
 
 This section lists the API-level changes that have been made in the 
 transition from the HDF5 Release 1.6.6 to Release 1.6.7.
 As this is primarily a bug-fix release, 
-the only interface changes are related to the removal of the 
+the only interface changes are one changed function signature and
+the changes related to the removal of the 
 stream I/O driver, as outlined below.
+
+
+    <h3>Function with Changed Syntax</h3>
+
+        The following function syntax has changed;
+        the affected parameter is noted in <font color=red>red</font>.
+        <p>
+        <dl>
+        <dt><u>C function:</u>
+        <dt><code>H5Sselect_elements</code>
+          <dd><code>
+              herr_t H5Sselect_elements(
+              <em>hid_t </em><code>space_id</code>,
+              <em>H5S_seloper_t</em> <code>op</code>,
+              <br>
+              &nbsp; &nbsp; &nbsp; &nbsp;
+              <em>size_t</em> <code>num_elements</code>,
+              <font color=red>
+              <em>const hsize_t *</em><code>coord</code>
+              </font>
+              )
+              </code>
+         </dl>
+         <p>
+         <cite>(This syntax change was listed on 10 September 2008, 
+          several months after Release 1.6.7.)</cite>
+
 
     <h3>Stream I/O Driver Removed</h3>
     
@@ -92,7 +319,9 @@ stream I/O driver, as outlined below.
 
 </dir>
 
-<h2>Release 1.6.7 versus Release 1.6.5</h2> 
+<a name="166">
+<h2>Release 1.6.6 versus Release 1.6.5</h2> 
+</a>
 
 <dir>
 
@@ -2762,7 +2991,7 @@ V1.4.0
     -->
 </td>
 <td valign=top align=right>
-    <a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User's Guide</a>&nbsp;<br>
+    <a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User's Guide</a>&nbsp;<br>
     <a href="../RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
     <a href="../ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;<br>
 </td></tr>
@@ -2776,13 +3005,13 @@ V1.4.0
 <address>
 THG Help Desk: <img src="../Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.7, January 2008 
+Describes HDF5 Release 1.6.8, November 2008 
 </address>
 
 
 <!-- #EndLibraryItem --><!-- Created: Spring 1999 -->
 <!-- hhmts start -->
-Last modified: 31 January 2008
+Last modified: 10 November 2008 
 <!-- hhmts end -->
 
 </body>

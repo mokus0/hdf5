@@ -37,7 +37,7 @@ HDF5/H5T API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -61,7 +61,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -1286,8 +1286,8 @@ SUBROUTINE
 <dt><strong>Signature:</strong>
     <dd><em>int</em> <code>H5Tget_array_dims</code>(
                        <em>hid_t</em> <code>adtype_id</code>,
-                       <em>hsize_t *</em><code>dims[]</code>,
-                       <em>int *</em><code>perm[]</code>
+                       <em>hsize_t </em><code>dims[]</code>,
+                       <em>int </em><code>perm[]</code>
     )
 <dt><strong>Purpose:</strong>
     <dd>Retrieves sizes of array dimensions and dimension permutations.
@@ -1301,13 +1301,13 @@ SUBROUTINE
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em>&nbsp;<code>adtype_id&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>hid_t</em>&nbsp;<code>adtype_id&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: Datatype identifier of array object.</td></tr>
         <tr>
-		    <td valign="top"><em>hsize_t *</em><code>dims[]</code></td>
+            <td valign="top"><em>hsize_t </em><code>dims[]</code></td>
             <td valign="top">OUT: Sizes of array dimensions.</td></tr>
         <tr>
-		    <td valign="top"><em>int *</em><code>perm[]</code></td>
+            <td valign="top"><em>int </em><code>perm[]</code></td>
             <td valign="top">OUT: Dimension permutations.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
@@ -2115,10 +2115,14 @@ END SUBROUTINE h5tget_member_value_f
 	determine the native datatype of a dataset prior to reading it 
 	into memory.     
         It can be used not only to determine 
-	the native datatype for atomic datatypes, 
-	but also to determine the native datatypes of the individual components of 
-	a compound datatype, an enumerated datatype, an array datatype, or 
+        the native datatype for atomic datatypes, 
+        but also to determine the native datatypes of the individual components 
+        of a compound datatype, an enumerated datatype, an array datatype, or 
         a variable-length datatype.
+        For example, if <code>dtype_id</code> is a compound datatype,
+        the returned datatype identifier will be for 
+        a similar compound datatype with
+        each element converted to the corresponding native datatype.
         <p>
 	<code>H5Tget_native_type</code> selects the matching native datatype 
 	from the following list:
@@ -2910,7 +2914,7 @@ END SUBROUTINE h5tinsert_f
 <dt><strong>Purpose:</strong>
     <dd>Determines whether datatype is a variable-length string.  
 <dt><strong>Description:</strong>
-    <dd><code>H5Tvlen_create</code> determines whether the datatype 
+    <dd><code>H5Tis_variable_str</code> determines whether the datatype 
         identified in <code>dtype_id</code> is a variable-length string.
         <p>
         This function can be used to distinguish between 
@@ -4233,7 +4237,7 @@ END SUBROUTINE h5tvlen_create_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -4257,7 +4261,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -4270,13 +4274,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <address>
 THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.7, January 2008 
+Describes HDF5 Release 1.6.8, November 2008 
 </address>
 
 
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 13 June 2006");
+document.writeln("Last modified: 16 October 2008");
 -->
 </SCRIPT>
  

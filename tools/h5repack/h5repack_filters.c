@@ -122,7 +122,7 @@ int aux_assign_obj(const char* name,            /* object name from traverse lis
         {
             /* assign the global filter */
             tmp.nfilters=1;
-            tmp.filter[0]=options->filter_g;
+            tmp.filter[0]=options->filter_g[0];
         } /* if all */
         else
         {
@@ -144,9 +144,12 @@ int aux_assign_obj(const char* name,            /* object name from traverse lis
         
         if (options->all_filter)
         {
-            /* assign the global filter */
-            tmp.nfilters=1;
-            tmp.filter[0]=options->filter_g;
+            int k;
+
+            /* assign the global filters */
+            tmp.nfilters=options->n_filter_g;
+            for ( k = 0; k < options->n_filter_g; k++)
+                tmp.filter[k]=options->filter_g[k];
         }
         if (options->all_layout)
         {
@@ -256,11 +259,11 @@ int apply_filters(const char* name,    /* object name from traverse list */
         }
     }
     
-    /*-------------------------------------------------------------------------
+   /*-------------------------------------------------------------------------
     * the type of filter and additional parameter
     * type can be one of the filters
     * H5Z_FILTER_NONE       0,  uncompress if compressed
-    * H5Z_FILTER_DEFLATE      1 , deflation like gzip
+    * H5Z_FILTER_DEFLATE    1 , deflation like gzip
     * H5Z_FILTER_SHUFFLE    2 , shuffle the data
     * H5Z_FILTER_FLETCHER32 3 , fletcher32 checksum of EDC
     * H5Z_FILTER_SZIP       4 , szip compression

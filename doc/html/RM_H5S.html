@@ -37,7 +37,7 @@ HDF5/H5S API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -61,7 +61,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -1304,8 +1304,8 @@ END SUBROUTINE h5sselect_all_f
 <dt><strong>Signature:</strong>
     <dd><em>herr_t</em> <code>H5Sselect_elements</code>(<em>hid_t </em><code>space_id</code>,
         <em>H5S_seloper_t</em> <code>op</code>,
-        <em>const size_t</em> <code>num_elements</code>,
-        <em>const hsize_t *</em><code>coord</code>[ ]
+        <em>size_t</em> <code>num_elements</code>,
+        <em>const hsize_t *</em><code>coord</code>
     )
 <dt><strong>Purpose:</strong>
     <dd>Selects array elements to be included in the selection for a dataspace.
@@ -1316,8 +1316,8 @@ END SUBROUTINE h5sselect_all_f
         The number of elements selected is set in the 
         <code>num_elements</code> parameter.  
         <p>
-        The <code>coord</code> array is a two-dimensional array of 
-        size <code><i>dataspace_rank</i></code> by <code>num_elements</code> 
+        The <code>coord</code> array is a two-dimensional array of size
+        <code>num_elements</code> by <code><i>dataspace_rank</i></code> 
         containing a list of of zero-based values specifying the 
         coordinates in the dataset of the selected elements.  
         The order of the element coordinates in the 
@@ -1361,19 +1361,19 @@ END SUBROUTINE h5sselect_all_f
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		  <td valign="top"><em>hid_t</em> <code>space_id</code></td>
+          <td valign="top"><em>hid_t</em> <code>space_id</code></td>
           <td valign="top">Identifier of the dataspace.</td></tr>
         <tr>
-		  <td valign="top"><em>H5S_seloper_t</em> <code>op</code></td>
+          <td valign="top"><em>H5S_seloper_t</em> <code>op</code></td>
           <td valign="top">Operator specifying how the new selection is to be 
-                combined with the existing selection for the dataspace.</td></tr>
+              combined with the existing selection for the dataspace.</td></tr>
         <tr>
-		  <td valign="top"><em>const&nbsp;size_t</em>&nbsp;<code>num_elements&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+          <td valign="top"><em>size_t</em>&nbsp;<code>num_elements&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
           <td valign="top">Number of elements to be selected.</td></tr>
         <tr>
-		  <td valign="top"><em>const hsize_t *</em><code>coord</code>[ ]</td>
-          <td valign="top">A 2-dimensional array of 0-based values specifying the 
-                coordinates of the elements being selected.</td></tr>
+          <td valign="top"><em>const hsize_t *</em><code>coord</code></td>
+          <td valign="top">A 2-dimensional array of 0-based values specifying 
+              the coordinates of the elements being selected.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful; 
@@ -1912,7 +1912,7 @@ END SUBROUTINE h5sset_extent_simple_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc1.6/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -1936,7 +1936,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc1.6/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -1949,13 +1949,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <address>
 THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.7, January 2008 
+Describes HDF5 Release 1.6.8, November 2008 
 </address>
 
 
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 11 October 2006");
+document.writeln("Last modified: 10 September 2008");
 -->
 </SCRIPT> 
 

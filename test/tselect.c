@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tselect.c,v 1.69.2.2 2003/08/19 12:17:11 koziol Exp $ */
+/* $Id: tselect.c,v 1.69.2.5 2004/01/10 02:41:27 koziol Exp $ */
 
 /***********************************************************
 *
@@ -124,6 +124,10 @@
 #define CHUNK_X   87                    /* chunk dimensions */
 #define CHUNK_Y   61    
 #define CHUNK_Z  181    
+
+/* Basic chunk size */
+#define SPACE10_DIM1    180
+#define SPACE10_CHUNK_SIZE 12
 
 /* Location comparison function */
 int compare_size_t(const void *s1, const void *s2);
@@ -930,8 +934,7 @@ test_select_combo(void)
         tbuf=wbuf+i;
         tbuf2=rbuf+(i*SPACE3_DIM2);
         if(*tbuf!=*tbuf2) {
-            num_errs++;
-            printf("element values don't match!, i=%d\n",i);
+            TestErrPrintf("element values don't match!, i=%d\n",i);
         } /* end if */
     } /* end for */
 
@@ -1095,8 +1098,7 @@ test_select_hyper_stride(hid_t xfer_plist)
         if(*tbuf!=*tbuf2) {
             printf("%d: hyperslab values don't match!, loc1[%d]=%d, loc2[%d]=%d\n",__LINE__,i,(int)loc1[i],i,(int)loc2[i]);
             printf("wbuf=%p, tbuf=%p, rbuf=%p, tbuf2=%p\n",(void *)wbuf,(void *)tbuf,(void *)rbuf,(void *)tbuf2);
-            printf("*tbuf=%u, *tbuf2=%u\n",(unsigned)*tbuf,(unsigned)*tbuf2);
-            num_errs++;
+            TestErrPrintf("*tbuf=%u, *tbuf2=%u\n",(unsigned)*tbuf,(unsigned)*tbuf2);
         } /* end if */
     } /* end for */
 
@@ -1221,8 +1223,7 @@ test_select_hyper_contig(hid_t dset_type, hid_t xfer_plist)
 
     /* Compare data read with data written out */
     if(HDmemcmp(rbuf,wbuf,sizeof(uint16_t)*30*12)) {
-        printf("hyperslab values don't match! Line=%d\n",__LINE__);
-        num_errs++;
+        TestErrPrintf("hyperslab values don't match! Line=%d\n",__LINE__);
 #ifdef QAK
         for(i=0, tbuf=wbuf; i<12; i++)
             for(j=0; j<30; j++)
@@ -1325,13 +1326,13 @@ test_select_hyper_contig2(hid_t dset_type, hid_t xfer_plist)
     sid2 = H5Screate_simple(SPACE8_RANK, dims2, NULL);
     CHECK(sid2, FAIL, "H5Screate_simple");
 
-    /* Select 6x5 count with a stride of 2x6 & 2x6 block hyperslab for disk dataset */
+    /* Select contiguous hyperslab in memory */
     start[0]=0; start[1]=0; start[2]=0; start[3]=0;
     count[0]=2; count[1]=SPACE8_DIM3; count[2]=SPACE8_DIM2; count[3]=SPACE8_DIM1;
     ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
     CHECK(ret, FAIL, "H5Sselect_hyperslab");
 
-    /* Select 3x15 count with a stride of 4x2 & 4x2 block hyperslab for memory dataset */
+    /* Select contiguous hyperslab in memory */
     start[0]=0; start[1]=0; start[2]=0; start[3]=0;
     count[0]=2; count[1]=SPACE8_DIM3; count[2]=SPACE8_DIM2; count[3]=SPACE8_DIM1;
     ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,NULL,count,NULL);
@@ -1343,8 +1344,7 @@ test_select_hyper_contig2(hid_t dset_type, hid_t xfer_plist)
 
     /* Compare data read with data written out */
     if(HDmemcmp(rbuf,wbuf,sizeof(uint16_t)*2*SPACE8_DIM3*SPACE8_DIM2*SPACE8_DIM1)) {
-        num_errs++;
-        printf("Error: hyperslab values don't match!\n");
+        TestErrPrintf("Error: hyperslab values don't match!\n");
 #ifdef QAK
         for(i=0, tbuf=wbuf; i<12; i++)
             for(j=0; j<30; j++)
@@ -1372,6 +1372,141 @@ test_select_hyper_contig2(hid_t dset_type, hid_t xfer_plist)
     free(wbuf);
     free(rbuf);
 }   /* test_select_hyper_contig2() */
+
+/****************************************************************
+**
+**  test_select_hyper_contig3(): Test H5S (dataspace) selection code.
+**      Tests contiguous hyperslabs of various sizes and dimensionalities.
+**  This test uses a hyperslab that is contiguous in the lowest dimension,
+**  not contiguous in a dimension, then has a selection across the entire next
+**  dimension (which should be "flattened" out also).
+** 
+****************************************************************/
+static void 
+test_select_hyper_contig3(hid_t dset_type, hid_t xfer_plist)
+{
+    hid_t		fid1;		/* HDF5 File IDs		*/
+    hid_t		dataset;	/* Dataset ID			*/
+    hid_t		sid1,sid2;	/* Dataspace ID			*/
+    hsize_t		dims2[] = {SPACE8_DIM4, SPACE8_DIM3, SPACE8_DIM2, SPACE8_DIM1};
+    hssize_t	        start[SPACE8_RANK];     /* Starting location of hyperslab */
+    hsize_t		count[SPACE8_RANK];     /* Element count of hyperslab */
+    uint16_t   *wbuf,           /* Buffer to write to disk */
+               *rbuf,           /* Buffer read from disk */
+               *tbuf, *tbuf2;   /* Temporary buffer pointers */
+    int        i,j,k,l;     /* Counters */
+    herr_t		ret;		/* Generic return value		*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Yet More Contiguous Hyperslabs Functionality\n"));
+
+    /* Allocate write & read buffers */
+    wbuf=malloc(sizeof(uint16_t)*SPACE8_DIM1*SPACE8_DIM2*SPACE8_DIM3*SPACE8_DIM4);
+    rbuf=calloc(sizeof(uint16_t),SPACE8_DIM1*SPACE8_DIM2*SPACE8_DIM3*SPACE8_DIM4);
+
+    /* Initialize write buffer */
+    for(i=0, tbuf=wbuf; i<SPACE8_DIM4; i++)
+        for(j=0; j<SPACE8_DIM3; j++)
+            for(k=0; k<SPACE8_DIM2; k++)
+                for(l=0; l<SPACE8_DIM1; l++)
+                    *tbuf++=(uint16_t)((k*SPACE8_DIM2)+l);
+
+    /* Create file */
+    fid1 = H5Fcreate(FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    /* Create dataspace for dataset */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims2, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Create dataspace for writing buffer */
+    sid2 = H5Screate_simple(SPACE8_RANK, dims2, NULL);
+    CHECK(sid2, FAIL, "H5Screate_simple");
+
+    /* Select semi-contiguous hyperslab for disk dataset */
+    start[0]=0; start[1]=0; start[2]=SPACE8_DIM2/2; start[3]=0;
+    count[0]=2; count[1]=SPACE8_DIM3; count[2]=SPACE8_DIM2/2; count[3]=SPACE8_DIM1;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Select semi-contiguous hyperslab in memory */
+    start[0]=0; start[1]=0; start[2]=SPACE8_DIM2/2; start[3]=0;
+    count[0]=2; count[1]=SPACE8_DIM3; count[2]=SPACE8_DIM2/2; count[3]=SPACE8_DIM1;
+    ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Create a dataset */
+    dataset=H5Dcreate(fid1,"Dataset1",dset_type,sid1,H5P_DEFAULT);
+
+    /* Write selection to disk */
+    ret=H5Dwrite(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,wbuf);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Close memory dataspace */
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Create dataspace for reading buffer */
+    sid2 = H5Screate_simple(SPACE8_RANK, dims2, NULL);
+    CHECK(sid2, FAIL, "H5Screate_simple");
+
+    /* Select semi-contiguous hyperslab in memory */
+    start[0]=0; start[1]=0; start[2]=SPACE8_DIM2/2; start[3]=0;
+    count[0]=2; count[1]=SPACE8_DIM3; count[2]=SPACE8_DIM2/2; count[3]=SPACE8_DIM1;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Select semi-contiguous hyperslab in memory */
+    start[0]=0; start[1]=0; start[2]=SPACE8_DIM2/2; start[3]=0;
+    count[0]=2; count[1]=SPACE8_DIM3; count[2]=SPACE8_DIM2/2; count[3]=SPACE8_DIM1;
+    ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Read selection from disk */
+    ret=H5Dread(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,rbuf);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Compare data read with data written out */
+    for(i=0, tbuf=wbuf,tbuf2=rbuf; i<SPACE8_DIM4; i++)
+        for(j=0; j<SPACE8_DIM3; j++)
+            for(k=0; k<SPACE8_DIM2; k++)
+                for(l=0; l<SPACE8_DIM1; l++,tbuf++,tbuf2++)
+                    if( (i>=start[0] && i<(int)(start[0]+count[0])) &&
+                            (j>=start[1] && j<(int)(start[1]+count[1])) &&
+                            (k>=start[2] && k<(int)(start[2]+count[2])) &&
+                            (l>=start[3] && l<(int)(start[3]+count[3])) ) {
+                        if(*tbuf!=*tbuf2) {
+                            printf("Error: hyperslab values don't match!\n");
+                            TestErrPrintf("Line: %d, i=%d, j=%d, k=%d, l=%d, *tbuf=%u,*tbuf2=%u\n",__LINE__,i,j,k,l,(unsigned)*tbuf,(unsigned)*tbuf2);
+                        } /* end if */
+                    } /* end if */
+                    else {
+                        if(*tbuf2!=0) {
+                            printf("Error: invalid data in read buffer!\n");
+                            TestErrPrintf("Line: %d, i=%d, j=%d, k=%d, l=%d, *tbuf=%u,*tbuf2=%u\n",__LINE__,i,j,k,l,(unsigned)*tbuf,(unsigned)*tbuf2);
+                        } /* end if */
+                    } /* end else */
+
+    /* Close memory dataspace */
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close disk dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Free memory buffers */
+    free(wbuf);
+    free(rbuf);
+}   /* test_select_hyper_contig3() */
 
 /****************************************************************
 **
@@ -1492,8 +1627,7 @@ test_select_hyper_copy(void)
 
     /* Compare data read with data written out */
     if(HDmemcmp(rbuf,rbuf2,sizeof(uint16_t)*SPACE3_DIM1*SPACE3_DIM2)) {
-        printf("hyperslab values don't match! Line=%d\n",__LINE__);
-        num_errs++;
+        TestErrPrintf("hyperslab values don't match! Line=%d\n",__LINE__);
 #ifdef QAK
         for(i=0; i<SPACE3_DIM1; i++)
             for(j=0; j<SPACE3_DIM2; j++)
@@ -1668,8 +1802,7 @@ test_select_point_copy(void)
 
     /* Compare data read with data written out */
     if(HDmemcmp(rbuf,rbuf2,sizeof(uint16_t)*SPACE3_DIM1*SPACE3_DIM2)) {
-        printf("point values don't match!\n");
-        num_errs++;
+        TestErrPrintf("point values don't match!\n");
     } /* end if */
 
     /* Close memory dataspace */
@@ -1837,8 +1970,7 @@ test_select_hyper_offset(void)
         tbuf2=rbuf+(i*SPACE3_DIM2);
         for(j=0; j<SPACE3_DIM2; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%u, *tbuf2=%u\n",__LINE__,i,j,(unsigned)*tbuf,(unsigned)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%u, *tbuf2=%u\n",__LINE__,i,j,(unsigned)*tbuf,(unsigned)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -1956,8 +2088,7 @@ test_select_hyper_offset2(void)
         tbuf2=rbuf+((i+3)*SPACE7_DIM2);
         for(j=0; j<SPACE7_DIM2; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%u, *tbuf2=%u\n",__LINE__,i,j,(unsigned)*tbuf,(unsigned)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%u, *tbuf2=%u\n",__LINE__,i,j,(unsigned)*tbuf,(unsigned)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -2129,8 +2260,7 @@ test_select_point_offset(void)
         tbuf=wbuf+((coord2[i][0]+offset[0])*SPACE2_DIM2)+coord2[i][1]+offset[1];
         tbuf2=rbuf+(coord3[i][0]*SPACE3_DIM2)+coord3[i][1];
         if(*tbuf!=*tbuf2) {
-            printf("element values don't match!, i=%d\n",i);
-            num_errs++;
+            TestErrPrintf("element values don't match!, i=%d\n",i);
         } /* end if */
     } /* end for */
 
@@ -2278,8 +2408,7 @@ test_select_hyper_union(void)
         tbuf2=rbuf+(i*SPACE3_DIM2);
         for(j=0; j<SPACE3_DIM2; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -2373,8 +2502,7 @@ test_select_hyper_union(void)
         tbuf2=rbuf+(i*SPACE3_DIM2);
         for(j=0; j<SPACE3_DIM2; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -2464,8 +2592,7 @@ test_select_hyper_union(void)
         tbuf2=rbuf+(i*SPACE3_DIM2);
         for(j=0; j<SPACE3_DIM2; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -2568,8 +2695,7 @@ test_select_hyper_union(void)
         tbuf2=rbuf+(i*SPACE3_DIM2);
         for(j=0; j<SPACE3_DIM2; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -2654,8 +2780,7 @@ test_select_hyper_union(void)
         tbuf=wbuf+(i*SPACE2_DIM2)+begin[i];
         for(j=0; j<(int)len[i]; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -2812,8 +2937,7 @@ test_select_hyper_union_stagger(void)
             printf("input_loc=[%d][%d]\n",input_loc[i][0],input_loc[i][1]);
             printf("output_loc=[%d][%d]\n",output_loc[i][0],output_loc[i][1]);
             printf("data=%d\n",data[input_loc[i][0]][input_loc[i][1]]);
-            printf("data_out=%d\n",data_out[output_loc[i][0]][output_loc[i][1]]);
-            num_errs++;
+            TestErrPrintf("data_out=%d\n",data_out[output_loc[i][0]][output_loc[i][1]]);
         } /* end if */
     } /* end for */
 
@@ -3012,8 +3136,7 @@ test_select_hyper_union_3d(void)
         tbuf=wbuf+(rows[i].z*SPACE4_DIM3*SPACE4_DIM2)+(rows[i].y*SPACE4_DIM3)+rows[i].x;
         for(j=0; j<(int)rows[i].l; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
-                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
-                num_errs++;
+                TestErrPrintf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
         } /* end for */
     } /* end for */
@@ -3561,8 +3684,7 @@ test_select_hyper_iter2(void *_elem, hid_t UNUSED type_id, hsize_t ndim, hssize_
     unsigned u;             /* Local counting variable */
 
     if(*tbuf!=**tbuf2) {
-        num_errs++;
-        printf("Error in hyperslab iteration!\n");
+        TestErrPrintf("Error in hyperslab iteration!\n");
         printf("location: { ");
         for(u=0; u<(unsigned)ndim; u++) {
             printf("%2d",(int)point[u]);
@@ -3732,8 +3854,7 @@ printf("random I/O, after H5Dread()\n");
         tbuf=rbuf;
         ret = H5Diterate(wbuf,H5T_NATIVE_INT,sid1,test_select_hyper_iter2,&tbuf);
         if(ret<0) {
-            num_errs++;
-            printf("Random hyperslabs for seed %u failed!\n",seed);
+            TestErrPrintf("Random hyperslabs for seed %u failed!\n",seed);
             break;
         }
 
@@ -3974,8 +4095,7 @@ test_select_hyper_chunk(hid_t fapl_plist, hid_t xfer_plist)
 	for (i = 0; i < Y; i++)
 	    for (k = 0; k < Z; k++,tmpdata++,tmpdata_out++) {
                 if(*tmpdata!=*tmpdata_out) {
-                    num_errs++;
-                    printf("Line %d: Error! j=%d, i=%d, k=%d, *tmpdata=%x, *tmpdata_out=%x\n",__LINE__,j,i,k,(unsigned)*tmpdata,(unsigned)*tmpdata_out);
+                    TestErrPrintf("Line %d: Error! j=%d, i=%d, k=%d, *tmpdata=%x, *tmpdata_out=%x\n",__LINE__,j,i,k,(unsigned)*tmpdata,(unsigned)*tmpdata_out);
                 } /* end if */
             } /* end for */
 
@@ -4798,8 +4918,7 @@ test_select_fill_all(void)
     for(i=0, tbuf=wbuf; i<SPACE7_DIM1; i++)
         for(j=0; j<SPACE7_DIM2; j++)
             if(*tbuf!=(unsigned short)fill_value) {
-                num_errs++;
-                printf("Error! j=%d, i=%d, *tbuf=%x, fill_value=%x\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
+                TestErrPrintf("Error! j=%d, i=%d, *tbuf=%x, fill_value=%x\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
             } /* end if */
 
     /* Set the coordinates of the selection */
@@ -4889,15 +5008,13 @@ test_select_fill_point(hssize_t *offset)
             for(k=0; k<(int)num_points; k++) {
                 if(i==(points[k][0]+real_offset[0]) && j==(points[k][1]+real_offset[1])) {
                     if(*tbuf!=(unsigned short)fill_value) {
-                        num_errs++;
-                        printf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
+                        TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
                     } /* end if */
                     break;
                 } /* end if */
             } /* end for */
             if(k==(int)num_points && *tbuf!=((unsigned short)(i*SPACE7_DIM2)+j)) {
-                num_errs++;
-                printf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
+                TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
             } /* end if */
         } /* end for */
 
@@ -4991,14 +5108,12 @@ test_select_fill_hyper_simple(hssize_t *offset)
             if((i>=(int)(start[0]+real_offset[0]) && i<(int)(start[0]+count[0]+real_offset[0]))
                 && (j>=(int)(start[1]+real_offset[1]) && j<(int)(start[1]+count[1]+real_offset[1]))) {
                     if(*tbuf!=(unsigned short)fill_value) {
-                        num_errs++;
-                        printf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
+                        TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
                     } /* end if */
                 } /* end if */
             else {
                 if(*tbuf!=((unsigned short)(i*SPACE7_DIM2)+j)) {
-                    num_errs++;
-                    printf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
+                    TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
                 } /* end if */
             } /* end else */
         } /* end for */
@@ -5103,15 +5218,13 @@ test_select_fill_hyper_regular(hssize_t *offset)
             for(k=0; k<(int)num_points; k++) {
                 if(i==(points[k][0]+real_offset[0]) && j==(points[k][1]+real_offset[1])) {
                     if(*tbuf!=(unsigned short)fill_value) {
-                        num_errs++;
-                        printf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
+                        TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
                     } /* end if */
                     break;
                 } /* end if */
             } /* end for */
             if(k==(int)num_points && *tbuf!=((unsigned short)(i*SPACE7_DIM2)+j)) {
-                num_errs++;
-                printf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
+                TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
             } /* end if */
         } /* end for */
 
@@ -5229,15 +5342,13 @@ test_select_fill_hyper_irregular(hssize_t *offset)
             for(k=0; k<(int)num_points; k++) {
                 if(i==(points[k][0]+real_offset[0]) && j==(points[k][1]+real_offset[1])) {
                     if(*tbuf!=(unsigned short)fill_value) {
-                        num_errs++;
-                        printf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
+                        TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, fill_value=%u\n",j,i,(unsigned)*tbuf,(unsigned)fill_value);
                     } /* end if */
                     break;
                 } /* end if */
             } /* end for */
             if(k==(int)num_points && *tbuf!=((unsigned short)(i*SPACE7_DIM2)+j)) {
-                num_errs++;
-                printf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
+                TestErrPrintf("Error! j=%d, i=%d, *tbuf=%u, should be: %u\n",j,i,(unsigned)*tbuf,(unsigned)((i*SPACE7_DIM2)+j));
             } /* end if */
         } /* end for */
 
@@ -5415,8 +5526,7 @@ test_scalar_select(void)
 
     /* Check value read back in */
     if(rval_uint8!=*(wbuf_uint8+2)) {
-        printf("Error! rval=%u, should be: *(wbuf+2)=%u\n",(unsigned)rval_uint8,(unsigned)*(wbuf_uint8+2));
-        num_errs++;
+        TestErrPrintf("Error! rval=%u, should be: *(wbuf+2)=%u\n",(unsigned)rval_uint8,(unsigned)*(wbuf_uint8+2));
     } /* end if */
 
     /* Write single point to disk (with a datatype conversion) */
@@ -5429,8 +5539,7 @@ test_scalar_select(void)
 
     /* Check value read back in */
     if(rval_ushort!=*(wbuf_ushort+2)) {
-        printf("Error! rval=%u, should be: *(wbuf+2)=%u\n",(unsigned)rval_ushort,(unsigned)*(wbuf_ushort+2));
-        num_errs++;
+        TestErrPrintf("Error! rval=%u, should be: *(wbuf+2)=%u\n",(unsigned)rval_ushort,(unsigned)*(wbuf_ushort+2));
     } /* end if */
 
     /* Select one element in memory with a hyperslab selection */
@@ -5449,8 +5558,7 @@ test_scalar_select(void)
 
     /* Check value read back in */
     if(rval_uint8!=*(wbuf_uint8+(SPACE7_DIM2*4)+3)) {
-        printf("Error! rval=%u, should be: *(wbuf+(SPACE7_DIM2*4)+3)=%u\n",(unsigned)rval_uint8,(unsigned)*(wbuf_uint8+(SPACE7_DIM2*4)+3));
-        num_errs++;
+        TestErrPrintf("Error! rval=%u, should be: *(wbuf+(SPACE7_DIM2*4)+3)=%u\n",(unsigned)rval_uint8,(unsigned)*(wbuf_uint8+(SPACE7_DIM2*4)+3));
     } /* end if */
 
     /* Write single hyperslab element to disk (with a datatype conversion) */
@@ -5463,8 +5571,7 @@ test_scalar_select(void)
 
     /* Check value read back in */
     if(rval_ushort!=*(wbuf_ushort+(SPACE7_DIM2*4)+3)) {
-        printf("Error! rval=%u, should be: *(wbuf+(SPACE7_DIM2*4)+3)=%u\n",(unsigned)rval_ushort,(unsigned)*(wbuf_ushort+(SPACE7_DIM2*4)+3));
-        num_errs++;
+        TestErrPrintf("Error! rval=%u, should be: *(wbuf+(SPACE7_DIM2*4)+3)=%u\n",(unsigned)rval_ushort,(unsigned)*(wbuf_ushort+(SPACE7_DIM2*4)+3));
     } /* end if */
 
     /* Select no elements in memory & file with "none" selections */
@@ -6410,6 +6517,228 @@ test_shape_same(void)
 
 /****************************************************************
 **
+**  test_select_hyper_chunk_offset(): Tests selections on dataspace,
+**      verify that offsets for hyperslab selections are working in
+**      chunked datasets.
+** 
+****************************************************************/
+static void 
+test_select_hyper_chunk_offset(void)
+{
+    hid_t fid;          /* File ID  */
+    hid_t sid;          /* Dataspace ID */
+    hid_t msid;         /* Memory dataspace ID */
+    hid_t did;          /* Dataset ID */
+    const hsize_t mem_dims[1] = { SPACE10_DIM1 };      /* Dataspace dimensions for memory */
+    const hsize_t dims[1] = { 0 };      /* Dataspace initial dimensions */
+    const hsize_t maxdims[1] = { H5S_UNLIMITED };       /* Dataspace mam dims */
+    int *wbuf;                          /* Buffer for writing data */
+    int *rbuf;                          /* Buffer for reading data */
+    hid_t dcpl;                         /* Dataset creation property list ID */
+    hsize_t chunks[1]={SPACE10_CHUNK_SIZE };    /* Chunk size */
+    hssize_t start[1] = { 0 };          /* The start of the hyperslab */
+    hsize_t count[1] = { SPACE10_CHUNK_SIZE };  /* The size of the hyperslab */
+    int i,j;                            /* Local index */
+    herr_t ret;                         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(6, ("Testing hyperslab selections using offsets in chunked datasets\n"));
+
+    /* Allocate buffers */
+    wbuf= (int*)HDmalloc(sizeof(int)*SPACE10_DIM1);
+    CHECK(wbuf, NULL, "HDmalloc");
+    rbuf= (int*)HDmalloc(sizeof(int)*SPACE10_DIM1);
+    CHECK(rbuf, NULL, "HDmalloc");
+
+    /* Initialize the write buffer */
+    for(i=0; i<SPACE10_DIM1; i++)
+        wbuf[i]=i;
+
+    /* Create file */
+    fid = H5Fcreate (FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create a dataset creation property list */
+    dcpl = H5Pcreate (H5P_DATASET_CREATE);
+    CHECK(dcpl, FAIL, "H5Pcreate");
+
+    /* Set to chunked storage layout */
+    ret=H5Pset_layout (dcpl, H5D_CHUNKED);
+    CHECK(ret, FAIL, "H5Pset_layout");
+
+    /* Set the chunk size */
+    ret=H5Pset_chunk (dcpl, 1, chunks);
+    CHECK(ret, FAIL, "H5Pset_chunk");
+    
+    /* Create dataspace for memory */
+    msid = H5Screate_simple (1, mem_dims, NULL);
+    CHECK(msid, FAIL, "H5Screate_simple");
+
+    /* Select the correct chunk in the memory dataspace */
+    ret=H5Sselect_hyperslab (msid, H5S_SELECT_SET, start, NULL, count, NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Create dataspace for dataset */
+    sid = H5Screate_simple (1, dims, maxdims);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    /* Create the dataset */
+    did = H5Dcreate (fid, "fooData", H5T_NATIVE_INT, sid, dcpl);
+    CHECK(did, FAIL, "H5Dcreate");
+
+    /* Close the dataspace */
+    ret=H5Sclose (sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close the dataset creation property list */
+    ret=H5Pclose (dcpl);
+    CHECK(ret, FAIL, "H5Pclose");
+
+    /* Loop over writing out each chunk */
+    for(i=SPACE10_CHUNK_SIZE; i<=SPACE10_DIM1; i+=SPACE10_CHUNK_SIZE) {
+        hssize_t offset[1];                 /* Offset of selection */
+        hid_t fsid;                         /* File dataspace ID */
+        hsize_t size[1];                    /* The size to extend the dataset to */
+
+        /* Extend the dataset */
+        size[0] = i;                 /* The size to extend the dataset to */
+        ret=H5Dextend (did, size);
+        CHECK(ret, FAIL, "H5Dextend");
+
+        /* Get the (extended) dataspace from the dataset */
+        fsid = H5Dget_space (did);
+        CHECK(fsid, FAIL, "H5Dget_space");
+
+        /* Select the correct chunk in the dataset */
+        ret=H5Sselect_hyperslab (fsid, H5S_SELECT_SET, start, NULL, count, NULL);
+        CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+        /* Set the selection offset for the file dataspace */
+        offset[0] = i - SPACE10_CHUNK_SIZE;
+        ret=H5Soffset_simple (fsid, offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+
+        /* Set the selection offset for the memory dataspace */
+        offset[0] = SPACE10_DIM1-i;
+        ret=H5Soffset_simple (msid, offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+
+        /* Write the data to the chunk */
+        ret=H5Dwrite (did, H5T_NATIVE_INT, msid, fsid, H5P_DEFAULT, wbuf);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+
+        /* Close the file dataspace copy */
+        ret=H5Sclose (fsid);
+        CHECK(ret, FAIL, "H5Sclose");
+    }
+
+    /* Read the data back in */
+    ret=H5Dread (did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf);
+    CHECK(ret, FAIL, "H5Soffset_simple");
+
+    /* Verify the information read in */
+    for(i=0; i<SPACE10_DIM1; i+=SPACE10_CHUNK_SIZE) {
+        for(j=0; j<SPACE10_CHUNK_SIZE; j++) {
+            if(wbuf[i+j]!=rbuf[((SPACE10_DIM1-i)-SPACE10_CHUNK_SIZE)+j]) {
+                TestErrPrintf("Line: %d - Error! i=%d, j=%d, rbuf=%d, wbuf=%d\n",__LINE__,i,j,rbuf[((SPACE10_DIM1-i)-SPACE10_CHUNK_SIZE)+j],wbuf[i+j]);
+            } /* end if */
+        } /* end for */
+    } /* end for */
+
+/* Check with 'OR'ed set of hyperslab selections, which makes certain the
+ * hyperslab spanlist code gets tested. -QAK
+ */
+
+    /* Re-initialize the write buffer */
+    for(i=0; i<SPACE10_DIM1; i++)
+        wbuf[i]=i*2;
+
+    /* Change the selected the region in the memory dataspace */
+    start[0] = 0;
+    count[0] = SPACE10_CHUNK_SIZE/3;
+    ret=H5Sselect_hyperslab (msid, H5S_SELECT_SET, start, NULL, count, NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+    start[0] = (2*SPACE10_CHUNK_SIZE)/3;
+    ret=H5Sselect_hyperslab (msid, H5S_SELECT_OR, start, NULL, count, NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Loop over writing out each chunk */
+    for(i=SPACE10_CHUNK_SIZE; i<=SPACE10_DIM1; i+=SPACE10_CHUNK_SIZE) {
+        hssize_t offset[1];                 /* Offset of selection */
+        hid_t fsid;                         /* File dataspace ID */
+        hsize_t size[1];                    /* The size to extend the dataset to */
+
+        /* Extend the dataset */
+        size[0] = i;                 /* The size to extend the dataset to */
+        ret=H5Dextend (did, size);
+        CHECK(ret, FAIL, "H5Dextend");
+
+        /* Get the (extended) dataspace from the dataset */
+        fsid = H5Dget_space (did);
+        CHECK(fsid, FAIL, "H5Dget_space");
+
+        /* Select the correct region in the dataset */
+        start[0] = 0;
+        ret=H5Sselect_hyperslab (fsid, H5S_SELECT_SET, start, NULL, count, NULL);
+        CHECK(ret, FAIL, "H5Sselect_hyperslab");
+        start[0] = (2*SPACE10_CHUNK_SIZE)/3;
+        ret=H5Sselect_hyperslab (fsid, H5S_SELECT_OR, start, NULL, count, NULL);
+        CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+        /* Set the selection offset for the file dataspace */
+        offset[0] = i - SPACE10_CHUNK_SIZE;
+        ret=H5Soffset_simple (fsid, offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+
+        /* Set the selection offset for the memory dataspace */
+        offset[0] = SPACE10_DIM1-i;
+        ret=H5Soffset_simple (msid, offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+
+        /* Write the data to the chunk */
+        ret=H5Dwrite (did, H5T_NATIVE_INT, msid, fsid, H5P_DEFAULT, wbuf);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+
+        /* Close the file dataspace copy */
+        ret=H5Sclose (fsid);
+        CHECK(ret, FAIL, "H5Sclose");
+    }
+
+    /* Read the data back in */
+    ret=H5Dread (did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf);
+    CHECK(ret, FAIL, "H5Soffset_simple");
+
+    /* Verify the information read in */
+    for(i=0; i<SPACE10_DIM1; i+=SPACE10_CHUNK_SIZE) {
+        for(j=0; j<SPACE10_CHUNK_SIZE; j++) {
+            /* We're not writing out the "middle" of each chunk, so don't check that */
+            if(j<(SPACE10_CHUNK_SIZE/3) || j>=((2*SPACE10_CHUNK_SIZE)/3)) {
+                if(wbuf[i+j]!=rbuf[((SPACE10_DIM1-i)-SPACE10_CHUNK_SIZE)+j]) {
+                    TestErrPrintf("Line: %d - Error! i=%d, j=%d, rbuf=%d, wbuf=%d\n",__LINE__,i,j,rbuf[((SPACE10_DIM1-i)-SPACE10_CHUNK_SIZE)+j],wbuf[i+j]);
+                } /* end if */
+            } /* end if */
+        } /* end for */
+    } /* end for */
+
+    /* Close the memory dataspace */
+    ret=H5Sclose (msid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close the dataset */
+    ret=H5Dclose (did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close the file */
+    ret=H5Fclose (fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Free the buffers */
+    HDfree(wbuf);
+    HDfree(rbuf);
+}   /* test_select_hyper_chunk_offset() */
+
+/****************************************************************
+**
 **  test_select(): Main H5S selection testing routine.
 ** 
 ****************************************************************/
@@ -6466,6 +6795,10 @@ test_select(void)
     test_select_hyper_contig2(H5T_STD_U16LE,plist_id); /* Test more contiguous hyperslab selection cases */
     test_select_hyper_contig2(H5T_STD_U16BE,H5P_DEFAULT); /* Test more contiguous hyperslab selection cases */
     test_select_hyper_contig2(H5T_STD_U16BE,plist_id); /* Test more contiguous hyperslab selection cases */
+    test_select_hyper_contig3(H5T_STD_U16LE,H5P_DEFAULT); /* Test yet more contiguous hyperslab selection cases */
+    test_select_hyper_contig3(H5T_STD_U16LE,plist_id); /* Test yet more contiguous hyperslab selection cases */
+    test_select_hyper_contig3(H5T_STD_U16BE,H5P_DEFAULT); /* Test yet more contiguous hyperslab selection cases */
+    test_select_hyper_contig3(H5T_STD_U16BE,plist_id); /* Test yet more contiguous hyperslab selection cases */
     test_select_hyper_copy();   /* Test hyperslab selection copying code */
     test_select_point_copy();   /* Test point selection copying code */
     test_select_hyper_offset(); /* Test selection offset code with hyperslabs */
@@ -6549,6 +6882,9 @@ test_select(void)
 
     /* Test scalar dataspaces in chunked datasets */
     test_select_scalar_chunk();
+
+    /* Test using selection offset on hyperslab in chunked dataset */
+    test_select_hyper_chunk_offset();
 
 }   /* test_select() */
 

@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: ttime.c,v 1.6 2003/06/24 20:06:37 koziol Exp $ */
+/* $Id: ttime.c,v 1.6.2.1 2004/01/10 02:41:29 koziol Exp $ */
 
 /***********************************************************
 *
@@ -86,8 +86,7 @@ test_time_commit(void)
     CHECK(tid, FAIL, "H5Topen");
  
     if(!H5Tequal(tid, H5T_UNIX_D32LE)) {
-        num_errs++;
-        MESSAGE(0, ("H5T_UNIX_D32LE datatype not found"));
+        TestErrPrintf("H5T_UNIX_D32LE datatype not found\n");
     } /* end if */
  
     status = H5Tclose (tid);
@@ -97,8 +96,7 @@ test_time_commit(void)
     CHECK(tid, FAIL, "H5Topen");
  
     if(!H5Tequal(tid, H5T_UNIX_D32BE)) {
-        num_errs++;
-        MESSAGE(0, ("H5T_UNIX_D32BE datatype not found"));
+        TestErrPrintf("H5T_UNIX_D32BE datatype not found\n");
     } /* end if */
  
     status = H5Tclose (tid);
@@ -108,8 +106,7 @@ test_time_commit(void)
     CHECK(tid, FAIL, "H5Topen");
  
     if(!H5Tequal(tid, H5T_UNIX_D64LE)) {
-        num_errs++;
-        MESSAGE(0, ("H5T_UNIX_D64LE datatype not found"));
+        TestErrPrintf("H5T_UNIX_D64LE datatype not found\n");
     } /* end if */
  
     status = H5Tclose (tid);
@@ -119,8 +116,7 @@ test_time_commit(void)
     CHECK(tid, FAIL, "H5Topen");
  
     if(!H5Tequal(tid, H5T_UNIX_D64BE)) {
-        num_errs++;
-        MESSAGE(0, ("H5T_UNIX_D64BE datatype not found"));
+        TestErrPrintf("H5T_UNIX_D64BE datatype not found\n");
     } /* end if */
  
     status = H5Tclose (tid);

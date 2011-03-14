@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: t_mdset.c,v 1.25.2.2 2003/10/06 15:17:55 koziol Exp $ */
+/* $Id: t_mdset.c,v 1.25.2.6 2004/01/23 00:10:36 acheng Exp $ */
 
 #include "testphdf5.h"
 
@@ -179,7 +179,7 @@ void compact_dataset(char *filename)
     for (i = 0; i < SIZE; i++)
         for (j = 0; j < SIZE; j++)
             if(inme[i][j] != outme[i][j])
-                if(err_num++ < MAX_ERR_REPORT || verbose)
+                if(err_num++ < MAX_ERR_REPORT || VERBOSE_MED)
                     printf("Dataset Verify failed at [%d][%d]: expect %f, got %f\n", i, j, outme[i][j], inme[i][j]); 
                                                             
     H5Pclose(plist);
@@ -304,6 +304,181 @@ void big_dataset(const char *filename)
     /* Close fapl */
     ret=H5Pclose (fapl);
     VRFY((ret >= 0), "H5Pclose succeeded");        
+}
+
+/* Example of using PHDF5 to read a partial written dataset.   The dataset does
+ * not have actual data written to the entire raw data area and relies on the
+ * default fill value of zeros to work correctly.
+ */
+void dataset_fillvalue(const char *filename)
+{
+    int mpi_size, mpi_rank;     /* MPI info */
+    hbool_t use_gpfs = FALSE;   /* Don't use GPFS stuff for this test */
+    int err_num;                /* Number of errors */
+    hid_t iof,                  /* File ID */
+        fapl,                   /* File access property list ID */
+        dxpl,                   /* Data transfer property list ID */
+        dataset,                /* Dataset ID */
+        memspace,               /* Memory dataspace ID */
+        filespace;              /* Dataset's dataspace ID */
+    char dname[]="dataset";     /* Name of dataset */
+    hsize_t     dset_dims[4] = {0, 6, 7, 8};
+    hssize_t    req_start[4] = {0, 0, 0, 0};
+    hsize_t     req_count[4] = {1, 6, 7, 8};
+    hsize_t     dset_size;      /* Dataset size */
+    int *rdata, *wdata;         /* Buffers for data to read and write */
+    int *twdata, *trdata;        /* Temporary pointer into buffer */
+    int acc, i, j, k, l;        /* Local index variables */
+    herr_t ret;                 /* Generic return value */
+                                
+    MPI_Comm_rank (MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size (MPI_COMM_WORLD, &mpi_size);
+
+    VRFY((mpi_size <= SIZE), "mpi_size <= SIZE");
+
+    /* Set the dataset dimension to be one row more than number of processes */
+    /* and calculate the actual dataset size. */
+    dset_dims[0]=mpi_size+1;
+    dset_size=dset_dims[0]*dset_dims[1]*dset_dims[2]*dset_dims[3];
+
+    /* Allocate space for the buffers */
+    rdata=HDmalloc((size_t)(dset_size*sizeof(int)));
+    VRFY((rdata != NULL), "HDcalloc succeeded for read buffer");
+    wdata=HDmalloc((size_t)(dset_size*sizeof(int)));
+    VRFY((wdata != NULL), "HDmalloc succeeded for write buffer");
+
+    fapl = create_faccess_plist(MPI_COMM_WORLD, MPI_INFO_NULL, facc_type, use_gpfs);
+    VRFY((fapl >= 0), "create_faccess_plist succeeded");
+
+    /*
+     * Create HDF5 file
+     */
+    iof = H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    VRFY((iof >= 0), "H5Fcreate succeeded");
+
+    filespace = H5Screate_simple(4, dset_dims, NULL);
+    VRFY((filespace >= 0), "File H5Screate_simple succeeded");
+
+    dataset = H5Dcreate(iof, dname, H5T_NATIVE_INT, filespace, H5P_DEFAULT);
+    VRFY((dataset >= 0), "H5Dcreate succeeded");
+
+    memspace = H5Screate_simple(4, dset_dims, NULL);
+    VRFY((memspace >= 0), "Memory H5Screate_simple succeeded");
+
+    /*
+     * Read dataset before any data is written.
+     */
+    /* set entire read buffer with the constant 2 */
+    HDmemset(rdata,2,(size_t)(dset_size*sizeof(int)));
+    /* Independently read the entire dataset back */
+    ret=H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdata);
+    VRFY((ret >= 0), "H5Dread succeeded");
+
+    /* Verify all data read are the fill value 0 */
+    trdata=rdata;
+    err_num=0;
+    for (i=0; i<(int)dset_dims[0]; i++)
+        for (j=0; j<(int)dset_dims[1]; j++)
+            for (k=0; k<(int)dset_dims[2]; k++)
+                for (l=0; l<(int)dset_dims[3]; l++, twdata++, trdata++)
+		    if( *trdata != 0)
+			if(err_num++ < MAX_ERR_REPORT || VERBOSE_MED)
+			    printf("Dataset Verify failed at [%d][%d][%d][%d]: expect 0, got %d\n", i,j,k,l, *trdata);
+    if(err_num > MAX_ERR_REPORT && !VERBOSE_MED)
+        printf("[more errors ...]\n");
+    if(err_num){
+        printf("%d errors found in check_value\n", err_num);
+	nerrors++;
+    }
+
+    /* Barrier to ensure all processes have completed the above test. */
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    /*
+     * Each process writes 1 row of data. Thus last row is not written.
+     */
+    /* Create hyperslabs in memory and file dataspaces */
+    req_start[0]=mpi_rank;
+    ret=H5Sselect_hyperslab(filespace, H5S_SELECT_SET, req_start, NULL, req_count, NULL);
+    VRFY((ret >= 0), "H5Sselect_hyperslab succeeded on memory dataspace");
+    ret=H5Sselect_hyperslab(memspace, H5S_SELECT_SET, req_start, NULL, req_count, NULL);
+    VRFY((ret >= 0), "H5Sselect_hyperslab succeeded on memory dataspace");
+
+    /* Create DXPL for collective I/O */
+    dxpl = H5Pcreate (H5P_DATASET_XFER);
+    VRFY((dxpl >= 0), "H5Pcreate succeeded");
+
+    ret=H5Pset_dxpl_mpio(dxpl, H5FD_MPIO_COLLECTIVE);
+    VRFY((ret >= 0), "H5Pset_dxpl_mpio succeeded");
+
+    /* Fill write buffer with some values */
+    twdata=wdata;
+    for (i=0, acc=0; i<(int)dset_dims[0]; i++)
+        for (j=0; j<(int)dset_dims[1]; j++)
+            for (k=0; k<(int)dset_dims[2]; k++)
+                for (l=0; l<(int)dset_dims[3]; l++)
+                    *twdata++ = acc++;
+
+    /* Collectively write a hyperslab of data to the dataset */
+    ret=H5Dwrite(dataset, H5T_NATIVE_INT, memspace, filespace, dxpl, wdata);
+    VRFY((ret >= 0), "H5Dwrite succeeded");
+
+    /* Barrier here, to allow MPI-posix I/O to sync */
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    /*
+     * Read dataset after partial write.
+     */
+    /* set entire read buffer with the constant 2 */
+    HDmemset(rdata,2,(size_t)(dset_size*sizeof(int)));
+    /* Independently read the entire dataset back */
+    ret=H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdata);
+    VRFY((ret >= 0), "H5Dread succeeded");
+
+    /* Verify correct data read */
+    twdata=wdata;
+    trdata=rdata;
+    err_num=0;
+    for (i=0; i<(int)dset_dims[0]; i++)
+        for (j=0; j<(int)dset_dims[1]; j++)
+            for (k=0; k<(int)dset_dims[2]; k++)
+                for (l=0; l<(int)dset_dims[3]; l++, twdata++, trdata++)
+                    if(i<mpi_size) {
+                        if( *twdata != *trdata )
+                            if(err_num++ < MAX_ERR_REPORT || VERBOSE_MED)
+                                printf("Dataset Verify failed at [%d][%d][%d][%d]: expect %d, got %d\n", i,j,k,l, *twdata, *trdata); 
+                    } /* end if */
+                    else {
+                        if( *trdata != 0)
+                            if(err_num++ < MAX_ERR_REPORT || VERBOSE_MED)
+                                printf("Dataset Verify failed at [%d][%d][%d][%d]: expect 0, got %d\n", i,j,k,l, *trdata);
+                    } /* end else */
+    if(err_num > MAX_ERR_REPORT && !VERBOSE_MED)
+        printf("[more errors ...]\n");
+    if(err_num){
+        printf("%d errors found in check_value\n", err_num);
+	nerrors++;
+    }
+
+    /* Close all file objects */
+    ret=H5Dclose (dataset);
+    VRFY((ret >= 0), "H5Dclose succeeded");        
+    ret=H5Sclose (filespace);
+    VRFY((ret >= 0), "H5Sclose succeeded");        
+    ret=H5Fclose (iof);
+    VRFY((ret >= 0), "H5Fclose succeeded");        
+
+    /* Close memory dataspace */
+    ret=H5Sclose (memspace);
+    VRFY((ret >= 0), "H5Sclose succeeded");
+
+    /* Close dxpl */
+    ret=H5Pclose (dxpl);
+    VRFY((ret >= 0), "H5Pclose succeeded");
+
+    /* Close fapl */
+    ret=H5Pclose (fapl);
+    VRFY((ret >= 0), "H5Pclose succeeded");
 }
 
 /* Write multiple groups with a chunked dataset in each group collectively. 
@@ -854,10 +1029,10 @@ int check_value(DATATYPE *indata, DATATYPE *outdata)
     for(i=chunk_origin[0]; i<(chunk_origin[0]+chunk_dims[0]); i++)
          for(j=chunk_origin[1]; j<(chunk_origin[1]+chunk_dims[1]); j++) {
               if( *indata != *outdata )
-	          if(err_num++ < MAX_ERR_REPORT || verbose)
+	          if(err_num++ < MAX_ERR_REPORT || VERBOSE_MED)
 		      printf("Dataset Verify failed at [%ld][%ld](row %ld, col%ld): expect %d, got %d\n", (long)i, (long)j, (long)i, (long)j, *outdata, *indata); 
 	 }
-    if(err_num > MAX_ERR_REPORT && !verbose)
+    if(err_num > MAX_ERR_REPORT && !VERBOSE_MED)
         printf("[more errors ...]\n");
     if(err_num)
         printf("%d errors found in check_value\n", err_num);

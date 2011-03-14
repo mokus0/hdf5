@@ -51,7 +51,6 @@ static size_t			H5S_nconv_g = 0;	/*entries used*/
 #ifdef H5_HAVE_PARALLEL
 /* Global vars whose value can be set from environment variable also */
 hbool_t H5S_mpi_opt_types_g = TRUE;
-hbool_t H5S_mpi_prefer_derived_types_g = TRUE;
 #endif /* H5_HAVE_PARALLEL */
 
 /* Declare a free list to manage the H5S_simple_t struct */
@@ -84,7 +83,7 @@ H5S_init_interface(void)
 {
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_init_interface);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_init_interface);
 
     /* Initialize the atom group for the file IDs */
     if (H5I_init_group(H5I_DATASPACE, H5I_DATASPACEID_HASHSIZE,
@@ -97,12 +96,6 @@ H5S_init_interface(void)
         const char *s = HDgetenv ("HDF5_MPI_OPT_TYPES");
         if (s && HDisdigit(*s))
             H5S_mpi_opt_types_g = (int)HDstrtol (s, NULL, 0);
-    }
-    {
-        /* Prefer MPI derived types for collective data transfers? */
-        const char *s = HDgetenv ("HDF5_MPI_PREFER_DERIVED_TYPES");
-        if (s && HDisdigit(*s))
-            H5S_mpi_prefer_derived_types_g = (int)HDstrtol (s, NULL, 0);
     }
 #endif /* H5_HAVE_PARALLEL */
 
@@ -140,7 +133,7 @@ H5S_term_interface(void)
     char	buf[256];
 #endif
 
-    FUNC_ENTER_NOINIT(H5S_term_interface);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_term_interface);
 
     if (interface_initialize_g) {
 	if ((n=H5I_nmembers(H5I_DATASPACE))) {
@@ -1207,8 +1200,12 @@ H5S_read(H5G_entry_t *ent, hid_t dxpl_id)
         HGOTO_ERROR (H5E_DATASPACE, H5E_CANTSET, NULL, "unable to set all selection");
 
     /* Allocate space for the offset and set it to zeros */
-    if (NULL==(ds->select.offset = H5FL_ARR_CALLOC(hssize_t,ds->extent.u.simple.rank)))
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    if(ds->extent.u.simple.rank>0) {
+        if (NULL==(ds->select.offset = H5FL_ARR_CALLOC(hssize_t,ds->extent.u.simple.rank)))
+            HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    } /* end if */
+    else
+        ds->select.offset = NULL;
 
     /* Set the value for successful return */
     ret_value=ds;
@@ -1387,8 +1384,12 @@ H5S_set_extent_simple (H5S_t *space, unsigned rank, const hsize_t *dims,
         space->select.offset=H5FL_ARR_FREE(hssize_t,space->select.offset);
 
     /* Allocate space for the offset and set it to zeros */
-    if (NULL==(space->select.offset = H5FL_ARR_CALLOC(hssize_t,rank)))
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+    if(rank>0) {
+        if (NULL==(space->select.offset = H5FL_ARR_CALLOC(hssize_t,rank)))
+            HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+    } /* end if */
+    else
+        space->select.offset = NULL;
 
     /* shift out of the previous state to a "simple" dataspace */
     switch (space->extent.type) {
@@ -1478,7 +1479,11 @@ H5S_find (const H5S_t *mem_space, const H5S_t *file_space, unsigned
 #ifndef H5_HAVE_PARALLEL
 UNUSED
 #endif /* H5_HAVE_PARALLEL */
-flags)
+flags, hbool_t
+#ifndef H5_HAVE_PARALLEL
+UNUSED
+#endif /* H5_HAVE_PARALLEL */
+*use_par_opt_io)
 {
     H5S_conv_t	*path=NULL;  /* Space conversion path */
 #ifdef H5_HAVE_PARALLEL
@@ -1521,10 +1526,17 @@ flags)
 
             /* Check if we can use the optimized parallel I/O routines */
             if(opt==TRUE) {
+                /* Set the pointers to the MPI-specific routines */
                 H5S_conv_g[i]->read = H5S_mpio_spaces_read;
                 H5S_conv_g[i]->write = H5S_mpio_spaces_write;
+
+                /* Indicate that the I/O will be parallel */
+                *use_par_opt_io=TRUE;
             } /* end if */
             else {
+                /* Indicate that the I/O will _NOT_ be parallel */
+                *use_par_opt_io=FALSE;
+
 #endif /* H5_HAVE_PARALLEL */
                 H5S_conv_g[i]->read = H5S_select_read;
                 H5S_conv_g[i]->write = H5S_select_write;
@@ -1556,10 +1568,17 @@ flags)
 
     /* Check if we can use the optimized parallel I/O routines */
     if(opt==TRUE) {
+        /* Set the pointers to the MPI-specific routines */
         path->read = H5S_mpio_spaces_read;
         path->write = H5S_mpio_spaces_write;
+
+        /* Indicate that the I/O will be parallel */
+        *use_par_opt_io=TRUE;
     } /* end if */
     else {
+        /* Indicate that the I/O will _NOT_ be parallel */
+        *use_par_opt_io=FALSE;
+
 #endif /* H5_HAVE_PARALLEL */
         path->read = H5S_select_read;
         path->write = H5S_select_write;
@@ -1906,6 +1925,8 @@ H5Soffset_simple(hid_t space_id, const hssize_t *offset)
     /* Check args */
     if (NULL == (space = H5I_object_verify(space_id, H5I_DATASPACE)))
         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "not a data space");
+    if (space->extent.u.simple.rank==0 || space->extent.type==H5S_SCALAR)
+        HGOTO_ERROR(H5E_ATOM, H5E_UNSUPPORTED, FAIL, "can't set offset on scalar dataspace");
     if (offset == NULL)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no offset specified");
 

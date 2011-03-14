@@ -375,26 +375,27 @@ done:
  *-------------------------------------------------------------------------
  */
 herr_t
-H5Giterate(hid_t loc_id, const char *name, int *idx,
+H5Giterate(hid_t loc_id, const char *name, int *idx_p,
 	    H5G_iterate_t op, void *op_data)
 {
-    int			_idx = 0;
+    int			idx;
     H5G_bt_ud2_t	udata;
     H5G_entry_t		*loc = NULL;
     H5G_t		*grp = NULL;
     herr_t		ret_value;
     
     FUNC_ENTER_API(H5Giterate, FAIL);
-    H5TRACE5("e","is*Isxx",loc_id,name,idx,op,op_data);
+    H5TRACE5("e","is*Isxx",loc_id,name,idx_p,op,op_data);
 
     /* Check args */
     if (NULL==(loc=H5G_loc (loc_id)))
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if (!name || !*name)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "no name specified");
-    if (!idx)
-        idx = &_idx;
-    if (*idx<0)
+    idx = (idx_p == NULL ? 0 : *idx_p);
+    if (!idx_p)
+        idx_p = &idx;
+    if (idx<0)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid index specified");
     if (!op)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "no operator specified");
@@ -411,7 +412,7 @@ H5Giterate(hid_t loc_id, const char *name, int *idx,
     }
     
     /* Build udata to pass through H5B_iterate() to H5G_node_iterate() */
-    udata.skip = *idx;
+    udata.skip = idx;
     udata.ent = &(grp->ent);
     udata.op = op;
     udata.op_data = op_data;
@@ -428,11 +429,11 @@ H5Giterate(hid_t loc_id, const char *name, int *idx,
 
     /* Check for too high of a starting index (ex post facto :-) */
     /* (Skipping exactly as many entries as are in the group is currently an error) */
-    if (*idx>0 && *idx>=udata.final_ent)
+    if (idx>0 && idx>=udata.final_ent)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid index specified");
 
     /* Set the index we stopped at */
-    *idx=udata.final_ent;
+    *idx_p=udata.final_ent;
 
 done:
     FUNC_LEAVE_API(ret_value);
@@ -982,7 +983,7 @@ H5G_init_interface(void)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5G_init_interface);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_init_interface);
 
     /* Initialize the atom group for the group IDs */
     if (H5I_init_group(H5I_GROUP, H5I_GROUPID_HASHSIZE, H5G_RESERVED_ATOMS,
@@ -1027,7 +1028,7 @@ H5G_term_interface(void)
     size_t	i;
     int	n=0;
 
-    FUNC_ENTER_NOINIT(H5G_term_interface);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_term_interface);
     
     if (interface_initialize_g) {
 	if ((n=H5I_nmembers(H5I_GROUP))) {
@@ -1155,8 +1156,8 @@ done:
 static const char *
 H5G_component(const char *name, size_t *size_p)
 {
-    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
-    FUNC_ENTER_NOINIT(H5G_component);
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_component);
 
     assert(name);
 
@@ -1196,7 +1197,7 @@ H5G_basename(const char *name, size_t *size_p)
 {
     size_t	i;
     
-    FUNC_ENTER_NOINIT(H5G_basename);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_basename);
 
     /* Find the end of the base name */
     i = HDstrlen(name);
@@ -1239,7 +1240,7 @@ H5G_normalize(const char *name)
     unsigned    last_slash;     /* Flag to indicate last character was a slash */
     char *ret_value;    /* Return value */
     
-    FUNC_ENTER_NOINIT(H5G_normalize);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_normalize);
 
     /* Sanity check */
     assert(name);
@@ -1390,7 +1391,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     unsigned last_comp = 0;     /* Flag to indicate that a component is the last component in the name */
     herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER_NOINIT(H5G_namei);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_namei);
 
     /* Set up "out" parameters */
     if (rest)
@@ -2186,8 +2187,8 @@ done:
 H5G_entry_t *
 H5G_entof (H5G_t *grp)
 {
-    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
-    FUNC_ENTER_NOINIT(H5G_entof);
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_entof);
 
     FUNC_LEAVE_NOAPI(grp ? &(grp->ent) : NULL);
 }
@@ -2212,8 +2213,8 @@ H5G_entof (H5G_t *grp)
 H5F_t *
 H5G_fileof (H5G_t *grp)
 {
-    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
-    FUNC_ENTER_NOINIT(H5G_fileof);
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_fileof);
 
     assert (grp);
 
@@ -3357,7 +3358,7 @@ H5G_common_path(const H5RS_str_t *fullpath_r, const H5RS_str_t *prefix_r)
     size_t  nchars1,nchars2;    /* Number of characters in components */
     htri_t ret_value=FALSE;     /* Return value */
   
-    FUNC_ENTER_NOINIT(H5G_common_path);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_common_path);
   
     /* Get component of each name */
     fullpath=H5RS_get_str(fullpath_r);
@@ -3427,7 +3428,7 @@ H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key)
     H5F_t *top_loc_file;        /* Top file in location's mounted file chain */
     herr_t      ret_value = SUCCEED;       /* Return value */
   
-    FUNC_ENTER_NOINIT(H5G_replace_ent);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_replace_ent);
   
     assert(obj_ptr);
  

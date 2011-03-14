@@ -77,34 +77,79 @@ H5FL_ARR_DEFINE_STATIC(H5S_hyper_dim_t,H5S_MAX_RANK);
 /* #define H5S_HYPER_DEBUG */
 #ifdef H5S_HYPER_DEBUG
 static herr_t
-H5S_hyper_print_spans_helper(struct H5S_hyper_span_t *span,unsigned depth)
+H5S_hyper_print_spans_helper(FILE *f, struct H5S_hyper_span_t *span,unsigned depth)
 {
-    struct H5S_hyper_span_t *tmp_span;
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_print_spans_helper);
 
-    FUNC_ENTER_NOINIT(H5S_hyper_print_spans_helper);
-
-    tmp_span=span;
-    while(tmp_span) {
-        HDfprintf(stderr,"%s: depth=%u, span=%p, (%d, %d), nelem=%u, pstride=%u\n",FUNC,depth,tmp_span,(int)tmp_span->low,(int)tmp_span->high,(unsigned)tmp_span->nelem,(unsigned)tmp_span->pstride);
-        if(tmp_span->down && tmp_span->down->head) {
-            HDfprintf(stderr,"%s: spans=%p, count=%u, scratch=%p, head=%p\n",FUNC,tmp_span->down,tmp_span->down->count,tmp_span->down->scratch,tmp_span->down->head);
-            H5S_hyper_print_spans_helper(tmp_span->down->head,depth+1);
+    while(span) {
+        HDfprintf(f,"%s: depth=%u, span=%p, (%d, %d), nelem=%u, pstride=%u\n",FUNC,depth,span,(int)span->low,(int)span->high,(unsigned)span->nelem,(unsigned)span->pstride);
+        if(span->down && span->down->head) {
+            HDfprintf(f,"%s: spans=%p, count=%u, scratch=%p, head=%p\n",FUNC,span->down,span->down->count,span->down->scratch,span->down->head);
+            H5S_hyper_print_spans_helper(f,span->down->head,depth+1);
         } /* end if */
-        tmp_span=tmp_span->next;
+        span=span->next;
     } /* end while */
 
     FUNC_LEAVE_NOAPI(SUCCEED);
 }
 
-static herr_t
-H5S_hyper_print_spans(const struct H5S_hyper_span_info_t *span_lst)
+herr_t
+H5S_hyper_print_spans(FILE *f, const struct H5S_hyper_span_info_t *span_lst)
 {
-    FUNC_ENTER_NOINIT(H5S_hyper_print_spans);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_print_spans);
 
     if(span_lst!=NULL) {
-        HDfprintf(stderr,"%s: spans=%p, count=%u, scratch=%p, head=%p\n",FUNC,span_lst,span_lst->count,span_lst->scratch,span_lst->head);
-        H5S_hyper_print_spans_helper(span_lst->head,0);
+        HDfprintf(f,"%s: spans=%p, count=%u, scratch=%p, head=%p\n",FUNC,span_lst,span_lst->count,span_lst->scratch,span_lst->head);
+        H5S_hyper_print_spans_helper(f,span_lst->head,0);
     } /* end if */
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+}
+
+herr_t
+H5S_space_print_spans(FILE *f, const H5S_t *space)
+{
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_space_print_spans);
+
+    H5S_hyper_print_spans(f,space->select.sel_info.hslab.span_lst);
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+}
+
+static herr_t
+H5S_hyper_print_diminfo_helper(FILE *f, const char *field, unsigned ndims, const H5S_hyper_dim_t *dinfo)
+{
+    unsigned u;                 /* Local index variable */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_print_diminfo_helper);
+
+    if(dinfo!=NULL) {
+        HDfprintf(f,"%s: %s: start=[",FUNC,field);
+        for(u=0; u<ndims; u++)
+            HDfprintf(f,"%Hd%s",dinfo[u].start, (u<(ndims-1) ? ", " : "]\n"));
+        HDfprintf(f,"%s: %s: stride=[",FUNC,field);
+        for(u=0; u<ndims; u++)
+            HDfprintf(f,"%Hu%s",dinfo[u].stride, (u<(ndims-1) ? ", " : "]\n"));
+        HDfprintf(f,"%s: %s: count=[",FUNC,field);
+        for(u=0; u<ndims; u++)
+            HDfprintf(f,"%Hu%s",dinfo[u].count, (u<(ndims-1) ? ", " : "]\n"));
+        HDfprintf(f,"%s: %s: block=[",FUNC,field);
+        for(u=0; u<ndims; u++)
+            HDfprintf(f,"%Hu%s",dinfo[u].block, (u<(ndims-1) ? ", " : "]\n"));
+    } /* end if */
+    else
+        HDfprintf(f,"%s: %s==NULL\n",FUNC,field);
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+}
+
+herr_t
+H5S_hyper_print_diminfo(FILE *f, const H5S_t *space)
+{
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_print_diminfo);
+
+    H5S_hyper_print_diminfo_helper(f,"diminfo",space->extent.u.simple.rank,space->select.sel_info.hslab.diminfo);
+    H5S_hyper_print_diminfo_helper(f,"app_diminfo",space->extent.u.simple.rank,space->select.sel_info.hslab.app_diminfo);
 
     FUNC_LEAVE_NOAPI(SUCCEED);
 }
@@ -162,7 +207,7 @@ H5S_hyper_iter_init(H5S_sel_iter_t *iter, const H5S_t *space, size_t elmt_size)
 /* Initialize the information needed for regular hyperslab I/O */
         const hsize_t *mem_size;    /* Temporary pointer to dataspace extent's dimension sizes */
         hsize_t acc;                /* Accumulator for "flattened" dimension's sizes */
-        unsigned cont_dim;          /* Maximum contiguous dimension */
+        unsigned cont_dim=0;        /* # of contiguous dimensions */
 
         /* Set the temporary pointer to the dataspace extent's dimension sizes */
         mem_size=space->extent.u.simple.size;
@@ -174,69 +219,83 @@ H5S_hyper_iter_init(H5S_sel_iter_t *iter, const H5S_t *space, size_t elmt_size)
          * extent in that dimension and all dimensions up to that dimension.
          */
 
-        /* Initialize the number of contiguous dimensions to be the same as the dataspace's rank */
-        cont_dim=rank;
-
         /* Don't flatten adjacent elements into contiguous block if the
          * element size is 0.  This is for the H5S_select_shape_same() code.
          */
         if(elmt_size>0) {
-            /* Check for a "contiguous" block */
+            /* Check for any "contiguous" blocks that can be flattened */
             for(u=rank-1; u>0; u--) {
                 if(tdiminfo[u].count==1 && tdiminfo[u].block==mem_size[u])
-                    cont_dim=u;
-                else
-                    break;
+                    cont_dim++;
             } /* end for */
         } /* end if */
 
         /* Check if the regular selection can be "flattened" */
-        if(cont_dim<rank) {
+        if(cont_dim>0) {
+            unsigned last_dim_flattened=1;      /* Flag to indicate that the last dimension was flattened */
+            unsigned flat_rank=rank-cont_dim;   /* Number of dimensions after flattening */
+            unsigned curr_dim;                  /* Current dimension */
+
             /* Set the iterator's rank to the contiguous dimensions */
-            iter->u.hyp.iter_rank=cont_dim;
+            iter->u.hyp.iter_rank=flat_rank;
 
             /* Allocate the position & initialize to initial location */
-            iter->u.hyp.off = H5FL_ARR_MALLOC(hsize_t,cont_dim);
+            iter->u.hyp.off = H5FL_ARR_MALLOC(hsize_t,flat_rank);
             assert(iter->u.hyp.off);
-            iter->u.hyp.diminfo = H5FL_ARR_MALLOC(H5S_hyper_dim_t,cont_dim);
+            iter->u.hyp.diminfo = H5FL_ARR_MALLOC(H5S_hyper_dim_t,flat_rank);
             assert(iter->u.hyp.diminfo);
-            iter->u.hyp.size = H5FL_ARR_MALLOC(hsize_t,cont_dim);
+            iter->u.hyp.size = H5FL_ARR_MALLOC(hsize_t,flat_rank);
             assert(iter->u.hyp.size);
-            iter->u.hyp.sel_off = H5FL_ARR_MALLOC(hssize_t,cont_dim);
+            iter->u.hyp.sel_off = H5FL_ARR_MALLOC(hssize_t,flat_rank);
             assert(iter->u.hyp.sel_off);
 
             /* "Flatten" dataspace extent and selection information */
+            curr_dim=flat_rank-1;
             for(i=rank-1, acc=1; i>=0; i--) {
                 if(tdiminfo[i].block==mem_size[i] && i>0) {
+                    /* "Flatten" this dimension */
                     assert(tdiminfo[i].start==0);
                     acc *= mem_size[i];
+
+                    /* Indicate that the dimension was flattened */
+                    last_dim_flattened=1;
                 } /* end if */
                 else {
-                    if((unsigned)i==(cont_dim-1)) {
-                        iter->u.hyp.diminfo[i].start = tdiminfo[i].start*acc;
+                    if(last_dim_flattened) {
+                        /* First dimension after flattened dimensions */
+                        iter->u.hyp.diminfo[curr_dim].start = tdiminfo[i].start*acc;
                         /* Special case for single block regular selections */
                         if(tdiminfo[i].count==1)
-                            iter->u.hyp.diminfo[i].stride = 1;
+                            iter->u.hyp.diminfo[curr_dim].stride = 1;
                         else
-                            iter->u.hyp.diminfo[i].stride = tdiminfo[i].stride*acc;
-                        iter->u.hyp.diminfo[i].count = tdiminfo[i].count;
-                        iter->u.hyp.diminfo[i].block = tdiminfo[i].block*acc;
-                        iter->u.hyp.size[i] = mem_size[i]*acc;
-                        iter->u.hyp.sel_off[i] = space->select.offset[i]*acc;
+                            iter->u.hyp.diminfo[curr_dim].stride = tdiminfo[i].stride*acc;
+                        iter->u.hyp.diminfo[curr_dim].count = tdiminfo[i].count;
+                        iter->u.hyp.diminfo[curr_dim].block = tdiminfo[i].block*acc;
+                        iter->u.hyp.size[curr_dim] = mem_size[i]*acc;
+                        iter->u.hyp.sel_off[curr_dim] = space->select.offset[i]*acc;
+
+                        /* Reset the "last dim flattened" flag to avoid flattened any further dimensions */
+                        last_dim_flattened=0;
+
+                        /* Reset the "accumulator" for possible further dimension flattening */
+                        acc=1;
                     } /* end if */
                     else {
-                        iter->u.hyp.diminfo[i].start = tdiminfo[i].start;
-                        iter->u.hyp.diminfo[i].stride = tdiminfo[i].stride;
-                        iter->u.hyp.diminfo[i].count = tdiminfo[i].count;
-                        iter->u.hyp.diminfo[i].block = tdiminfo[i].block;
-                        iter->u.hyp.size[i] = mem_size[i];
-                        iter->u.hyp.sel_off[i] = space->select.offset[i];
+                        iter->u.hyp.diminfo[curr_dim].start = tdiminfo[i].start;
+                        iter->u.hyp.diminfo[curr_dim].stride = tdiminfo[i].stride;
+                        iter->u.hyp.diminfo[curr_dim].count = tdiminfo[i].count;
+                        iter->u.hyp.diminfo[curr_dim].block = tdiminfo[i].block;
+                        iter->u.hyp.size[curr_dim] = mem_size[i];
+                        iter->u.hyp.sel_off[curr_dim] = space->select.offset[i];
                     } /* end else */
+
+                    /* Decrement "current" flattened dimension */
+                    curr_dim--;
                 } /* end if */
             } /* end for */
 
             /* Initialize "flattened" iterator offset to initial location and dataspace extent and selection information to correct values */
-            for(u=0; u<cont_dim; u++)
+            for(u=0; u<flat_rank; u++)
                 iter->u.hyp.off[u]=iter->u.hyp.diminfo[u].start;
         } /* end if */
         else {
@@ -339,7 +398,7 @@ done:
 static herr_t
 H5S_hyper_iter_coords (const H5S_sel_iter_t *iter, hssize_t *coords)
 {
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_coords);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_coords);
 
     /* Check args */
     assert (iter);
@@ -396,7 +455,7 @@ H5S_hyper_iter_block (const H5S_sel_iter_t *iter, hssize_t *start, hssize_t *end
 {
     unsigned u;                 /* Local index variable */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_block);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_block);
 
     /* Check args */
     assert (iter);
@@ -445,7 +504,7 @@ H5S_hyper_iter_block (const H5S_sel_iter_t *iter, hssize_t *start, hssize_t *end
 static hsize_t
 H5S_hyper_iter_nelmts (const H5S_sel_iter_t *iter)
 {
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_nelmts);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_nelmts);
 
     /* Check args */
     assert (iter);
@@ -477,7 +536,7 @@ H5S_hyper_iter_has_next_block(const H5S_sel_iter_t *iter)
     unsigned u;                 /* Local index variable */
     herr_t ret_value=FALSE;      /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_has_next_block);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_has_next_block);
 
     /* Check args */
     assert (iter);
@@ -536,7 +595,7 @@ H5S_hyper_iter_next(H5S_sel_iter_t *iter, size_t nelem)
     int fast_dim;       /* Rank of the fastest changing dimension for the dataspace */
     unsigned i;         /* Counters */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_next);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_next);
 
     /* Check for the special case of just one H5Sselect_hyperslab call made */
     /* (i.e. a regular hyperslab selection */
@@ -751,7 +810,7 @@ H5S_hyper_iter_next_block(H5S_sel_iter_t *iter)
     int fast_dim;       /* Rank of the fastest changing dimension for the dataspace */
     unsigned u;         /* Counters */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_next_block);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_next_block);
 
     /* Check for the special case of just one H5Sselect_hyperslab call made */
     /* (i.e. a regular hyperslab selection */
@@ -933,7 +992,7 @@ H5S_hyper_iter_next_block(H5S_sel_iter_t *iter)
 static herr_t
 H5S_hyper_iter_release (H5S_sel_iter_t *iter)
 {
-    FUNC_ENTER_NOINIT(H5S_hyper_iter_release);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_iter_release);
 
     /* Check args */
     assert (iter);
@@ -1029,7 +1088,7 @@ H5S_hyper_new_span (hssize_t low, hssize_t high, H5S_hyper_span_info_t *down, H5
 {
     H5S_hyper_span_t *ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_new_span);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_new_span);
 
     /* Allocate a new span node */
     if((ret_value = H5FL_MALLOC(H5S_hyper_span_t))==NULL)
@@ -1077,7 +1136,7 @@ H5S_hyper_span_precompute_helper (H5S_hyper_span_info_t *spans, size_t elmt_size
     H5S_hyper_span_t *span;     /* Hyperslab span */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_span_precompute_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_span_precompute_helper);
 
     assert(spans);
 
@@ -1135,7 +1194,7 @@ H5S_hyper_span_precompute (H5S_hyper_span_info_t *spans, size_t elmt_size)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_span_precompute);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_span_precompute);
 
     assert(spans);
 
@@ -1175,7 +1234,7 @@ H5S_hyper_span_scratch (H5S_hyper_span_info_t *spans, void *scr_value)
     H5S_hyper_span_t *span;     /* Hyperslab span */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_span_scratch);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_span_scratch);
 
     assert(spans);
 
@@ -1229,7 +1288,7 @@ H5S_hyper_copy_span_helper (H5S_hyper_span_info_t *spans)
     H5S_hyper_span_info_t *new_down;    /* New down span tree */
     H5S_hyper_span_info_t *ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_copy_span_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_copy_span_helper);
 
     assert(spans);
 
@@ -1315,7 +1374,7 @@ H5S_hyper_copy_span (H5S_hyper_span_info_t *spans)
 {
     H5S_hyper_span_info_t *ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_copy_span);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_copy_span);
 
     assert(spans);
 
@@ -1358,7 +1417,7 @@ H5S_hyper_cmp_spans (H5S_hyper_span_info_t *span_info1, H5S_hyper_span_info_t *s
     htri_t nest=FAIL;
     htri_t ret_value=FAIL;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_cmp_spans);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_cmp_spans);
 
     /* Check for redundant comparison */
     if(span_info1==span_info2) 
@@ -1462,7 +1521,7 @@ H5S_hyper_free_span_info (H5S_hyper_span_info_t *span_info)
     H5S_hyper_span_t *span, *next_span;
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_free_span_info);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_free_span_info);
 
     assert(span_info);
 
@@ -1514,7 +1573,7 @@ H5S_hyper_free_span (H5S_hyper_span_t *span)
 {
     herr_t ret_value=SUCCEED;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_free_span);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_free_span);
 
     assert(span);
 
@@ -1637,7 +1696,7 @@ H5S_hyper_is_valid_helper (const H5S_hyper_span_info_t *spans, const hssize_t *o
     htri_t tmp;                 /* temporary return value */
     htri_t ret_value=TRUE;      /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_is_valid_helper);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_is_valid_helper);
 
     assert(spans);
     assert(offset);
@@ -1764,7 +1823,7 @@ H5S_hyper_span_nblocks (H5S_hyper_span_info_t *spans)
     H5S_hyper_span_t *span;     /* Hyperslab span */
     hssize_t ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_span_nblocks);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_span_nblocks);
 
     /* Count the number of elements in the span tree */
     if(spans==NULL)
@@ -1812,7 +1871,7 @@ H5S_get_select_hyper_nblocks(H5S_t *space)
     hssize_t ret_value;         /* return value */
     unsigned u;                 /* Counter */
 
-    FUNC_ENTER_NOINIT(H5S_get_select_hyper_nblocks);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_get_select_hyper_nblocks);
 
     assert(space);
 
@@ -1951,7 +2010,7 @@ H5S_hyper_serialize_helper (const H5S_hyper_span_info_t *spans, hssize_t *start,
     hsize_t u;                  /* Index variable */
     herr_t ret_value=SUCCEED;  /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_serialize_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_serialize_helper);
 
     /* Sanity checks */
     assert(spans);
@@ -2394,7 +2453,7 @@ done:
  REVISION LOG
 --------------------------------------------------------------------------*/
 herr_t
-H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock, hsize_t numblocks, hsize_t *buf)
+H5S_get_select_hyper_blocklist(H5S_t *space, hbool_t internal, hsize_t startblock, hsize_t numblocks, hsize_t *buf)
 {
     H5S_hyper_dim_t *diminfo;               /* Alias for dataspace's diminfo information */
     hsize_t tmp_count[H5O_LAYOUT_NDIMS];    /* Temporary hyperslab counts */
@@ -2409,7 +2468,7 @@ H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock, hsize_t numbloc
     int done;          /* Whether we are done with the iteration */
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_get_select_hyper_blocklist);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_get_select_hyper_blocklist);
 
     assert(space);
     assert(buf);
@@ -2419,11 +2478,20 @@ H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock, hsize_t numbloc
         /* Set some convienence values */
         ndims=space->extent.u.simple.rank;
         fast_dim=ndims-1;
-        /*
-         * Use the "application dimension information" to pass back to the user
-         * the blocks they set, not the optimized, internal information.
-         */
-        diminfo=space->select.sel_info.hslab.app_diminfo;
+
+        /* Check which set of dimension information to use */
+        if(internal)
+            /*
+             * Use the "optimized dimension information" to pass back information
+             * on the blocks set, not the "application information".
+             */
+            diminfo=space->select.sel_info.hslab.diminfo;
+        else
+            /*
+             * Use the "application dimension information" to pass back to the user
+             * the blocks they set, not the optimized, internal information.
+             */
+            diminfo=space->select.sel_info.hslab.app_diminfo;
 
         /* Build the tables of count sizes as well as the initial offset */
         for(i=0; i<ndims; i++) {
@@ -2554,7 +2622,7 @@ H5Sget_select_hyper_blocklist(hid_t spaceid, hsize_t startblock, hsize_t numbloc
 
     /* Go get the correct number of blocks */
     if(numblocks>0)
-        ret_value = H5S_get_select_hyper_blocklist(space,startblock,numblocks,buf);
+        ret_value = H5S_get_select_hyper_blocklist(space,0,startblock,numblocks,buf);
     else
         ret_value=SUCCEED;      /* Successfully got 0 blocks... */
 
@@ -2597,7 +2665,7 @@ H5S_hyper_bounds_helper (const H5S_hyper_span_info_t *spans, const hssize_t *off
     H5S_hyper_span_t *curr;     /* Hyperslab information nodes */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_bounds_helper);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_bounds_helper);
 
     assert(spans);
     assert(offset);
@@ -3080,7 +3148,7 @@ done:
 static herr_t
 H5S_hyper_recover_span (unsigned *recover, H5S_hyper_span_t **curr_span, H5S_hyper_span_t *next_span)
 {
-    FUNC_ENTER_NOINIT(H5S_hyper_recover_span);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_recover_span);
 
     assert(recover);
     assert(curr_span);
@@ -3123,7 +3191,7 @@ H5S_hyper_coord_to_span(unsigned rank, hssize_t *coords)
     H5S_hyper_span_info_t *down=NULL;   /* Pointer to new span tree for next level down */
     H5S_hyper_span_t *ret_value=NULL;   /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_coord_to_span);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_coord_to_span);
 
     assert(rank>0);
     assert(coords);
@@ -3192,7 +3260,7 @@ H5S_hyper_add_span_element_helper(H5S_hyper_span_info_t *span_tree, unsigned ran
     H5S_hyper_span_t *new_span;         /* New span created for element */
     herr_t ret_value=SUCCEED;           /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_add_span_element_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_add_span_element_helper);
 
     assert(span_tree);
     assert(rank>0);
@@ -3386,7 +3454,7 @@ H5S_hyper_add_span_element(H5S_t *space, unsigned rank, hssize_t *coords)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_add_span_element);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_add_span_element);
 
     assert(space);
     assert(rank>0);
@@ -3472,7 +3540,7 @@ H5S_hyper_reset_scratch(H5S_t *space)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_reset_scratch);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_reset_scratch);
 
     assert(space);
 
@@ -3512,7 +3580,7 @@ H5S_hyper_convert(H5S_t *space)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_convert);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_convert);
 
     assert(space);
 
@@ -3581,7 +3649,7 @@ H5S_hyper_intersect_helper (H5S_hyper_span_info_t *spans1, H5S_hyper_span_info_t
     htri_t status;              /* Status from recursive call */
     htri_t ret_value=FALSE;     /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_intersect_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_intersect_helper);
 
     /* Sanity check */
     assert((spans1 && spans2) || (spans1==NULL && spans2==NULL));
@@ -3648,7 +3716,7 @@ H5S_hyper_intersect (H5S_t *space1, H5S_t *space2)
 {
     htri_t ret_value=FAIL;      /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_intersect);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_intersect);
 
     /* Sanity check */
     assert(space1);
@@ -3696,7 +3764,7 @@ H5S_hyper_adjust_helper (H5S_hyper_span_info_t *spans, const hssize_t *offset)
     H5S_hyper_span_t *span;     /* Pointer to current span in span tree */
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_adjust_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_adjust_helper);
 
     /* Sanity check */
     assert(spans);
@@ -3758,7 +3826,7 @@ H5S_hyper_adjust(H5S_t *space, const hssize_t *offset)
     unsigned u;                         /* Local index variable */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_adjust);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_adjust);
 
     assert(space);
     assert(offset);
@@ -3811,7 +3879,7 @@ H5S_hyper_move_helper (H5S_hyper_span_info_t *spans, const hssize_t *offset)
     H5S_hyper_span_t *span;     /* Pointer to current span in span tree */
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_move_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_move_helper);
 
     /* Sanity check */
     assert(spans);
@@ -3873,7 +3941,7 @@ H5S_hyper_move(H5S_t *space, const hssize_t *offset)
     unsigned u;                         /* Local index variable */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_move);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_move);
 
     assert(space);
     assert(offset);
@@ -3899,6 +3967,55 @@ H5S_hyper_move(H5S_t *space, const hssize_t *offset)
 done:
     FUNC_LEAVE_NOAPI(ret_value);
 }   /* H5S_hyper_move() */
+
+
+/*--------------------------------------------------------------------------
+ NAME
+    H5S_hyper_normalize_offset
+ PURPOSE
+    "Normalize" a hyperslab selection by adjusting it's coordinates by the
+    amount of the selection offset.
+ USAGE
+    herr_t H5S_hyper_normalize_offset(space)
+        H5S_t *space;           IN/OUT: Pointer to dataspace to move
+ RETURNS
+    Non-negative on success, negative on failure
+ DESCRIPTION
+    Moves the hyperslab selection by the selection offset and then resets
+    the selection offset to zeros.
+ GLOBAL VARIABLES
+ COMMENTS, BUGS, ASSUMPTIONS
+ EXAMPLES
+ REVISION LOG
+--------------------------------------------------------------------------*/
+herr_t
+H5S_hyper_normalize_offset(H5S_t *space)
+{
+    unsigned u;                         /* Local index variable */
+    herr_t      ret_value=SUCCEED;       /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_normalize_offset);
+
+    assert(space);
+
+    /* Check if there is an offset currently */
+    if(space->select.offset) {
+        /* Invert the selection offset */
+        for(u=0; u<space->extent.u.simple.rank; u++)
+            space->select.offset[u] =- space->select.offset[u];
+
+        /* Call the existing 'adjust' routine */
+        if(H5S_hyper_adjust(space, space->select.offset)<0)
+            HGOTO_ERROR(H5E_DATASPACE, H5E_BADSELECT, FAIL, "can't perform hyperslab normalization");
+
+        /* Zero out the selection offset */
+        for(u=0; u<space->extent.u.simple.rank; u++)
+            space->select.offset[u] = 0;
+    } /* end if */
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+}   /* H5S_hyper_normalize_offset() */
 
 
 /*--------------------------------------------------------------------------
@@ -3929,7 +4046,7 @@ H5S_hyper_append_span (H5S_hyper_span_t **prev_span, H5S_hyper_span_info_t ** sp
     H5S_hyper_span_t *new_span;
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_append_span);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_append_span);
 
     assert(prev_span);
     assert(span_tree);
@@ -4047,7 +4164,7 @@ H5S_hyper_clip_spans (H5S_hyper_span_info_t *a_spans, H5S_hyper_span_info_t *b_s
     unsigned recover_a, recover_b;         /* Flags to indicate when to recover temporary spans */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_clip_spans);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_clip_spans);
 
     /* Check args */
     assert (a_spans);
@@ -4537,7 +4654,7 @@ H5S_hyper_merge_spans_helper (H5S_hyper_span_info_t *a_spans, H5S_hyper_span_inf
     unsigned recover_a, recover_b;         /* Flags to indicate when to recover temporary spans */
     H5S_hyper_span_info_t *ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_merge_spans_helper);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_merge_spans_helper);
 
     /* Make certain both 'a' & 'b' spans have down span trees or neither does */
     assert((a_spans!=NULL && b_spans!=NULL) || (a_spans==NULL && b_spans==NULL));
@@ -4840,7 +4957,7 @@ done:
 static herr_t
 H5S_hyper_merge_spans (H5S_t *space, H5S_hyper_span_info_t *new_spans)
 {
-    FUNC_ENTER_NOINIT(H5S_hyper_merge_spans);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_merge_spans);
 
     /* Check args */
     assert (space);
@@ -4893,7 +5010,7 @@ H5S_hyper_spans_nelem (H5S_hyper_span_info_t *spans)
     H5S_hyper_span_t *span;     /* Hyperslab span */
     hssize_t ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_spans_nelem);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_spans_nelem);
 
     /* Count the number of elements in the span tree */
     if(spans==NULL)
@@ -4955,7 +5072,7 @@ H5S_hyper_make_spans (unsigned rank, const hssize_t *start, const hsize_t *strid
     unsigned u;                    /* Counters */
     H5S_hyper_span_info_t *ret_value;
 
-    FUNC_ENTER_NOINIT(H5S_hyper_make_spans);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_make_spans);
 
     /* Check args */
     assert (rank>0);
@@ -5057,7 +5174,7 @@ H5S_hyper_can_rebuild (const H5S_t *space)
     H5S_hyper_span_t *span;     /* Current hyperslab span */
     htri_t ret_value=TRUE;      /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_can_rebuild);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_can_rebuild);
 
     /* Check args */
     assert (space);
@@ -5110,7 +5227,7 @@ H5S_hyper_rebuild (H5S_t *space)
     unsigned curr_dim;          /* Current dimension being worked on */
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_hyper_rebuild);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_hyper_rebuild);
 
     /* Check args */
     assert (space);
@@ -5195,7 +5312,7 @@ H5S_generate_hyperslab (H5S_t *space, H5S_seloper_t op,
     htri_t      status;         /* Status from internal calls */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_generate_hyperslab);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_generate_hyperslab);
 
     /* Check args */
     assert(space);
@@ -5749,7 +5866,7 @@ H5S_operate_hyperslab (H5S_t *result, H5S_hyper_span_info_t *spans1, H5S_seloper
     htri_t      status;         /* Status from internal calls */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_operate_hyperslab);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_operate_hyperslab);
 
     /* Check args */
     assert(result);
@@ -5963,7 +6080,7 @@ H5S_generate_hyperslab (H5S_t *space, H5S_seloper_t op,
     unsigned u;                 /* Counters */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_generate_hyperslab);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_generate_hyperslab);
 
     /* Check args */
     assert(space);
@@ -6406,7 +6523,7 @@ H5S_combine_select (H5S_t *space1, H5S_seloper_t op, H5S_t *space2)
     H5S_t *new_space=NULL;    /* New dataspace generated */
     H5S_t *ret_value;         /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_combine_select);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_combine_select);
 
     /* Check args */
     assert(space1);
@@ -6517,7 +6634,7 @@ H5S_select_select (H5S_t *space1, H5S_seloper_t op, H5S_t *space2)
     H5S_hyper_span_info_t *tmp_spans=NULL;   /* Temporary copy of selection */
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOINIT(H5S_select_select);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_select_select);
 
     /* Check args */
     assert(space1);
@@ -6652,7 +6769,7 @@ H5S_hyper_get_seq_list_gen(const H5S_t *space,H5S_sel_iter_t *iter,
     int curr_dim;      /* Current dimension being operated on */
     int i;             /* Index variable */
 
-    FUNC_ENTER_NOINIT (H5S_hyper_get_seq_list_gen);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_get_seq_list_gen);
 
     /* Check args */
     assert(space);
@@ -7103,7 +7220,7 @@ H5S_hyper_get_seq_list_opt(const H5S_t *space,H5S_sel_iter_t *iter,
     size_t duffs_index; /* Counting index for Duff's device */
 #endif /* NO_DUFFS_DEVICE */
 
-    FUNC_ENTER_NOINIT (H5S_hyper_get_seq_list_opt);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_hyper_get_seq_list_opt);
 
     /* Check args */
     assert(space);

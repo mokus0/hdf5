@@ -16,8 +16,8 @@
  * This header file contains information required for testing the HDF5 library.
  */
 
-#ifndef HDF5TEST_H
-#define HDF5TEST_H
+#ifndef TESTHDF5_H
+#define TESTHDF5_H
 
 /*
  * Include required headers.  This file tests internal library functions,
@@ -26,88 +26,76 @@
 #include "H5private.h"
 #include "H5Eprivate.h"
 
-#ifndef HDF5_TEST_MASTER
-extern int              num_errs;
-extern int              Verbosity;
-#endif /* HDF5_TEST_MASTER */
+/* Include generic testing header also */
+#include "h5test.h"
 
 /* Use %ld to print the value because long should cover most cases. */
 /* Used to make certain a return value _is_not_ a value */
 #define CHECK(ret, val, where) do {					      \
-    if (Verbosity>9) print_func("   Call to routine: %15s at line %4d "	      \
+    if (GetTestVerbosity()>=VERBO_HI) print_func("   Call to routine: %15s at line %4d "	      \
 				"in %s returned %ld \n",		      \
 				where, (int)__LINE__, __FILE__,		      \
 				(long)(ret));				      \
     if ((ret) == (val)) {							      \
-	print_func("*** UNEXPECTED RETURN from %s is %ld at line %4d "	      \
+	TestErrPrintf("*** UNEXPECTED RETURN from %s is %ld at line %4d "	      \
 		   "in %s\n", where, (long)(ret), (int)__LINE__, __FILE__);     \
-	num_errs++;							      \
 	H5Eprint (stdout);						      \
     }									      \
-    H5Eclear();								      \
 } while(0)
 
 #define CHECK_I(ret,where) {						      \
-   if (Verbosity>9) {							      \
+   if (GetTestVerbosity()>=VERBO_HI) {							      \
       print_func("   Call to routine: %15s at line %4d in %s returned %ld\n", \
                  (where), (int)__LINE__, __FILE__, (long)(ret));	      \
    }									      \
    if ((ret)<0) {							      \
-      print_func ("*** UNEXPECTED RETURN from %s is %ld line %4d in %s\n",    \
+      TestErrPrintf ("*** UNEXPECTED RETURN from %s is %ld line %4d in %s\n",    \
                   (where), (long)(ret), (int)__LINE__, __FILE__);	      \
       H5Eprint (stdout);						      \
-      num_errs++;							      \
    }									      \
-   H5Eclear ();								      \
 }
 
 #define CHECK_PTR(ret,where) {						      \
-   if (Verbosity>9) {							      \
+   if (GetTestVerbosity()>=VERBO_HI) {							      \
       print_func("   Call to routine: %15s at line %4d in %s returned %p\n",  \
                  (where), (int)__LINE__, __FILE__, (ret));		      \
    }									      \
    if (!(ret)) {							      \
-      print_func ("*** UNEXPECTED RETURN from %s is NULL line %4d in %s\n",   \
+      TestErrPrintf ("*** UNEXPECTED RETURN from %s is NULL line %4d in %s\n",   \
                   (where), (int)__LINE__, __FILE__);			      \
       H5Eprint (stdout);						      \
-      num_errs++;							      \
    }									      \
-   H5Eclear ();								      \
 }
 
 /* Used to make certain a return value _is_ a value */
 #define VERIFY(x, val, where) do {					      \
-    if (Verbosity>9) {							      \
+    if (GetTestVerbosity()>=VERBO_HI) {							      \
 	print_func("   Call to routine: %15s at line %4d in %s had value "    \
 		   "%ld \n", (where), (int)__LINE__, __FILE__, (long)(x));	      \
     }									      \
     if ((x) != (val)) {							      \
-	print_func("*** UNEXPECTED VALUE from %s should be %ld, but is %ld at line %4d "	      \
+	TestErrPrintf("*** UNEXPECTED VALUE from %s should be %ld, but is %ld at line %4d "	      \
 		   "in %s\n", (where), (long)(val), (long)(x), (int)__LINE__, __FILE__);	      \
 	H5Eprint (stdout);						      \
-	num_errs++;							      \
     }									      \
-    H5Eclear();								      \
 } while(0)
 
 /* Used to document process through a test and to check for errors */
 #define RESULT(ret,func) do {						      \
-    if (Verbosity>8) {							      \
+    if (GetTestVerbosity()>VERBO_MED) {							      \
 	print_func("   Call to routine: %15s at line %4d in %s returned "     \
 		   "%ld\n", func, (int)__LINE__, __FILE__, (long)(ret));	      \
     }									      \
-    if (Verbosity>9) HEprint(stdout, 0);				      \
+    if (GetTestVerbosity()>=VERBO_HI) H5Eprint(stdout);					      \
     if ((ret) == FAIL) {							      \
-	print_func("*** UNEXPECTED RETURN from %s is %ld at line %4d "	      \
+	TestErrPrintf("*** UNEXPECTED RETURN from %s is %ld at line %4d "	      \
 		   "in %s\n", func, (long)(ret), (int)__LINE__, __FILE__);      \
 	H5Eprint (stdout);						      \
-	num_errs++;							      \
     }									      \
-    H5Eclear();								      \
 } while(0)
 
 /* Used to document process through a test */
-#define MESSAGE(V,A) {if (Verbosity>(V)) print_func A;}
+#define MESSAGE(V,A) {if (GetTestVerbosity()>(V)) print_func A;}
 
 /* definitions for command strings */
 #define VERBOSITY_STR   "Verbosity"
@@ -115,8 +103,25 @@ extern int              Verbosity;
 #define TEST_STR        "Test"
 #define CLEAN_STR       "Cleanup"
 
-/* Prototypes for the support routines */
-int                     print_func(const char *,...);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Routines for operating on the list of tests (for the "all in one" tests) */
+H5TEST_DLL void TestUsage(void);
+H5TEST_DLL void AddTest(const char *TheName, void (*TheCall) (void),
+		     void (*Cleanup) (void), const char *TheDescr);
+H5TEST_DLL void TestInfo(const char *ProgName);
+H5TEST_DLL void TestParseCmdLine(int argc, char *argv[], int *Summary, int *CleanUp);
+H5TEST_DLL void PerformTests(void);
+H5TEST_DLL void TestSummary(void);
+H5TEST_DLL void TestCleanup(void);
+H5TEST_DLL void TestInit(void);
+H5TEST_DLL int  GetTestVerbosity(void);
+H5TEST_DLL int  SetTestVerbosity(int newval);
+H5TEST_DLL void ParseTestVerbosity(char *argv);
+H5TEST_DLL int  GetTestNumErrs(void);
+H5TEST_DLL int  TestErrPrintf(const char *format, ...);
 
 /* Prototypes for the test routines */
 void                    test_metadata(void);
@@ -156,4 +161,7 @@ void                    cleanup_genprop(void);
 void			cleanup_configure(void);
 void			cleanup_misc(void);
 
-#endif /* HDF5cleanup_H */
+#ifdef __cplusplus
+}
+#endif
+#endif /* TESTHDF5_H */

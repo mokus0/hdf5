@@ -6,7 +6,7 @@
 # in column one with a '#'.
 #------------------------------------------------------------------------------
 
-./.autom4te.cfg             _DO_NOT_DISTRIBUTE_
+./.autom4te.cfg				_DO_NOT_DISTRIBUTE_
 ./COPYING
 ./MANIFEST
 ./Makefile.dist
@@ -65,6 +65,7 @@
 ./config/linux-gnuaout
 ./config/linux-gnulibc1
 ./config/linux-gnulibc2
+./config/powerpc-apple
 ./config/powerpc-ibm-aix4.x
 ./config/powerpc-ibm-aix5.x
 ./config/rs6000-ibm-aix4.x
@@ -442,18 +443,6 @@
 ./doc/html/fortran/F90Flags.html
 ./doc/html/fortran/F90UserNotes.html
 ./doc/html/fortran/Makefile.in
-./doc/html/fortran/h5_FORTRAN.html
-./doc/html/fortran/h5a_FORTRAN.html
-./doc/html/fortran/h5d_FORTRAN.html
-./doc/html/fortran/h5e_FORTRAN.html
-./doc/html/fortran/h5f_FORTRAN.html
-./doc/html/fortran/h5g_FORTRAN.html
-./doc/html/fortran/h5i_FORTRAN.html
-./doc/html/fortran/h5p_FORTRAN.html
-./doc/html/fortran/h5r_FORTRAN.html
-./doc/html/fortran/h5s_FORTRAN.html
-./doc/html/fortran/h5t_FORTRAN.html
-./doc/html/fortran/h5z_FORTRAN.html
 
 ./doc/html/group_p1.gif
 ./doc/html/group_p1.obj			_DO_NOT_DISTRIBUTE_
@@ -563,6 +552,7 @@
 ./fortran/config/linux-gnuaout
 ./fortran/config/linux-gnulibc1
 ./fortran/config/linux-gnulibc2
+./fortran/config/powerpc-apple
 ./fortran/config/powerpc-ibm-aix4.x
 ./fortran/config/powerpc-ibm-aix5.x
 ./fortran/config/rs6000-ibm-aix4.x
@@ -691,13 +681,14 @@
 ./c++/config/depend4.in
 ./c++/config/dependN.in
 ./c++/config/hpux11.00
+./c++/config/ia64-linux-gnu
+./c++/config/irix6.x
 ./c++/config/linux-gnu
 ./c++/config/linux-gnulibc1
 ./c++/config/linux-gnulibc2
 ./c++/config/powerpc-ibm-aix
 ./c++/config/rs6000-ibm-aix4.x
 ./c++/config/solaris2.x
-./c++/config/irix6.x
 ./c++/config/sv1-cray
 ./c++/config/unicos10.0.X
 ./c++/config/unicosmk2.0.6.X
@@ -819,6 +810,7 @@
 ./perform/mpi-perf.c
 ./perform/overhead.c
 ./perform/perf.c
+./perform/perf_meta.c
 ./perform/pio_engine.c
 ./perform/pio_perf.c
 ./perform/pio_perf.h
@@ -1071,6 +1063,7 @@
 ./test/tattr.c
 ./test/tbogus.h5
 ./test/tconfig.c
+./test/testframe.c
 ./test/testhdf5.c
 ./test/testhdf5.h
 ./test/testmeta.c
@@ -1198,7 +1191,6 @@
 ./tools/misc/Dependencies
 ./tools/misc/Makefile.in
 ./tools/misc/h5cc.in
-./tools/misc/h5createU8.c
 ./tools/misc/h5debug.c
 ./tools/misc/h5import.c
 ./tools/misc/h5redeploy.in
@@ -1318,6 +1310,8 @@
 ./tools/testfiles/tvldtypes3.h5
 ./tools/testfiles/tvldtypes4.ddl
 ./tools/testfiles/tvldtypes4.h5
+./tools/testfiles/tvldtypes5.ddl
+./tools/testfiles/tvldtypes5.h5
 ./tools/testfiles/tvlstr.h5
 ./tools/testfiles/tvlstr.ddl
 ./tools/testfiles/tattr2.h5
@@ -1389,6 +1383,8 @@
 ./tools/testfiles/tvldtypes1.h5.xml
 ./tools/testfiles/tvldtypes2.h5.xml
 ./tools/testfiles/tvldtypes3.h5.xml
+./tools/testfiles/tvldtypes4.h5.xml
+./tools/testfiles/tvldtypes5.h5.xml
 ./tools/testfiles/tvlstr.h5.xml
 ./tools/testfiles/tempty-dtd.h5.xml
 ./tools/testfiles/tempty-dtd-uri.h5.xml

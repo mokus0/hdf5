@@ -224,15 +224,6 @@ static const H5FD_class_t H5FD_mpiposix_g = {
     H5FD_FLMAP_SINGLE 				/*fl_map		*/
 };
 
-/* Global var to allow elimination of redundant metadata writes
- * to be controlled by the value of an environment variable. */
-/* Use the elimination by default unless this is the Intel Red machine */
-#ifndef __PUMAGON__
-hbool_t	H5_mpiposix_1_metawrite_g = TRUE;
-#else
-hbool_t	H5_mpiposix_1_metawrite_g = FALSE;
-#endif
-
 /* Interface initialization */
 #define PABLO_MASK	H5FD_mpiposix_mask
 #define INTERFACE_INIT	H5FD_mpiposix_init
@@ -1379,7 +1370,6 @@ H5FD_mpiposix_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
     int			mpi_code;	/* MPI return code */
     ssize_t	        nbytes;         /* Number of bytes written each I/O call */
     H5P_genplist_t      *plist;         /* Property list pointer */
-    unsigned		block_before_meta_write=0;      /* Whether to block before a metadata write */
     herr_t             	ret_value=SUCCEED;      /* Return value */
 
     FUNC_ENTER_NOAPI(H5FD_mpiposix_write, FAIL);
@@ -1404,11 +1394,17 @@ H5FD_mpiposix_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
 
     /* Metadata specific actions */
     if(type!=H5FD_MEM_DRAW) {
+        unsigned		block_before_meta_write=0;      /* Whether to block before a metadata write */
+
         /* Check if we need to syncronize all processes before attempting metadata write
          * (Prevents race condition where the process writing the metadata goes ahead
          * and writes the metadata to the file before all the processes have
          * read the data, "transmitting" data from the "future" to the reading
          * process. -QAK )
+         *
+         * The only time we don't want to block before a metadata write is when
+         * we are flushing out a bunch of metadata.  Then, we block before the
+         * first write and don't block for further writes in the sequence.
          */
         if(H5P_exist_plist(plist,H5AC_BLOCK_BEFORE_META_WRITE_NAME)>0)
             if(H5P_get(plist,H5AC_BLOCK_BEFORE_META_WRITE_NAME,&block_before_meta_write)<0)
@@ -1418,10 +1414,9 @@ H5FD_mpiposix_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
             if (MPI_SUCCESS!= (mpi_code=MPI_Barrier(file->comm)))
                 HMPI_GOTO_ERROR(FAIL, "MPI_Barrier failed", mpi_code);
 
-        /* Only p<round> will do the actual write if all procs in comm write same metadata */
-        if (H5_mpiposix_1_metawrite_g)
-            if (file->mpi_rank != H5_PAR_META_WRITE)
-                HGOTO_DONE(SUCCEED) /* skip the actual write */
+        /* Only one process will do the actual write if all procs in comm write same metadata */
+        if (file->mpi_rank != H5_PAR_META_WRITE)
+            HGOTO_DONE(SUCCEED) /* skip the actual write */
     } /* end if */
 
 #ifdef REPORT_IO
@@ -1493,8 +1488,8 @@ done:
     } /* end if */
     /* Guard against getting into metadata broadcast in failure cases */
     else {
-        /* if only p<round> writes, need to broadcast the ret_value to other processes */
-        if ((type!=H5FD_MEM_DRAW) && H5_mpiposix_1_metawrite_g) {
+        /* if only one process writes, need to broadcast the ret_value to other processes */
+        if (type!=H5FD_MEM_DRAW) {
             if (MPI_SUCCESS != (mpi_code= MPI_Bcast(&ret_value, sizeof(ret_value), MPI_BYTE, H5_PAR_META_WRITE, file->comm)))
                 HMPI_GOTO_ERROR(FAIL, "MPI_Bcast failed", mpi_code);
         } /* end if */

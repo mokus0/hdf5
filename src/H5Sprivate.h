@@ -164,7 +164,7 @@ typedef struct H5S_conv_t {
 H5_DLL H5S_t *H5S_copy(const H5S_t *src);
 H5_DLL herr_t H5S_close(H5S_t *ds);
 H5_DLL H5S_conv_t *H5S_find(const H5S_t *mem_space, const H5S_t *file_space,
-                unsigned flags);
+                unsigned flags, hbool_t *use_par_opt_io);
 H5_DLL H5S_class_t H5S_get_simple_extent_type(const H5S_t *ds);
 H5_DLL hssize_t H5S_get_simple_extent_npoints(const H5S_t *ds);
 H5_DLL hsize_t H5S_get_npoints_max(const H5S_t *ds);
@@ -233,8 +233,8 @@ H5_DLL herr_t H5S_select_elements (H5S_t *space, H5S_seloper_t op,
 /* Operations on hyperslab selections */
 H5_DLL herr_t H5S_select_hyperslab (H5S_t *space, H5S_seloper_t op, const hssize_t start[],
     const hsize_t *stride, const hsize_t count[], const hsize_t *block);
-H5_DLL herr_t H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock,
-    hsize_t numblocks, hsize_t *buf);
+H5_DLL herr_t H5S_get_select_hyper_blocklist(H5S_t *space, hbool_t internal,
+    hsize_t startblock, hsize_t numblocks, hsize_t *buf);
 H5_DLL herr_t H5S_hyper_add_span_element(H5S_t *space, unsigned rank,
     hssize_t *coords);
 H5_DLL herr_t H5S_hyper_reset_scratch(H5S_t *space);
@@ -242,6 +242,7 @@ H5_DLL herr_t H5S_hyper_convert(H5S_t *space);
 H5_DLL htri_t H5S_hyper_intersect (H5S_t *space1, H5S_t *space2);
 H5_DLL herr_t H5S_hyper_adjust(H5S_t *space, const hssize_t *offset);
 H5_DLL herr_t H5S_hyper_move(H5S_t *space, const hssize_t *offset);
+H5_DLL herr_t H5S_hyper_normalize_offset(H5S_t *space);
 
 /* Operations on selection iterators */
 H5_DLL herr_t H5S_select_iter_init(H5S_sel_iter_t *iter, const H5S_t *space, size_t elmt_size);
@@ -255,7 +256,6 @@ H5_DLL herr_t H5S_select_iter_release(H5S_sel_iter_t *sel_iter);
 /* Global vars whose value comes from environment variable */
 /* (Defined in H5S.c) */
 H5_DLLVAR hbool_t		H5S_mpi_opt_types_g;
-H5_DLLVAR hbool_t		H5S_mpi_prefer_derived_types_g;
 #endif /* _H5S_IN_H5S_C */
 #endif /* H5_HAVE_PARALLEL */
 

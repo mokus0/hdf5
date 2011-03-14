@@ -80,7 +80,7 @@ H5Z_init_interface (void)
 {
     herr_t	ret_value=SUCCEED;      /* Return value */
 
-    FUNC_ENTER_NOINIT(H5Z_init_interface);
+    FUNC_ENTER_NOAPI_NOINIT(H5Z_init_interface);
 
 #ifdef H5_HAVE_FILTER_DEFLATE
     if (H5Z_register (H5Z_DEFLATE)<0)
@@ -501,7 +501,7 @@ H5Z_prelude_callback(hid_t dcpl_id, hid_t type_id, H5Z_prelude_type_t prelude_ty
 {
     herr_t ret_value=SUCCEED;   /* Return value */
     
-    FUNC_ENTER_NOINIT(H5Z_prelude_callback);
+    FUNC_ENTER_NOAPI_NOINIT(H5Z_prelude_callback);
 
     assert (H5I_GENPROP_LST==H5I_get_type(dcpl_id));
     assert (H5I_DATATYPE==H5I_get_type(type_id));
@@ -575,7 +575,7 @@ H5Z_prelude_callback(hid_t dcpl_id, hid_t type_id, H5Z_prelude_type_t prelude_ty
                                     /* Check return value */
                                     if(status<=0) {
                                         /* We're leaving, so close dataspace */
-                                        if(H5Sclose(space_id)<0)
+                                        if(H5I_dec_ref(space_id)<0)
                                             HGOTO_ERROR (H5E_PLINE, H5E_CANTRELEASE, FAIL, "unable to close dataspace");
 
                                         /* Indicate filter can't apply to this combination of parameters */
@@ -596,7 +596,7 @@ H5Z_prelude_callback(hid_t dcpl_id, hid_t type_id, H5Z_prelude_type_t prelude_ty
                                     /* Make callback to filter's "set local" function */
                                     if((fclass->set_local)(dcpl_id, type_id, space_id)<0) {
                                         /* We're leaving, so close dataspace */
-                                        if(H5Sclose(space_id)<0)
+                                        if(H5I_dec_ref(space_id)<0)
                                             HGOTO_ERROR (H5E_PLINE, H5E_CANTRELEASE, FAIL, "unable to close dataspace");
 
                                         /* Indicate error during filter callback */
@@ -612,7 +612,7 @@ H5Z_prelude_callback(hid_t dcpl_id, hid_t type_id, H5Z_prelude_type_t prelude_ty
                 } /* end for */
 
                 /* Close dataspace */
-                if(H5Sclose(space_id)<0)
+                if(H5I_dec_ref(space_id)<0)
                     HGOTO_ERROR (H5E_PLINE, H5E_CANTRELEASE, FAIL, "unable to close dataspace");
             } /* end if */
         } /* end if */
@@ -855,7 +855,7 @@ H5Z_find_idx(H5Z_filter_t id)
     size_t i;                   /* Local index variable */
     int ret_value=FAIL;         /* Return value */
 
-    FUNC_ENTER_NOINIT(H5Z_find_idx);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5Z_find_idx);
 
     for (i=0; i<H5Z_table_used_g; i++)
 	if (H5Z_table_g[i].id == id)

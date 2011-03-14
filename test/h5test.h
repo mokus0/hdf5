@@ -27,10 +27,45 @@
 
 #ifdef H5_STDC_HEADERS
 #   include <signal.h>
+#   include <stdarg.h>
 #endif
 
-#define H5T_PACKAGE
-#include "H5Tpkg.h"		/*to turn off hardware conversions*/
+/*
+ * Predefined test verbosity levels.
+ *
+ * Convention:
+ * 
+ * The higher the verbosity value, the more information printed.
+ * So, output for higher verbosity also include output of all lower
+ * verbosity.
+ * 
+ *  Value     Description
+ *  0         None:   No informational message.
+ *  1                 "All tests passed"
+ *  2                 Header of overall test
+ *  3         Default: header and results of individual test
+ *  4         
+ *  5         Low:    Major category of tests.
+ *  6
+ *  7         Medium: Minor category of tests such as functions called.
+ *  8
+ *  9         High:   Highest level.  All information.
+ */
+#define VERBO_NONE 0     /* None    */
+#define VERBO_DEF  3     /* Default */
+#define VERBO_LO   5     /* Low     */
+#define VERBO_MED  7     /* Medium  */
+#define VERBO_HI   9     /* High    */
+
+/*
+ * Verbose queries
+ * Only None needs an exact match.  The rest are at least as much.
+ */
+#define VERBOSE_NONE	(GetTestVerbosity()==VERBO_NONE)
+#define VERBOSE_DEF	(GetTestVerbosity()>=VERBO_DEF)
+#define VERBOSE_LO	(GetTestVerbosity()>=VERBO_LO)
+#define VERBOSE_MED	(GetTestVerbosity()>=VERBO_MED)
+#define VERBOSE_HI	(GetTestVerbosity()>=VERBO_HI)
 
 /*
  * This contains the filename prefix specificied as command line option for
@@ -62,7 +97,6 @@ extern MPI_Info h5_io_info_g;         /* MPI INFO object for IO */
 #define SKIPPED()	{puts(" -SKIP-");fflush(stdout);}
 #define TEST_ERROR      {H5_FAILED(); AT(); goto error;}
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,11 +109,13 @@ H5TEST_DLL hid_t h5_fileaccess(void);
 H5TEST_DLL void h5_no_hwconv(void);
 H5TEST_DLL void h5_reset(void);
 H5TEST_DLL void h5_show_hostname(void);
-#ifdef H5_HAVE_PARALLEL
-int h5_set_info_object(void);
-void h5_dump_info_object(MPI_Info info);
-#endif
 H5TEST_DLL off_t h5_get_file_size(const char *filename);
+H5TEST_DLL int print_func(const char *format, ...);
+
+#ifdef H5_HAVE_PARALLEL
+H5TEST_DLL int h5_set_info_object(void);
+H5TEST_DLL void h5_dump_info_object(MPI_Info info);
+#endif
 
 #ifdef __cplusplus
 }

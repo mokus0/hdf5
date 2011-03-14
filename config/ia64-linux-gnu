@@ -4,8 +4,8 @@
 # after configure starts and defines, among other things, flags for
 # the various compile modes.
 
-# Use Intel C compiler by default.
-if test "X-" =  "X-$CC"; then
+# Use Intel C compiler by default (if it's available).
+if test "X$CC" = "X" && which ecc > /dev/null; then
     CC=ecc
     CC_BASENAME=ecc
 fi
@@ -13,18 +13,18 @@ fi
 #----------------------------------------------------------------------------
 # Compiler flags. The CPPFLAGS values should not include package debug
 # flags like `-DH5G_DEBUG' since these are added with the
-# `--enable-debug' switch of configure.
+# `--enable-debug' switch of configure.  After titan's ecc was updated to 7.1,
+# int64_t couldn't be found because of overlapping definitions in stdint.h
+# and sys/types.h.  So added -D__GNUC__ to CFLAGS.
 
 case $CC_BASENAME in
     ecc)
-	# CFLAGS must be set else configure set it to -g
-	CFLAGS="$CFLAGS"
-	DEBUG_CFLAGS="-g"
+	CFLAGS="$CFLAGS -std=c99 -w2 -Wall -D__GNUC__"
+	DEBUG_CFLAGS="-g -O0"
 	DEBUG_CPPFLAGS=
-	# ecc has -O2 as default
-	PROD_CFLAGS=""
+	PROD_CFLAGS=""		# ecc has -O2 as default
 	PROD_CPPFLAGS=
-	PROFILE_CFLAGS=""	# ecc has no profile option
+	PROFILE_CFLAGS="-p"
 	PROFILE_CPPFLAGS=
 	;;
 

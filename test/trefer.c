@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: trefer.c,v 1.31 2003/06/04 18:42:19 koziol Exp $ */
+/* $Id: trefer.c,v 1.31.2.1 2004/01/10 02:41:25 koziol Exp $ */
 
 /***********************************************************
 *
@@ -263,8 +263,7 @@ test_reference_obj(void)
 
     /* Check for correct comment value */
     if(HDstrcmp(write_comment,read_comment)!=0) {
-        num_errs++;
-        MESSAGE(0, ("Error! Incorrect group comment, wanted: %s, got: %s",write_comment,read_comment));
+        TestErrPrintf("Error! Incorrect group comment, wanted: %s, got: %s\n",write_comment,read_comment);
     }
 
     /* Close group */

@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: t_file.c,v 1.11 2003/05/05 20:48:32 wendling Exp $ */
+/* $Id: t_file.c,v 1.11.2.1 2004/01/23 00:10:35 acheng Exp $ */
 
 /*
  * Parallel tests for file operations
@@ -44,7 +44,7 @@ test_split_comm_access(char *filename)
     hbool_t use_gpfs = FALSE;   /* Use GPFS hints */
     herr_t ret;			/* generic return value */
 
-    if (verbose)
+    if (VERBOSE_MED)
 	printf("Split Communicator access test on file %s\n",
 	    filename);
 

@@ -15,7 +15,7 @@ dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.267.2.19 2003/10/15 03:26:45 epourmal Exp $)
+AC_REVISION($Id: configure.in,v 1.267.2.49 2004/02/02 18:17:46 epourmal Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +24,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.6.1], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5], [1.6.2], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -48,6 +48,11 @@ AC_CANONICAL_HOST
 AC_SUBST([CPPFLAGS])
 
 dnl ----------------------------------------------------------------------
+dnl Set prefix default (install directory) to a directory in the build area.
+dnl This allows multiple src-dir builds within one host.
+AC_PREFIX_DEFAULT([`pwd`/hdf5])
+
+dnl ----------------------------------------------------------------------
 dnl Dump all shell variables values.
 dnl
 AC_MSG_CHECKING([shell variables initial values])
@@ -55,14 +60,31 @@ set >&AS_MESSAGE_LOG_FD
 AC_MSG_RESULT([done])
 
 dnl ----------------------------------------------------------------------
-dnl Some platforms have broken ``tr'' programs. Check that it actually
-dnl does what it's supposed to do. Catch this early since configure
-dnl relies upon tr heavily and there's no use continuing if it's broken.
+dnl Some platforms have broken tr, basename, and/or xargs programs. Check
+dnl that it actually does what it's supposed to do. Catch this early
+dnl since configure relies upon tr heavily and there's no use continuing
+dnl if it's broken.
 dnl
 AC_MSG_CHECKING([if tr works])
-TRTEST=`echo "Test" | tr 'a-z,' 'A-Z '`
-if test $TRTEST != "TEST"; then
+TR_TEST="`echo Test | tr 'a-z,' 'A-Z '`"
+if test $TR_TEST != "TEST"; then
   AC_MSG_ERROR([tr program doesn't work])
+else
+  AC_MSG_RESULT([yes])
+fi
+
+AC_MSG_CHECKING([if basename works])
+BASENAME_TEST="`basename /foo/bar/baz/qux/basename_works`"
+if test $BASENAME_TEST != "basename_works"; then
+  AC_MSG_ERROR([basename program doesn't work])
+else
+  AC_MSG_RESULT([yes])
+fi
+
+AC_MSG_CHECKING([if xargs works])
+XARGS_TEST="`echo /foo/bar/baz/qux/xargs_works | xargs basename`"
+if test $XARGS_TEST != "xargs_works"; then
+  AC_MSG_ERROR([xargs program doesn't work])
 else
   AC_MSG_RESULT([yes])
 fi
@@ -533,6 +555,14 @@ case "$host" in
     dnl locate these files on other systems because there are too
     dnl many problems with including them.
     AC_CHECK_HEADERS([sys/sysinfo.h sys/proc.h])
+    ;;
+  mips*-sgi*-irix*)
+    dnl The <sys/fpu.h> is needed on the SGI machines to turn off
+    dnl denormalized floating-point values going to zero.  We do *not*
+    dnl attempt to dnl locate these files on other systems because there
+    dnl may be problems with including them.
+    AC_CHECK_HEADERS([sys/fpu.h])
+    AC_CHECK_FUNCS([get_fpc_csr])
     ;;
 esac
 
@@ -1356,8 +1386,9 @@ AC_MSG_CHECKING([for Stream Virtual File Driver support])
 AC_ARG_ENABLE([stream-vfd],
               [AC_HELP_STRING([--enable-stream-vfd],
                               [Build the Stream Virtual File Driver
-                               [default=no]])],
-              [STREAM_VFD=$enableval])
+                               [default=yes]])],
+              [STREAM_VFD=$enableval],
+              [STREAM_VFD=yes])
 
 if test "$STREAM_VFD" = "yes"; then
   AC_MSG_RESULT([yes])
@@ -1486,7 +1517,7 @@ AC_MSG_RESULT(no))
 dnl ----------------------------------------------------------------------
 dnl Check for functions.
 dnl
-AC_CHECK_FUNCS(fork gethostname getpwuid getrusage)
+AC_CHECK_FUNCS(fork frexpf frexpl gethostname getpwuid getrusage)
 AC_CHECK_FUNCS(BSDgettimeofday longjmp setsysinfo sigaction)
 AC_CHECK_FUNCS(signal snprintf vsnprintf strdup system waitpid)
 
@@ -1542,30 +1573,6 @@ done)dnl
 AC_MSG_RESULT(%${hdf5_cv_printf_ll}d and %${hdf5_cv_printf_ll}u)
 AC_DEFINE_UNQUOTED(PRINTF_LL_WIDTH, "$hdf5_cv_printf_ll", 
                    [Width for printf() for type \`long long' or \`__int64', use \`ll'])
-
-dnl ----------------------------------------------------------------------
-dnl Check if malloc(0) returns valid pointer
-dnl
-AC_MSG_CHECKING([if malloc of zero bytes returns valid pointer])
-AC_CACHE_VAL(hdf5_cv_malloc_works,
-AC_TRY_RUN([
-#if STDC_HEADERS
-#include <stdlib.h>
-#endif
-
-int main(void)
-{
-    exit(malloc (0) ? 0 : 1);
-}
-], hdf5_cv_malloc_works=yes, hdf5_cv_malloc_works=no,))
-
-if test ${hdf5_cv_malloc_works} = "yes"; then
-  AC_DEFINE(MALLOC_WORKS, 1,
-            [Define if your system's \`malloc' function returns a valid pointer for 0-byte allocations.])
-  AC_MSG_RESULT(yes)
-else
-  AC_MSG_RESULT(no)
-fi
 
 dnl ----------------------------------------------------------------------
 dnl Check if pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM)
@@ -1954,35 +1961,6 @@ if test -n "$PARALLEL"; then
     RUNPARALLEL=""
   fi
 
-dnl ----------------------------------------------------------------------
-dnl Block the MPI_Get_count code since it does not work
-dnl   dnl Check whether MPI_Get_count actually works correctly on this
-dnl   dnl platform.
-dnl   AC_MSG_CHECKING(whether a MPI_Get_count works correctly)
-dnl   AC_TRY_RUN([
-dnl #include <mpi.h>
-dnl 
-dnl int main(int argc, char **argv)
-dnl {
-dnl     MPI_Status mpi_stat;
-dnl     int bytes_read = 0, ret;
-dnl 
-dnl     MPI_Init(&argc, &argv);
-dnl     memset(&mpi_stat, 0, sizeof(MPI_Status)); /* zero out status */
-dnl     ret = MPI_Get_count(&mpi_stat, MPI_BYTE, &bytes_read);
-dnl     MPI_Finalize();
-dnl 
-dnl     /* this returns TRUE if bytes_read is 0...the shell thinks that the
-dnl      * program fails, but we want it to fail of course so switch the
-dnl      * "true"/"false" parts of the TRY_RUN macro */
-dnl     return bytes_read == 0;
-dnl }
-dnl   ],
-dnl   AC_MSG_RESULT(no),
-dnl   AC_MSG_RESULT(yes)
-dnl   CPPFLAGS="$CPPFLAGS -DMPI_GET_COUNT_WORKS",AC_MSG_RESULT(no))
-dnl ----------------------------------------------------------------------
-
   dnl --------------------------------------------------------------------
   dnl Do we want MPE instrumentation feature on?
   dnl
@@ -2149,6 +2127,23 @@ dnl
 if test 1 = 2; then
   AC_DEFINE(NO_SHARED_WRITING, 1,
             [Define if shared writing must be disabled (CodeWarrior only)])
+fi
+
+dnl ----------------------------------------------------------------------
+dnl Set the flag to indicate that the machine can handle converting
+dnl denormalized floating-point values.
+dnl (This flag should be set for all machines, except for the Crays, where
+dnl the cache value is set in it's config file)
+dnl
+AC_MSG_CHECKING([if converting denormalized floating-point values is possible])
+AC_CACHE_VAL([hdf5_cv_convert_denormal_float], [hdf5_cv_convert_denormal_float=yes])
+
+if test ${hdf5_cv_convert_denormal_float} = "yes"; then
+  AC_DEFINE([CONVERT_DENORMAL_FLOAT], [1],
+            [Define if your system can handle converting denormalized floating-point values.])
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
 fi
 
 dnl ----------------------------------------------------------------------

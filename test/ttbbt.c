@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: ttbbt.c,v 1.7 2003/03/31 18:59:03 wendling Exp $ */
+/* $Id: ttbbt.c,v 1.7.2.2 2004/01/22 21:58:02 acheng Exp $ */
 
 /*
    FILE
@@ -100,7 +100,7 @@ test_tbbt(void)
                       swap_arr(rem_arr, i, t);
                   }     /* end for */
 
-                if (Verbosity > 9)
+                if (GetTestVerbosity() >= VERBO_HI)
                   {
                       printf("ins_arr: \n");
                       for (i = 0; i < test_size; i++)   /* print the arrays */
@@ -117,12 +117,12 @@ test_tbbt(void)
                       MESSAGE(9, ("inserting %d\n", (int) ins_arr[i]));
                       H5TB_dins(tree, (void *) &ins_arr[i], NULL);
 #ifdef H5TB_DEBUG
-                      if(Verbosity>9)
+                      if(GetTestVerbosity() >= VERBO_HI)
                           H5TB_dump(tree, -1);
 #endif /* H5TB_DEBUG */
                   }
 #ifdef H5TB_DEBUG
-                if(Verbosity>9)
+                if(GetTestVerbosity() >= VERBO_HI)
                     H5TB_dump(tree, -1);
 #endif /* H5TB_DEBUG */
                 for (i = 0; i < test_size; i++)
@@ -134,7 +134,7 @@ test_tbbt(void)
                       MESSAGE(9, ("removing %d\n", (int) key));
                       H5TB_rem((H5TB_NODE **) tree, (H5TB_NODE *) r, NULL);
 #ifdef H5TB_DEBUG
-                      if(Verbosity>9)
+                      if(GetTestVerbosity() >= VERBO_HI)
                           H5TB_dump(tree, -1);
 #endif /* H5TB_DEBUG */
                   } /* end for */

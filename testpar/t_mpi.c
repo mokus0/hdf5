@@ -34,7 +34,6 @@ const char *FILENAME[2]={
 	    NULL};
 char	filenames[2][200];
 int	nerrors = 0;
-int	verbose = 0;
 hid_t	fapl;				/* file access property list */
 
 /* protocols */
@@ -62,7 +61,7 @@ test_mpio_overlap_writes(char *filename)
     MPI_Status  mpi_stat;
 
 
-    if (verbose)
+    if (VERBOSE_MED)
 	printf("MPIO independent overlapping writes test on file %s\n",
 	    filename);
 
@@ -147,11 +146,11 @@ test_mpio_overlap_writes(char *filename)
 		char expected;
 		expected = (mpi_off+i) & 0x7f;
 		if ((buf[i] != expected) &&
-		    (vrfyerrs++ < MAX_ERR_REPORT || verbose))
+		    (vrfyerrs++ < MAX_ERR_REPORT || VERBOSE_MED))
 			printf("proc %d: found data error at [%ld], expect %d, got %d\n",
 			    mpi_rank, (long)(mpi_off+i), expected, buf[i]);
 	    }
-	    if (vrfyerrs > MAX_ERR_REPORT && !verbose)
+	    if (vrfyerrs > MAX_ERR_REPORT && !VERBOSE_MED)
 		printf("proc %d: [more errors ...]\n", mpi_rank);
 	}
 
@@ -209,7 +208,7 @@ test_mpio_gb_file(char *filename)
     MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
 
-    if (verbose)
+    if (VERBOSE_MED)
         printf("MPI_Offset range test\n");
 
     /* figure out the signness and sizeof MPI_Offset */
@@ -264,7 +263,7 @@ test_mpio_gb_file(char *filename)
     }
 
     /*================================*/
-    if (verbose)
+    if (VERBOSE_MED)
 	printf("MPIO GB file test %s\n", filename);
 
     if (sizeof_mpi_offset <= 4){
@@ -294,13 +293,13 @@ test_mpio_gb_file(char *filename)
 	    ntimes = GB/MB*n/mpi_size + 1;
 	    for (i=ntimes-2; i <= ntimes; i++){
 		mpi_off = (i*mpi_size + mpi_rank)*(MPI_Offset)MB;
-		if (verbose)
+		if (VERBOSE_MED)
 		    HDfprintf(stdout,"proc %d: write to mpi_off=%016llx, %lld\n",
 			mpi_rank, mpi_off, mpi_off);
 		/* set data to some trivial pattern for easy verification */
 		for (j=0; j<MB; j++)
 		    *(buf+j) = i*mpi_size + mpi_rank;
-		if (verbose)
+		if (VERBOSE_MED)
 		    HDfprintf(stdout,"proc %d: writing %d bytes at offset %lld\n",
 			mpi_rank, MB, mpi_off);
 		mrc = MPI_File_write_at(fh, mpi_off, buf, MB, MPI_BYTE, &mpi_stat);
@@ -333,7 +332,7 @@ test_mpio_gb_file(char *filename)
 	    ntimes = GB/MB*n/mpi_size + 1;
 	    for (i=ntimes-2; i <= ntimes; i++){
 		mpi_off = (i*mpi_size + (mpi_size - mpi_rank - 1))*(MPI_Offset)MB;
-		if (verbose)
+		if (VERBOSE_MED)
 		    HDfprintf(stdout,"proc %d: read from mpi_off=%016llx, %lld\n",
 			mpi_rank, mpi_off, mpi_off);
 		mrc = MPI_File_read_at(fh, mpi_off, buf, MB, MPI_BYTE, &mpi_stat);
@@ -342,11 +341,11 @@ test_mpio_gb_file(char *filename)
 		vrfyerrs=0;
 		for (j=0; j<MB; j++){
 		    if ((*(buf+j) != expected) &&
-			(vrfyerrs++ < MAX_ERR_REPORT || verbose))
+			(vrfyerrs++ < MAX_ERR_REPORT || VERBOSE_MED))
 			    printf("proc %d: found data error at [%ld+%d], expect %d, got %d\n",
 				mpi_rank, (long)mpi_off, j, expected, *(buf+j));
 		}
-		if (vrfyerrs > MAX_ERR_REPORT && !verbose)
+		if (vrfyerrs > MAX_ERR_REPORT && !VERBOSE_MED)
 		    printf("proc %d: [more errors ...]\n", mpi_rank);
 
 	    }
@@ -371,6 +370,220 @@ finish:
 
 
 /*
+ * MPI-IO Test: One writes, Many reads.
+ * Verify if only one process writes some data and then all other
+ * processes can read them back correctly. This tests if the
+ * underlaying parallel I/O and file system supports parallel I/O
+ * correctly.
+ *
+ * Algorithm: Only one process (e.g., process 0) writes some data.
+ * Then all processes, including the writing process, read the data
+ * back and verify them against the original values.
+ */
+
+/*
+ * Default filename can be specified via first program argument.
+ * Each process writes something, then reads all data back.
+ */
+
+#define DIMSIZE	32		/* Dimension size. */
+#define PRINTID printf("Proc %d: ", mpi_rank)
+#define USENONE 0
+#define USEATOM 1		/* request atomic I/O */
+#define USEFSYNC 2		/* request file_sync */
+
+
+test_mpio_1wMr(char *filename, int special_request)
+{
+    char hostname[128];
+    int  mpi_size, mpi_rank;
+    MPI_File fh;
+    char mpi_err_str[MPI_MAX_ERROR_STRING];
+    int  mpi_err_strlen;
+    int  mpi_err;
+    unsigned char writedata[DIMSIZE], readdata[DIMSIZE];
+    unsigned char expect_val;
+    int  i, irank; 
+    int  nerrors = 0;		/* number of errors */
+    int  atomicity;
+    MPI_Offset  mpi_off;
+    MPI_Status  mpi_stat;
+
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    if (MAINPROCESS && VERBOSE_MED){
+        printf("Testing one process writes, all processes read.\n");
+	printf("Using %d processes accessing file %s\n", mpi_size, filename);
+        printf("    (Filename can be specified via program argument)\n");
+    }
+
+    /* show the hostname so that we can tell where the processes are running */
+    if (VERBOSE_MED){
+	if (gethostname(hostname, 128) < 0){
+	    PRINTID;
+	    printf("gethostname failed\n");
+	    return 1;
+	}
+	PRINTID;
+	printf("hostname=%s\n", hostname);
+    }
+
+    /* Delete any old file in order to start anew. */
+    /* Must delete because MPI_File_open does not have a Truncate mode. */
+    /* Don't care if it has error. */
+    MPI_File_delete(filename, MPI_INFO_NULL);
+
+    if ((mpi_err = MPI_File_open(MPI_COMM_WORLD, filename,
+	    MPI_MODE_RDWR | MPI_MODE_CREATE ,
+	    MPI_INFO_NULL, &fh))
+	    != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_open failed (%s)\n", mpi_err_str);
+	return 1;
+    }
+
+if (special_request & USEATOM){
+    /* ==================================================
+     * Set atomcity to true (1).  A POSIX compliant filesystem
+     * should not need this.
+     * ==================================================*/
+    if ((mpi_err = MPI_File_get_atomicity(fh, &atomicity)) != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_get_atomicity failed (%s)\n", mpi_err_str);
+    }
+    if (VERBOSE_HI)
+	printf("Initial atomicity = %d\n", atomicity);
+    if ((mpi_err = MPI_File_set_atomicity(fh, 1)) != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_set_atomicity failed (%s)\n", mpi_err_str);
+    }
+    if ((mpi_err = MPI_File_get_atomicity(fh, &atomicity)) != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_get_atomicity failed (%s)\n", mpi_err_str);
+    }
+    if (VERBOSE_HI)
+	printf("After set_atomicity atomicity = %d\n", atomicity);
+}
+
+    /* This barrier is not necessary but do it anyway. */
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (VERBOSE_HI){
+	PRINTID;
+	printf("between MPI_Barrier and MPI_File_write_at\n");
+    }
+
+    /* ==================================================
+     * Each process calculates what to write but
+     * only process irank(0) writes.
+     * ==================================================*/
+    irank=0;
+    for (i=0; i < DIMSIZE; i++)
+	writedata[i] = irank*DIMSIZE + i;
+    mpi_off = irank*DIMSIZE;
+
+    /* Only one process writes */
+    if (mpi_rank==irank){
+	if (VERBOSE_HI){
+	    PRINTID; printf("wrote %d bytes at %d\n", DIMSIZE, mpi_off);
+	}
+	if ((mpi_err = MPI_File_write_at(fh, mpi_off, writedata, DIMSIZE,
+			MPI_BYTE, &mpi_stat))
+		!= MPI_SUCCESS){
+	    MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	    PRINTID;
+	    printf("MPI_File_write_at offset(%ld), bytes (%d), failed (%s)\n",
+		    (long) mpi_off, (int) DIMSIZE, mpi_err_str);
+	    return 1;
+	};
+    };
+
+    /* Bcast the return code and */
+    /* make sure all writing are done before reading. */
+    MPI_Bcast(&mpi_err, 1, MPI_INT, irank, MPI_COMM_WORLD);
+    if (VERBOSE_HI){
+	PRINTID;
+	printf("MPI_Bcast: mpi_err = %d\n", mpi_err);
+    }
+
+if (special_request & USEFSYNC){
+    /* ==================================================
+     * Do a file sync.  A POSIX compliant filesystem
+     * should not need this.
+     * ==================================================*/
+    if (VERBOSE_HI)
+	printf("Apply MPI_File_sync\n");
+    /* call file_sync to force the write out */
+    if ((mpi_err = MPI_File_sync(fh)) != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_sync failed (%s)\n", mpi_err_str);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    /* call file_sync to force the write out */
+    if ((mpi_err = MPI_File_sync(fh)) != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_sync failed (%s)\n", mpi_err_str);
+    }
+}
+
+    /* This barrier is not necessary because the Bcase or File_sync above */
+    /* should take care of it.  Do it anyway. */
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (VERBOSE_HI){
+	PRINTID;
+	printf("after MPI_Barrier\n");
+    }
+
+    /* ==================================================
+     * Each process reads what process 0 wrote and verify.
+     * ==================================================*/
+    irank=0;
+    mpi_off = irank*DIMSIZE;
+    if ((mpi_err = MPI_File_read_at(fh, mpi_off, readdata, DIMSIZE, MPI_BYTE,
+	    &mpi_stat))
+	    != MPI_SUCCESS){
+	MPI_Error_string(mpi_err, mpi_err_str, &mpi_err_strlen);
+	PRINTID;
+	printf("MPI_File_read_at offset(%ld), bytes (%d), failed (%s)\n",
+		(long) mpi_off, (int) DIMSIZE, mpi_err_str);
+	return 1;
+    };
+    for (i=0; i < DIMSIZE; i++){
+	expect_val = irank*DIMSIZE + i;
+	if (readdata[i] != expect_val){
+	    PRINTID;
+	    printf("read data[%d:%d] got %02x, expect %02x\n", irank, i,
+		    readdata[i], expect_val);
+	    nerrors++;
+	}
+    }
+
+    MPI_File_close(&fh);
+
+    if (VERBOSE_HI){
+	PRINTID;
+	printf("%d data errors detected\n", nerrors);
+    }
+
+    {
+	int temp;
+	MPI_Reduce(&nerrors, &temp, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+        if (mpi_rank == 0 && temp > 0)
+	    nerrors = temp;
+    }
+
+    mpi_err = MPI_Barrier(MPI_COMM_WORLD);
+    return nerrors;
+}
+
+
+/*
  * parse the command line options
  */
 int
@@ -381,7 +594,10 @@ parse_options(int argc, char **argv)
 	    break;
 	}else{
 	    switch(*(*argv+1)){
-		case 'v':   verbose = 1;
+		case 'v':   if (*((*argv+1)+1))
+				ParseTestVerbosity((*argv+1)+1);
+			    else
+				SetTestVerbosity(VERBO_MED);
 			    break;
 		case 'f':   if (--argc < 1) {
 				nerrors++;
@@ -418,9 +634,11 @@ parse_options(int argc, char **argv)
 		return(1);
 	    }
 	H5Pclose(plist);
-	printf("Test filenames are:\n");
-	for (i=0; i < n; i++)
-	    printf("    %s\n", filenames[i]);
+	if (VERBOSE_MED){
+	    printf("Test filenames are:\n");
+	    for (i=0; i < n; i++)
+		printf("    %s\n", filenames[i]);
+	}
     }
 
     return(0);
@@ -433,8 +651,8 @@ parse_options(int argc, char **argv)
 void
 usage(void)
 {
-    printf("Usage: t_mpi [-v] [-f <prefix>]\n");
-    printf("\t-v\t\tverbose on\n");
+    printf("Usage: t_mpi [-v<verbosity>] [-f <prefix>]\n");
+    printf("\t-v<verbosity>\tset verbose level (0-9,l,m,h)\n");
     printf("\t-f <prefix>\tfilename prefix\n");
     printf("\n");
 }
@@ -444,30 +662,49 @@ int
 main(int argc, char **argv)
 {
     int mpi_size, mpi_rank;				/* mpi variables */
+    int ret_code;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-    if (MAINPROCESS){
-	printf("===================================\n");
-	printf("MPI functionality tests\n");
-	printf("===================================\n");
-    }
     H5open();
-    h5_show_hostname();
-
-    fapl = H5Pcreate (H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL);
-
     if (parse_options(argc, argv) != 0){
 	if (MAINPROCESS)
 	    usage();
 	goto finish;
     }
 
+    if (MAINPROCESS){
+	printf("===================================\n");
+	printf("MPI functionality tests\n");
+	printf("===================================\n");
+    }
+
+    if (VERBOSE_MED)
+	h5_show_hostname();
+
+    fapl = H5Pcreate (H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL);
+
+    MPI_BANNER("MPIO 1 write Many read test...");
+    ret_code = test_mpio_1wMr(filenames[0], USENONE);
+    if (mpi_rank==0 && ret_code > 0)
+	printf("***FAILED with %d total errors\n", ret_code);
+
+    MPI_BANNER("MPIO 1 write Many read test with atomicity...");
+    ret_code = test_mpio_1wMr(filenames[0], USEATOM);
+    if (mpi_rank==0 && ret_code > 0)
+	printf("***FAILED with %d total errors\n", ret_code);
+
+    MPI_BANNER("MPIO 1 write Many read test with file sync...");
+    ret_code = test_mpio_1wMr(filenames[0], USEFSYNC);
+    if (mpi_rank==0 && ret_code > 0)
+	printf("***FAILED with %d total errors\n", ret_code);
+
     MPI_BANNER("MPIO File size range test...");
     test_mpio_gb_file(filenames[0]);
+
     MPI_BANNER("MPIO independent overlapping writes...");
     test_mpio_overlap_writes(filenames[0]);
 

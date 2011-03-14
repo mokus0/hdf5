@@ -516,7 +516,7 @@ H5HG_dest (H5F_t *f, H5HG_heap_t *heap)
 {
     int		i;
     
-    FUNC_ENTER_NOINIT(H5HG_dest);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5HG_dest);
 
     /* Check arguments */
     assert (heap);
@@ -556,7 +556,7 @@ H5HG_dest (H5F_t *f, H5HG_heap_t *heap)
 static herr_t
 H5HG_clear(H5HG_heap_t *heap)
 {
-    FUNC_ENTER_NOINIT(H5HG_clear);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5HG_clear);
 
     /* Check arguments */
     assert (heap);
@@ -595,7 +595,7 @@ H5HG_alloc (H5F_t *f, H5HG_heap_t *heap, int cwfsno, size_t size)
     uint8_t	*p = NULL;
     size_t	need = H5HG_SIZEOF_OBJHDR(f) + H5HG_ALIGN(size);
 
-    FUNC_ENTER_NOINIT(H5HG_alloc);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5HG_alloc);
 
     /* Check args */
     assert (heap);
@@ -743,9 +743,11 @@ H5HG_insert (H5F_t *f, hid_t dxpl_id, size_t size, void *obj, H5HG_t *hobj/*out*
     assert (idx>0);
     
     /* Copy data into the heap */
-    HDmemcpy(heap->obj[idx].begin+H5HG_SIZEOF_OBJHDR(f), obj, size);
-    HDmemset(heap->obj[idx].begin+H5HG_SIZEOF_OBJHDR(f)+size, 0,
-	     need-(H5HG_SIZEOF_OBJHDR(f)+size));
+    if(size>0) {
+        HDmemcpy(heap->obj[idx].begin+H5HG_SIZEOF_OBJHDR(f), obj, size);
+        HDmemset(heap->obj[idx].begin+H5HG_SIZEOF_OBJHDR(f)+size, 0,
+                 need-(H5HG_SIZEOF_OBJHDR(f)+size));
+    } /* end if */
     heap->cache_info.dirty = TRUE;
 
     /* Return value */

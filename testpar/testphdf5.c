@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.c,v 1.53.2.3 2003/10/07 09:44:16 acheng Exp $ */
+/* $Id: testphdf5.c,v 1.53.2.8 2004/01/25 00:04:13 acheng Exp $ */
 
 /*
  * Main driver of the Parallel HDF5 tests
@@ -30,13 +30,12 @@ int dim1 = DIM1;
 int chunkdim0;
 int chunkdim1;
 int nerrors = 0;			/* errors count */
-int verbose = 0;			/* verbose, default as no. */
 int ndatasets = 300;			/* number of datasets to create*/
 int ngroups = 512;                      /* number of groups to create in root
                                          * group. */
 int facc_type = FACC_MPIO;		/*Test file access type */
 
-herr_t (*old_func)(void*);		/* previous error handler */
+H5E_auto_t old_func;		        /* previous error handler */
 void *old_client_data;			/* previous error handler arg.*/
 
 /* other option flags */
@@ -47,7 +46,7 @@ int doindependent=1;			/* independent test */
 unsigned dobig=0;                       /* "big" dataset tests */
 
 /* FILENAME and filenames must have the same number of names */
-const char *FILENAME[9]={
+const char *FILENAME[10]={
 	    "ParaEg1",
 	    "ParaEg2",
 	    "ParaEg3",
@@ -56,8 +55,9 @@ const char *FILENAME[9]={
             "ParaCompact",
             "ParaIndividual",
             "ParaBig",
+            "ParaFill",
 	    NULL};
-char	filenames[9][PATH_MAX];
+char	filenames[10][PATH_MAX];
 hid_t	fapl;				/* file access property list */
 
 #ifdef USE_PAUSE
@@ -117,7 +117,7 @@ int MPI_Init(int *argc, char ***argv)
 static void
 usage(void)
 {
-    printf("Usage: testphdf5 [-r] [-w] [-v] [-m<n_datasets>] [-n<n_groups>] "
+    printf("Usage: testphdf5 [-r] [-w] [-v<verbosity>] [-m<n_datasets>] [-n<n_groups>] "
 	"[-o] [-f <prefix>] [-d <dim0> <dim1>]\n");
     printf("\t-r\t\tno read test\n");
     printf("\t-w\t\tno write test\n");
@@ -128,7 +128,7 @@ usage(void)
     printf("\t-o\t\tno compact dataset test\n");
     printf("\t-i\t\tno independent read test\n");
     printf("\t-b\t\trun big dataset test\n");
-    printf("\t-v\t\tverbose on\n");
+    printf("\t-v<verbosity>\tset verbose level (0-9,l,m,h)\n");
     printf("\t-f <prefix>\tfilename prefix\n");
     printf("\t-s\t\tuse Split-file together with MPIO\n");
     printf("\t-p\t\tuse combo MPI-POSIX driver\n");
@@ -182,7 +182,10 @@ parse_options(int argc, char **argv)
                             break;
                 case 'b':   dobig = 1;
                             break;
-		case 'v':   verbose = 1;
+		case 'v':   if (*((*argv+1)+1))
+				ParseTestVerbosity((*argv+1)+1);
+			    else
+				SetTestVerbosity(VERBO_MED);
 			    break;
 		case 'f':   if (--argc < 1) {
 				nerrors++;
@@ -483,7 +486,10 @@ int main(int argc, char **argv)
         MPI_BANNER("big dataset test skipped");
     }
     
-    if (!(dowrite || doread || ndatasets || ngroups || docompact || doindependent || dobig)){
+    MPI_BANNER("dataset fill value test...");
+    dataset_fillvalue(filenames[8]); 
+    
+    if (!(dowrite || doread || ndatasets || ngroups || docompact || doindependent || dobig )){
 	usage();
 	nerrors++;
     }

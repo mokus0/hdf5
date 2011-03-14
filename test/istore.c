@@ -28,7 +28,6 @@
 #include "H5Pprivate.h"
 #include "H5Fpkg.h"
 #include "H5Gprivate.h"
-#include "H5MMprivate.h"
 #include "H5Oprivate.h"
 #include "H5Pprivate.h"
 #include "H5Vprivate.h"
@@ -47,7 +46,11 @@ const char *FILENAME[] = {
 #define TEST_DATATYPE   H5T_NATIVE_UCHAR
 
 #define TEST_CHUNK_SIZE 50
+#ifdef H5_HAVE_LARGE_HSIZET
 #define TEST_SPARSE_SIZE 1000000
+#else /* H5_HAVE_LARGE_HSIZET */
+#define TEST_SPARSE_SIZE 1200
+#endif /* H5_HAVE_LARGE_HSIZET */
 
 hsize_t chunk_dims[H5O_LAYOUT_NDIMS];
 hssize_t zero[H5O_LAYOUT_NDIMS];
@@ -249,9 +252,9 @@ test_extend(hid_t f, const char *prefix,
 
     sprintf(s, "istore extend: %s", dims);
     TESTING(s);
-    buf = H5MM_malloc(nx * ny * nz);
-    check = H5MM_malloc(nx * ny * nz);
-    whole = H5MM_calloc(nx*ny*nz);
+    buf = HDmalloc(nx * ny * nz);
+    check = HDmalloc(nx * ny * nz);
+    whole = HDcalloc(1,nx*ny*nz);
 
     whole_size[0] = nx;
     whole_size[1] = ny;
@@ -397,17 +400,17 @@ test_extend(hid_t f, const char *prefix,
     if(H5Dclose(dataset)<0) TEST_ERROR;
 
     /* Free memory used */
-    H5MM_xfree(buf);
-    H5MM_xfree(check);
-    H5MM_xfree(whole);
+    HDfree(buf);
+    HDfree(check);
+    HDfree(whole);
 
     PASSED();
     return SUCCEED;
 
 error:
-    H5MM_xfree(buf);
-    H5MM_xfree(check);
-    H5MM_xfree(whole);
+    HDfree(buf);
+    HDfree(check);
+    HDfree(whole);
     return FAIL;
 }
 
@@ -463,7 +466,7 @@ test_sparse(hid_t f, const char *prefix, size_t nblocks,
 
     sprintf(s, "istore sparse: %s", dims);
     TESTING(s);
-    buf = H5MM_malloc(nx * ny * nz);
+    buf = HDmalloc(nx * ny * nz);
     HDmemset(buf, 128, nx * ny * nz);
 
     /* Set dimensions of dataset */
@@ -530,12 +533,12 @@ test_sparse(hid_t f, const char *prefix, size_t nblocks,
     /* Close dataset */
     if(H5Dclose(dataset)<0) TEST_ERROR;
 
-    H5MM_xfree(buf);
+    HDfree(buf);
     PASSED();
     return SUCCEED;
 
 error:
-    H5MM_xfree(buf);
+    HDfree(buf);
     return FAIL;
 }
 

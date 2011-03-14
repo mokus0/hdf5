@@ -78,7 +78,7 @@ H5S_get_vector_size(hid_t dxpl_id)
 {
     ssize_t ret_value;        /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_get_vector_size);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_get_vector_size);
 
     if(dxpl_id==H5P_DATASET_XFER_DEFAULT) {
         ret_value=H5D_XFER_HYPER_VECTOR_SIZE_DEF;
@@ -126,6 +126,7 @@ H5S_select_offset(H5S_t *space, const hssize_t *offset)
 
     /* Check args */
     assert(space);
+    assert(space->extent.u.simple.rank);
     assert(offset);
 
     /* Allocate space for new offset */
@@ -178,10 +179,14 @@ H5S_select_copy (H5S_t *dst, const H5S_t *src)
 /* Need to copy order information still */
 
     /* Copy offset information */
-    if (NULL==(dst->select.offset = H5FL_ARR_CALLOC(hssize_t,src->extent.u.simple.rank)))
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-    if(src->select.offset!=NULL)
-        HDmemcpy(dst->select.offset,src->select.offset,(src->extent.u.simple.rank*sizeof(hssize_t)));
+    if(src->extent.u.simple.rank>0) {
+        if (NULL==(dst->select.offset = H5FL_ARR_CALLOC(hssize_t,src->extent.u.simple.rank)))
+            HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+        if(src->select.offset!=NULL)
+            HDmemcpy(dst->select.offset,src->select.offset,(src->extent.u.simple.rank*sizeof(hssize_t)));
+    } /* end if */
+    else
+        dst->select.offset=NULL;
 
     /* Perform correct type of copy based on the type of selection */
     switch (src->extent.type) {
@@ -630,12 +635,16 @@ H5S_select_iter_init(H5S_sel_iter_t *sel_iter, const H5S_t *space, size_t elmt_s
     /* Save the dataspace's rank */
     sel_iter->rank=space->extent.u.simple.rank;
 
-    /* Allocate room for the dataspace dimensions */
-    sel_iter->dims = H5FL_ARR_MALLOC(hsize_t,sel_iter->rank);
-    assert(sel_iter->dims);
+    if(sel_iter->rank>0) {
+        /* Allocate room for the dataspace dimensions */
+        sel_iter->dims = H5FL_ARR_MALLOC(hsize_t,sel_iter->rank);
+        assert(sel_iter->dims);
 
-    /* Keep a copy of the dataspace dimensions */
-    HDmemcpy(sel_iter->dims,space->extent.u.simple.size,sel_iter->rank*sizeof(hsize_t));
+        /* Keep a copy of the dataspace dimensions */
+        HDmemcpy(sel_iter->dims,space->extent.u.simple.size,sel_iter->rank*sizeof(hsize_t));
+    } /* end if */
+    else
+        sel_iter->dims = NULL;
 
     /* Call initialization routine for selection type */
     ret_value= (*space->select.iter_init)(sel_iter, space, elmt_size);
@@ -708,7 +717,7 @@ H5S_select_iter_block (const H5S_sel_iter_t *iter, hssize_t *start, hssize_t *en
 {
     herr_t ret_value;         /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_select_iter_block);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_select_iter_block);
 
     /* Check args */
     assert(iter);
@@ -780,7 +789,7 @@ H5S_select_iter_has_next_block (const H5S_sel_iter_t *iter)
 {
     herr_t ret_value;         /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_select_iter_has_next_block);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_select_iter_has_next_block);
 
     /* Check args */
     assert(iter);
@@ -857,7 +866,7 @@ H5S_select_iter_next_block(H5S_sel_iter_t *iter)
 {
     herr_t ret_value;         /* return value */
 
-    FUNC_ENTER_NOINIT(H5S_select_iter_next_block);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_select_iter_next_block);
 
     /* Check args */
     assert(iter);
@@ -1230,6 +1239,24 @@ HDfprintf(stderr,"%s: Entering\n",FUNC);
         unsigned first_block=1;         /* Flag to indicate the first block */
 #ifdef QAK
 HDfprintf(stderr,"%s: Check 10.0\n",FUNC);
+HDfprintf(stderr,"%s: space1 selection type=%d\n",FUNC,(int)space1->select.type);
+if(space1->select.sel_info.hslab.span_lst) {
+    HDfprintf(stderr,"%s: Dumping space1 span list\n",FUNC);
+    H5S_hyper_print_spans(stderr,space1->select.sel_info.hslab.span_lst);
+} /* end if */
+else {
+    HDfprintf(stderr,"%s: Dumping space1 diminfo\n",FUNC);
+    H5S_hyper_print_diminfo(stderr,space1);
+} /* end else */
+HDfprintf(stderr,"%s: space2 selection type=%d\n",FUNC,(int)space2->select.type);
+if(space2->select.sel_info.hslab.span_lst) {
+    HDfprintf(stderr,"%s: Dumping space2 span list\n",FUNC);
+    H5S_hyper_print_spans(stderr,space2->select.sel_info.hslab.span_lst);
+} /* end if */
+else {
+    HDfprintf(stderr,"%s: Dumping space2 diminfo\n",FUNC);
+    H5S_hyper_print_diminfo(stderr,space2);
+} /* end else */
 #endif /* QAK */
 
         /* Initialize iterator for each dataspace selection

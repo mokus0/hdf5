@@ -778,3 +778,20 @@ h5_get_file_size(const char *filename)
     return(0);
 } /* end get_file_size() */
 
+/*
+ * This routine is designed to provide equivalent functionality to 'printf'
+ * and allow easy replacement for environments which don't have stdin/stdout
+ * available.  (i.e. Windows & the Mac)
+ */
+int 
+print_func(const char *format,...)
+{
+    va_list                 arglist;
+    int                     ret_value;
+
+    va_start(arglist, format);
+    ret_value = vprintf(format, arglist);
+    va_end(arglist);
+    return (ret_value);
+}
+

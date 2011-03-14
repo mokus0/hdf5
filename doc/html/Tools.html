@@ -66,76 +66,118 @@ And in this document, the
 <h1>HDF5 Tools</h1>
 </center>
 
+
+
+
 <h2>HDF5 Tool Interfaces</h2>
 <p>
-These tools enable the user to examine HDF5 file contents, 
-to modify HDF5 file contents in a carefully prescribed manner, and
-to convert files from HDF4 format to HDF5 format and vice versa.
 
+HDF5-related tools are available to assist the user in a variety of 
+activities, including 
+   examining or managing HDF5 files, 
+   converting raw data between HDF5 and other special-purpose formats,
+   moving data and files between the HDF4 and  HDF5 formats, 
+   measuring HDF5 library performance, and
+   managing HDF5 library and application compilation, 
+      installation and configuration.
+Unless otherwise specified below, these tools are distributed and 
+installed with HDF5.
 
+<!--
 <table border=0>
 <tr><td valign=top>
+-->
 <ul>
     <li>User utilities: 
     <ul>
         <li><a href="#Tools-Dump">h5dump</a> -- 
-            A tool for displaying HDF5 file contents
+            Enables a user to examine the contents of an HDF5 file 
+	    and dump those contents to an ASCII file 
         <li><a href="#Tools-Ls">h5ls</a> -- 
-            A tool for listing specified features of HDF5 file contents
+            Lists specified features of HDF5 file contents
         <li><a href="#Tools-Diff">h5diff</a> -- 
-            A tool to identify and locate the differences between two HDF5 files 
+            Compares two HDF5 files and reports the differences  
             <em>(Beta version)</em>
-        <li><a href="#Tools-Repart">h5repart</a> -- 
-            A tool for repartitioning a file, creating a family of files
-        <li><a href="#Tools-Import">h5import</a> -- 
-            A tool for importing data into an existing or new HDF5 file
-        <li><a href="#Tools-GIF2H5">gif2h5</a> -- 
-            A tool for converting a GIF file to an HDF5 file
-        <li><a href="#Tools-H52GIF">h52gif</a> -- 
-            A tool for converting images in an HDF5 file to a GIF file
         <li><a href="#Tools-Perf">h5perf</a> -- 
-            A tool for measuring HDF5 performance
-	    <br><br>
+            Measures HDF5 performance
+        <li><a href="#Tools-Repart">h5repart</a> -- 
+            Repartitions a file, creating a family of files
+    <br><br>
     </ul>
+
     <li>Configuration and  library management utilities: 
     <ul>
         <li><a href="#Tools-Redeploy">h5redeploy</a> -- 
-            A tool for updating HDF5 compiler tools after installing HDF5 
-         <li><a href="#Tools-H5CC">h5cc</a> --
-            A tool for compiling HDF5 programs written in C
-        <li><a href="#Tools-H5FC">h5fc</a> --
-            A tool for compiling HDF5 programs written in Fortran90
+            Updates HDF5 compiler tools after an HDF5 software installation 
+            in a new location  
+         <li><a href="#Tools-H5CC">h5cc</a> and
+            <a href="#Tools-H5CC">h5pcc</a> --
+            Simplify the compilation of HDF5 programs written in C
+         <li><a href="#Tools-H5FC">h5fc</a> and
+            <a href="#Tools-H5FC">h5pfc</a> --
+            Simplify the compilation of HDF5 programs written in Fortran90
         <li><a href="#Tools-H5C++">h5c++</a> --
-            A tool for compiling HDF5 programs written in C++
- 	    <br><br>
-   </ul>
-    <li><a href="http://hdf.ncsa.uiuc.edu/hdf-java-html/">Java-based tools for HDF5</a>  
-        <em>(at <code>http://hdf.ncsa.uiuc.edu/hdf-java-html/</code>)</em>:
-        <br>
-        Java-based tools for viewing, manipulating, and generating HDF5
-        files (distributed separately)
-        <br>
-        Includes <code>HDFView</code> (an HDF4 and HDF5 browser/editor), 
-	<code>H5gen</code>, the Java HDF5 Interface (JHI5),
-	and an HDF5 VisAD Data Adapter
-        <br><br>
-    <li><a href="http://hdf.ncsa.uiuc.edu/h4toh5/">HDF5/HDF4 conversion tools</a>: 
-    <ul>
-        <li><a href="http://hdf.ncsa.uiuc.edu/h4toh5/">H4toH5 Conversion Library</a> -- 
-            A library providing APIs for use in tools that perform customized 
-	    conversions of HDF4 files to HDF5 files
-	    &nbsp;
-	    <em>(Distributed separately; not part of HDF5)</em>
-        <li><a href="#Tools-H5toh4">h5toh4</a> -- 
-            A utility for converting an HDF5 file to an HDF4 file
-        <li><a href="#Tools-H4toh5">h4toh5</a> -- 
-            A utility for converting an HDF4 file to an HDF5 file
+            Simplifies the compilation of HDF5 programs written in C++
+    <br><br>
     </ul>
+ 
+    <li><a href="http://hdf.ncsa.uiuc.edu/hdf-java-html/" 
+        target="ToolsExt">Java-based tools for HDF5</a>
+        for viewing, manipulating, and generating HDF4 and HDF5 files:
+        <br>
+        <em>(Distributed separately; external link is 
+        <code>http://hdf.ncsa.uiuc.edu/hdf-java-html/</code>)</em>
+    <ul>
+	<li><code>HDFview</code> -- a browser that 
+	    works with both HDF4 and HDF5 files and 
+            can be used to transfer data between the two formats
+        <li>Java interfaces for both the HDF4 and HDF5 libraries
+        <li>Other HDF4- and HDF5-related products
+    <br><br>
+    </ul>
+
+    <li>Data conversion utilities: 
+    <ul>
+        <li><a href="#Tools-Import">h5import</a> -- 
+            Imports data into an existing or new HDF5 file
+        <li><a href="#Tools-GIF2H5">gif2h5</a> -- 
+            Converts a GIF file to an HDF5 file
+        <li><a href="#Tools-H52GIF">h52gif</a> -- 
+            Converts images in an HDF5 file to a GIF file
+    <br><br>
+    </ul>
+
+    <li><a href="http://hdf.ncsa.uiuc.edu/h4toh5/" target="ToolsExt">
+        HDF5/HDF4 conversion tools</a>:
+        <br>
+        <em>(Distributed separately; external link is 
+	<code>http://hdf.ncsa.uiuc.edu/h4toh5/</code>)</em>
+    <ul>
+        <li><a href="http://hdf.ncsa.uiuc.edu/h4toh5/" 
+	    target="ToolsExt">H4toH5 Conversion Library</a> -- 
+            Provides APIs for use in tools that perform customized 
+	    conversions of HDF4 files to HDF5 files
+        <li><a href="#Tools-H5toh4">h5toh4</a> -- 
+            Converts an HDF5 file to an HDF4 file
+        <li><a href="#Tools-H4toh5">h4toh5</a> -- 
+            Converts an HDF4 file to an HDF5 file
+    <br><br>
+    </ul>
+
+    <li><a href="http://hdf.ncsa.uiuc.edu/tools5.html" 
+        target="ToolsExt">Other tools</a>, 
+	including third-party and commercial utilities and applications
+        <br>
+        <em>(Distributed separately; external link is 
+	<code>http://hdf.ncsa.uiuc.edu/tools5.html</code>)</em>
+
 </ul>
+<!--
 </td></tr>
 </table>
+-->
 
-<p>
+
 
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "h5dump" -->
@@ -191,7 +233,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         <p>
         <code>h5dump</code> can also dump a subset of a dataset.
         This feature operates in much the same way as hyperslabs in HDF5;
-        the parameters specified on the commnd line are passed to the 
+        the parameters specified on the command line are passed to the 
         function <a href="RM_H5S.html#Dataspace-SelectHyperslab">
         <code>H5Sselect_hyperslab</code></a> and the resulting selection 
         is displayed.
@@ -202,7 +244,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         <cite>Data Description Language</cite> document. 
         </p>
         <p>
-        <em>Note</em>: It is not permissable to specify multiple
+        <em>Note</em>: It is not permissible to specify multiple
         attributes, datasets, datatypes, groups, or soft links with one
         flag. For example, one may not issue the command
           <br>
@@ -347,7 +389,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
                 [<a href="http://www.ietf.org/rfc/rfc2732.txt">IETF RFC 2732</a>]) 
                 that refers to the DTD to be used to validate the XML</dd>
     <br><br>
-        <dt>Subsetting paramaters can also be expressed in a convenient
+        <dt>Subsetting parameters can also be expressed in a convenient
             compact form, as follows:
               <br>
               &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -736,7 +778,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
 
         <p>
         <b>Input data and options:</b><br>
-        Input data can be provided in one of the follwing forms:
+        Input data can be provided in one of the following forms:
         <ul><li>As an ASCII, or plain-text, file containing either 
                 floating point or integer data
             <li>As a binary file containing either 32-bit or 
@@ -808,7 +850,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
                    etc.<br>
                    <code>h5import</code> does not overwrite a pre-existing 
                    dataset of the specified or default name. 
-                   When an existing dataset of a confilcting name is 
+                   When an existing dataset of a conflicting name is 
                    encountered, <code>h5import</code> quits with an error;
                    the current input file and any subsequent input files
                    are not processed.
@@ -866,14 +908,14 @@ to convert files from HDF4 format to HDF5 format and vice versa.
                    Requires chunked layout.
           </td></tr>
           <tr valign=top align=left><td width=30>&nbsp;</td><td>
-              &nbsp;&nbsp;&nbsp;&nbsp;Extendible
+              &nbsp;&nbsp;&nbsp;&nbsp;Extendable
               </td><td>Allows the dimensions of the dataset increase over time 
                    and/or to be unlimited.<br>
                    Requires chunked layout.
           </td></tr>
           <tr valign=top align=left><td width=30>&nbsp;</td><td>
               &nbsp;&nbsp;&nbsp;&nbsp;Compressed and<br>
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;extendible
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;extendable
               </td><td>Requires chunked layout.
           </td></tr>
           <tr valign=top align=left><td width=30>&nbsp;</td><td>
@@ -997,7 +1039,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
                  <code>dataset3</code> for the third input dataset, etc.<br>
                  Note that <code>h5import</code> does not overwrite a 
                  pre-existing dataset of the specified or default name. 
-                 When an existing dataset of a confilcting name is 
+                 When an existing dataset of a conflicting name is 
                  encountered, <code>h5import</code> quits with an error;
                  the current input file and any subsequent input files
                  are not processed.<br>
@@ -1201,7 +1243,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
           <tr valign=top align=left><td>
           <code>&nbsp;&nbsp;&nbsp;&nbsp;GZIP</code>
             </td><td>Gzip compression.<br>
-                 Othe compression algorithms are not implemented 
+                 Other compression algorithms are not implemented 
                  in this release of <code>h5import</code>.
             </td></tr> 
 
@@ -1306,7 +1348,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
                     etc.<br>
                     <code>h5import</code> does not overwrite a pre-existing 
                     dataset of the specified or default name. 
-                    When an existing dataset of a confilcting name is 
+                    When an existing dataset of a conflicting name is 
                     encountered, <code>h5import</code> quits with an error;
                     the current input file and any subsequent input files
                     are not processed.
@@ -1391,7 +1433,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
                 with chunk dimension sizes of 2x2x2x2x2.<br>
         &ndash; The output datatype will be 32-bit integer in 
                 <code>NATIVE</code> format 
-                (as the output architecure is not specified).<br>
+                (as the output architecture is not specified).<br>
         &ndash; The output dataset will be compressed using Gzip compression 
                 with a compression level of 7.<br>
         &ndash; The output dataset will be stored in 
@@ -1546,7 +1588,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
 
         <ul>
           <li>HDF5 group objects are converted into HDF4 Vgroup 
-              objects.  HDF5 hardlinks and softlinks pointing to 
+              objects.  HDF5 hard links and soft links pointing to 
               objects are converted to HDF4 Vgroup references.
           <li>HDF5 dataset objects of integer datatype are 
               converted into HDF4 SDS objects.  These datasets 
@@ -1584,6 +1626,13 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         All datatypes are converted to big-endian.  
         Floating point datatypes are converted to IEEE format.
         
+<dt><strong>Note:</strong>
+    <dl>The <code>h5toh4</code> and <code>h4toh5</code> utilities 
+        are no longer part of the HDF5 product;  
+	they are distributed separately through the page
+	<a href="http://hdf.ncsa.uiuc.edu/h4toh5/">
+	Converting between HDF (4.x) and HDF5</a>.
+	</p>
 
 <dt><strong>Options and Parameters:</strong>
     <dl>
@@ -1647,8 +1696,8 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         The <code>-h</code> option causes a syntax summary 
         similar to the following to be displayed:
         <pre>              h4toh5 inputfile.hdf outputfile.h5
-              h5toh4 inputfile.hdf                    <!--  currently no -m option
-              h5toh4 -m inputfile1.hdf inputfile2.hdf ...  --> </pre>
+              h4toh5 inputfile.hdf                    <!--  currently no -m option
+              h4toh5 -m inputfile1.hdf inputfile2.hdf ...  --> </pre>
         <p>
         Each object in the HDF4 file is converted to an equivalent 
         HDF5 object, according to the mapping described in
@@ -1659,7 +1708,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         <a href="http://hdf.ncsa.uiuc.edu/HDF5/papers/h4toh5/H4-to-H5MappingGuidelines.pdf" target=ExternalWinB>
         <cite>Mapping HDF4 Objects to HDF5 Objects</cite> on the HDF FTP server</a>.)
         <p>
-        In this inital version, <code>h4toh5</code> converts the following 
+        In this initial version, <code>h4toh5</code> converts the following 
         HDF4 objects:
         <center>
         <table width=75% border=0>
@@ -1700,6 +1749,13 @@ to convert files from HDF4 format to HDF5 format and vice versa.
           </td></tr>
         </table>
         </center>
+<dt><strong>Note:</strong>
+    <dl>The <code>h4toh5</code> and <code>h5toh4</code> utilities 
+        are no longer part of the HDF5 product;  
+	they are distributed separately through the page
+	<a href="http://hdf.ncsa.uiuc.edu/h4toh5/">
+	Converting between HDF (4.x) and HDF5</a>.
+	</p>
 <dt><strong>Options and Parameters:</strong>
     <dl>
         <dt><code>-h</code>
@@ -1772,7 +1828,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
 	    Example:</td></tr>
 	  <tr align="left" valign="top"><td>&nbsp;</td><td>
 	    <code>HDF5_PARAPREFIX&nbsp;&nbsp;</code></td><td>
-	    Sets the prefix for paralllel output data files.</td></tr>
+	    Sets the prefix for parallel output data files.</td></tr>
 	</table>
 <dt><strong>Options and Parameters:</strong>
     <dl>
@@ -1972,7 +2028,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         <dt><code>-echo</code>
             <dd>Shows all the shell commands executed.
         <dt><code>-force</code>
-            <dd>Performs the requested action without offerring any prompt 
+            <dd>Performs the requested action without offering any prompt 
 	        requesting confirmation.
         <dt><code>-prefix=</code><em>dir</em>
             <dd>Specifies a new directory in which to find the 
@@ -1997,48 +2053,58 @@ to convert files from HDF4 format to HDF5 format and vice versa.
 </dl>
 
 <!-- NEW PAGE -->
-<!-- HEADER RIGHT "h5cc" -->
+<!-- HEADER RIGHT "h5cc and h5pcc" -->
 <hr>
 <dl>
-<dt><strong>Tool Name:</strong> <a name="Tools-H5CC">h5cc</a>
+<dt><strong>Tool Names:</strong> <a name="Tools-H5CC">h5cc and h5pcc</a>
 <dt><strong>Syntax:</strong>
     <dd><code>h5cc
-        [</code><em>OPTIONS</em><code>]</code> <em>&lt;compile line&gt;</em>
+        [</code><em>OPTIONS</em><code> ]</code> <em>compile_line</em>
+    <dd><code>h5pcc
+        [</code><em>OPTIONS</em><code> ]</code> <em>compile_line</em>
 <dt><strong>Purpose:</strong>
-    <dd>Helper script to compile HDF5 applications.
+    <dd>Helper scripts to compile HDF5 C applications.
 <dt><strong>Description:</strong>
-    <dd><code>h5cc</code> can be used in much the same way MPIch is used
-        to compile an HDF5 program. It takes care of specifying where the
-        HDF5 header files and libraries are on the command line.
+    <dd><code>h5cc</code> and <code>h5pcc</code> can be used in much 
+        the same way as <code>mpicc</code> by MPICH is used to compile 
+        an HDF5 program. 
+        These tools take care of specifying on the command line
+        the locations of the HDF5 header files and libraries.
+        <code>h5cc</code> is for use in serial computing environments;
+        <code>h5pcc</code> is for parallel environments.
         <p>
-        <code>h5cc</code> supercedes all other compiler scripts in that
-        if you've used them to compile the HDF5 library, then
-        <code>h5cc</code> also uses those scripts. For example, when
-        compiling an MPIch program, you use the <code>mpicc</code>
-        script. If you've built HDF5 using MPIch, then <code>h5cc</code>
-        uses the MPIch program for compilation.
+        <code>h5cc</code> and <code>h5pcc</code> subsume all other 
+        compiler scripts in that if you have used a set of scripts to compile 
+        the HDF5 library, then <code>h5cc</code> and <code>h5pcc</code> 
+        also use those scripts.  
+        For example, when compiling an MPICH program, you use the 
+        <code>mpicc</code> script. 
+        If you have built HDF5 using MPICH, then <code>h5cc</code>
+        uses the MPICH program for compilation.
         <p>
-        Some programs use HDF5 in only a few modules. It isn't necessary
-        to use <code>h5cc</code> to compile those modules which don't use
-        HDF5. In fact, since <code>h5cc</code> is only a convenience
-        script, you are still able to compile HDF5 modules in the normal
-        way. In that case, you will have to specify the HDF5 libraries
+        Some programs use HDF5 in only a few modules. 
+        It is not necessary to use <code>h5cc</code> or <code>h5pcc</code> 
+        to compile those modules which do not use HDF5. 
+        In fact, since <code>h5cc</code> and <code>h5pcc</code> are only 
+        convenience scripts, you can still compile HDF5 modules in the 
+        normal manner, though you will have to specify the HDF5 libraries 
         and include paths yourself.
+        Use the <code>-show</code> option to see the details.
         <p>
         An example of how to use <code>h5cc</code> to compile the program
-        <code>hdf_prog</code>, which consists of modules
+        <code>hdf_prog</code>, which consists of the modules
         <code>prog1.c</code> and <code>prog2.c</code> and uses the HDF5
-        shared library, would be as follows:
+        shared library, would be as follows.
+        <code>h5pcc</code> is used in an identical manner.
         <pre>
         # h5cc -c prog1.c
         # h5cc -c prog2.c
-        # h5cc -shlib -o hdf_prog prog1.o prog2.o
-        </pre>
+        # h5cc -shlib -o hdf_prog prog1.o prog2.o </pre>
 <dt><strong>Options and Parameters:</strong>
     <dd>
     <dl>
         <dt><code>-help</code>
-            <dd>Prints a help message.
+            <dd>Print a help message.
         <dt><code>-echo</code>
             <dd>Show all the shell commands executed.
         <dt><code>-prefix=DIR</code>
@@ -2052,16 +2118,16 @@ to convert files from HDF4 format to HDF5 format and vice versa.
             <dd>Compile using shared HDF5 libraries.
         <dt><code>-noshlib</code>
             <dd>Compile using static HDF5 libraries [default].
-        <dt><em>&lt;compile line&gt;</em>
+        <dt><em>compile_line</em>
             <dd>The normal compile line options for your compiler. 
-                <code>h5cc</code> uses the same compiler you used to compile HDF5. 
-                Check your compiler's manual for more information on which
-                options are needed.
+                <code>h5cc</code> and <code>h5pcc</code> use the 
+                same compiler you used to compile HDF5; 
+                check your compiler's manual for more information 
+                on which options are needed.
     </dl>
 <dt><strong>Environment Variables:</strong>
     <dd>When set, these environment variables override some of the built-in
-        defaults of <code>h5cc</code>.
-
+        <code>h5cc</code> and <code>h5pcc</code> defaults.
     <dl>
         <dt><code>HDF5_CC</code>
             <dd>Use a different C compiler.
@@ -2079,67 +2145,76 @@ to convert files from HDF4 format to HDF5 format and vice versa.
 </dl>
 
 <!-- NEW PAGE -->
-<!-- HEADER RIGHT "h5fc" -->
+<!-- HEADER RIGHT "h5fc and h5pfc" -->
 <hr>
 <dl>
-<dt><strong>Tool Name:</strong> <a name="Tools-H5FC">h5fc</a>
+<dt><strong>Tool Names:</strong> <a name="Tools-H5FC">h5fc and h5pfc</a>
 <dt><strong>Syntax:</strong>
     <dd><code>h5fc
-        [</code><em>OPTIONS</em><code>]</code> <em>&lt;compile line&gt;</em>
+        [</code><em>OPTIONS</em><code> ]</code> <em>compile_line</em>
+    <dd><code>h5pfc
+        [</code><em>OPTIONS</em><code> ]</code> <em>compile_line</em>
 <dt><strong>Purpose:</strong>
-    <dd>Helper script to compile HDF5 Fortran90 applications.
+    <dd>Helper scripts to compile HDF5 Fortran90 applications.
 <dt><strong>Description:</strong>
-    <dd><p>
-        <code>h5fc</code> can be used in much the same way MPIch is used
-        to compile an HDF5 program. It takes care of specifying where the
-        HDF5 header files and libraries are on the command line.
+    <dd><code>h5fc</code> and <code>h5pfc</code> can be used in much the 
+        same way <code>mpif90</code> by MPICH is used to compile 
+        an HDF5 program. 
+        These tools take care of specifying on the command line
+        the locations of the HDF5 header files and libraries.
+        <code>h5fc</code> is for use in serial computing environments;
+        <code>h5pfc</code> is for parallel environments.
         <p>
-        <code>h5fc</code> supercedes all other compiler scripts in that
-        if you've used them to compile the HDF5 Fortran library, then
-        <code>h5fc</code> also uses those scripts. For example, when
-        compiling an MPIch program, you use the <code>mpif90</code>
-        script. If you've built HDF5 using MPIch, then <code>h5fc</code>
-        uses the MPIch program for compilation.
+        <code>h5fc</code> and <code>h5pfc</code> subsume all other 
+        compiler scripts in that if you have used a set of scripts to compile 
+        the HDF5 Fortran library, then <code>h5fc</code> and <code>h5pfc</code> 
+        also use those scripts. For example, when
+        compiling an MPICH program, you use the <code>mpif90</code>
+        script. If you have built HDF5 using MPICH, then <code>h5fc</code>
+        uses the MPICH program for compilation.
         <p>
-        Some programs use HDF5 in only a few modules. It isn't necessary
-        to use <code>h5fc</code> to compile those modules which don't use
-        HDF5. In fact, since <code>h5fc</code> is only a convenience
-        script, you are still able to compile HDF5 Fortran modules in the 
-        normal way. In that case, you will have to specify the HDF5 libraries
-        and include paths yourself.
+        Some programs use HDF5 in only a few modules. It is not necessary
+        to use <code>h5fc</code> and <code>h5pfc</code> to compile those 
+        modules which do not use HDF5. 
+        In fact, since <code>h5fc</code> and <code>h5pfc</code> are only 
+        convenience scripts, you can still compile HDF5 Fortran modules in 
+        the normal manner, though you will have to specify the 
+        HDF5 libraries and include paths yourself.
+        Use the <code>-show</code> option to see the details.
         <p>
         An example of how to use <code>h5fc</code> to compile the program
-        <code>hdf_prog</code>, which consists of modules
+        <code>hdf_prog</code>, which consists of the modules
         <code>prog1.f90</code> and <code>prog2.f90</code> 
-        and uses the HDF5 Fortran library, would be as follows:
+        and uses the HDF5 Fortran library, would be as follows.
+        <code>h5pfc</code> is used in an identical manner.
         <pre>
         # h5fc -c prog1.f90
         # h5fc -c prog2.f90
-        # h5fc -o hdf_prog prog1.o prog2.o
-        </pre>
+        # h5fc -o hdf_prog prog1.o prog2.o </pre>
 <dt><strong>Options and Parameters:</strong>
     <dd>
     <dl>
         <dt><code>-help</code>
-            <dd>Prints a help message.
+            <dd>Print a help message.
         <dt><code>-echo</code>
             <dd>Show all the shell commands executed.
         <dt><code>-prefix=DIR</code>
             <dd>Use the directory <code>DIR</code> to find HDF5 
-                <code>lib/</code> and <code>include/</code> subdirectories 
+                <code>lib/</code> and <code>include/</code> subdirectories. 
                 <br>
                 Default: prefix specified when configuring HDF5.
         <dt><code>-show</code>
             <dd>Show the commands without executing them.
-        <dt><em>&lt;compile line&gt;</em>
+        <dt><em>compile_line</em>
             <dd>The normal compile line options for your compiler. 
-                <code>h5fc</code> uses the same compiler you used 
-                to compile HDF5. Check your compiler's manual for 
-                more information on which options are needed.
+                <code>h5fc</code> and <code>h5pfc</code> use the 
+                same compiler you used to compile HDF5; 
+                check your compiler's manual for more information 
+                on which options are needed.
     </dl>
 <dt><strong>Environment Variables:</strong>
     <dd>When set, these environment variables override some of the built-in
-        defaults of <code>h5cc</code>.
+        <code>h5fc</code> and <code>h5pfc</code> defaults.
         <dl>
           <dt><code>HDF5_FC</code>
             <dd>Use a different Fortran90 compiler.
@@ -2166,14 +2241,15 @@ to convert files from HDF4 format to HDF5 format and vice versa.
     <dd>Helper script to compile HDF5 C++ applications.
 <dt><strong>Description:</strong>
     <dd><p>
-        <code>h5c++</code> can be used in much the same way MPIch is used
-        to compile an HDF5 program. It takes care of specifying where the
+        <code>h5c++</code> can be used in much the same way 
+        <code>mpiCC</code> by MPICH is used to compile an HDF5 program. 
+        It takes care of specifying where the
         HDF5 header files and libraries are on the command line.
         <p>
-        <code>h5c++</code> supercedes all other compiler scripts in that
+        <code>h5c++</code> subsumes all other compiler scripts in that
         if you've used one set of compiler scripts to compile the 
 	HDF5 C++ library, then <code>h5c++</code> uses those same scripts. 
-	For example, when compiling an MPIch program, 
+	For example, when compiling an MPICH program, 
         you use the <code>mpiCC</code> script. 
         <p>
         Some programs use HDF5 in only a few modules. It isn't necessary
@@ -2182,6 +2258,7 @@ to convert files from HDF4 format to HDF5 format and vice versa.
         script, you are still able to compile HDF5 C++ modules in the 
         normal way. In that case, you will have to specify the HDF5 libraries
         and include paths yourself.
+        Use the <code>-show</code> option to see the details.
         <p>
         An example of how to use <code>h5c++</code> to compile the program
         <code>hdf_prog</code>, which consists of modules
@@ -2312,10 +2389,10 @@ And in this document, the
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.1, October 2003
-</address><!-- #EndLibraryItem --> 
+Describes HDF5 Release 1.6.2, February 2004
+</address><!-- #EndLibraryItem -->
 
-Last modified: 16 October 2003
+Last modified: 23 January 2004
 
 </body>
 </html>

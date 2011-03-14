@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tvltypes.c,v 1.25.2.1 2003/10/09 16:55:55 koziol Exp $ */
+/* $Id: tvltypes.c,v 1.25.2.4 2004/01/10 02:41:34 koziol Exp $ */
 
 /***********************************************************
 *
@@ -29,15 +29,19 @@
 #define FILENAME   "tvltypes.h5"
 
 /* 1-D dataset with fixed dimensions */
-#define SPACE1_NAME  "Space1"
 #define SPACE1_RANK	1
-#define SPACE1_DIM1	4
+#define SPACE1_DIM1     4 
 
 /* 2-D dataset with fixed dimensions */
-#define SPACE2_NAME  "Space2"
 #define SPACE2_RANK	2
 #define SPACE2_DIM1	10
 #define SPACE2_DIM2	10
+
+/* 1-D dataset with fixed dimensions */
+#define SPACE3_RANK	1
+#define SPACE3_DIM1     128
+#define L1_INCM         16
+#define L2_INCM         8 
 
 void *test_vltypes_alloc_custom(size_t size, void *info);
 void test_vltypes_free_custom(void *mem, void *info);
@@ -170,11 +174,14 @@ static void
 test_vltypes_vlen_atomic(void)
 {
     hvl_t wdata[SPACE1_DIM1];   /* Information to write */
+    hvl_t wdata2[SPACE1_DIM1];  /* Information to write */
     hvl_t rdata[SPACE1_DIM1];   /* Information read in */
+    hvl_t fill;                 /* Fill value */
     hid_t		fid1;		/* HDF5 File IDs		*/
     hid_t		dataset;	/* Dataset ID			*/
     hid_t		sid1;       /* Dataspace ID			*/
     hid_t		tid1;       /* Datatype ID			*/
+    hid_t       dcpl_pid;   /* Dataset creation property list ID */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
@@ -191,6 +198,9 @@ test_vltypes_vlen_atomic(void)
         wdata[i].len=i+1;
         for(j=0; j<(i+1); j++)
             ((unsigned int *)wdata[i].p)[j]=i*10+j;
+
+        wdata2[i].p=NULL;
+        wdata2[i].len=0;
     } /* end for */
 
     /* Create file */
@@ -209,7 +219,84 @@ test_vltypes_vlen_atomic(void)
     dataset=H5Dcreate(fid1,"Dataset1",tid1,sid1,H5P_DEFAULT);
     CHECK(dataset, FAIL, "H5Dcreate");
 
+    /* Read from dataset before writing data */
+    ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Check data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(rdata[i].len!=0 || rdata[i].p!=NULL) {
+            TestErrPrintf("VL doesn't match!, rdata[%d].len=%u, rdata[%d].p=%p\n",(int)i,(unsigned)rdata[i].len,(int)i,rdata[i].p);
+        } /* end if */
+    } /* end for */
+    
+    /* Write "nil" data to disk */
+    ret=H5Dwrite(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata2);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Read from dataset with "nil" data */
+    ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Check data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(rdata[i].len!=0 || rdata[i].p!=NULL) {
+            TestErrPrintf("VL doesn't match!, rdata[%d].len=%u, rdata[%d].p=%p\n",(int)i,(unsigned)rdata[i].len,(int)i,rdata[i].p);
+        } /* end if */
+    } /* end for */
+    
     /* Write dataset to disk */
+    ret=H5Dwrite(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Create second dataset, with fill value */
+    dcpl_pid=H5Pcreate(H5P_DATASET_CREATE);
+    CHECK(dcpl_pid, FAIL, "H5Pcreate");
+
+    /* Set the fill value for the second dataset */
+    fill.p=NULL; fill.len=0;
+    ret=H5Pset_fill_value(dcpl_pid, tid1, &fill);
+    CHECK(ret, FAIL, "H5Pset_fill_value");
+
+    /* Create a second dataset */
+    dataset=H5Dcreate(fid1,"Dataset2",tid1,sid1,dcpl_pid);
+    CHECK(dataset, FAIL, "H5Dcreate");
+
+    /* Close dataset creation property list */
+    ret = H5Pclose(dcpl_pid);
+    CHECK(ret, FAIL, "H5Pclose");
+    
+    /* Read from dataset before writing data */
+    ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Check data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(rdata[i].len!=0 || rdata[i].p!=NULL) {
+            TestErrPrintf("VL doesn't match!, rdata[%d].len=%u, rdata[%d].p=%p\n",(int)i,(unsigned)rdata[i].len,(int)i,rdata[i].p);
+        } /* end if */
+    } /* end for */
+    
+    /* Write "nil" data to disk */
+    ret=H5Dwrite(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata2);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Read from dataset with "nil" data */
+    ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Check data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(rdata[i].len!=0 || rdata[i].p!=NULL) {
+            TestErrPrintf("VL doesn't match!, rdata[%d].len=%u, rdata[%d].p=%p\n",(int)i,(unsigned)rdata[i].len,(int)i,rdata[i].p);
+        } /* end if */
+    } /* end for */
+    
+    /* Write data to disk */
     ret=H5Dwrite(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata);
     CHECK(ret, FAIL, "H5Dwrite");
 
@@ -271,14 +358,12 @@ test_vltypes_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data lengths don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data lengths don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
         for(j=0; j<rdata[i].len; j++) {
             if( ((unsigned int *)wdata[i].p)[j] != ((unsigned int *)rdata[i].p)[j] ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].p[%d]=%d, rdata[%d].p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].p)[j]);
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d]=%d, rdata[%d].p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].p)[j]);
                 continue;
             } /* end if */
         } /* end for */
@@ -291,13 +376,85 @@ test_vltypes_vlen_atomic(void)
     /* Make certain the VL memory has been freed */
     VERIFY(mem_used,0,"H5Dvlen_reclaim");
 
-    /* Reclaim the write VL data */
-    ret=H5Dvlen_reclaim(tid1,sid1,H5P_DEFAULT,wdata);
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid1);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close disk dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close dataset transfer property list */
+    ret = H5Pclose(xfer_pid);
+    CHECK(ret, FAIL, "H5Pclose");
+    
+
+    /* Open second dataset */
+    dataset=H5Dopen(fid1,"Dataset2");
+    CHECK(dataset, FAIL, "H5Dopen");
+
+    /* Get dataspace for datasets */
+    sid1 = H5Dget_space(dataset);
+    CHECK(sid1, FAIL, "H5Dget_space");
+
+    /* Get datatype for dataset */
+    tid1 = H5Dget_type(dataset);
+    CHECK(tid1, FAIL, "H5Dget_type");
+
+    /* Change to the custom memory allocation routines for reading VL data */
+    xfer_pid=H5Pcreate(H5P_DATASET_XFER);
+    CHECK(xfer_pid, FAIL, "H5Pcreate");
+
+    ret=H5Pset_vlen_mem_manager(xfer_pid,test_vltypes_alloc_custom,&mem_used,test_vltypes_free_custom,&mem_used);
+    CHECK(ret, FAIL, "H5Pset_vlen_mem_manager");
+
+    /* Make certain the correct amount of memory will be used */
+    ret=H5Dvlen_get_buf_size(dataset,tid1,sid1,&size);
+    CHECK(ret, FAIL, "H5Dvlen_get_buf_size");
+
+    /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
+    VERIFY(size,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dvlen_get_buf_size");
+
+    /* Read dataset from disk */
+    ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,xfer_pid,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Make certain the correct amount of memory has been used */
+    /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
+    VERIFY(mem_used,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dread");
+
+    /* Compare data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(wdata[i].len!=rdata[i].len) {
+            TestErrPrintf("%d: VL data lengths don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            continue;
+        } /* end if */
+        for(j=0; j<rdata[i].len; j++) {
+            if( ((unsigned int *)wdata[i].p)[j] != ((unsigned int *)rdata[i].p)[j] ) {
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d]=%d, rdata[%d].p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].p)[j]);
+                continue;
+            } /* end if */
+        } /* end for */
+    } /* end for */
+
+    /* Reclaim the read VL data */
+    ret=H5Dvlen_reclaim(tid1,sid1,xfer_pid,rdata);
     CHECK(ret, FAIL, "H5Dvlen_reclaim");
+
+    /* Make certain the VL memory has been freed */
+    VERIFY(mem_used,0,"H5Dvlen_reclaim");
 
     /* Close Dataset */
     ret = H5Dclose(dataset);
     CHECK(ret, FAIL, "H5Dclose");
+
+    /* Reclaim the write VL data */
+    ret=H5Dvlen_reclaim(tid1,sid1,H5P_DEFAULT,wdata);
+    CHECK(ret, FAIL, "H5Dvlen_reclaim");
 
     /* Close datatype */
     ret = H5Tclose(tid1);
@@ -428,14 +585,12 @@ rewrite_vltypes_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data lengths don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data lengths don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
         for(j=0; j<rdata[i].len; j++) {
             if( ((unsigned int *)wdata[i].p)[j] != ((unsigned int *)rdata[i].p)[j] ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].p[%d]=%d, rdata[%d].p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].p)[j]);
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d]=%d, rdata[%d].p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].p)[j]);
                 continue;
             } /* end if */
         } /* end for */
@@ -570,19 +725,16 @@ test_vltypes_vlen_compound(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
         for(j=0; j<rdata[i].len; j++) {
             if( ((s1 *)wdata[i].p)[j].i != ((s1 *)rdata[i].p)[j].i ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].p[%d].i=%d, rdata[%d].p[%d].i=%d\n",(int)i,(int)j, (int)((s1 *)wdata[i].p)[j].i, (int)i,(int)j, (int)((s1 *)rdata[i].p)[j].i);
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d].i=%d, rdata[%d].p[%d].i=%d\n",(int)i,(int)j, (int)((s1 *)wdata[i].p)[j].i, (int)i,(int)j, (int)((s1 *)rdata[i].p)[j].i);
                 continue;
             } /* end if */
             if( ((s1 *)wdata[i].p)[j].f != ((s1 *)rdata[i].p)[j].f ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].p[%d].f=%f, rdata[%d].p[%d].f=%f\n",(int)i,(int)j, (double)((s1 *)wdata[i].p)[j].f, (int)i,(int)j, (double)((s1 *)rdata[i].p)[j].f);
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d].f=%f, rdata[%d].p[%d].f=%f\n",(int)i,(int)j, (double)((s1 *)wdata[i].p)[j].f, (int)i,(int)j, (double)((s1 *)rdata[i].p)[j].f);
                 continue;
             } /* end if */
         } /* end for */
@@ -718,19 +870,16 @@ rewrite_vltypes_vlen_compound(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
         for(j=0; j<rdata[i].len; j++) {
             if( ((s1 *)wdata[i].p)[j].i != ((s1 *)rdata[i].p)[j].i ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].p[%d].i=%d, rdata[%d].p[%d].i=%d\n",(int)i,(int)j, (int)((s1 *)wdata[i].p)[j].i, (int)i,(int)j, (int)((s1 *)rdata[i].p)[j].i);
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d].i=%d, rdata[%d].p[%d].i=%d\n",(int)i,(int)j, (int)((s1 *)wdata[i].p)[j].i, (int)i,(int)j, (int)((s1 *)rdata[i].p)[j].i);
                 continue;
             } /* end if */
             if( ((s1 *)wdata[i].p)[j].f != ((s1 *)rdata[i].p)[j].f ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].p[%d].f=%f, rdata[%d].p[%d].f=%f\n",(int)i,(int)j, (double)((s1 *)wdata[i].p)[j].f, (int)i,(int)j, (double)((s1 *)rdata[i].p)[j].f);
+                TestErrPrintf("VL data values don't match!, wdata[%d].p[%d].f=%f, rdata[%d].p[%d].f=%f\n",(int)i,(int)j, (double)((s1 *)wdata[i].p)[j].f, (int)i,(int)j, (double)((s1 *)rdata[i].p)[j].f);
                 continue;
             } /* end if */
         } /* end for */
@@ -775,6 +924,172 @@ rewrite_vltypes_vlen_compound(void)
 
 /****************************************************************
 **
+**  test_vltypes_compound_vlen_vlen(): Test basic VL datatype code.
+**      Tests compound datatypes with VL datatypes of VL datatypes.
+** 
+****************************************************************/
+static void 
+test_vltypes_compound_vlen_vlen(void)
+{
+    typedef struct {                    /* Struct that the compound type are composed of */
+        int i;
+        float f;
+        hvl_t v;
+    } s1;
+    s1 wdata[SPACE3_DIM1];              /* data to write */
+    s1 rdata[SPACE3_DIM1];              /* data to read */
+    hid_t	fid1;		        /* HDF5 File IDs		*/
+    hid_t	dataset;	        /* Dataset ID			*/
+    hid_t	sid1;                   /* Dataspace ID			*/
+    hid_t	tid1, tid2, tid3;       /* Datatype IDs         */
+    hid_t       xfer_pid;               /* Dataset transfer property list ID */
+    hid_t       dcpl_pid;               /* Dataset creation property list ID */
+    hsize_t	dims1[] = {SPACE3_DIM1};
+    hsize_t     size;                   /* Number of bytes which will be used */
+    unsigned    i,j,k;                  /* counting variables */
+    size_t      mem_used=0;             /* Memory used during allocation */
+    hvl_t       *t1, *t2;               /* Temporary pointer to VL information */
+    herr_t	ret;		        /* Generic return value		*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Compound Datatypes with VL Atomic Datatype Component Functionality\n"));
+
+    /* Allocate and initialize VL data to write */
+    for(i=0; i<SPACE3_DIM1; i++) {
+        wdata[i].i=i*10;
+        wdata[i].f=(float)((i*20)/3.0);
+        wdata[i].v.p=malloc((i+L1_INCM)*sizeof(hvl_t));
+        wdata[i].v.len=i+L1_INCM;
+        for(t1=(wdata[i].v).p,j=0; j<(i+L1_INCM); j++, t1++) {
+            t1->p=malloc((j+L2_INCM)*sizeof(unsigned int));
+            t1->len=j+L2_INCM;
+            for(k=0; k<j+L2_INCM; k++)
+                ((unsigned int*)t1->p)[k] = i*100 + j*10 + k;
+        }
+    } /* end for */
+
+    /* Create file */
+    fid1 = H5Fcreate(FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    /* Create dataspace for datasets */
+    sid1 = H5Screate_simple(SPACE3_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Create a VL datatype to refer to */
+    tid3 = H5Tvlen_create (H5T_NATIVE_UINT);
+    CHECK(tid3, FAIL, "H5Tvlen_create");
+
+    /* Create a VL datatype to refer to */
+    tid1 = H5Tvlen_create (tid3);
+    CHECK(tid1, FAIL, "H5Tvlen_create");
+
+    /* Create the base compound type */
+    tid2 = H5Tcreate(H5T_COMPOUND, sizeof(s1));
+    CHECK(tid2, FAIL, "H5Tcreate");
+
+    /* Insert fields */
+    ret=H5Tinsert(tid2, "i", HOFFSET(s1, i), H5T_NATIVE_INT);
+    CHECK(ret, FAIL, "H5Tinsert");
+    ret=H5Tinsert(tid2, "f", HOFFSET(s1, f), H5T_NATIVE_FLOAT);
+    CHECK(ret, FAIL, "H5Tinsert");
+    ret=H5Tinsert(tid2, "v", HOFFSET(s1, v), tid1);
+    CHECK(ret, FAIL, "H5Tinsert");
+
+    /* Create a dataset */
+    dataset=H5Dcreate(fid1,"Dataset1",tid2,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
+
+    /* Write dataset to disk */
+    ret=H5Dwrite(dataset,tid2,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Open file */
+    fid1 = H5Fopen(FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fopen");
+
+    /* Open a dataset */
+    dataset=H5Dopen(fid1,"Dataset1");
+    CHECK(dataset, FAIL, "H5Dopen");
+    
+    /* Read dataset from disk */
+    ret=H5Dread(dataset,tid2,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Compare data read in */
+    for(i=0; i<SPACE3_DIM1; i++) {
+        if(wdata[i].i!=rdata[i].i) {
+            TestErrPrintf("Integer components don't match!, wdata[%d].i=%d, rdata[%d].i=%d\n",(int)i,(int)wdata[i].i,(int)i,(int)rdata[i].i);
+            continue;
+        } /* end if */
+        if(wdata[i].f!=rdata[i].f) {
+            TestErrPrintf("Float components don't match!, wdata[%d].f=%f, rdata[%d].f=%f\n",(int)i,(double)wdata[i].f,(int)i,(double)rdata[i].f);
+            continue;
+        } /* end if */
+        
+        if(wdata[i].v.len!=rdata[i].v.len) {
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].v.len=%d, rdata[%d].v.len=%d\n",__LINE__,(int)i,(int)wdata[i].v.len,(int)i,(int)rdata[i].v.len);
+            continue;
+        } /* end if */
+
+        for(t1=wdata[i].v.p, t2=rdata[i].v.p, j=0; j<rdata[i].v.len; j++, t1++, t2++) {
+            if(t1->len!=t2->len) {
+                TestErrPrintf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
+                continue;
+            } /* end if */
+            for(k=0; k<t2->len; k++) {
+                if( ((unsigned int *)t1->p)[k] != ((unsigned int *)t2->p)[k] ) {
+                    TestErrPrintf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
+                    continue;
+                } /* end if */
+            } /* end for */
+        } /* end for */
+    } /* end for */
+
+    /* Reclaim the VL data */
+    ret=H5Dvlen_reclaim(tid2,sid1,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dvlen_reclaim");
+    
+    /* Reclaim the write VL data */
+    ret=H5Dvlen_reclaim(tid2,sid1,H5P_DEFAULT,wdata);
+    CHECK(ret, FAIL, "H5Dvlen_reclaim");
+
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close disk dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid2);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid1);
+    CHECK(ret, FAIL, "H5Tclose");
+    
+    /* Close datatype */
+    ret = H5Tclose(tid3);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_vltypes_compound_vlen_vlen() */
+
+/****************************************************************
+**
 **  test_vltypes_compound_vlen_atomic(): Test basic VL datatype code.
 **      Tests compound datatypes with VL datatypes of atomic datatypes.
 ** 
@@ -789,11 +1104,13 @@ test_vltypes_compound_vlen_atomic(void)
     } s1;
     s1 wdata[SPACE1_DIM1];   /* Information to write */
     s1 rdata[SPACE1_DIM1];   /* Information read in */
+    s1 fill;                    /* Fill value */
     hid_t		fid1;		/* HDF5 File IDs		*/
     hid_t		dataset;	/* Dataset ID			*/
     hid_t		sid1;       /* Dataspace ID			*/
     hid_t		tid1, tid2; /* Datatype IDs         */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
+    hid_t       dcpl_pid;   /* Dataset creation property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
     unsigned       i,j;        /* counting variables */
@@ -870,24 +1187,20 @@ test_vltypes_compound_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].i!=rdata[i].i) {
-            num_errs++;
-            printf("Integer components don't match!, wdata[%d].i=%d, rdata[%d].i=%d\n",(int)i,(int)wdata[i].i,(int)i,(int)rdata[i].i);
+            TestErrPrintf("Integer components don't match!, wdata[%d].i=%d, rdata[%d].i=%d\n",(int)i,(int)wdata[i].i,(int)i,(int)rdata[i].i);
             continue;
         } /* end if */
         if(wdata[i].f!=rdata[i].f) {
-            num_errs++;
-            printf("Float components don't match!, wdata[%d].f=%f, rdata[%d].f=%f\n",(int)i,(double)wdata[i].f,(int)i,(double)rdata[i].f);
+            TestErrPrintf("Float components don't match!, wdata[%d].f=%f, rdata[%d].f=%f\n",(int)i,(double)wdata[i].f,(int)i,(double)rdata[i].f);
             continue;
         } /* end if */
         if(wdata[i].v.len!=rdata[i].v.len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].v.len=%d, rdata[%d].v.len=%d\n",__LINE__,(int)i,(int)wdata[i].v.len,(int)i,(int)rdata[i].v.len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].v.len=%d, rdata[%d].v.len=%d\n",__LINE__,(int)i,(int)wdata[i].v.len,(int)i,(int)rdata[i].v.len);
             continue;
         } /* end if */
         for(j=0; j<rdata[i].v.len; j++) {
             if( ((unsigned int *)wdata[i].v.p)[j] != ((unsigned int *)rdata[i].v.p)[j] ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].v.p[%d]=%d, rdata[%d].v.p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].v.p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].v.p)[j]);
+                TestErrPrintf("VL data values don't match!, wdata[%d].v.p[%d]=%d, rdata[%d].v.p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].v.p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].v.p)[j]);
                 continue;
             } /* end if */
         } /* end for */
@@ -900,13 +1213,78 @@ test_vltypes_compound_vlen_atomic(void)
     /* Make certain the VL memory has been freed */
     VERIFY(mem_used,0,"H5Dvlen_reclaim");
 
-    /* Reclaim the write VL data */
-    ret=H5Dvlen_reclaim(tid2,sid1,H5P_DEFAULT,wdata);
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Create a second dataset, with a fill value */
+    dcpl_pid=H5Pcreate(H5P_DATASET_CREATE);
+    CHECK(dcpl_pid, FAIL, "H5Pcreate");
+
+    /* Set the fill value for the second dataset */
+    HDmemset(&fill,0,sizeof(s1));
+    ret=H5Pset_fill_value(dcpl_pid, tid2, &fill);
+    CHECK(ret, FAIL, "H5Pset_fill_value");
+
+    dataset=H5Dcreate(fid1,"Dataset2",tid2,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
+
+    /* Close dataset creation property list */
+    ret = H5Pclose(dcpl_pid);
+    CHECK(ret, FAIL, "H5Pclose");
+    
+    /* Read from dataset before writing data */
+    ret=H5Dread(dataset,tid2,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Check data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(rdata[i].i!=0 || rdata[i].f!=0.0 || rdata[i].v.len!=0 || rdata[i].v.p!=NULL) {
+            TestErrPrintf("VL doesn't match!, rdata[%d].i=%d, rdata[%d].f=%f, rdata[%d].v.len=%u, rdata[%d].v.p=%p\n",(int)i,rdata[i].i,(int)i,rdata[i].f,(int)i,(unsigned)rdata[i].v.len,(int)i,rdata[i].v.p);
+        } /* end if */
+    } /* end for */
+    
+    /* Write dataset to disk */
+    ret=H5Dwrite(dataset,tid2,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Read dataset from disk */
+    ret=H5Dread(dataset,tid2,H5S_ALL,H5S_ALL,H5P_DEFAULT,rdata);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Compare data read in */
+    for(i=0; i<SPACE1_DIM1; i++) {
+        if(wdata[i].i!=rdata[i].i) {
+            TestErrPrintf("Integer components don't match!, wdata[%d].i=%d, rdata[%d].i=%d\n",(int)i,(int)wdata[i].i,(int)i,(int)rdata[i].i);
+            continue;
+        } /* end if */
+        if(wdata[i].f!=rdata[i].f) {
+            TestErrPrintf("Float components don't match!, wdata[%d].f=%f, rdata[%d].f=%f\n",(int)i,(double)wdata[i].f,(int)i,(double)rdata[i].f);
+            continue;
+        } /* end if */
+        if(wdata[i].v.len!=rdata[i].v.len) {
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].v.len=%d, rdata[%d].v.len=%d\n",__LINE__,(int)i,(int)wdata[i].v.len,(int)i,(int)rdata[i].v.len);
+            continue;
+        } /* end if */
+        for(j=0; j<rdata[i].v.len; j++) {
+            if( ((unsigned int *)wdata[i].v.p)[j] != ((unsigned int *)rdata[i].v.p)[j] ) {
+                TestErrPrintf("VL data values don't match!, wdata[%d].v.p[%d]=%d, rdata[%d].v.p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].v.p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].v.p)[j]);
+                continue;
+            } /* end if */
+        } /* end for */
+    } /* end for */
+
+    /* Reclaim the VL data */
+    ret=H5Dvlen_reclaim(tid2,sid1,H5P_DEFAULT,rdata);
     CHECK(ret, FAIL, "H5Dvlen_reclaim");
 
     /* Close Dataset */
     ret = H5Dclose(dataset);
     CHECK(ret, FAIL, "H5Dclose");
+
+    /* Reclaim the write VL data */
+    ret=H5Dvlen_reclaim(tid2,sid1,H5P_DEFAULT,wdata);
+    CHECK(ret, FAIL, "H5Dvlen_reclaim");
 
     /* Close datatype */
     ret = H5Tclose(tid2);
@@ -1029,24 +1407,20 @@ rewrite_vltypes_compound_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].i!=rdata[i].i) {
-            num_errs++;
-            printf("Integer components don't match!, wdata[%d].i=%d, rdata[%d].i=%d\n",(int)i,(int)wdata[i].i,(int)i,(int)rdata[i].i);
+            TestErrPrintf("Integer components don't match!, wdata[%d].i=%d, rdata[%d].i=%d\n",(int)i,(int)wdata[i].i,(int)i,(int)rdata[i].i);
             continue;
         } /* end if */
         if(wdata[i].f!=rdata[i].f) {
-            num_errs++;
-            printf("Float components don't match!, wdata[%d].f=%f, rdata[%d].f=%f\n",(int)i,(double)wdata[i].f,(int)i,(double)rdata[i].f);
+            TestErrPrintf("Float components don't match!, wdata[%d].f=%f, rdata[%d].f=%f\n",(int)i,(double)wdata[i].f,(int)i,(double)rdata[i].f);
             continue;
         } /* end if */
         if(wdata[i].v.len!=rdata[i].v.len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].v.len=%d, rdata[%d].v.len=%d\n",__LINE__,(int)i,(int)wdata[i].v.len,(int)i,(int)rdata[i].v.len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].v.len=%d, rdata[%d].v.len=%d\n",__LINE__,(int)i,(int)wdata[i].v.len,(int)i,(int)rdata[i].v.len);
             continue;
         } /* end if */
         for(j=0; j<rdata[i].v.len; j++) {
             if( ((unsigned int *)wdata[i].v.p)[j] != ((unsigned int *)rdata[i].v.p)[j] ) {
-                num_errs++;
-                printf("VL data values don't match!, wdata[%d].v.p[%d]=%d, rdata[%d].v.p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].v.p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].v.p)[j]);
+                TestErrPrintf("VL data values don't match!, wdata[%d].v.p[%d]=%d, rdata[%d].v.p[%d]=%d\n",(int)i,(int)j, (int)((unsigned int *)wdata[i].v.p)[j], (int)i,(int)j, (int)((unsigned int *)rdata[i].v.p)[j]);
                 continue;
             } /* end if */
         } /* end for */
@@ -1091,7 +1465,7 @@ rewrite_vltypes_compound_vlen_atomic(void)
 
 /****************************************************************
 **
-**  test_vltypes_vlen_vlen_atomic(): Test basic VL datatype code.
+**  vlen_size_func(): Test basic VL datatype code.
 **      Tests VL datatype with VL datatypes of atomic datatypes.
 ** 
 ****************************************************************/
@@ -1139,16 +1513,14 @@ test_vltypes_vlen_vlen_atomic(void)
     for(i=0; i<SPACE1_DIM1; i++) {
         wdata[i].p=malloc((i+1)*sizeof(hvl_t));
         if(wdata[i].p==NULL) {
-            printf("Cannot allocate memory for VL data! i=%u\n",i);
-            num_errs++;
+            TestErrPrintf("Cannot allocate memory for VL data! i=%u\n",i);
             return;
         } /* end if */
         wdata[i].len=i+1;
         for(t1=wdata[i].p,j=0; j<(i+1); j++, t1++) {
             t1->p=malloc((j+1)*sizeof(unsigned int));
             if(t1->p==NULL) {
-                printf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
-                num_errs++;
+                TestErrPrintf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
                 return;
             } /* end if */
             t1->len=j+1;
@@ -1201,7 +1573,7 @@ test_vltypes_vlen_vlen_atomic(void)
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
 
-    /* Create file */
+    /* Open file */
     fid1 = H5Fopen(FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);
     CHECK(fid1, FAIL, "H5Fopen");
 
@@ -1248,20 +1620,17 @@ test_vltypes_vlen_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
         for(t1=wdata[i].p, t2=rdata[i].p, j=0; j<rdata[i].len; j++, t1++, t2++) {
             if(t1->len!=t2->len) {
-                num_errs++;
-                printf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
+                TestErrPrintf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
                 continue;
             } /* end if */
             for(k=0; k<t2->len; k++) {
                 if( ((unsigned int *)t1->p)[k] != ((unsigned int *)t2->p)[k] ) {
-                    num_errs++;
-                    printf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
+                    TestErrPrintf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
                     continue;
                 } /* end if */
             } /* end for */
@@ -1335,16 +1704,14 @@ rewrite_longer_vltypes_vlen_vlen_atomic(void)
     for(i=0; i<SPACE1_DIM1; i++) {
         wdata[i].p=malloc((i+increment)*sizeof(hvl_t));
         if(wdata[i].p==NULL) {
-            printf("Cannot allocate memory for VL data! i=%u\n",i);
-            num_errs++;
+            TestErrPrintf("Cannot allocate memory for VL data! i=%u\n",i);
             return;
         } /* end if */
         wdata[i].len=i+increment;
         for(t1=wdata[i].p,j=0; j<(i+increment); j++, t1++) {
             t1->p=malloc((j+1)*sizeof(unsigned int));
             if(t1->p==NULL) {
-                printf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
-                num_errs++;
+                TestErrPrintf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
                 return;
             } /* end if */
             t1->len=j+1;
@@ -1433,20 +1800,17 @@ rewrite_longer_vltypes_vlen_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
-        for(t1=wdata[i].p, t2=rdata[i].p, j=0; j<rdata[i].len; j++, t1++, t2++)
-{
+        for(t1=wdata[i].p, t2=rdata[i].p, j=0; j<rdata[i].len; j++, t1++, t2++) {
             if(t1->len!=t2->len) {
-                num_errs++;
-                printf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
+                TestErrPrintf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
                 continue;
             } /* end if */
             for(k=0; k<t2->len; k++) {
-                if( ((unsigned int *)t1->p)[k] != ((unsigned int *)t2->p)[k] ) {                    num_errs++;
-                    printf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
+                if( ((unsigned int *)t1->p)[k] != ((unsigned int *)t2->p)[k] ) {
+                    TestErrPrintf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
                     continue;
                 } /* end if */
             } /* end for */
@@ -1516,16 +1880,14 @@ rewrite_shorter_vltypes_vlen_vlen_atomic(void)
     for(i=0; i<SPACE1_DIM1; i++) {
         wdata[i].p=malloc((i+increment)*sizeof(hvl_t));
         if(wdata[i].p==NULL) {
-            printf("Cannot allocate memory for VL data! i=%u\n",i);
-            num_errs++;
+            TestErrPrintf("Cannot allocate memory for VL data! i=%u\n",i);
             return;
         } /* end if */
         wdata[i].len=i+increment;
         for(t1=wdata[i].p,j=0; j<(i+increment); j++, t1++) {
             t1->p=malloc((j+1)*sizeof(unsigned int));
             if(t1->p==NULL) {
-                printf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
-                num_errs++;
+                TestErrPrintf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
                 return;
             } /* end if */
             t1->len=j+1;
@@ -1614,20 +1976,17 @@ rewrite_shorter_vltypes_vlen_vlen_atomic(void)
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
         if(wdata[i].len!=rdata[i].len) {
-            num_errs++;
-            printf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
+            TestErrPrintf("%d: VL data length don't match!, wdata[%d].len=%d, rdata[%d].len=%d\n",__LINE__,(int)i,(int)wdata[i].len,(int)i,(int)rdata[i].len);
             continue;
         } /* end if */
         for(t1=wdata[i].p, t2=rdata[i].p, j=0; j<rdata[i].len; j++, t1++, t2++) {
             if(t1->len!=t2->len) {
-                num_errs++;
-                printf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
+                TestErrPrintf("%d: VL data length don't match!, i=%d, j=%d, t1->len=%d, t2->len=%d\n",__LINE__,(int)i,(int)j,(int)t1->len,(int)t2->len);
                 continue;
             } /* end if */
             for(k=0; k<t2->len; k++) {
                 if( ((unsigned int *)t1->p)[k] != ((unsigned int *)t2->p)[k] ) { 
-                    num_errs++;
-                    printf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
+                    TestErrPrintf("VL data values don't match!, t1->p[%d]=%d, t2->p[%d]=%d\n",(int)k, (int)((unsigned int *)t1->p)[k], (int)k, (int)((unsigned int *)t2->p)[k]);
                     continue;
                 } /* end if */
             } /* end for */
@@ -1690,6 +2049,7 @@ test_vltypes(void)
     test_vltypes_vlen_vlen_atomic();  	   /* Test VL datatype with VL atomic components */
     rewrite_longer_vltypes_vlen_vlen_atomic();  /*overwrite with VL data of longer sequence*/
     rewrite_shorter_vltypes_vlen_vlen_atomic();  /*overwrite with VL data of shorted sequence*/
+    test_vltypes_compound_vlen_vlen(); /* Test compound datatypes with VL atomic components */
 }   /* test_vltypes() */
 
 

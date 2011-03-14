@@ -1,5 +1,9 @@
 /* src/H5config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define if your system can handle converting denormalized floating-point
+   values. */
+#undef CONVERT_DENORMAL_FLOAT
+
 /* Define if `dev_t' is a scalar */
 #undef DEV_T_IS_SCALAR
 
@@ -36,6 +40,12 @@
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
+/* Define to 1 if you have the `frexpf' function. */
+#undef HAVE_FREXPF
+
+/* Define to 1 if you have the `frexpl' function. */
+#undef HAVE_FREXPL
+
 /* Define to 1 if you have the `fseek64' function. */
 #undef HAVE_FSEEK64
 
@@ -65,6 +75,9 @@
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
+
+/* Define to 1 if you have the `get_fpc_csr' function. */
+#undef HAVE_GET_FPC_CSR
 
 /* Define to 1 if you have the <globus_common.h> header file. */
 #undef HAVE_GLOBUS_COMMON_H
@@ -263,6 +276,9 @@
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #undef HAVE_SYS_FILIO_H
 
+/* Define to 1 if you have the <sys/fpu.h> header file. */
+#undef HAVE_SYS_FPU_H
+
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #undef HAVE_SYS_IOCTL_H
 
@@ -339,10 +355,6 @@
 
 /* Define if `__tm_gmtoff' is a member of `struct tm' */
 #undef HAVE___TM_GMTOFF
-
-/* Define if your system's `malloc' function returns a valid pointer for
-   0-byte allocations. */
-#undef MALLOC_WORKS
 
 /* Define if your system's `MPI_File_set_size' function works for files over
    2GB. */

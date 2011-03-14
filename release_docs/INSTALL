@@ -54,9 +54,9 @@
 
 1. Obtaining HDF5
 	The latest supported public release of HDF5 is available from
-	ftp://hdf.ncsa.uiuc.edu/pub/dist/HDF5.  For Unix platforms, it is
-	available in tar format uncompressed or compressed with compress,
-	gzip, or bzip2.  For Microsoft Windows, it is in ZIP format.
+	ftp://hdf.ncsa.uiuc.edu/HDF5/current/src.  For Unix platforms, it is
+	available in tar format compressed with gzip.  For Microsoft Windows,
+        it is in ZIP format.
 
 	The HDF team also makes snapshots of the source code available on
 	a regular basis. These snapshots are unsupported (that is, the
@@ -262,10 +262,10 @@
 
 	    $ CC='cc -xarch=v9' ./configure
 
-	To configure AIX 64 bits including fortran API,
+	To configure AIX 64 bits including fortran API and C++,
 	(Remark: need to hardset $AR to 'ar -X 64'.)
 	Serial:
-	    $ CC='xlc -q64' F9X='xlf -q64' AR='ar -X 64'\
+	    $ CC='xlc -q64' F9X='xlf -q64' CXX='xlC -q64' AR='ar -X 64'\
 	    $ ./configure --enable-fortran
 	Parallel:
 	    $ CC='mpcc_r -q64' F9X='mpxlf_r -q64' AR='ar -X 64'\
@@ -605,6 +605,8 @@
     * To build the Fortran Library on IA32 follow step described above, except 
       that DEC and MS compiler directives should be removed manually or 
       use a patch from HDF FTP server ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/current/
+      Also check "How to build HDF5 Fortran with Intel Compiler" under HDF5 FAQ
+      http://hdf.ncsa.uiuc.edu/hdf5-quest.html#plat-intel
 
 
 5.8  Building and testing with PGI compilers

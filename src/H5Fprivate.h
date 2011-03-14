@@ -12,8 +12,6 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Fprivate.h,v 1.117.2.11 2003/01/23 22:14:37 koziol Exp $ */
-
 /*
  * This file contains macros & information for file access
  */
@@ -21,17 +19,39 @@
 #ifndef _H5Fprivate_H
 #define _H5Fprivate_H
 
+/* Include package's public header */
 #include "H5Fpublic.h"
 
-/* This is a near top-level header! Try not to include much! */
-#include "H5FDpublic.h"		/*file drivers				     */
+/* Public headers needed by this file */
+#include "H5FDpublic.h"		/* File drivers				*/
 
+/* Private headers needed by this file */
+
+/****************************/
+/* Library Private Typedefs */
+/****************************/
+
+/* Main file structure */
 typedef struct H5F_t H5F_t;
+
+/*===----------------------------------------------------------------------===
+ *                              Flush Flags
+ *===----------------------------------------------------------------------===
+ *
+ *  Flags passed into the flush routines which indicate what type of
+ *  flush we want to do. They can be ORed together.
+ */
+#define H5F_FLUSH_NONE       (0U)       /* No flags specified                       */
+#define H5F_FLUSH_INVALIDATE (1U << 0)  /* Invalidate cached data                   */
+#define H5F_FLUSH_ALLOC_ONLY (1U << 1)  /* Allocate space for user and super blocks */
+#define H5F_FLUSH_CLOSING    (1U << 2)  /* Closing the file                         */
+#define H5F_FLUSH_CLEAR_ONLY (1U << 3)  /* Don't write, just clear dirty flags      */
 
 /*
  * Encode and decode macros for file meta-data.
  * Currently, all file meta-data is little-endian.
  */
+
 #  define INT16ENCODE(p, i) {						      \
    *(p) = (uint8_t)( (unsigned)(i)	    & 0xff); (p)++;			      \
    *(p) = (uint8_t)(((unsigned)(i) >> 8) & 0xff); (p)++;			      \
@@ -138,13 +158,13 @@ typedef struct H5F_t H5F_t;
    (p) += 8;								      \
 }
 
-#define NBYTEENCODE(d, s, n) {	 HDmemcpy(d,s,n); p+=n }
+#define NBYTEENCODE(d, s, n)    do { HDmemcpy(d,s,n); d += n; } while (0)
 
 /*
  * Note:  the NBYTEDECODE macro is backwards from the memcpy() routine, in
  *	  the spirit of the other DECODE macros.
  */
-#define NBYTEDECODE(s, d, n) {	 HDmemcpy(d,s,n); p+=n }
+#define NBYTEDECODE(s, d, n)    do { HDmemcpy(d,s,n); s += n; } while (0)
 
 /* Address-related macros */
 #define H5F_addr_overflow(X,Z)	(HADDR_UNDEF==(X) ||			      \
@@ -152,8 +172,10 @@ typedef struct H5F_t H5F_t;
 				 (X)+(haddr_t)(Z)<(X))
 #define H5F_addr_hash(X,M)	((unsigned)((X)%(M)))
 #define H5F_addr_defined(X)	(X!=HADDR_UNDEF)
+/* The H5F_addr_eq() macro guarantees that Y is not HADDR_UNDEF by making
+ * certain that X is not HADDR_UNDEF and then checking that X equals Y
+ */
 #define H5F_addr_eq(X,Y)	((X)!=HADDR_UNDEF &&			      \
-				 (Y)!=HADDR_UNDEF &&			      \
 				 (X)==(Y))
 #define H5F_addr_ne(X,Y)	(!H5F_addr_eq((X),(Y)))
 #define H5F_addr_lt(X,Y) 	((X)!=HADDR_UNDEF &&			      \
@@ -174,16 +196,22 @@ typedef struct H5F_t H5F_t;
 #define H5F_addr_overlap(O1,L1,O2,L2) ((O1<O2 && (O1+L1)>O2) ||               \
                                  (O1>=O2 && O1<(O2+L2)))
 
-/* size of size_t and off_t as they exist on disk */
+/* If the module using this macro is allowed access to the private variables, access them directly */
 #ifdef H5F_PACKAGE
-#define H5F_SIZEOF_ADDR(F)	((F)->shared->fcpl->sizeof_addr)
-#define H5F_SIZEOF_SIZE(F)	((F)->shared->fcpl->sizeof_size)
+/* size of size_t and off_t as they exist on disk */
+#define H5F_SIZEOF_ADDR(F)      ((F)->shared->sizeof_addr)
+#define H5F_SIZEOF_SIZE(F)      ((F)->shared->sizeof_size)
+/* Size of symbol table leafs */
+#define H5F_SYM_LEAF_K(F)       ((F)->shared->sym_leaf_k)
+/* B-tree key value size */
+#define H5F_KVALUE(F,T)         ((F)->shared->btree_k[(T)->id])
 #else /* H5F_PACKAGE */
-#define H5F_SIZEOF_ADDR(F)	(H5F_sizeof_addr(F))
-#define H5F_SIZEOF_SIZE(F)	(H5F_sizeof_size(F))
+#define H5F_SIZEOF_ADDR(F)      (H5F_sizeof_addr(F))
+#define H5F_SIZEOF_SIZE(F)      (H5F_sizeof_size(F))
+#define H5F_SYM_LEAF_K(F)       (H5F_sym_leaf_k(F))
+#define H5F_KVALUE(F,T)         (H5F_Kvalue(F,T))
 #endif /* H5F_PACKAGE */
-H5_DLL size_t H5F_sizeof_addr(H5F_t *f);
-H5_DLL size_t H5F_sizeof_size(H5F_t *f);
+
 
 /* Macros to encode/decode offset/length's for storing in the file */
 #ifdef NOT_YET
@@ -217,121 +245,229 @@ H5_DLL size_t H5F_sizeof_size(H5F_t *f);
    case 2: UINT16DECODE(p,l); break;					      \
 }
 
-/*
- * File-creation property list.
- */
-typedef struct H5F_create_t {
-    hsize_t	userblock_size;	/* Size of the file user block in bytes */
-    int	sym_leaf_k;	/* 1/2 rank for symbol table leaf nodes */
-    int	btree_k[8];	/* 1/2 rank for btree internal nodes	*/
-    size_t	sizeof_addr;	/* Number of bytes in an address	*/
-    size_t	sizeof_size;	/* Number of bytes for obj sizes	*/
-    int	bootblock_ver;	/* Version # of the bootblock		*/
-    int	freespace_ver;	/* Version # of the free-space information*/
-    int	objectdir_ver;	/* Version # of the object directory format*/
-    int	sharedheader_ver;/* Version # of the shared header format */
-} H5F_create_t;
+/* ========= File Creation properties ============ */
+/* Definitions for the size of the file user block in bytes */
+#define H5F_CRT_USER_BLOCK_NAME      "block_size"
+#define H5F_CRT_USER_BLOCK_SIZE      sizeof(hsize_t)
+#define H5F_CRT_USER_BLOCK_DEF       0
+/* Definitions for the 1/2 rank for symbol table leaf nodes */
+#define H5F_CRT_SYM_LEAF_NAME        "symbol_leaf"
+#define H5F_CRT_SYM_LEAF_SIZE        sizeof(unsigned)
+#define H5F_CRT_SYM_LEAF_DEF         4
+/* Definitions for the 1/2 rank for btree internal nodes    */
+#define H5F_CRT_BTREE_RANK_NAME      "btree_rank"
+#define H5F_CRT_BTREE_RANK_SIZE      sizeof(int[H5B_NUM_BTREE_ID])
+#define H5F_CRT_BTREE_RANK_DEF       {16,32}
+/* Definitions for byte number in an address                */
+#define H5F_CRT_ADDR_BYTE_NUM_NAME   "addr_byte_num"
+#define H5F_CRT_ADDR_BYTE_NUM_SIZE   sizeof(size_t)
+#define H5F_CRT_ADDR_BYTE_NUM_DEF    sizeof(haddr_t)
+/* Definitions for byte number for object size              */
+#define H5F_CRT_OBJ_BYTE_NUM_NAME     "obj_byte_num"
+#define H5F_CRT_OBJ_BYTE_NUM_SIZE     sizeof(size_t)
+#define H5F_CRT_OBJ_BYTE_NUM_DEF      sizeof(hsize_t)
+/* Definitions for version number of the bootblock          */
+#define H5F_CRT_BOOT_VERS_NAME        "boot_version"
+#define H5F_CRT_BOOT_VERS_SIZE        sizeof(int)
+#define H5F_CRT_BOOT_VERS_DEF         HDF5_BOOTBLOCK_VERSION
+/* Definitions for free-space version number                */
+#define H5F_CRT_FREESPACE_VERS_NAME   "free_space_version"
+#define H5F_CRT_FREESPACE_VERS_SIZE   sizeof(int)
+#define H5F_CRT_FREESPACE_VERS_DEF    HDF5_FREESPACE_VERSION
+/* Definitions for object directory version number          */
+#define H5F_CRT_OBJ_DIR_VERS_NAME     "obj_dir_version"
+#define H5F_CRT_OBJ_DIR_VERS_SIZE     sizeof(int)
+#define H5F_CRT_OBJ_DIR_VERS_DEF      HDF5_OBJECTDIR_VERSION
+/* Definitions for shared-header format version             */
+#define H5F_CRT_SHARE_HEAD_VERS_NAME  "share_head_version"  
+#define H5F_CRT_SHARE_HEAD_VERS_SIZE  sizeof(int)
+#define H5F_CRT_SHARE_HEAD_VERS_DEF   HDF5_SHAREDHEADER_VERSION
 
-/*
- * File-access property list.
- */
-typedef struct H5F_access_t {
-    int	mdc_nelmts;	/* Size of meta data cache (elements)	*/
-    int	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
-    size_t	rdcc_nbytes;	/* Size of raw data chunk cache	(bytes)	*/
-    double	rdcc_w0;	/* Preempt read chunks first? [0.0..1.0]*/
-    hsize_t	threshold;	/* Threshold for alignment		*/
-    hsize_t	alignment;	/* Alignment				*/
-    size_t	meta_block_size;    /* Minimum metadata allocation block size (when aggregating metadata allocations) */
-    size_t	sdata_block_size;   /* Minimum "small data" allocation block size (when aggregating "small data" allocations) */
-    hsize_t	sieve_buf_size;     /* Maximum sieve buffer size (when data sieving is allowed by file driver) */
-    unsigned	gc_ref;		/* Garbage-collect references?		*/
-    hid_t	driver_id;	/* File driver ID			*/
-    void	*driver_info;	/* File driver specific information	*/
-} H5F_access_t;
+/* ========= File Access properties ============ */
+/* Definitions for size of meta data cache(elements) */
+#define H5F_ACS_META_CACHE_SIZE_NAME            "mdc_nelmts"
+#define H5F_ACS_META_CACHE_SIZE_SIZE            sizeof(int)
+#define H5F_ACS_META_CACHE_SIZE_DEF             H5AC_NSLOTS
 
-/* Mount property list */
-typedef struct H5F_mprop_t {
-    hbool_t		local;	/* Are absolute symlinks local to file?	*/
-} H5F_mprop_t;
+/* Definitions for size of raw data chunk cache(elements) */
+#define H5F_ACS_DATA_CACHE_ELMT_SIZE_NAME       "rdcc_nelmts"
+#define H5F_ACS_DATA_CACHE_ELMT_SIZE_SIZE       sizeof(size_t)
+#define H5F_ACS_DATA_CACHE_ELMT_SIZE_DEF        521
 
-/* library variables */
-H5_DLLVAR const H5F_create_t H5F_create_dflt;
-H5_DLLVAR H5F_access_t H5F_access_dflt;
-H5_DLLVAR const H5F_mprop_t H5F_mount_dflt;
+/* Definition for size of raw data chunk cache(bytes) */
+#define H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME       "rdcc_nbytes"
+#define H5F_ACS_DATA_CACHE_BYTE_SIZE_SIZE       sizeof(size_t)
+#define H5F_ACS_DATA_CACHE_BYTE_SIZE_DEF        1024*1024
 
-/* Forward declarations for prototypes arguments */
-struct H5O_layout_t;
-struct H5O_efl_t;
-struct H5O_pline_t;
+/* Definition for preemption read chunks first */
+#define H5F_ACS_PREEMPT_READ_CHUNKS_NAME        "rdcc_w0"
+#define H5F_ACS_PREEMPT_READ_CHUNKS_SIZE        sizeof(double)
+#define H5F_ACS_PREEMPT_READ_CHUNKS_DEF         0.75  
+
+/* Definition for threshold for alignment */
+#define H5F_ACS_ALIGN_THRHD_NAME                "threshold"
+#define H5F_ACS_ALIGN_THRHD_SIZE                sizeof(hsize_t)
+#define H5F_ACS_ALIGN_THRHD_DEF                 1
+
+/* Definition for alignment */
+#define H5F_ACS_ALIGN_NAME                      "align"
+#define H5F_ACS_ALIGN_SIZE                      sizeof(hsize_t)
+#define H5F_ACS_ALIGN_DEF                       1
+
+/* Definition for minimum metadata allocation block size (when
+   aggregating metadata allocations. */
+#define H5F_ACS_META_BLOCK_SIZE_NAME            "meta_block_size"
+#define H5F_ACS_META_BLOCK_SIZE_SIZE            sizeof(hsize_t)
+#define H5F_ACS_META_BLOCK_SIZE_DEF             2048
+
+/* Definition for maximum sieve buffer size (when data sieving 
+   is allowed by file driver */
+#define H5F_ACS_SIEVE_BUF_SIZE_NAME             "sieve_buf_size"
+#define H5F_ACS_SIEVE_BUF_SIZE_SIZE             sizeof(size_t)
+#define H5F_ACS_SIEVE_BUF_SIZE_DEF              64*1024
+
+/* Definition for minimum "small data" allocation block size (when
+   aggregating "small" raw data allocations. */
+#define H5F_ACS_SDATA_BLOCK_SIZE_NAME           "sdata_block_size"
+#define H5F_ACS_SDATA_BLOCK_SIZE_SIZE           sizeof(hsize_t)
+#define H5F_ACS_SDATA_BLOCK_SIZE_DEF            2048
+
+/* Definition for garbage-collect references */
+#define H5F_ACS_GARBG_COLCT_REF_NAME            "gc_ref"
+#define H5F_ACS_GARBG_COLCT_REF_SIZE            sizeof(unsigned)
+#define H5F_ACS_GARBG_COLCT_REF_DEF             0
+
+/* Definition for file driver ID */
+#define H5F_ACS_FILE_DRV_ID_NAME                "driver_id"
+#define H5F_ACS_FILE_DRV_ID_SIZE                sizeof(hid_t)
+#define H5F_ACS_FILE_DRV_ID_DEF                 H5FD_SEC2
+
+/* Definition for file driver info */
+#define H5F_ACS_FILE_DRV_INFO_NAME              "driver_info"
+#define H5F_ACS_FILE_DRV_INFO_SIZE              sizeof(void*)
+#define H5F_ACS_FILE_DRV_INFO_DEF               NULL
+
+/* Definition for file close degree */
+#define H5F_CLOSE_DEGREE_NAME		        "close_degree"
+#define H5F_CLOSE_DEGREE_SIZE		        sizeof(H5F_close_degree_t)
+#define H5F_CLOSE_DEGREE_DEF		        H5F_CLOSE_DEFAULT
+
+/* Definition for offset position in file for family file driver */
+#define H5F_ACS_FAMILY_OFFSET_NAME              "family_offset"
+#define H5F_ACS_FAMILY_OFFSET_SIZE              sizeof(hsize_t)
+#define H5F_ACS_FAMILY_OFFSET_DEF               0
+
+/* Definition for data type in multi file driver */
+#define H5F_ACS_MULTI_TYPE_NAME                 "multi_type"
+#define H5F_ACS_MULTI_TYPE_SIZE                 sizeof(H5FD_mem_t)
+#define H5F_ACS_MULTI_TYPE_DEF                  H5FD_MEM_DEFAULT
+
+/* ======================== File Mount properties ====================*/
+/* Definition for whether absolute symlinks local to file. */
+#define H5F_MNT_SYM_LOCAL_NAME 		"local"
+#define H5F_MNT_SYM_LOCAL_SIZE		sizeof(hbool_t) 	
+#define H5F_MNT_SYM_LOCAL_DEF	 	FALSE	
+
+#ifdef H5_HAVE_PARALLEL
+/* Which process writes metadata */
+#define H5_PAR_META_WRITE 0
+#endif /* H5_HAVE_PARALLEL */
+
+/* Forward declarations for prototype arguments */
+struct H5B_class_t;
+union H5D_storage_t;
 struct H5O_fill_t;
-struct H5G_entry_t;
+struct H5O_layout_t;
+struct H5P_genplist_t;
 struct H5S_t;
 
 /* Private functions, not part of the publicly documented API */
 H5_DLL herr_t H5F_init(void);
-H5_DLL unsigned H5F_get_intent(H5F_t *f);
-H5_DLL hid_t H5F_get_driver_id(H5F_t *f);
+H5_DLL hid_t H5F_get_driver_id(const H5F_t *f);
+H5_DLL unsigned H5F_get_intent(const H5F_t *f);
 H5_DLL herr_t H5F_get_fileno(const H5F_t *f, unsigned long *filenum);
+H5_DLL int H5F_get_obj_count(H5F_t *f, unsigned types);
+H5_DLL int H5F_get_obj_ids(H5F_t *f, unsigned types, int max_objs, hid_t *obj_id_list);
+H5_DLL haddr_t H5F_get_base_addr(const H5F_t *f);
 
-/* Functions that operate on array storage */
-H5_DLL herr_t H5F_arr_create(H5F_t *f, hid_t dxpl_id,
-			      struct H5O_layout_t *layout /*in,out*/);
-H5_DLL herr_t H5F_arr_read (H5F_t *f, hid_t dxpl_id,
-			     const struct H5O_layout_t *layout,
-			     const struct H5O_pline_t *pline,
-			     const struct H5O_fill_t *fill,
-			     const struct H5O_efl_t *efl,
-			     const hsize_t _hslab_size[],
-			     const hsize_t mem_size[],
-			     const hssize_t mem_offset[],
-			     const hssize_t file_offset[], void *_buf/*out*/);
-H5_DLL herr_t H5F_arr_write (H5F_t *f, hid_t dxpl_id,
-			      const struct H5O_layout_t *layout,
-			      const struct H5O_pline_t *pline,
-			      const struct H5O_fill_t *fill,
-			      const struct H5O_efl_t *efl,
-			      const hsize_t _hslab_size[],
-			      const hsize_t mem_size[],
-			      const hssize_t mem_offset[],
-			      const hssize_t file_offset[], const void *_buf);
+/* Functions than check file mounting information */
+H5_DLL htri_t H5F_is_mount(const H5F_t *file);
+H5_DLL htri_t H5F_has_mount(const H5F_t *file);
+
+/* Functions than retrieve values set from the FCPL */
+H5_DLL size_t H5F_sizeof_addr(const H5F_t *f);
+H5_DLL size_t H5F_sizeof_size(const H5F_t *f);
+H5_DLL unsigned H5F_sym_leaf_k(const H5F_t *f);
+H5_DLL int H5F_Kvalue(const H5F_t *f, const struct H5B_class_t *type);
 
 /* Functions that operate on blocks of bytes wrt boot block */
-H5_DLL herr_t H5F_block_read(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size,
-			      hid_t dxpl_id, void *buf/*out*/);
+H5_DLL herr_t H5F_block_read(H5F_t *f, H5FD_mem_t type, haddr_t addr,
+                size_t size, hid_t dxpl_id, void *buf/*out*/);
 H5_DLL herr_t H5F_block_write(H5F_t *f, H5FD_mem_t type, haddr_t addr,
-                  hsize_t size, hid_t dxpl_id, const void *buf);
+                size_t size, hid_t dxpl_id, const void *buf);
 
 /* Functions that operate on byte sequences */
 H5_DLL herr_t H5F_seq_read(H5F_t *f, hid_t dxpl_id,
-        const struct H5O_layout_t *layout, const struct H5O_pline_t *pline,
-        const struct H5O_fill_t *fill, const struct H5O_efl_t *efl,
-        const struct H5S_t *file_space, size_t elmt_size, hsize_t seq_len,
+        const struct H5O_layout_t *layout,
+        struct H5P_genplist_t *dc_plist, const union H5D_storage_t *store, 
+        size_t seq_len,
         hsize_t file_offset, void *_buf/*out*/);
 H5_DLL herr_t H5F_seq_write (H5F_t *f, hid_t dxpl_id,
-        const struct H5O_layout_t *layout, const struct H5O_pline_t *pline,
-        const struct H5O_fill_t *fill, const struct H5O_efl_t *efl,
-        const struct H5S_t *file_space, size_t elmt_size, hsize_t seq_len,
+        struct H5O_layout_t *layout,
+        struct H5P_genplist_t *dc_plist, const union H5D_storage_t *store, 
+        size_t seq_len,
         hsize_t file_offset, const void *_buf);
 
+/* Functions that operate on byte sequences in memory and on disk */
+H5_DLL ssize_t H5F_seq_readvv(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
+    struct H5P_genplist_t *dc_plist, const union H5D_storage_t *store, 
+    size_t dset_max_nseq, size_t *dset_curr_seq,  size_t dset_len_arr[], hsize_t dset_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    void *buf);
+H5_DLL ssize_t H5F_seq_writevv(H5F_t *f, hid_t dxpl_id, struct H5O_layout_t *layout,
+    struct H5P_genplist_t *dc_plist, const union H5D_storage_t *store, 
+    size_t dset_max_nseq, size_t *dset_curr_seq,  size_t dset_len_arr[], hsize_t dset_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    const void *buf);
+
+/* Functions that operate on contiguous storage */
+H5_DLL herr_t H5F_contig_create(H5F_t *f, hid_t dxpl_id,
+        struct H5O_layout_t *layout);
+H5_DLL herr_t H5F_contig_fill(H5F_t *f, hid_t dxpl_id,
+        struct H5O_layout_t *layout, struct H5P_genplist_t *dc_plist,
+        const struct H5S_t *space,
+        const struct H5O_fill_t *fill, size_t elmt_size);
+H5_DLL herr_t H5F_contig_delete(H5F_t *f, hid_t dxpl_id,
+        const struct H5O_layout_t *layout);
 
 /* Functions that operate on indexed storage */
-#ifdef H5_HAVE_PARALLEL
+H5_DLL herr_t H5F_istore_create(H5F_t *f, hid_t dxpl_id,
+				 struct H5O_layout_t *layout/*in,out*/);
 H5_DLL herr_t H5F_istore_allocate (H5F_t *f, hid_t dxpl_id,
-				    const struct H5O_layout_t *layout,
-				    const hsize_t *space_dim,
-				    const struct H5O_pline_t *pline,
-				    const struct H5O_fill_t *fill);
-#endif /* H5_HAVE_PARALLEL */
+    const struct H5O_layout_t *layout, const hsize_t *space_dim,
+    struct H5P_genplist_t *dc_plist, hbool_t full_overwrite);
 H5_DLL hsize_t H5F_istore_allocated(H5F_t *f, hid_t dxpl_id, unsigned ndims, haddr_t addr);
 H5_DLL herr_t H5F_istore_dump_btree(H5F_t *f, hid_t dxpl_id, FILE *stream, unsigned ndims,
-				     haddr_t addr);
+        haddr_t addr);
+H5_DLL herr_t H5F_istore_prune_by_extent( H5F_t *f, hid_t dxpl_id,
+        const struct H5O_layout_t *layout, const struct H5S_t *space);
+H5_DLL herr_t H5F_istore_initialize_by_extent( H5F_t *f, hid_t dxpl_id,
+        const struct H5O_layout_t *layout, struct H5P_genplist_t *dc_plist,
+        const struct H5S_t *space );
+H5_DLL herr_t H5F_istore_delete(H5F_t *f, hid_t dxpl_id,
+        const struct H5O_layout_t *layout);
 
 /* Address-related functions */
 H5_DLL void H5F_addr_encode(H5F_t *, uint8_t** /*in,out*/, haddr_t);
 H5_DLL void H5F_addr_decode(H5F_t *, const uint8_t** /*in,out*/,
 			     haddr_t* /*out*/);
-H5_DLL herr_t H5F_addr_pack(H5F_t UNUSED *f, haddr_t *addr_p /*out*/,
+H5_DLL herr_t H5F_addr_pack(H5F_t *f, haddr_t *addr_p /*out*/,
 			     const unsigned long objno[2]);
+
+/* Callback functions for file access class */
+H5_DLL herr_t H5F_acs_create(hid_t fapl_id, void *close_data);
+H5_DLL herr_t H5F_acs_close(hid_t fapl_id, void *close_data);
+H5_DLL herr_t H5F_acs_copy(hid_t new_fapl_id, hid_t old_fapl_id, 
+                            void *close_data);
 
 #endif

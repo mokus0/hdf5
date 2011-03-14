@@ -12,23 +12,27 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Pfcpl.c,v 1.1.2.1 2002/08/12 18:14:12 koziol Exp $ */
+/* $Id: H5Pfcpl.c,v 1.2 2003/01/10 21:24:56 koziol Exp $ */
+
+#define H5P_PACKAGE		/*suppress error about including H5Ppkg	  */
 
 /* Private header files */
 #include "H5private.h"		/* Generic Functions			*/
+#include "H5Bprivate.h"		/* B-tree subclass names	  	*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
-#include "H5Iprivate.h"		/* IDs			  		*/
-#include "H5Pprivate.h"		/* Property lists		  	*/
+#include "H5Fprivate.h"		/* Files		  	*/
+#include "H5Ppkg.h"		/* Property lists		  	*/
 
+/* Pablo mask */
 #define PABLO_MASK	H5Pfcpl_mask
 
-/* Is the interface initialized? */
-static int		interface_initialize_g = 0;
-#define INTERFACE_INIT NULL
+/* Interface initialization */
+#define INTERFACE_INIT  NULL
+static int             interface_initialize_g = 0;
 
-/* Local types */
+/* Local datatypes */
 
-/* Local static functions */
+/* Static function prototypes */
 
 
 /*-------------------------------------------------------------------------
@@ -55,36 +59,43 @@ static int		interface_initialize_g = 0;
  *
  * Modifications:
  *
+ * 		Raymond Lu, Oct 14, 2001
+ * 		Change to the new generic property list.
+ *	
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pget_version(hid_t plist_id, int *boot/*out*/, int *freelist/*out*/,
 	       int *stab/*out*/, int *shhdr/*out*/)
 {
-    H5F_create_t	   *plist = NULL;
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5Pget_version, FAIL);
+    FUNC_ENTER_API(H5Pget_version, FAIL);
     H5TRACE5("e","ixxxx",plist_id,boot,freelist,stab,shhdr);
 
-    /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Get values */
     if (boot)
-        *boot = plist->bootblock_ver;
+        if(H5P_get(plist, H5F_CRT_BOOT_VERS_NAME, boot) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get boot version");
     if (freelist)
-        *freelist = plist->freespace_ver;
+        if(H5P_get(plist, H5F_CRT_FREESPACE_VERS_NAME, freelist) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get free-space version");
     if (stab)
-        *stab = plist->objectdir_ver;
+        if(H5P_get(plist, H5F_CRT_OBJ_DIR_VERS_NAME, stab) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get object directory version");
     if (shhdr)
-        *shhdr = plist->sharedheader_ver;
+        if(H5P_get(plist, H5F_CRT_SHARE_HEAD_VERS_NAME, shhdr) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get shared-header version");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pset_userblock
@@ -99,39 +110,43 @@ H5Pget_version(hid_t plist_id, int *boot/*out*/, int *freelist/*out*/,
  *
  * Modifications:
  *
+ *		Raymond Lu, Oct 14, 2001
+ * 		Changed to the new generic property list.
+ *	
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pset_userblock(hid_t plist_id, hsize_t size)
 {
     unsigned		    i;
-    H5F_create_t	   *plist = NULL;
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value=SUCCEED;   /* return value */
 
-    FUNC_ENTER(H5Pset_userblock, FAIL);
+    FUNC_ENTER_API(H5Pset_userblock, FAIL);
     H5TRACE2("e","ih",plist_id,size);
 
-    /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
+    /* Check that the userblock size is a power of two */
     for (i=8; i<8*sizeof(hsize_t); i++) {
         hsize_t p2 = 8==i ? 0 : ((hsize_t)1<<i);
+
         if (size == p2)
             break;
     }
+    if (i>=8*sizeof(hsize_t))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "userblock size is not valid");
 
-    if (i>=8*sizeof(hsize_t)) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL,
-		      "userblock size is not valid");
-    }
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Set value */
-    plist->userblock_size = size;
+    if(H5P_set(plist, H5F_CRT_USER_BLOCK_NAME, &size) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set user block");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pget_userblock
@@ -148,28 +163,31 @@ H5Pset_userblock(hid_t plist_id, hsize_t size)
  *
  * Modifications:
  *
+ *		Raymond Lu, Oct 14, 2001
+ *		Changed to the new generic property list.
+ *	
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pget_userblock(hid_t plist_id, hsize_t *size)
 {
-    H5F_create_t	*plist = NULL;
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value=SUCCEED;   /* return value */
 
-    FUNC_ENTER(H5Pget_userblock, FAIL);
+    FUNC_ENTER_API(H5Pget_userblock, FAIL);
     H5TRACE2("e","i*h",plist_id,size);
 
-    /* Check args */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Get value */
     if (size)
-        *size = plist->userblock_size;
+        if(H5P_get(plist, H5F_CRT_USER_BLOCK_NAME, size) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL,"can't get user block");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -192,40 +210,40 @@ H5Pget_userblock(hid_t plist_id, hsize_t *size)
 herr_t
 H5Pset_sizes(hid_t plist_id, size_t sizeof_addr, size_t sizeof_size)
 {
-    H5F_create_t	   *plist = NULL;
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value=SUCCEED;   /* return value */
 
-    FUNC_ENTER(H5Pset_sizes, FAIL);
+    FUNC_ENTER_API(H5Pset_sizes, FAIL);
     H5TRACE3("e","izz",plist_id,sizeof_addr,sizeof_size);
 
     /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
     if (sizeof_addr) {
         if (sizeof_addr != 2 && sizeof_addr != 4 &&
-                sizeof_addr != 8 && sizeof_addr != 16) {
-            HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL,
-                  "file haddr_t size is not valid");
-        }
+                sizeof_addr != 8 && sizeof_addr != 16)
+            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "file haddr_t size is not valid");
     }
     if (sizeof_size) {
         if (sizeof_size != 2 && sizeof_size != 4 &&
-                sizeof_size != 8 && sizeof_size != 16) {
-            HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL,
-                  "file size_t size is not valid");
-        }
+                sizeof_size != 8 && sizeof_size != 16)
+            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "file size_t size is not valid");
     }
+
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Set value */
     if (sizeof_addr)
-        plist->sizeof_addr = sizeof_addr;
+        if(H5P_set(plist, H5F_CRT_ADDR_BYTE_NUM_NAME, &sizeof_addr) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set byte number for an address");
     if (sizeof_size)
-        plist->sizeof_size = sizeof_size;
+        if(H5P_set(plist, H5F_CRT_OBJ_BYTE_NUM_NAME, &sizeof_size) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set byte number for object ");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pget_sizes
@@ -249,26 +267,29 @@ herr_t
 H5Pget_sizes(hid_t plist_id,
 	     size_t *sizeof_addr /*out */ , size_t *sizeof_size /*out */ )
 {
-    H5F_create_t	   *plist = NULL;
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value=SUCCEED;   /* return value */
 
-    FUNC_ENTER(H5Pget_sizes, FAIL);
+    FUNC_ENTER_API(H5Pget_sizes, FAIL);
     H5TRACE3("e","ixx",plist_id,sizeof_addr,sizeof_size);
 
-    /* Check args */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Get values */
     if (sizeof_addr)
-        *sizeof_addr = plist->sizeof_addr;
+        if(H5P_get(plist, H5F_CRT_ADDR_BYTE_NUM_NAME, sizeof_addr) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get byte number for an address");
     if (sizeof_size)
-        *sizeof_size = plist->sizeof_size;
+        if(H5P_get(plist, H5F_CRT_OBJ_BYTE_NUM_NAME, sizeof_size) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get byte number for object ");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
+
+#ifdef H5_WANT_H5_V1_4_COMPAT
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pset_sym_k
@@ -295,30 +316,39 @@ H5Pget_sizes(hid_t plist_id,
  *
  * Modifications:
  *
+ *		Raymond Lu, Oct 14, 2001
+ *         	Changed to the new generic property list. 
+ *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pset_sym_k(hid_t plist_id, int ik, int lk)
 {
-    H5F_create_t	   *plist = NULL;
+    int btree_k[H5B_NUM_BTREE_ID];
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5Pset_sym_k, FAIL);
+    FUNC_ENTER_API(H5Pset_sym_k, FAIL);
     H5TRACE3("e","iIsIs",plist_id,ik,lk);
 
-    /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
-
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+   
     /* Set values */
-    if (ik > 0)
-        plist->btree_k[H5B_SNODE_ID] = ik;
+    if (ik > 0) {
+        if(H5P_get(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for btree interanl nodes");
+        btree_k[H5B_SNODE_ID] = ik;
+        if(H5P_set(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set rank for btree nodes");
+    }
     if (lk > 0)
-        plist->sym_leaf_k = lk;
+        if(H5P_set(plist, H5F_CRT_SYM_LEAF_NAME, &lk) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set rank for symbol table leaf nodes");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -337,30 +367,149 @@ H5Pset_sym_k(hid_t plist_id, int ik, int lk)
  *
  * Modifications:
  *
+ *		Raymond Lu
+ *		Changed to the new generic property list.
+ *	
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pget_sym_k(hid_t plist_id, int *ik /*out */ , int *lk /*out */ )
 {
-    H5F_create_t	   *plist = NULL;
+    int btree_k[H5B_NUM_BTREE_ID];
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5Pget_sym_k, FAIL);
+    FUNC_ENTER_API(H5Pget_sym_k, FAIL);
     H5TRACE3("e","ixx",plist_id,ik,lk);
 
-    /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
-    /* Get values */
-    if (ik)
-        *ik = plist->btree_k[H5B_SNODE_ID];
-    if (lk)
-        *lk = plist->sym_leaf_k;
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
-    FUNC_LEAVE(SUCCEED);
+    /* Get values */
+    if (ik) {
+        if(H5P_get(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for btree nodes");
+        *ik = btree_k[H5B_SNODE_ID];
+    }
+    if (lk)
+        if(H5P_get(plist, H5F_CRT_SYM_LEAF_NAME, lk) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for symbol table leaf nodes");
+
+done:
+    FUNC_LEAVE_API(ret_value);
 }
+#else /* H5_WANT_H5_V1_4_COMPAT */
+
+/*-------------------------------------------------------------------------
+ * Function:	H5Pset_sym_k
+ *
+ * Purpose:	IK is one half the rank of a tree that stores a symbol
+ *		table for a group.  Internal nodes of the symbol table are on
+ *		average 75% full.  That is, the average rank of the tree is
+ *		1.5 times the value of IK.
+ *
+ *		LK is one half of the number of symbols that can be stored in
+ *		a symbol table node.  A symbol table node is the leaf of a
+ *		symbol table tree which is used to store a group.  When
+ *		symbols are inserted randomly into a group, the group's
+ *		symbol table nodes are 75% full on average.  That is, they
+ *		contain 1.5 times the number of symbols specified by LK.
+ *
+ *		Either (or even both) of IK and LK can be zero in which case
+ *		that value is left unchanged.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Robb Matzke
+ *		Tuesday, January  6, 1998
+ *
+ * Modifications:
+ *
+ *		Raymond Lu, Oct 14, 2001
+ *         	Changed to the new generic property list. 
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5Pset_sym_k(hid_t plist_id, int ik, unsigned lk)
+{
+    int btree_k[H5B_NUM_BTREE_ID];
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t      ret_value=SUCCEED;       /* Return value */
+
+    FUNC_ENTER_API(H5Pset_sym_k, FAIL);
+    H5TRACE3("e","iIsIu",plist_id,ik,lk);
+
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+   
+    /* Set values */
+    if (ik > 0) {
+        if(H5P_get(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for btree interanl nodes");
+        btree_k[H5B_SNODE_ID] = ik;
+        if(H5P_set(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set rank for btree nodes");
+    }
+    if (lk > 0)
+        if(H5P_set(plist, H5F_CRT_SYM_LEAF_NAME, &lk) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set rank for symbol table leaf nodes");
+
+done:
+    FUNC_LEAVE_API(ret_value);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5Pget_sym_k
+ *
+ * Purpose:	Retrieves the symbol table B-tree 1/2 rank (IK) and the
+ *		symbol table leaf node 1/2 size (LK).  See H5Pset_sym_k() for
+ *		details. Either (or even both) IK and LK may be null
+ *		pointers.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Robb Matzke
+ *		Wednesday, January  7, 1998
+ *
+ * Modifications:
+ *
+ *		Raymond Lu
+ *		Changed to the new generic property list.
+ *	
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5Pget_sym_k(hid_t plist_id, int *ik /*out */ , unsigned *lk /*out */ )
+{
+    int btree_k[H5B_NUM_BTREE_ID];
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t      ret_value=SUCCEED;       /* Return value */
+
+    FUNC_ENTER_API(H5Pget_sym_k, FAIL);
+    H5TRACE3("e","ixx",plist_id,ik,lk);
+
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+
+    /* Get values */
+    if (ik) {
+        if(H5P_get(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for btree nodes");
+        *ik = btree_k[H5B_SNODE_ID];
+    }
+    if (lk)
+        if(H5P_get(plist, H5F_CRT_SYM_LEAF_NAME, lk) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for symbol table leaf nodes");
+
+done:
+    FUNC_LEAVE_API(ret_value);
+}
+#endif /* H5_WANT_H5_V1_4_COMPAT */
 
 
 /*-------------------------------------------------------------------------
@@ -377,32 +526,40 @@ H5Pget_sym_k(hid_t plist_id, int *ik /*out */ , int *lk /*out */ )
  *
  * Modifications:
  *
+ *		Raymond Lu, Oct 14, 2001
+ *		Changed to the new generic property list.
+ *	
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pset_istore_k(hid_t plist_id, int ik)
 {
-    H5F_create_t	   *plist = NULL;
+    int btree_k[H5B_NUM_BTREE_ID];
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5Pset_istore_k, FAIL);
+    FUNC_ENTER_API(H5Pset_istore_k, FAIL);
     H5TRACE2("e","iIs",plist_id,ik);
 
     /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
-    if (ik <= 0) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL,
-		      "istore IK value must be positive");
-    }
+    if (ik <= 0)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "istore IK value must be positive");
+
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Set value */
-    plist->btree_k[H5B_ISTORE_ID] = ik;
+    if(H5P_get(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for btree interanl nodes");
+    btree_k[H5B_ISTORE_ID] = ik;
+    if(H5P_set(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set rank for btree interanl nodes");
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pget_istore_k
@@ -420,27 +577,33 @@ H5Pset_istore_k(hid_t plist_id, int ik)
  *
  * Modifications:
  *
+ *		Raymond Lu, Oct 14, 2001
+ *		Changed to the new generic property list.
+ *	
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pget_istore_k(hid_t plist_id, int *ik /*out */ )
 {
-    H5F_create_t	   *plist = NULL;
+    int btree_k[H5B_NUM_BTREE_ID];
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value=SUCCEED;   /* return value */
 
-    FUNC_ENTER(H5Pget_istore_k, FAIL);
+    FUNC_ENTER_API(H5Pget_istore_k, FAIL);
     H5TRACE2("e","ix",plist_id,ik);
 
-    /* Check arguments */
-    if (H5P_FILE_CREATE != H5P_get_class(plist_id) ||
-            NULL == (plist = H5I_object(plist_id))) {
-        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL,
-		      "not a file creation property list");
-    }
+    /* Get the plist structure */
+    if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_CREATE)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Get value */
-    if (ik)
-        *ik = plist->btree_k[H5B_ISTORE_ID];
+    if (ik) {
+        if(H5P_get(plist, H5F_CRT_BTREE_RANK_NAME, btree_k) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get rank for btree interanl nodes");
+        *ik = btree_k[H5B_ISTORE_ID];
+    }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 

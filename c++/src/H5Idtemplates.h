@@ -13,8 +13,8 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef _Reset_h
-#define _Reset_h
+#ifndef _H5Idtemplates_h
+#define _H5Idtemplates_h
 
 #include "H5IdComponent.h"
 

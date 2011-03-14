@@ -82,12 +82,12 @@
      CHARACTER(LEN=256) :: member_name 
      INTEGER :: len ! Lenght of the name of the compound datatype member 
      INTEGER :: member_index ! index of the field
-     LOGICAL :: flag
      INTEGER(HSIZE_T), DIMENSION(3) :: array_dims=(/2,3,4/)
      INTEGER :: array_dims_range = 3
      INTEGER :: elements = 24 ! number of elements in the array_dims array.
      INTEGER(SIZE_T) :: sizechar
      INTEGER, DIMENSION(7) :: data_dims
+     LOGICAL :: flag = .TRUE.
      data_dims(1) = dimsize
      !
      ! Initialize data buffer.
@@ -111,7 +111,7 @@
      !
      CALL h5pcreate_f(H5P_DATASET_XFER_F, plist_id, error)
          CALL check("h5pcreate_f", error, total_error)
-     CALL h5pset_preserve_f(plist_id, 1, error)
+     CALL h5pset_preserve_f(plist_id, flag, error)
          CALL check("h5pset_preserve_f", error, total_error)
      !
      ! Create a new file using default properties.
@@ -306,13 +306,13 @@
          endif
      !
      !  Go through the members and find out their names and offsets.
+     !  Also see if name corresponds to the index
      !
      do i = 1, num_members
         CALL h5tget_member_name_f(dtype_id, i-1, member_name, len, error)
          CALL check("h5tget_member_name_f", error, total_error)
         CALL h5tget_member_offset_f(dtype_id, i-1, offset_out, error)
          CALL check("h5tget_member_offset_f", error, total_error)
-
         CALL h5tget_member_index_f(dtype_id, member_name(1:len), member_index, error)
          CALL check("h5tget_member_index_f", error, total_error)
          if(member_index .ne. i-1) then
@@ -719,7 +719,7 @@
 
     LOGICAL, INTENT(IN)  :: cleanup
     INTEGER, INTENT(OUT) :: total_error 
-    CHARACTER(LEN=7), PARAMETER :: filename="enum.h5"
+    CHARACTER(LEN=4), PARAMETER :: filename="enum"
     CHARACTER(LEN=80) :: fix_filename
     CHARACTER(LEN=8), PARAMETER :: dsetname="enumdset"
     CHARACTER(LEN=4)            :: true ="TRUE"
@@ -799,3 +799,4 @@
         CALL check("h5fclose_f", error, total_error)
     RETURN
     END SUBROUTINE enumtest 
+

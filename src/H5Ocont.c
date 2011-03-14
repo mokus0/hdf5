@@ -28,10 +28,12 @@
  *-------------------------------------------------------------------------
  */
 
+#define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
+
 #include "H5private.h"
 #include "H5Eprivate.h"
 #include "H5MMprivate.h"
-#include "H5Oprivate.h"
+#include "H5Opkg.h"             /* Object header functions                 */
 
 #define PABLO_MASK      H5O_cont_mask
 
@@ -50,8 +52,9 @@ const H5O_class_t H5O_CONT[1] = {{
     H5O_cont_encode,        	/*encode message                */
     NULL,                   	/*no copy method                */
     NULL,                   	/*no size method                */
-    NULL,                   	/*default reset method          */
-    NULL,		            /* default free method			*/
+    NULL,                   	/*reset method			*/
+    NULL,		        /* free method			*/
+    NULL,		        /* file delete method		*/
     NULL, 		    	/*get share method		*/
     NULL,		    	/*set share method		*/
     H5O_cont_debug,         	/*debugging                     */
@@ -82,8 +85,9 @@ static void *
 H5O_cont_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
 {
     H5O_cont_t             *cont = NULL;
+    void                   *ret_value;
 
-    FUNC_ENTER(H5O_cont_decode, NULL);
+    FUNC_ENTER_NOAPI(H5O_cont_decode, NULL);
 
     /* check args */
     assert(f);
@@ -91,15 +95,18 @@ H5O_cont_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t U
     assert (!sh);
 
     /* decode */
-    if (NULL==(cont = H5MM_calloc(sizeof(H5O_cont_t)))) {
-	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		       "memory allocation failed");
-    }
+    if (NULL==(cont = H5MM_calloc(sizeof(H5O_cont_t))))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     H5F_addr_decode(f, &p, &(cont->addr));
     H5F_DECODE_LENGTH(f, p, cont->size);
 
-    FUNC_LEAVE((void *) cont);
+    /* Set return value */
+    ret_value=cont;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:    H5O_cont_encode
@@ -120,8 +127,9 @@ static herr_t
 H5O_cont_encode(H5F_t *f, uint8_t *p, const void *_mesg)
 {
     const H5O_cont_t       *cont = (const H5O_cont_t *) _mesg;
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5O_cont_encode, FAIL);
+    FUNC_ENTER_NOAPI(H5O_cont_encode, FAIL);
 
     /* check args */
     assert(f);
@@ -132,8 +140,10 @@ H5O_cont_encode(H5F_t *f, uint8_t *p, const void *_mesg)
     H5F_addr_encode(f, &p, cont->addr);
     H5F_ENCODE_LENGTH(f, p, cont->size);
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:    H5O_cont_debug
@@ -155,8 +165,9 @@ H5O_cont_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE * 
 	       int indent, int fwidth)
 {
     const H5O_cont_t       *cont = (const H5O_cont_t *) _mesg;
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5O_cont_debug, FAIL);
+    FUNC_ENTER_NOAPI(H5O_cont_debug, FAIL);
 
     /* check args */
     assert(f);
@@ -175,5 +186,6 @@ H5O_cont_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE * 
 	      "Points to chunk number:",
 	      (int) (cont->chunkno));
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }

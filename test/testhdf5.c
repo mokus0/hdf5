@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testhdf5.c,v 1.40.2.9 2002/06/10 19:48:46 wendling Exp $ */
+/* $Id: testhdf5.c,v 1.49 2003/03/31 18:59:00 wendling Exp $ */
 
 /*
    FILE
@@ -140,9 +140,7 @@ main(int argc, char *argv[])
     int                     Summary = 0;
     int                     CleanUp = 1;
     int                     Cache = 1;
-    unsigned                   major, minor, release;
-
-
+    unsigned                major, minor, release;
 
 #if !(defined MAC || defined __MWERKS__ || defined SYMANTEC_C)
     /* Un-buffer the stdout and stderr */
@@ -161,6 +159,9 @@ main(int argc, char *argv[])
     InitTest("configure", test_configure, cleanup_configure, "Configure definitions");
     InitTest("metadata", test_metadata, cleanup_metadata, "Encode/decode metadata code");
     InitTest("tbbt", test_tbbt, NULL,  "Threaded, Balanced, Binary Trees");
+    InitTest("tst", test_tst, NULL,  "Ternary Search Trees");
+    InitTest("heap", test_heap, NULL,  "Memory Heaps");
+    InitTest("refstr", test_refstr, NULL,  "Reference Counted Strings");
     InitTest("file", test_file, cleanup_file, "Low-Level File I/O");
     InitTest("h5s",  test_h5s,  cleanup_h5s,  "Dataspaces");
     InitTest("attr", test_attr, cleanup_attr,  "Attributes");

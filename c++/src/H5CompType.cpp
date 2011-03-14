@@ -93,7 +93,7 @@ string CompType::getMemberName( int member_num ) const
  * Return:      Success:	index of the member if exists.
  *              Failure:	DataTypeIException
  *
- * BMR - June 10, 2002
+ * BMR - May 16, 2002
  *-------------------------------------------------------------------------
  */
 int CompType::getMemberIndex(const char* name) const

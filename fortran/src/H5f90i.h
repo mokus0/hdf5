@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+#include "H5private.h"
 
 #if (defined (UNICOS) || (defined (_UNICOS)))
 
@@ -103,12 +104,17 @@ typedef int               int_f;
 typedef int               hid_t_f;
 typedef float             real_f;
 #define FNAME_POST_UNDERSCORE
+#if defined H5_ABSOFT
+#define DF_CAPFNAMES
+#define FNAME(x) x
+#endif /*H5_ABSOFT*/
+
 #define _fcdtocp(desc) (desc)
 
 #endif /*LINUX*/
 
 /* IA64 LINUX definitions */
-#if defined IA64
+#if defined __ia64
 typedef char              *_fcd;
 typedef long              hsize_t_f;
 typedef long              hssize_t_f;
@@ -341,11 +347,11 @@ typedef float             real_f;
 #if !defined(FNAME_PRE_UNDERSCORE) && defined(FNAME_POST2_UNDERSCORE)
 #   define FNAME(x)     x##__
 #endif
-
+/*
 #  define HDfree(p)        (free((void*)p))
 #  define HDmalloc(s)      (malloc((size_t)s))
 #  define HDstrlen(s)       (strlen((const char *)(s))) 
 #  define HDmemcpy(dst,src,n)   (memcpy((void *)(dst),(const void *)(src),(size_t)(n)))
-
+*/
 
 #endif /* _H5f90i_H */

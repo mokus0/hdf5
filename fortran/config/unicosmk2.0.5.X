@@ -162,7 +162,9 @@ fi
 if test "X-" = "X-$f9x_flags_set"; then
     # -Wl passes flags to the linker and -M# will ignore warnings with
     # number #. Warning 405 was stopping the executable from being built.
-    FFLAGS="-dp -Wl-M405,412"
+    F9XSUFFIXFLAG=""
+    FSEARCH_DIRS=""
+    FFLAGS="-dp -Wl-M405"
     DEBUG_FFLAGS=""
     PROD_FFLAGS=""
     PROFILE_FFLAGS=""

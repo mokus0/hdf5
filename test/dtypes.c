@@ -19,6 +19,7 @@
  * Purpose:     Tests the data type interface (H5T)
  */
 
+#include <time.h>
 #include "h5test.h"
 
 /* Number of times to run each test */
@@ -227,7 +228,7 @@ generates_sigfpe(void)
 	for (i=0; i<2000; i++) {
 	    for (j=0; j<sizeof(double); j++) dp[j] = rand();
 	    f = (float)d;
-	    some_dummy_func(f);
+	    some_dummy_func((float)f);
 	}
 	exit(0);
     }
@@ -415,7 +416,7 @@ test_compound_1(void)
     } H5E_END_TRY;
     if (ret>=0) {
         H5_FAILED();
-        printf("Inserted compound type into itself?\n");
+        printf("Inserted compound datatype into itself?\n");
         goto error;
     } /* end if */
 
@@ -949,17 +950,23 @@ test_compound_6(void)
     /* Build hdf5 datatypes */
     if ((st=H5Tcreate(H5T_COMPOUND, sizeof(struct st)))<0 ||
             H5Tinsert(st, "b", HOFFSET(struct st, b), H5T_NATIVE_SHORT)<0 ||
-            H5Tinsert(st, "d", HOFFSET(struct st, d), H5T_NATIVE_SHORT)<0)
+            H5Tinsert(st, "d", HOFFSET(struct st, d), H5T_NATIVE_SHORT)<0) {
+        H5_FAILED();
         goto error;
+    }
     
     if ((dt=H5Tcreate(H5T_COMPOUND, sizeof(struct dt)))<0 ||
             H5Tinsert(dt, "b", HOFFSET(struct dt, b), H5T_NATIVE_LONG)<0 ||
-            H5Tinsert(dt, "d", HOFFSET(struct dt, d), H5T_NATIVE_LONG)<0)
+            H5Tinsert(dt, "d", HOFFSET(struct dt, d), H5T_NATIVE_LONG)<0) {
+        H5_FAILED();
         goto error;
+    }
     
     /* Perform the conversion */
-    if (H5Tconvert(st, dt, (hsize_t)nelmts, buf, bkg, H5P_DEFAULT)<0)
+    if (H5Tconvert(st, dt, (hsize_t)nelmts, buf, bkg, H5P_DEFAULT)<0) {
+        H5_FAILED();
         goto error;
+    }
 
     /* Compare results */
     for (i=0; i<nelmts; i++) {
@@ -981,7 +988,10 @@ test_compound_6(void)
     free(buf);
     free(bkg);
     free(orig);
-    if (H5Tclose(st)<0 || H5Tclose(dt)<0) goto error;
+    if (H5Tclose(st)<0 || H5Tclose(dt)<0) {
+        H5_FAILED();
+        goto error;
+    }
 
     PASSED();
     reset_hdf5();
@@ -1098,16 +1108,16 @@ test_compound_7(void)
 
 
 /*-------------------------------------------------------------------------
- * Function:	test_query
+ * Function:    test_query
  *
- * Purpose:	Tests query functions of compound and enumeration types.
+ * Purpose:     Tests query functions of compound and enumeration types.
  *
- * Return:	Success: 	0
- * 	
- *		Failure:	number of errors
+ * Return:      Success:        0
+ *      
+ *              Failure:        number of errors
  *
- * Programmer:	Raymond Lu
- *		Thursday, April 4, 2002
+ * Programmer:  Raymond Lu
+ *              Thursday, April 4, 2002
  *  
  * Modifications:
  *
@@ -1117,43 +1127,43 @@ static int
 test_query(void)
 {
     struct s1 {
-	int    a;
-	float  b;
-	long   c;
-	double d;
+        int    a;
+        float  b;
+        long   c;
+        double d;
     };
-    hid_t	file=-1, tid1=-1, tid2=-1;
-    char	filename[1024];
-    char	compnd_type[]="Compound_type", enum_type[]="Enum_type";
-    short	enum_val;
+    hid_t       file=-1, tid1=-1, tid2=-1;
+    char        filename[1024];
+    char        compnd_type[]="Compound_type", enum_type[]="Enum_type";
+    short       enum_val;
 
     TESTING("query functions of compound and enumeration types");
 
     /* Create File */
     h5_fixname(FILENAME[2], H5P_DEFAULT, filename, sizeof filename);
     if((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT))<0)
-	goto error;
+        goto error;
 
     /* Create a compound datatype */
     if((tid1=H5Tcreate(H5T_COMPOUND, sizeof(struct s1)))<0) { 
-	H5_FAILED();
-	printf("Can't create datatype!\n");
-	goto error;
+        H5_FAILED();
+        printf("Can't create datatype!\n");
+        goto error;
     } /* end if */
     if(H5Tinsert(tid1, "a", HOFFSET(struct s1, a), H5T_NATIVE_INT)<0) {
-	H5_FAILED();
-	printf("Can't insert field 'a'\n");
-	goto error;
+        H5_FAILED();
+        printf("Can't insert field 'a'\n");
+        goto error;
     } /* end if */
     if(H5Tinsert(tid1, "b", HOFFSET(struct s1, b), H5T_NATIVE_FLOAT)<0) {
-	H5_FAILED();
-	printf("Can't insert field 'b'\n");
-	goto error;
+        H5_FAILED();
+        printf("Can't insert field 'b'\n");
+        goto error;
     } /* end if */
     if(H5Tinsert(tid1, "c", HOFFSET(struct s1, c), H5T_NATIVE_LONG)<0) {
-	H5_FAILED();
-	printf("Can't insert field 'c'\n");
-	goto error;
+        H5_FAILED();
+        printf("Can't insert field 'c'\n");
+        goto error;
     } /* end if */
     if(H5Tinsert(tid1, "d", HOFFSET(struct s1, d), H5T_NATIVE_DOUBLE)<0) {
         H5_FAILED();
@@ -1301,12 +1311,12 @@ test_query(void)
  error:
     H5E_BEGIN_TRY {
         H5Tclose (tid1);
-	H5Tclose (tid2);
+        H5Tclose (tid2);
         H5Fclose (file);
     } H5E_END_TRY;
     return 1;
 }
- 
+
 
 /*-------------------------------------------------------------------------
  * Function:	test_transient
@@ -2034,6 +2044,93 @@ test_conv_enum_1(void)
     if (buf) free(buf);
     reset_hdf5();
     return ret_value;
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:    test_conv_enum_2
+ *
+ * Purpose:     Tests enumeration conversions where source isn't a native type.
+ *
+ * Return:      Success:        0
+ *      
+ *              Failure:        number of errors
+ *
+ * Programmer:  Robb Matzke, LLNL, 2003-06-09
+ *  
+ * Modifications:
+ *-------------------------------------------------------------------------
+ */
+static int
+test_conv_enum_2(void)
+{
+    hid_t       srctype=-1, dsttype=-1, oddsize=-1;
+    int         *data=NULL, i, nerrors=0;
+    const char  *mname[] = { "RED",
+                             "GREEN",
+                             "BLUE",
+                             "YELLOW",
+                             "PINK",
+                             "PURPLE",
+                             "ORANGE",
+                             "WHITE" };
+
+    TESTING("non-native enumeration type conversion");
+
+    /* Source enum type */
+    oddsize = H5Tcopy(H5T_STD_I32BE);
+    H5Tset_size(oddsize, 3); /*reduce to 24 bits, not corresponding to any native size*/
+    srctype = H5Tenum_create(oddsize);
+    for (i=7; i>=0; --i) {
+        char pattern[3];
+        pattern[2] = i;
+        pattern[0] = pattern[1] = 0;
+        H5Tenum_insert(srctype, mname[i], pattern);
+    }
+
+    /* Destination enum type */
+    dsttype = H5Tenum_create(H5T_NATIVE_INT);
+    assert(H5Tget_size(dsttype)>H5Tget_size(srctype));
+    for (i=0; i<8; i++)
+        H5Tenum_insert(dsttype, mname[i], &i);
+
+    /* Source data */
+    data = malloc(NTESTELEM*sizeof(int));
+    for (i=0; i<NTESTELEM; i++) {
+        ((char*)data)[i*3+2] = i % 8;
+        ((char*)data)[i*3+0] = 0;
+        ((char*)data)[i*3+1] = 0;
+    }
+
+    /* Convert to destination type */
+    H5Tconvert(srctype, dsttype, (hsize_t)NTESTELEM, data, NULL, H5P_DEFAULT);
+
+    /* Check results */
+    for (i=0; i<NTESTELEM; i++) {
+        if (data[i] != i%8) {
+            if (!nerrors++) {
+                H5_FAILED();
+                printf("element %d is %d but should have been  %d\n",
+                       i, data[i], i%8);
+            }
+        }
+    }
+
+    /* Cleanup */
+    free(data);
+    H5Tclose(srctype);
+    H5Tclose(dsttype);
+    H5Tclose(oddsize);
+
+    /* Failure */
+    if (nerrors) {
+        printf("total of %d conversion errors out of %d elements for enums\n",
+               nerrors, NTESTELEM);
+        return 1;
+    }
+    
+    PASSED();
+    return 0;
 }
 
 
@@ -3570,7 +3667,9 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
      * The remainder of this function is executed only by the child if
      * HANDLE_SIGFPE is defined.
      */
+#ifndef __WATCOMC__
     signal(SIGFPE,fpe_handler);
+#endif
 
     /* What are the names of the source and destination types */
     if (H5Tequal(src, H5T_NATIVE_FLOAT)) {
@@ -4103,6 +4202,9 @@ main(void)
     unsigned long	nerrors = 0;
     hid_t		fapl=-1;
 
+    /* Set the random # seed */
+    HDsrandom((unsigned long)time(NULL));
+
     reset_hdf5();
     fapl = h5_fileaccess();
 
@@ -4131,6 +4233,7 @@ main(void)
     nerrors += test_compound_7();
     nerrors += test_conv_int ();
     nerrors += test_conv_enum_1();
+    nerrors += test_conv_enum_2();
     nerrors += test_conv_bitfield();
     nerrors += test_opaque();
 

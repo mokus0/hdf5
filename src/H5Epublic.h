@@ -100,7 +100,10 @@ typedef enum H5E_major_t {
     H5E_EFL,                    /*External file list                         */
     H5E_REFERENCE,              /*References                                 */
     H5E_VFL,			/*Virtual File Layer			     */
-    H5E_TBBT 		        /*Threaded, Balanced, Binary Trees           */
+    H5E_TBBT, 		        /*Threaded, Balanced, Binary Trees           */
+    H5E_FPHDF5,		        /*Flexible Parallel HDF5                     */
+    H5E_TST, 		        /*Ternary Search Trees                       */
+    H5E_RS  		        /*Reference Counted Strings                  */
 } H5E_major_t;
 
 /* Declare an enumerated type which holds all the valid minor HDF error codes */
@@ -119,6 +122,8 @@ typedef enum H5E_minor_t {
     H5E_CANTCOPY,               /*unable to copy object                      */
     H5E_CANTFREE,               /*unable to free object                      */
     H5E_ALREADYEXISTS,          /*Object already exists */
+    H5E_CANTLOCK,               /*Unable to lock object                      */
+    H5E_CANTUNLOCK,             /*Unable to unlock object                    */
 
     /* File accessability errors */
     H5E_FILEEXISTS,             /*file already exists                        */
@@ -140,14 +145,17 @@ typedef enum H5E_minor_t {
     H5E_FCNTL,                  /*file fcntl failed                          */
 
     /* Function entry/exit interface errors */
-    H5E_CANTINIT,               /*Can't initialize                           */
+    H5E_CANTINIT,               /*Can't initialize object                    */
     H5E_ALREADYINIT,            /*object already initialized                 */
+    H5E_CANTRELEASE,            /*Can't release object                       */
 
     /* Object atom related errors */
     H5E_BADATOM,                /*Can't find atom information                */
+    H5E_BADGROUP,               /*Can't find group information               */
     H5E_CANTREGISTER,           /*Can't register new atom                    */
     H5E_CANTINC,                /*Can't increment reference count            */
     H5E_CANTDEC,                /*Can't decrement reference count            */
+    H5E_NOIDS,                  /*Out of IDs for group                       */
 
     /* Cache related errors */
     H5E_CANTFLUSH,              /*Can't flush object from cache              */
@@ -179,19 +187,39 @@ typedef enum H5E_minor_t {
     H5E_SLINK,			/*symbolic link error			     */
 
     /* Datatype conversion errors */
-    H5E_CANTCONVERT,            /*Can't convert datatypes */
+    H5E_CANTCONVERT,            /*Can't convert datatypes                    */
+    H5E_BADSIZE,                /*Bad size for object                        */
 
     /* Dataspace errors */
-    H5E_CANTCLIP,               /*Can't clip hyperslab region */
-    H5E_CANTCOUNT,              /*Can't count elements */
+    H5E_CANTCLIP,               /*Can't clip hyperslab region                */
+    H5E_CANTCOUNT,              /*Can't count elements                       */
+    H5E_CANTSELECT,             /*Can't select hyperslab                     */
+    H5E_CANTNEXT,               /*Can't move to next iterator location       */
+    H5E_BADSELECT,              /*Invalid selection                          */
+    H5E_CANTCOMPARE,            /*Can't compare objects                      */
 
     /* Property list errors */
-    H5E_CANTGET,                /*Can't get value */
-    H5E_CANTSET,                /*Can't set value */
+    H5E_CANTGET,                /*Can't get value                            */
+    H5E_CANTSET,                /*Can't set value                            */
+    H5E_DUPCLASS,               /*Duplicate class name in parent class */
 
     /* Parallel errors */
     H5E_MPI,			/*some MPI function failed		     */
-    H5E_MPIERRSTR		/*MPI Error String 			     */
+    H5E_MPIERRSTR,		/*MPI Error String 			     */
+
+    /* FPHDF5 errors */
+    H5E_CANTMAKETREE,           /*can't make a TBBT tree                     */
+    H5E_CANTRECV,               /*can't receive messages from processes      */
+    H5E_CANTSENDMDATA,          /*can't send metadata message                */
+    H5E_CANTCHANGE,             /*can't register change on server            */
+    H5E_CANTALLOC,              /*can't allocate from file                   */
+
+    /* I/O pipeline errors */
+    H5E_NOFILTER,               /*requested filter is not available          */
+    H5E_CALLBACK,               /*callback failed                            */
+    H5E_CANAPPLY,               /*error from filter "can apply" callback     */
+    H5E_SETLOCAL                /*error from filter "set local" callback     */
+
 } H5E_minor_t;
 
 /* Information about an error */
@@ -224,7 +252,6 @@ H5_DLL herr_t H5Eclear (void);
 H5_DLL herr_t H5Eprint (FILE *stream);
 H5_DLL herr_t H5Ewalk (H5E_direction_t direction, H5E_walk_t func,
 			void *client_data);
-H5_DLL herr_t H5Ewalk_cb (int n, H5E_error_t *err_desc, void *client_data);
 H5_DLL const char *H5Eget_major (H5E_major_t major_number);
 H5_DLL const char *H5Eget_minor (H5E_minor_t minor_number);
 H5_DLL herr_t H5Epush(const char *file, const char *func,

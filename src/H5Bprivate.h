@@ -24,15 +24,16 @@
  *
  *-------------------------------------------------------------------------
  */
+
 #ifndef _H5Bprivate_H
 #define _H5Bprivate_H
 
 #include "H5Bpublic.h"		/*API prototypes			     */
 
 /* Private headers needed by this file */
-#include "H5private.h"
-#include "H5Fprivate.h"
-#include "H5ACprivate.h"	/*cache                                      */
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5ACprivate.h"	/* Metadata cache			*/
+#include "H5Fprivate.h"		/* File access				*/
 
 /*
  * Feature: Define this constant if you want to check B-tree consistency
@@ -45,14 +46,7 @@
 #endif
 #define H5B_MAGIC	"TREE"		/*tree node magic number	     */
 #define H5B_SIZEOF_MAGIC 4		/*size of magic number		     */
-#define H5B_SIZEOF_HDR(F)						      \
-   (H5B_SIZEOF_MAGIC +		/*magic number				  */  \
-    4 +				/*type, level, num entries		  */  \
-    2*H5F_SIZEOF_ADDR(F))	/*left and right sibling addresses	  */
      
-#define H5B_K(F,TYPE)		/*K value given file and Btree subclass   */  \
-   ((F)->shared->fcpl->btree_k[(TYPE)->id])
-
 typedef enum H5B_ins_t {
     H5B_INS_ERROR	 = -1,	/*error return value			     */
     H5B_INS_NOOP	 = 0,	/*insert made no changes		     */
@@ -63,10 +57,20 @@ typedef enum H5B_ins_t {
     H5B_INS_REMOVE	 = 5	/*remove current node			     */
 } H5B_ins_t;
 
-typedef enum H5B_subid_t {
-    H5B_SNODE_ID	 = 0,	/*B-tree is for symbol table nodes	     */
-    H5B_ISTORE_ID	 = 1	/*B-tree is for indexed object storage	     */
-} H5B_subid_t;
+/* Define return values from operator callback function for H5B_iterate */
+/* (Actually, any postive value will cause the iterator to stop and pass back
+ *      that positive value to the function that called the iterator)
+ */
+#define H5B_ITER_ERROR  (-1)
+#define H5B_ITER_CONT   (0)
+#define H5B_ITER_STOP   (1)
+
+/* Define the operator callback function pointer for H5B_iterate() */
+typedef int (*H5B_operator_t)(H5F_t *f, hid_t, void *_lt_key, haddr_t addr,
+                                        void *_rt_key, void *_udata);
+
+/* Typedef for B-tree in memory (defined in H5Bpkg.h) */
+typedef struct H5B_t H5B_t;
 
 /*
  * Each class of object that can be pointed to by a B-link tree has a
@@ -75,15 +79,14 @@ typedef enum H5B_subid_t {
  * has an array of K values indexed by the `id' class field below.  The
  * array is initialized with the HDF5_BTREE_K_DEFAULT macro.
  */
-struct H5B_t;				/*forward decl			     */
 
 typedef struct H5B_class_t {
     H5B_subid_t id;					/*id as found in file*/
     size_t	sizeof_nkey;			/*size of native (memory) key*/
     size_t	(*get_sizeof_rkey)(H5F_t*, const void*);    /*raw key size   */
     herr_t	(*new_node)(H5F_t*, hid_t, H5B_ins_t, void*, void*, void*, haddr_t*);
-    int	(*cmp2)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 2 keys */
-    int	(*cmp3)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 3 keys */
+    int         (*cmp2)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 2 keys */
+    int         (*cmp3)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 3 keys */
     herr_t	(*found)(H5F_t*, hid_t, haddr_t, const void*, void*, const void*);
     
     /* insert new data */
@@ -98,54 +101,29 @@ typedef struct H5B_class_t {
     H5B_ins_t	(*remove)(H5F_t*, hid_t, haddr_t, void*, hbool_t*, void*, void*,
 			  hbool_t*);
 
-    /* iterate through the leaf nodes */
-    herr_t	(*list)(H5F_t*, hid_t, void*, haddr_t, void*, void*);
-
     /* encode, decode, debug key values */
     herr_t	(*decode)(H5F_t*, struct H5B_t*, uint8_t*, void*);
     herr_t	(*encode)(H5F_t*, struct H5B_t*, uint8_t*, void*);
     herr_t	(*debug_key)(FILE*, H5F_t*, hid_t, int, int, const void*, const void*);
+
 } H5B_class_t;
-
-/*
- * The B-tree node as stored in memory...
- */
-typedef struct H5B_key_t {
-    hbool_t	dirty;	/*native key is more recent than raw key	     */
-    uint8_t	*rkey;	/*ptr into node->page for raw key		     */
-    void	*nkey;	/*null or ptr into node->native for key		     */
-} H5B_key_t;
-
-typedef struct H5B_t {
-    H5AC_info_t cache_info; /* Information for H5AC cache functions, _must_ be */
-                            /* first field in structure */
-    const H5B_class_t	*type;		/*type of tree			     */
-    size_t		sizeof_rkey;	/*size of raw (disk) key	     */
-    int		ndirty;		/*num child ptrs to emit	     */
-    int		level;		/*node level			     */
-    haddr_t		left;		/*address of left sibling	     */
-    haddr_t		right;		/*address of right sibling	     */
-    int		nchildren;	/*number of child pointers	     */
-    uint8_t		*page;		/*disk page			     */
-    uint8_t		*native;	/*array of keys in native format     */
-    H5B_key_t		*key;		/*2k+1 key entries		     */
-    haddr_t		*child;		/*2k child pointers		     */
-} H5B_t;
 
 /*
  * Library prototypes.
  */
-H5_DLL herr_t H5B_debug (H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
-			  int indent, int fwidth, const H5B_class_t *type,
-			  void *udata);
 H5_DLL herr_t H5B_create (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, void *udata,
 			   haddr_t *addr_p/*out*/);
 H5_DLL herr_t H5B_find (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			 void *udata);
 H5_DLL herr_t H5B_insert (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			   const double split_ratios[], void *udata);
+H5_DLL herr_t H5B_iterate (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, H5B_operator_t
+                            op, haddr_t addr, void *udata);
 H5_DLL herr_t H5B_remove(H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			  void *udata);
-H5_DLL herr_t H5B_iterate (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
-			    void *udata);
+H5_DLL herr_t H5B_delete(H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
+                        void *udata);
+H5_DLL herr_t H5B_debug (H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
+			  int indent, int fwidth, const H5B_class_t *type,
+			  void *udata);
 #endif

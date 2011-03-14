@@ -8,7 +8,7 @@
  *
  * Purpose:	The public header file for the Stream Virtual File Driver.
  *
- * Version: $Header: /afs/ncsa/projects/hdf/cvs/hdf5/src/H5FDstream.h,v 1.3.2.4 2002/09/23 14:14:02 ymuqun Exp $
+ * Version: $Header: /afs/ncsa/projects/hdf/cvs/hdf5/src/H5FDstream.h,v 1.8 2002/09/20 20:36:00 ymuqun Exp $
  *
  * Modifications:
  *          Thomas Radke, Thursday, October 26, 2000
@@ -19,8 +19,6 @@
 #define H5FDstream_H
 
 #ifdef H5_HAVE_STREAM
-
-#include "H5Ipublic.h"
 
 /* check what sockets type we have (Unix or Windows sockets)
    Note that only MS compilers require to use Windows sockets

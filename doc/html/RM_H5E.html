@@ -1,4 +1,9 @@
 <html>
+<head><title>
+HDF5/H5E API Specification
+</title>
+
+<!-- #BeginLibraryItem "/ed_libs/styles_RM.lbi" -->
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -16,22 +21,19 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
-<head>
-<title>
-HDF5/H5E API Specification
-</title>
-</head>
+<link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 
 
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
+<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
-<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
+<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -43,7 +45,7 @@ And in this document, the
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
-H5E&nbsp;&nbsp;
+<a href="RM_H5E.html">H5E</a>&nbsp;&nbsp;
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
@@ -59,9 +61,7 @@ H5E&nbsp;&nbsp;
 </table>
 </center>
 <hr>
-
-
-<center>
+<!-- #EndLibraryItem --><center>
 <h1>H5E: Error Interface</h1>
 </center>
 
@@ -93,6 +93,35 @@ These functions provide error handling capabilities in the HDF5 environment.
 </ul>
 </td></tr>
 </table>
+<br>
+
+<i>Alphabetical Listing</i>
+
+<table border="0">
+  <tr>
+    <td valign="top">
+      <li><a href="#Error-Clear">H5Eclear</a>
+      <li><a href="#Error-GetAuto">H5Eget_auto</a>
+      <li><a href="#Error-GetMajor">H5Eget_major</a>     
+    </td>
+    
+    <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+    
+    <td valign="top">
+      <li><a href="#Error-GetMinor">H5Eget_minor</a>
+      <li><a href="#Error-Print">H5Eprint</a>
+      <li><a href="#Error-Push">H5Epush</a>
+    </td>
+    
+    <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+    
+    <td valign="top">
+      <li><a href="#Error-SetAuto">H5Eset_auto</a>
+      <li><a href="#Error-Walk">H5Ewalk</a>
+      <li><a href="#Error-WalkCB">H5Ewalk_cb</a>
+    </td>
+  </tr>
+</table>
 
 <p>
 <strong>The FORTRAN90 Interfaces:</strong>
@@ -112,13 +141,13 @@ facilitate moving easily between them.</i>
 <table border=0>
 <tr><td valign=top>
 <ul>
-    <li><a href="#Error-SetAuto">h5eset_auto_f</a>
-<!--<li><a href="#Error-GetAuto">h5eget_auto_f</a>                    -->
     <li><a href="#Error-Clear">h5eclear_f</a>
+    <li><a href="#Error-Print">h5eprint_f</a>
 </ul>
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
-    <li><a href="#Error-Print">h5eprint_f</a>
+    <li><a href="#Error-SetAuto">h5eset_auto_f</a>
+<!--<li><a href="#Error-GetAuto">h5eget_auto_f</a>                    -->
 <!--<li><a href="#Error-Walk">h5ewalk_f</a>                          -->
 <!--<li><a href="#Error-WalkCB">h5ewalk_cb_f</a>                     -->
 </ul>
@@ -139,11 +168,11 @@ As the functions unwind, additional entries are pushed onto the stack.
 The API function will return some indication that an error occurred and 
 the application can print the error stack.
 <p>
-Certain API functions in the H5E package, such as <code>H5Eprint()</code>,
+Certain API functions in the H5E package, such as <code>H5Eprint</code>,
 do not clear the error stack.  Otherwise, any function which
 does not have an underscore immediately after the package name
-will clear the error stack.  For instance, <code>H5Fopen()</code> 
-clears the error stack while <code>H5F_open()</code> does not.
+will clear the error stack.  For instance, <code>H5Fopen</code> 
+clears the error stack while <code>H5F_open</code> does not.
 <p>
 An error stack has a fixed maximum size.  
 If this size is exceeded then the stack will be truncated and only the
@@ -174,7 +203,7 @@ errors within the H5E package.
         as an argument.
         <p>
         When the library is first initialized the auto printing function 
-	  is set to <code>H5Eprint()</code> (cast appropriately) and
+	  is set to <code>H5Eprint</code> (cast appropriately) and
 	  <code>client_data</code> is the standard error stream pointer,
 	  <code>stderr</code>.
         <p>
@@ -249,7 +278,7 @@ errors within the H5E package.
     <dd><code>H5Eclear</code> clears the error stack for the current thread.
         <p>
         The stack is also cleared whenever an API function is called, 
-	  with certain exceptions (for instance, <code>H5Eprint()</code>).
+	  with certain exceptions (for instance, <code>H5Eprint</code>).
         <p>
         <code>H5Eclear</code> can fail if there are problems initializing 
         the library.
@@ -342,8 +371,8 @@ errors within the H5E package.
 	  <code>HDF5-DIAG: Error detected in thread 0.</code>
         <p>
         <code>H5Eprint</code> is a convenience function for 
-        <code>H5Ewalk()</code> with a function that prints error messages.  
-        Users are encouraged to write there own more specific error handlers.
+        <code>H5Ewalk</code> with a function that prints error messages.  
+        Users are encouraged to write their own more specific error handlers.
 <dt><strong>Parameters:</strong>
     <dl>
         <dt><em>FILE *</em> <code>stream</code>
@@ -456,8 +485,8 @@ errors within the H5E package.
     <dd><code>H5Ewalk_cb</code> is a default error stack traversal callback
         function that prints error messages to the specified output stream.
         It is not meant to be called directly but rather as an
-        argument to the <code>H5Ewalk()</code> function.  
-        This function is called also by <code>H5Eprint()</code>.  
+        argument to the <code>H5Ewalk</code> function.  
+        This function is called also by <code>H5Eprint</code>.  
         Application writers are encouraged to use this function as a 
         model for their own error stack walking functions.
         <p>
@@ -471,7 +500,7 @@ errors within the H5E package.
         information about a particular error. 
         <p>
         <code>client_data</code> is the same pointer that was passed as the
-        <code>client_data</code> argument of <code>H5Ewalk()</code>.  
+        <code>client_data</code> argument of <code>H5Ewalk</code>.  
         It is expected to be a file pointer (or stderr if NULL). 
 <dt><strong>Parameters:</strong>
     <dl>
@@ -556,13 +585,13 @@ errors within the H5E package.
 </dl>
 
 
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
+<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
-<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
+<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -574,7 +603,7 @@ And in this document, the
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
-H5E&nbsp;&nbsp;
+<a href="RM_H5E.html">H5E</a>&nbsp;&nbsp;
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
@@ -590,15 +619,13 @@ H5E&nbsp;&nbsp;
 </table>
 </center>
 <hr>
-
-
-<address>
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
-
 <br>
-Last modified:  1 February 2002
-<br>
-Describes HDF5 Release 1.4.5, February 2003
-
+Describes HDF5 Release 1.6.0, July 2003
+</address><!-- #EndLibraryItem -->
+ 
+Last modified: 6 June 2003
+ 
 </body>
 </html>

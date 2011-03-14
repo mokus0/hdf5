@@ -12,17 +12,16 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Odtype.c,v 1.51.2.7 2003/01/23 22:15:42 koziol Exp $ */
+#define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
+#define H5T_PACKAGE		/*prevent warning from including H5Tpkg   */
 
-#define H5T_PACKAGE		/*prevent warning from including H5Tpkg.h */
-
-#include "H5private.h"
-#include "H5Eprivate.h"
-#include "H5FLprivate.h"	/*Free Lists	  */
-#include "H5Gprivate.h"
-#include "H5MMprivate.h"
-#include "H5Oprivate.h"
-#include "H5Tpkg.h"
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Eprivate.h"		/* Error handling		  	*/
+#include "H5FLprivate.h"	/* Free Lists				*/
+#include "H5Gprivate.h"		/* Groups				*/
+#include "H5MMprivate.h"	/* Memory management			*/
+#include "H5Opkg.h"             /* Object headers			*/
+#include "H5Tpkg.h"		/* Datatypes				*/
 
 #define PABLO_MASK	H5O_dtype_mask
 
@@ -50,7 +49,8 @@ const H5O_class_t H5O_DTYPE[1] = {{
     H5O_dtype_copy,		/* copy the native value	*/
     H5O_dtype_size,		/* size of raw message		*/
     H5O_dtype_reset,		/* reset method			*/
-    H5O_dtype_free,		    /* free method			*/
+    H5O_dtype_free,		/* free method			*/
+    NULL,		        /* file delete method		*/
     H5O_dtype_get_share,	/* get share method		*/
     H5O_dtype_set_share,	/* set share method		*/
     H5O_dtype_debug,		/* debug the message		*/
@@ -94,8 +94,9 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
     unsigned		flags, version;
     int		i, j;
     size_t		z;
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5O_dtype_decode_helper, FAIL);
+    FUNC_ENTER_NOINIT(H5O_dtype_decode_helper);
 
     /* check args */
     assert(pp && *pp);
@@ -104,10 +105,8 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
     /* decode */
     UINT32DECODE(*pp, flags);
     version = (flags>>4) & 0x0f;
-    if (version!=H5O_DTYPE_VERSION_COMPAT && version!=H5O_DTYPE_VERSION_UPDATED) {
-        HRETURN_ERROR(H5E_DATATYPE, H5E_CANTLOAD, FAIL,
-		      "bad version number for data type message");
-    }
+    if (version!=H5O_DTYPE_VERSION_COMPAT && version!=H5O_DTYPE_VERSION_UPDATED)
+        HGOTO_ERROR(H5E_DATATYPE, H5E_CANTLOAD, FAIL, "bad version number for data type message");
     dt->type = (H5T_class_t)(flags & 0x0f);
     flags >>= 8;
     UINT32DECODE(*pp, dt->size);
@@ -142,10 +141,8 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
              */
             z = flags & 0xff;
             assert(0==(z&0x7)); /*must be aligned*/
-            if (NULL==(dt->u.opaque.tag=H5MM_malloc(z+1))) {
-                HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
-                      "memory allocation failed");
-            }
+            if (NULL==(dt->u.opaque.tag=H5MM_malloc(z+1)))
+                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
             HDmemcpy(dt->u.opaque.tag, *pp, z);
             dt->u.opaque.tag[z] = '\0';
             *pp += z;
@@ -170,8 +167,7 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
                     dt->u.atomic.u.f.norm = H5T_NORM_IMPLIED;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "unknown floating-point normalization");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "unknown floating-point normalization");
             }
             dt->u.atomic.u.f.sign = (flags >> 8) & 0xff;
             UINT16DECODE(*pp, dt->u.atomic.offset);
@@ -194,10 +190,8 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
             dt->u.compnd.nalloc = dt->u.compnd.nmembs;
             dt->u.compnd.memb = H5MM_calloc(dt->u.compnd.nalloc*
                             sizeof(H5T_cmemb_t));
-            if (NULL==dt->u.compnd.memb) {
-                HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
-                       "memory allocation failed");
-            }
+            if (NULL==dt->u.compnd.memb)
+                HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
             for (i = 0; i < dt->u.compnd.nmembs; i++) {
                 int ndims=0;     /* Number of dimensions of the array field */
                 hsize_t dim[H5O_LAYOUT_NDIMS];  /* Dimensions of the array */
@@ -235,11 +229,9 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
                 } /* end if */
 
                 /* Allocate space for the field's datatype */
-                temp_type = H5FL_ALLOC (H5T_t,1);
-                if (NULL==temp_type) {
-                    HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
-                           "memory allocation failed");
-                }
+                temp_type = H5FL_CALLOC (H5T_t);
+                if (NULL==temp_type)
+                    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
                 temp_type->ent.header = HADDR_UNDEF;
 
                 /* Decode the field's datatype information */
@@ -247,7 +239,7 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
                     for (j=0; j<=i; j++)
                         H5MM_xfree(dt->u.compnd.memb[j].name);
                     H5MM_xfree(dt->u.compnd.memb);
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "unable to decode member type");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "unable to decode member type");
                 }
 
                 /* Go create the array datatype now, for older versions of the datatype message */
@@ -263,7 +255,7 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
                             for (j=0; j<=i; j++)
                                 H5MM_xfree(dt->u.compnd.memb[j].name);
                             H5MM_xfree(dt->u.compnd.memb);
-                            HRETURN_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to create array datatype");
+                            HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to create array datatype");
                         }
 
                         /* Close the base type for the array */
@@ -299,22 +291,15 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
              */
             dt->u.enumer.nmembs = dt->u.enumer.nalloc = flags & 0xffff;
             assert(dt->u.enumer.nmembs>=0);
-            if (NULL==(dt->parent=H5FL_ALLOC(H5T_t,1))) {
-                HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
-                      "memory allocation failed");
-            }
+            if (NULL==(dt->parent=H5FL_CALLOC(H5T_t)))
+                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
             dt->parent->ent.header = HADDR_UNDEF;
-            if (H5O_dtype_decode_helper(f, pp, dt->parent)<0) {
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL,
-                      "unable to decode parent data type");
-            }
-            if (NULL==(dt->u.enumer.name=H5MM_calloc(dt->u.enumer.nalloc *
-                                 sizeof(char*))) ||
-                NULL==(dt->u.enumer.value=H5MM_calloc(dt->u.enumer.nalloc *
-                                  dt->parent->size))) {
-                HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
-                      "memory allocation failed");
-            }
+            if (H5O_dtype_decode_helper(f, pp, dt->parent)<0)
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "unable to decode parent data type");
+            if (NULL==(dt->u.enumer.name=H5MM_calloc(dt->u.enumer.nalloc * sizeof(char*))) ||
+                    NULL==(dt->u.enumer.value=H5MM_calloc(dt->u.enumer.nalloc *
+                    dt->parent->size)))
+                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
 
             /* Names, each a multiple of 8 with null termination */
             for (i=0; i<dt->u.enumer.nmembs; i++) {
@@ -355,24 +340,21 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
             /* Set the type of VL information, either sequence or string */
             dt->u.vlen.type = (H5T_vlen_type_t)(flags & 0x0f);
             if(dt->u.vlen.type == H5T_VLEN_STRING) {
-		dt->u.vlen.pad  = (H5T_str_t)((flags>>4) & 0x0f);
-		dt->u.vlen.cset = (H5T_cset_t)((flags>>8) & 0x0f);
+                dt->u.vlen.pad  = (H5T_str_t)((flags>>4) & 0x0f);
+                dt->u.vlen.cset = (H5T_cset_t)((flags>>8) & 0x0f);
             } /* end if */
 
             /* Decode base type of VL information */
-            if (NULL==(dt->parent = H5FL_ALLOC(H5T_t,1)))
-                HRETURN_ERROR (H5E_DATATYPE, H5E_NOSPACE, FAIL,
-			       "memory allocation failed");
+            if (NULL==(dt->parent = H5FL_CALLOC(H5T_t)))
+                HGOTO_ERROR (H5E_DATATYPE, H5E_NOSPACE, FAIL, "memory allocation failed");
             dt->parent->ent.header = HADDR_UNDEF;
             if (H5O_dtype_decode_helper(f, pp, dt->parent)<0)
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL,
-			      "unable to decode VL parent type");
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "unable to decode VL parent type");
 
             dt->force_conv=TRUE;
             /* Mark this type as on disk */
             if (H5T_vlen_mark(dt, f, H5T_VLEN_DISK)<0)
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL,
-			      "invalid VL location");
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "invalid VL location");
             break;
 
         case H5T_TIME:  /* Time datatypes */
@@ -401,11 +383,11 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
                 UINT32DECODE(*pp, dt->u.array.perm[j]);
 
             /* Decode base type of array */
-            if (NULL==(dt->parent = H5FL_ALLOC(H5T_t,1)))
-                HRETURN_ERROR (H5E_DATATYPE, H5E_NOSPACE, FAIL, "memory allocation failed");
+            if (NULL==(dt->parent = H5FL_CALLOC(H5T_t)))
+                HGOTO_ERROR (H5E_DATATYPE, H5E_NOSPACE, FAIL, "memory allocation failed");
             dt->parent->ent.header = HADDR_UNDEF;
             if (H5O_dtype_decode_helper(f, pp, dt->parent)<0)
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "unable to decode VL parent type");
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "unable to decode VL parent type");
 
             /*
              * Set the "force conversion" flag if a VL base datatype is used or
@@ -416,11 +398,11 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
             break;
 
         default:
-            HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                  "unknown datatype class found");
+            HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "unknown datatype class found");
     }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -444,10 +426,11 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
 {
     unsigned		flags = 0;
     char		*hdr = (char *)*pp;
-    int			i, j;
+    int		i, j;
     size_t		n, z, aligned;
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5O_dtype_encode_helper, FAIL);
+    FUNC_ENTER_NOINIT(H5O_dtype_encode_helper);
 
     /* check args */
     assert(pp && *pp);
@@ -469,8 +452,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x01;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "byte order is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "byte order is not supported in file format yet");
             }
 
             switch (dt->u.atomic.lsb_pad) {
@@ -480,8 +462,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x02;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             switch (dt->u.atomic.msb_pad) {
@@ -491,8 +472,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x04;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             switch (dt->u.atomic.u.i.sign) {
@@ -502,8 +482,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x08;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "sign scheme is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "sign scheme is not supported in file format yet");
             }
 
             UINT16ENCODE(*pp, dt->u.atomic.offset);
@@ -521,8 +500,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x01;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "byte order is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "byte order is not supported in file format yet");
             }
 
             switch (dt->u.atomic.lsb_pad) {
@@ -532,8 +510,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x02;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             switch (dt->u.atomic.msb_pad) {
@@ -543,8 +520,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x04;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             UINT16ENCODE(*pp, dt->u.atomic.offset);
@@ -576,8 +552,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x01;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "byte order is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "byte order is not supported in file format yet");
             }
 
             switch (dt->u.atomic.lsb_pad) {
@@ -587,8 +562,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x02;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             switch (dt->u.atomic.msb_pad) {
@@ -598,8 +572,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x04;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             switch (dt->u.atomic.u.f.pad) {
@@ -609,8 +582,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x08;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "bit padding is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "bit padding is not supported in file format yet");
             }
 
             switch (dt->u.atomic.u.f.norm) {
@@ -623,8 +595,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x20;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "normalization scheme is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "normalization scheme is not supported in file format yet");
             }
 
             flags |= (dt->u.atomic.u.f.sign << 8) & 0xff00;
@@ -683,10 +654,8 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                 } /* end if */
 
                 /* Subtype */
-                if (H5O_dtype_encode_helper(pp, dt->u.compnd.memb[i].type)<0) {
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL,
-                          "unable to encode member type");
-                }
+                if (H5O_dtype_encode_helper(pp, dt->u.compnd.memb[i].type)<0)
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "unable to encode member type");
             }
             break;
 
@@ -697,10 +666,8 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
             flags = dt->u.enumer.nmembs & 0xffff;
 
             /* Parent type */
-            if (H5O_dtype_encode_helper(pp, dt->parent)<0) {
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL,
-                      "unable to encode parent data type");
-            }
+            if (H5O_dtype_encode_helper(pp, dt->parent)<0)
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "unable to encode parent data type");
             
             /* Names, each a multiple of eight bytes */
             for (i=0; i<dt->u.enumer.nmembs; i++) {
@@ -735,16 +702,15 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
             break;
 
         case H5T_VLEN:  /* Variable length datatypes...  */
-	    flags |= (dt->u.vlen.type  & 0x0f);
+            flags |= (dt->u.vlen.type & 0x0f);
             if(dt->u.vlen.type == H5T_VLEN_STRING) {
-	        flags |= (dt->u.vlen.pad   & 0x0f) << 4;
-	        flags |= (dt->u.vlen.cset  & 0x0f) << 8;
+                flags |= (dt->u.vlen.pad   & 0x0f) << 4;
+                flags |= (dt->u.vlen.cset  & 0x0f) << 8;
             } /* end if */
 
             /* Encode base type of VL information */
-            if (H5O_dtype_encode_helper(pp, dt->parent)<0) {
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "unable to encode VL parent type");
-            }
+            if (H5O_dtype_encode_helper(pp, dt->parent)<0)
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "unable to encode VL parent type");
             break;
 
         case H5T_TIME:  /* Time datatypes...  */
@@ -755,8 +721,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                     flags |= 0x01;
                     break;
                 default:
-                    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
-                          "byte order is not supported in file format yet");
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "byte order is not supported in file format yet");
             }
             UINT16ENCODE(*pp, dt->u.atomic.prec);
             break;
@@ -783,7 +748,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
 
             /* Encode base type of array's information */
             if (H5O_dtype_encode_helper(pp, dt->parent)<0)
-                HRETURN_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "unable to encode VL parent type");
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "unable to encode VL parent type");
             break;
 
         default:
@@ -796,9 +761,11 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
     *hdr++ = (flags >> 8) & 0xff;
     *hdr++ = (flags >> 16) & 0xff;
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
+
 /*--------------------------------------------------------------------------
  NAME
     H5O_dtype_decode
@@ -822,26 +789,33 @@ H5O_dtype_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p,
 		 H5O_shared_t UNUSED *sh)
 {
     H5T_t		   *dt = NULL;
+    void                *ret_value;     /* Return value */
 
-    FUNC_ENTER(H5O_dtype_decode, NULL);
+    FUNC_ENTER_NOAPI(H5O_dtype_decode, NULL);
 
     /* check args */
     assert(p);
 
-    if (NULL==(dt = H5FL_ALLOC(H5T_t,1))) {
-        HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		       "memory allocation failed");
-    }
+    if (NULL==(dt = H5FL_CALLOC(H5T_t)))
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     dt->ent.header = HADDR_UNDEF;
 
-    if (H5O_dtype_decode_helper(f, &p, dt) < 0) {
-        H5FL_FREE(H5T_t,dt);
-        HRETURN_ERROR(H5E_DATATYPE, H5E_CANTDECODE, NULL,
-		      "can't decode type");
-    }
-    FUNC_LEAVE(dt);
+    if (H5O_dtype_decode_helper(f, &p, dt) < 0)
+        HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, NULL, "can't decode type");
+
+    /* Set return value */
+    ret_value=dt;
+
+done:
+    if(ret_value==NULL) {
+        if(dt!=NULL)
+            H5FL_FREE(H5T_t,dt);
+    } /* end if */
+
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
+
 /*--------------------------------------------------------------------------
  NAME
     H5O_dtype_encode
@@ -863,8 +837,9 @@ static herr_t
 H5O_dtype_encode(H5F_t UNUSED *f, uint8_t *p, const void *mesg)
 {
     const H5T_t		   *dt = (const H5T_t *) mesg;
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5O_dtype_encode, FAIL);
+    FUNC_ENTER_NOAPI(H5O_dtype_encode, FAIL);
 
     /* check args */
     assert(f);
@@ -872,13 +847,14 @@ H5O_dtype_encode(H5F_t UNUSED *f, uint8_t *p, const void *mesg)
     assert(dt);
 
     /* encode */
-    if (H5O_dtype_encode_helper(&p, dt) < 0) {
-	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL,
-		      "can't encode type");
-    }
-    FUNC_LEAVE(SUCCEED);
+    if (H5O_dtype_encode_helper(&p, dt) < 0)
+	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "can't encode type");
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
+
 /*--------------------------------------------------------------------------
  NAME
     H5O_dtype_copy
@@ -901,15 +877,16 @@ H5O_dtype_copy(const void *_src, void *_dst)
 {
     const H5T_t		   *src = (const H5T_t *) _src;
     H5T_t		   *dst = NULL;
+    void 		   *ret_value;  /* Return value */
 
-    FUNC_ENTER(H5O_dtype_copy, NULL);
+    FUNC_ENTER_NOAPI(H5O_dtype_copy, NULL);
 
     /* check args */
     assert(src);
 
     /* copy */
     if (NULL == (dst = H5T_copy(src, H5T_COPY_ALL)))
-        HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "can't copy type");
+        HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "can't copy type");
 
     /* was result already allocated? */
     if (_dst) {
@@ -917,9 +894,15 @@ H5O_dtype_copy(const void *_src, void *_dst)
         H5FL_FREE(H5T_t,dst);
         dst = (H5T_t *) _dst;
     }
-    FUNC_LEAVE((void *) dst);
+
+    /* Set return value */
+    ret_value=dst;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
+
 /*--------------------------------------------------------------------------
  NAME
     H5O_dtype_size
@@ -935,6 +918,9 @@ H5O_dtype_copy(const void *_src, void *_dst)
 	This function returns the size of the raw simple datatype message on
     success.  (Not counting the message type or size fields, only the data
     portion of the message).  It doesn't take into account alignment.
+ NOTES
+        All datatype messages have a common 8 byte header, plus a variable-
+    sized "properties" field.
 --------------------------------------------------------------------------*/
 static size_t
 H5O_dtype_size(H5F_t *f, const void *mesg)
@@ -943,10 +929,11 @@ H5O_dtype_size(H5F_t *f, const void *mesg)
     size_t		    ret_value = 8;
     const H5T_t		   *dt = (const H5T_t *) mesg;
 
-    FUNC_ENTER(H5O_dtype_size, 0);
+    FUNC_ENTER_NOAPI(H5O_dtype_size, 0);
 
     assert(mesg);
 
+    /* Add in the property field length for each datatype class */
     switch (dt->type) {
         case H5T_INTEGER:
             ret_value += 4;
@@ -979,9 +966,8 @@ H5O_dtype_size(H5F_t *f, const void *mesg)
 
         case H5T_ENUM:
             ret_value += H5O_dtype_size(f, dt->parent);
-            for (i=0; i<dt->u.enumer.nmembs; i++) {
+            for (i=0; i<dt->u.enumer.nmembs; i++)
                 ret_value += ((HDstrlen(dt->u.enumer.name[i])+8)/8)*8;
-            }
             ret_value += dt->u.enumer.nmembs * dt->parent->size;
             break;
 
@@ -1005,8 +991,10 @@ H5O_dtype_size(H5F_t *f, const void *mesg)
             break;
     }
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5O_dtype_reset
@@ -1027,20 +1015,15 @@ static herr_t
 H5O_dtype_reset(void *_mesg)
 {
     H5T_t		   *dt = (H5T_t *) _mesg;
-    H5T_t		   *tmp = NULL;
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5O_dtype_reset, FAIL);
+    FUNC_ENTER_NOAPI(H5O_dtype_reset, FAIL);
 
-    if (dt) {
-        if (NULL==(tmp = H5FL_ALLOC(H5T_t,0))) {
-            HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
-			   "memory allocation failed");
-        }
-        *tmp = *dt;
-        H5T_close(tmp);
-        HDmemset(dt, 0, sizeof(H5T_t));
-    }
-    FUNC_LEAVE(SUCCEED);
+    if (dt)
+        H5T_free(dt);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -1061,13 +1044,16 @@ H5O_dtype_reset(void *_mesg)
 static herr_t
 H5O_dtype_free (void *mesg)
 {
-    FUNC_ENTER (H5O_dtype_free, FAIL);
+    herr_t ret_value=SUCCEED;   /* Return value */
+
+    FUNC_ENTER_NOAPI(H5O_dtype_free, FAIL);
 
     assert (mesg);
 
     H5FL_FREE(H5T_t,mesg);
 
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -1091,8 +1077,10 @@ H5O_dtype_get_share(H5F_t UNUSED *f, const void *_mesg,
 		    H5O_shared_t *sh/*out*/)
 {
     const H5T_t	*dt = (const H5T_t *)_mesg;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER (H5O_dtype_get_share, FAIL);
+    FUNC_ENTER_NOAPI(H5O_dtype_get_share, FAIL);
+
     assert (dt);
     assert (sh);
 
@@ -1100,12 +1088,11 @@ H5O_dtype_get_share(H5F_t UNUSED *f, const void *_mesg,
 	assert (H5T_STATE_NAMED==dt->state || H5T_STATE_OPEN==dt->state);
 	sh->in_gh = FALSE;
 	sh->u.ent = dt->ent;
-    } else {
-	HRETURN_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,
-		       "data type is not sharable");
-    }
+    } else
+	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "data type is not sharable");
 
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -1121,6 +1108,9 @@ H5O_dtype_get_share(H5F_t UNUSED *f, const void *_mesg,
  *
  * Modifications:
  *
+ *      Pedro Vicente, <pvn@ncsa.uiuc.edu> 22 Aug 2002
+ *      Added `id to name' support.
+ *
  *-------------------------------------------------------------------------
  */
 static herr_t
@@ -1128,18 +1118,29 @@ H5O_dtype_set_share (H5F_t UNUSED *f, void *_mesg/*in,out*/,
 		     const H5O_shared_t *sh)
 {
     H5T_t	*dt = (H5T_t *)_mesg;
+    herr_t ret_value=SUCCEED;   /* Return value */
     
-    FUNC_ENTER (H5O_dtype_set_share, FAIL);
+    FUNC_ENTER_NOAPI(H5O_dtype_set_share, FAIL);
+
     assert (dt);
     assert (sh);
     assert (!sh->in_gh);
 
-    dt->ent = sh->u.ent;
+    /* Shallow copy the symbol table entry */
+    H5G_ent_copy(&(dt->ent),&(sh->u.ent),H5G_COPY_SHALLOW);
+
+    /* Reset the names of the copied symbol table entry */
+    dt->ent.user_path_r = NULL;
+    dt->ent.canon_path_r = NULL;
+
+    /* Note that the datatype is a named datatype */
     dt->state = H5T_STATE_NAMED;
 
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
+
 /*--------------------------------------------------------------------------
  NAME
     H5O_dtype_debug
@@ -1160,7 +1161,7 @@ H5O_dtype_set_share (H5F_t UNUSED *f, void *_mesg/*in,out*/,
     parameter.
 --------------------------------------------------------------------------*/
 static herr_t
-H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
+H5O_dtype_debug(H5F_t *f, hid_t dxpl_id, const void *mesg, FILE *stream,
 		int indent, int fwidth)
 {
     const H5T_t		*dt = (const H5T_t*)mesg;
@@ -1168,9 +1169,9 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
     char		buf[256];
     int		i;
     size_t		k;
+    herr_t ret_value=SUCCEED;   /* Return value */
     
-
-    FUNC_ENTER(H5O_dtype_debug, FAIL);
+    FUNC_ENTER_NOAPI(H5O_dtype_debug, FAIL);
 
     /* check args */
     assert(f);
@@ -1180,43 +1181,43 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
     assert(fwidth >= 0);
 
     switch (dt->type) {
-    case H5T_INTEGER:
-	s = "integer";
-	break;
-    case H5T_FLOAT:
-	s = "floating-point";
-	break;
-    case H5T_TIME:
-	s = "date and time";
-	break;
-    case H5T_STRING:
-	s = "text string";
-	break;
-    case H5T_BITFIELD:
-	s = "bit field";
-	break;
-    case H5T_OPAQUE:
-	s = "opaque";
-	break;
-    case H5T_COMPOUND:
-	s = "compound";
-	break;
-    case H5T_REFERENCE:
-	s = "reference";
-	break;
-    case H5T_ENUM:
-	s = "enum";
-	break;
-    case H5T_ARRAY:
-	s = "array";
-	break;
-    case H5T_VLEN:
-	s = "variable-length sequence";
-	break;
-    default:
-	sprintf(buf, "H5T_CLASS_%d", (int) (dt->type));
-	s = buf;
-	break;
+        case H5T_INTEGER:
+            s = "integer";
+            break;
+        case H5T_FLOAT:
+            s = "floating-point";
+            break;
+        case H5T_TIME:
+            s = "date and time";
+            break;
+        case H5T_STRING:
+            s = "text string";
+            break;
+        case H5T_BITFIELD:
+            s = "bit field";
+            break;
+        case H5T_OPAQUE:
+            s = "opaque";
+            break;
+        case H5T_COMPOUND:
+            s = "compound";
+            break;
+        case H5T_REFERENCE:
+            s = "reference";
+            break;
+        case H5T_ENUM:
+            s = "enum";
+            break;
+        case H5T_ARRAY:
+            s = "array";
+            break;
+        case H5T_VLEN:
+            s = "vlen";
+            break;
+        default:
+            sprintf(buf, "H5T_CLASS_%d", (int) (dt->type));
+            s = buf;
+            break;
     }
     fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 	    "Type class:",
@@ -1238,28 +1239,6 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
 	    fprintf(stream, "%*s%-*s %lu\n", indent+3, "", MAX(0, fwidth-3),
 		    "Byte offset:",
 		    (unsigned long) (dt->u.compnd.memb[i].offset));
-#ifdef OLD_WAY
-	    fprintf(stream, "%*s%-*s %d%s\n", indent+3, "", MAX(0, fwidth-3),
-		    "Dimensionality:",
-		    dt->u.compnd.memb[i].ndims,
-		    0==dt->u.compnd.memb[i].ndims?" (scalar)":"");
-	    if (dt->u.compnd.memb[i].ndims>0) {
-		fprintf(stream, "%*s%-*s {", indent+3, "", MAX(0, fwidth-3),
-			"Size:");
-		for (j=0; j<dt->u.compnd.memb[i].ndims; j++) {
-		    fprintf(stream, "%s%lu", j?", ":"",
-			    (unsigned long)(dt->u.compnd.memb[i].dim[j]));
-		}
-		fprintf(stream, "}\n");
-		fprintf(stream, "%*s%-*s {", indent+3, "", MAX(0, fwidth-3),
-			"Permutation:");
-		for (j=0; j<dt->u.compnd.memb[i].ndims; j++) {
-		    fprintf(stream, "%s%lu", j?", ":"",
-			    (unsigned long)(dt->u.compnd.memb[i].perm[j]));
-		}
-		fprintf(stream, "}\n");
-	    }
-#endif /* OLD_WAY */
 	    H5O_dtype_debug(f, dxpl_id, dt->u.compnd.memb[i].type, stream,
 			    indent+3, MAX(0, fwidth - 3));
 	}
@@ -1290,8 +1269,35 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
 	fprintf(stream, "%*s%-*s\n", indent, "", fwidth,
 		"Fix dumping reference types!");
     } else if (H5T_VLEN==dt->type) {
-	fprintf(stream, "%*s%-*s\n", indent, "", fwidth,
-		"Fix dumping variable-length types!");
+        switch (dt->u.vlen.type) {
+            case H5T_VLEN_SEQUENCE:
+                s = "sequence";
+                break;
+            case H5T_VLEN_STRING:
+                s = "string";
+                break;
+            default:
+                sprintf(buf, "H5T_VLEN_%d", dt->u.vlen.type);
+                s = buf;
+                break;
+        }
+        fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
+                "Vlen type:", s);
+
+        switch (dt->u.vlen.loc) {
+            case H5T_VLEN_MEMORY:
+                s = "memory";
+                break;
+            case H5T_VLEN_DISK:
+                s = "disk";
+                break;
+            default:
+                sprintf(buf, "H5T_VLEN_%d", dt->u.vlen.loc);
+                s = buf;
+                break;
+        }
+        fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
+                "Location:", s);
     } else if (H5T_ARRAY==dt->type) {
 	fprintf(stream, "%*s%-*s %d\n", indent, "", fwidth,
 		"Rank:",
@@ -1310,22 +1316,22 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
 	H5O_dtype_debug(f, dxpl_id, dt->parent, stream, indent+3, MAX(0, fwidth-3));
     } else {
 	switch (dt->u.atomic.order) {
-	case H5T_ORDER_LE:
-	    s = "little endian";
-	    break;
-	case H5T_ORDER_BE:
-	    s = "big endian";
-	    break;
-	case H5T_ORDER_VAX:
-	    s = "VAX";
-	    break;
-	case H5T_ORDER_NONE:
-	    s = "none";
-	    break;
-	default:
-	    sprintf(buf, "H5T_ORDER_%d", dt->u.atomic.order);
-	    s = buf;
-	    break;
+            case H5T_ORDER_LE:
+                s = "little endian";
+                break;
+            case H5T_ORDER_BE:
+                s = "big endian";
+                break;
+            case H5T_ORDER_VAX:
+                s = "VAX";
+                break;
+            case H5T_ORDER_NONE:
+                s = "none";
+                break;
+            default:
+                sprintf(buf, "H5T_ORDER_%d", dt->u.atomic.order);
+                s = buf;
+                break;
 	}
 	fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 		"Byte order:",
@@ -1342,66 +1348,66 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
 		1==dt->u.atomic.offset?"":"s");
 
 	switch (dt->u.atomic.lsb_pad) {
-	case H5T_PAD_ZERO:
-	    s = "zero";
-	    break;
-	case H5T_PAD_ONE:
-	    s = "one";
-	    break;
-	default:
-	    s = "pad?";
-	    break;
+            case H5T_PAD_ZERO:
+                s = "zero";
+                break;
+            case H5T_PAD_ONE:
+                s = "one";
+                break;
+            default:
+                s = "pad?";
+                break;
 	}
 	fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 		"Low pad type:", s);
 
 	switch (dt->u.atomic.msb_pad) {
-	case H5T_PAD_ZERO:
-	    s = "zero";
-	    break;
-	case H5T_PAD_ONE:
-	    s = "one";
-	    break;
-	default:
-	    s = "pad?";
-	    break;
+            case H5T_PAD_ZERO:
+                s = "zero";
+                break;
+            case H5T_PAD_ONE:
+                s = "one";
+                break;
+            default:
+                s = "pad?";
+                break;
 	}
 	fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 		"High pad type:", s);
 
 	if (H5T_FLOAT == dt->type) {
 	    switch (dt->u.atomic.u.f.pad) {
-	    case H5T_PAD_ZERO:
-		s = "zero";
-		break;
-	    case H5T_PAD_ONE:
-		s = "one";
-		break;
-	    default:
-		if (dt->u.atomic.u.f.pad < 0) {
-		    sprintf(buf, "H5T_PAD_%d", -(dt->u.atomic.u.f.pad));
-		} else {
-		    sprintf(buf, "bit-%d", dt->u.atomic.u.f.pad);
-		}
-		s = buf;
-		break;
+                case H5T_PAD_ZERO:
+                    s = "zero";
+                    break;
+                case H5T_PAD_ONE:
+                    s = "one";
+                    break;
+                default:
+                    if (dt->u.atomic.u.f.pad < 0) {
+                        sprintf(buf, "H5T_PAD_%d", -(dt->u.atomic.u.f.pad));
+                    } else {
+                        sprintf(buf, "bit-%d", dt->u.atomic.u.f.pad);
+                    }
+                    s = buf;
+                    break;
 	    }
 	    fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 		    "Internal pad type:", s);
 
 	    switch (dt->u.atomic.u.f.norm) {
-	    case H5T_NORM_IMPLIED:
-		s = "implied";
-		break;
-	    case H5T_NORM_MSBSET:
-		s = "msb set";
-		break;
-	    case H5T_NORM_NONE:
-		s = "none";
-		break;
-	    default:
-		sprintf(buf, "H5T_NORM_%d", (int) (dt->u.atomic.u.f.norm));
-		s = buf;
+                case H5T_NORM_IMPLIED:
+                    s = "implied";
+                    break;
+                case H5T_NORM_MSBSET:
+                    s = "msb set";
+                    break;
+                case H5T_NORM_NONE:
+                    s = "none";
+                    break;
+                default:
+                    sprintf(buf, "H5T_NORM_%d", (int) (dt->u.atomic.u.f.norm));
+                    s = buf;
 	    }
 	    fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 		    "Normalization:", s);
@@ -1432,16 +1438,16 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
 
 	} else if (H5T_INTEGER == dt->type) {
 	    switch (dt->u.atomic.u.i.sign) {
-	    case H5T_SGN_NONE:
-		s = "none";
-		break;
-	    case H5T_SGN_2:
-		s = "2's comp";
-		break;
-	    default:
-		sprintf(buf, "H5T_SGN_%d", (int) (dt->u.atomic.u.i.sign));
-		s = buf;
-		break;
+                case H5T_SGN_NONE:
+                    s = "none";
+                    break;
+                case H5T_SGN_2:
+                    s = "2's comp";
+                    break;
+                default:
+                    sprintf(buf, "H5T_SGN_%d", (int) (dt->u.atomic.u.i.sign));
+                    s = buf;
+                    break;
 	    }
 	    fprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
 		    "Sign scheme:", s);
@@ -1449,5 +1455,6 @@ H5O_dtype_debug(H5F_t *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *stream,
 	}
     }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }

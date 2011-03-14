@@ -69,30 +69,30 @@ static int             interface_initialize_g = 0;
 haddr_t
 H5MF_alloc(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
 {
-    haddr_t	ret_value=HADDR_UNDEF;
+    haddr_t	ret_value;
     
-    FUNC_ENTER(H5MF_alloc, HADDR_UNDEF);
+    FUNC_ENTER_NOAPI(H5MF_alloc, HADDR_UNDEF);
 
     /* check arguments */
     assert(f);
     assert(size > 0);
     
     /* Fail if we don't have write access */
-    if (0==(f->intent & H5F_ACC_RDWR)) {
-	HRETURN_ERROR(H5E_RESOURCE, H5E_CANTINIT, HADDR_UNDEF, "file is read-only");
-    }
+    if (0==(f->intent & H5F_ACC_RDWR))
+	HGOTO_ERROR(H5E_RESOURCE, H5E_CANTINIT, HADDR_UNDEF, "file is read-only");
 
     /* Allocate space from the virtual file layer */
-    if (HADDR_UNDEF==(ret_value=H5FD_alloc(f->shared->lf, type, dxpl_id, size))) {
-	HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF,
-		      "file allocation failed");
-    }
+    if (HADDR_UNDEF==(ret_value=H5FD_alloc(f->shared->lf, type, dxpl_id, size)))
+	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF, "file allocation failed");
 
     /* Convert absolute file address to relative file address */
     assert(ret_value>=f->shared->base_addr);
+
+    /* Set return value */
     ret_value -= f->shared->base_addr;
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -119,13 +119,14 @@ H5MF_alloc(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
 herr_t
 H5MF_xfree(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size)
 {
-    FUNC_ENTER(H5MF_xfree, FAIL);
+    herr_t      ret_value=SUCCEED;       /* Return value */
+
+    FUNC_ENTER_NOAPI(H5MF_xfree, FAIL);
 
     /* check arguments */
     assert(f);
-    if (!H5F_addr_defined(addr) || 0 == size) {
-        HRETURN(SUCCEED);
-    }
+    if (!H5F_addr_defined(addr) || 0 == size)
+        HGOTO_DONE(SUCCEED);
     assert(addr!=0);
 
     /* Convert relative address to absolute address */
@@ -142,7 +143,8 @@ H5MF_xfree(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size)
 #endif
     }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -185,9 +187,9 @@ haddr_t
 H5MF_realloc(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t old_addr, hsize_t old_size,
 	     hsize_t new_size)
 {
-    haddr_t	ret_value=HADDR_UNDEF;
+    haddr_t	ret_value;
     
-    FUNC_ENTER (H5MF_realloc, HADDR_UNDEF);
+    FUNC_ENTER_NOAPI(H5MF_realloc, HADDR_UNDEF);
 
     /* Convert old relative address to absolute address */
     old_addr += f->shared->base_addr;
@@ -195,14 +197,15 @@ H5MF_realloc(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t old_addr, hsize_t
     /* Reallocate memory from the virtual file layer */
     ret_value = H5FD_realloc(f->shared->lf, type, dxpl_id, old_addr, old_size,
 			     new_size);
-    if (HADDR_UNDEF==ret_value) {
-	HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF,
-		      "unable to allocate new file memory");
-    }
+    if (HADDR_UNDEF==ret_value)
+	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF, "unable to allocate new file memory");
 
     /* Convert return value to relative address */
     assert(ret_value>=f->shared->base_addr);
+
+    /* Set return value */
     ret_value -= f->shared->base_addr;
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }

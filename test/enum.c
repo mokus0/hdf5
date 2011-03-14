@@ -219,12 +219,6 @@ test_tr1(hid_t file)
     if (H5Tenum_insert(m_type, "BLACK", CPTR(eval, E1_BLACK))<0) goto error;
 
 
-#ifndef  __MWERKS__
-    assert(sizeof(c_e1)==sizeof(int));
-#else    
-    printf( "\n sizeof(c_e1)=%d ,sizeof(int) %d ", sizeof(c_e1),sizeof(int) );
-#endif  
-
     if ((f_type = H5Tcreate(H5T_ENUM, sizeof(c_e1)))<0) goto error;
     if (H5Tenum_insert(f_type, "RED",   CPTR(ival, 105))<0) goto error;
     if (H5Tenum_insert(f_type, "GREEN", CPTR(ival, 104))<0) goto error;
@@ -379,12 +373,10 @@ test_value_dsnt_exist(void)
     int val;
     char nam[100];
     size_t size = 100;
-
     TESTING("for non-existing name and value");
-
     /* Turn off error reporting since we expect failure in this test */
+ 
     if (H5Eset_auto(NULL, NULL) < 0) goto error; 
-
     if ((datatype_id = H5Tenum_create(H5T_NATIVE_INT))< 0) goto error;
 
     /* These calls should fail, since no memebrs exist yet */ 

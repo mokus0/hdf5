@@ -12,13 +12,14 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/***********************************************************
-*
-* Test program:	 th5s
-*
-* Test the dataspace functionality
-*
-*************************************************************/
+/*****************************************************************************
+   FILE
+   th5s.cpp - HDF5 C++ testing the functionalities associated with the
+        C dataspace interface (H5S)
+
+   EXTERNAL ROUTINES/VARIABLES:
+
+ ***************************************************************************/
 
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>

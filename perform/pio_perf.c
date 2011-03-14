@@ -69,7 +69,6 @@
 #include <mpi.h>
 
 /* our header files */
-#include "H5pubconf.h"
 #include "h5tools_utils.h"
 #include "pio_perf.h"
 
@@ -118,9 +117,9 @@ static const char  *progname = "h5perf";
  * adding more, make sure that they don't clash with each other.
  */
 #if 1
-static const char *s_opts = "a:A:B:cCd:D:e:F:ghi:Imno:p:P:stT:wx:X:";
+static const char *s_opts = "a:A:B:cCd:D:e:F:hi:Imno:p:P:stT:wx:X:";
 #else
-static const char *s_opts = "a:A:bB:cCd:D:e:F:ghi:Imno:p:P:stT:wx:X:";
+static const char *s_opts = "a:A:bB:cCd:D:e:F:hi:Imno:p:P:stT:wx:X:";
 #endif  /* 1 */
 static struct long_options l_opts[] = {
     { "align", require_arg, 'a' },
@@ -163,11 +162,6 @@ static struct long_options l_opts[] = {
     { "debu", require_arg, 'D' },
     { "deb", require_arg, 'D' },
     { "de", require_arg, 'D' },
-#ifdef H5_HAVE_GPFS
-    { "gpfs", no_arg, 'g' },
-    { "gpf", no_arg, 'g' },
-    { "gp", no_arg, 'g' },
-#endif  /* H5_HAVE_GPFS */
     { "help", no_arg, 'h' },
     { "hel", no_arg, 'h' },
     { "he", no_arg, 'h' },
@@ -223,12 +217,6 @@ static struct long_options l_opts[] = {
     { "mpi-", no_arg, 'm' },
     { "mpi", no_arg, 'm' },
     { "mp", no_arg, 'm' },
-    { "no-fill", no_arg, 'n' },
-    { "no-fil", no_arg, 'n' },
-    { "no-fi", no_arg, 'n' },
-    { "no-f", no_arg, 'n' },
-    { "no-", no_arg, 'n' },
-    { "no", no_arg, 'n' },
     { "num-bytes", require_arg, 'e' },
     { "num-byte", require_arg, 'e' },
     { "num-byt", require_arg, 'e' },
@@ -297,10 +285,8 @@ struct options {
     off_t h5_alignment;         /* alignment in HDF5 file               */
     off_t h5_threshold;         /* threshold for alignment in HDF5 file */
     int h5_use_chunks;     	/* Make HDF5 dataset chunked            */
-    int h5_no_fill;        	/* Disable HDF5 writing fill values     */
     int h5_write_only;        	/* Perform the write tests only         */
     unsigned h5_use_mpi_posix;  /* Use MPI-posix VFD for HDF5 I/O (instead of MPI-I/O VFD) */
-    unsigned h5_use_gpfs;       /* use the GPFS data shipping hints     */
     int verify;        		/* Verify data correctness              */
 };
 
@@ -440,10 +426,8 @@ run_test_loop(struct options *opts)
     parms.h5_align = opts->h5_alignment;
     parms.h5_thresh = opts->h5_threshold;
     parms.h5_use_chunks = opts->h5_use_chunks;
-    parms.h5_no_fill = opts->h5_no_fill;
     parms.h5_write_only = opts->h5_write_only;
     parms.h5_use_mpi_posix = opts->h5_use_mpi_posix;
-    parms.h5_use_gpfs = opts->h5_use_gpfs;
     parms.verify = opts->verify;
 
     /* start with max_num_procs and decrement it by half for each loop. */
@@ -1029,13 +1013,13 @@ report_parameters(struct options *opts)
     recover_size_and_print((long_long)opts->num_bpp, "\n");
 
     HDfprintf(output, "rank %d: Number of files=%Hd\n", rank,
-            (long_long)opts->num_files);
+              (long_long)opts->num_files);
     HDfprintf(output, "rank %d: Number of datasets=%Hd\n", rank,
-            (long_long)opts->num_dsets);
+              (long_long)opts->num_dsets);
     HDfprintf(output, "rank %d: Number of iterations=%Hd\n", rank,
-            (long_long)opts->num_iters);
+              (long_long)opts->num_iters);
     HDfprintf(output, "rank %d: Number of processes=%d:%d\n", rank,
-            opts->min_num_procs, opts->max_num_procs);
+              opts->min_num_procs, opts->max_num_procs);
 
     HDfprintf(output, "rank %d: Size of dataset(s)=", rank);
     recover_size_and_print((long_long)(opts->num_bpp * opts->min_num_procs), ":");
@@ -1070,9 +1054,6 @@ report_parameters(struct options *opts)
         HDfprintf(output, "MPI-posix driver\n");
     else
         HDfprintf(output, "MPI-I/O driver\n");
-
-    if(opts->h5_use_gpfs)
-        HDfprintf(output, "Using GPFS data shipping hints\n");
 
     HDfprintf(output, "rank %d: Data storage method in HDF5=", rank);
     if(opts->h5_use_chunks)
@@ -1128,10 +1109,8 @@ parse_command_line(int argc, char *argv[])
     cl_opts->h5_alignment = 1;      /* No alignment for HDF5 objects by default */
     cl_opts->h5_threshold = 1;      /* No threshold for aligning HDF5 objects by default */
     cl_opts->h5_use_chunks = FALSE; /* Don't chunk the HDF5 dataset by default */
-    cl_opts->h5_no_fill = FALSE;    /* Write fill values by default */
     cl_opts->h5_write_only = FALSE; /* Do both read and write by default */
     cl_opts->h5_use_mpi_posix = FALSE; /* Don't use MPI-posix VFD for HDF5 I/O by default */
-    cl_opts->h5_use_gpfs = FALSE;   /* GPFS hints turned off by default */
     cl_opts->verify = FALSE;        /* No Verify data correctness by default */
 
     while ((opt = get_option(argc, (const char **)argv, s_opts, l_opts)) != EOF) {
@@ -1255,9 +1234,6 @@ parse_command_line(int argc, char *argv[])
         case 'F':
             cl_opts->num_files = atoi(opt_arg);
             break;
-        case 'g':
-            cl_opts->h5_use_gpfs = TRUE;
-            break;
         case 'i':
             cl_opts->num_iters = atoi(opt_arg);
             break;
@@ -1267,15 +1243,6 @@ parse_command_line(int argc, char *argv[])
         case 'm':
             /* Turn on MPI-posix VFL driver for HDF5 I/O */
             cl_opts->h5_use_mpi_posix = TRUE;
-            break;
-        case 'n':       /* Turn off writing fill values */
-#ifdef H5_HAVE_NOFILL
-            cl_opts->h5_no_fill = TRUE;
-#else
-	    fprintf(stderr, "pio_perf: --no-fill not supported\n");
-            usage(progname);
-	    exit(EXIT_FAILURE);
-#endif
             break;
         case 'o':
             cl_opts->output_file = opt_arg;
@@ -1310,6 +1277,25 @@ parse_command_line(int argc, char *argv[])
     /* set default if none specified yet */
     if (!cl_opts->io_types)
 	cl_opts->io_types = PIO_HDF5 | PIO_MPI | PIO_POSIX; /* run all API */
+
+    /* verify parameters sanity.  Adjust if needed. */
+    /* cap xfer_size with bytes per process */
+    if (cl_opts->min_xfer_size > cl_opts->num_bpp)
+	cl_opts->min_xfer_size = cl_opts->num_bpp;
+    if (cl_opts->max_xfer_size > cl_opts->num_bpp)
+	cl_opts->max_xfer_size = cl_opts->num_bpp;
+    if (cl_opts->min_xfer_size > cl_opts->max_xfer_size)
+	cl_opts->min_xfer_size = cl_opts->max_xfer_size;
+    /* check range of number of processes */
+    if (cl_opts->min_num_procs <= 0)
+	cl_opts->min_num_procs = 1;
+    if (cl_opts->max_num_procs <= 0)
+	cl_opts->max_num_procs = 1;
+    if (cl_opts->min_num_procs > cl_opts->max_num_procs)
+	cl_opts->min_num_procs = cl_opts->max_num_procs;
+    /* check iteration */
+    if (cl_opts->num_iters <= 0)
+	cl_opts->num_iters = 1;
 
     return cl_opts;
 }
@@ -1399,19 +1385,11 @@ usage(const char *prog)
         printf("     -e S, --num-bytes=S         Number of bytes per process per dataset\n");
         printf("                                 [default: 256K]\n");
         printf("     -F N, --num-files=N         Number of files [default: 1]\n");
-#ifdef H5_HAVE_GPFS
-        printf("     -g, --gpfs                  Use GPFS data shipping hints [default: no]\n");
-#endif  /* H5_HAVE_GPFS */
-        printf("     -i, --num-iterations        Number of iterations to perform [default: 1]\n");
+        printf("     -i N, --num-iterations=N    Number of iterations to perform [default: 1]\n");
         printf("     -I, --interleaved           Interleaved block I/O (see below for example)\n");
         printf("                                 [default: Contiguous block I/O]\n");
         printf("     -m, --mpi-posix             Use MPI-posix driver for HDF5 I/O\n");
         printf("                                 [default: use MPI-I/O driver]\n");
-#ifdef NOT_SUPPORTED_IN_V1_4
-        printf("     -n, --no-fill               Don't write fill values to HDF5 dataset\n");
-        printf("                                 (Supported in HDF5 library v1.5 only)\n");
-        printf("                                 [default: off (i.e. write fill values)]\n");
-#endif /* NOT_SUPPORTED_IN_V1_4 */
         printf("     -o F, --output=F            Output raw data into file F [default: none]\n");
         printf("     -p N, --min-num-processes=N Minimum number of processes to use [default: 1]\n");
         printf("     -P N, --max-num-processes=N Maximum number of processes to use\n");

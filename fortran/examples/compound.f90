@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -11,7 +12,7 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
+!
 !
 ! This program creates a dataset that is one dimensional array of
 ! structures  {
@@ -86,7 +87,7 @@
      ! during write/read to/from dataset with compound datatype.
      !
      CALL h5pcreate_f(H5P_DATASET_XFER_F, plist_id, error)
-     CALL h5pset_preserve_f(plist_id, 1, error)
+     CALL h5pset_preserve_f(plist_id, .TRUE., error)
 
      !
      ! Create a new file using default properties.

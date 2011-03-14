@@ -1,4 +1,9 @@
 <html>
+<head><title>
+FORTRAN Datatype API -- h5t
+</title>
+
+<!-- #BeginLibraryItem "/ed_libs/styles_RM.lbi" -->
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -16,9 +21,8 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
-<head><title>
-FORTRAN Datatype API -- h5t
-</title></head>
+<link href="../ed_styles/RMelect.css" rel="stylesheet" type="text/css">
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 
@@ -246,7 +250,7 @@ FORTRAN Datatype API -- h5t
           SUBROUTINE h5tset_size_f(type_id, size, hdferr) 
             IMPLICIT NONE
             INTEGER(HID_T), INTENT(IN) :: type_id ! Datatype identifier 
-            INTEGER(SIZE_T), INTENT(IN) :: size  ! Datatype size
+            INTEGER(SIZE_T), INTENT(IN) :: size ! Datatype size
             INTEGER, INTENT(OUT) :: hdferr       ! Error code
                                                  ! 0 on success and -1 on failure
           END SUBROUTINE h5tset_size_f
@@ -870,6 +874,31 @@ FORTRAN Datatype API -- h5t
 </pre>
 
 
+
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5tget_member_index_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tget_member_index_f</strong>
+<pre>
+ 
+           SUBROUTINE h5tget_member_index_f(type_id, member_name, index , hdferr) 
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: type_id ! Datatype identifier 
+            CHARACTER(LEN=*), INTENT(IN) :: member_name  !name of a field of
+                                                         !a compound datatype 
+                                                         ! or a member of ENUM type
+            INTEGER, INTENT(OUT) :: index !Field index (0-based) of the field name to retrieve 
+            INTEGER, INTENT(OUT) :: hdferr        ! Error code
+
+          END SUBROUTINE h5tget_member_index_f
+</pre>
+
 <p>&nbsp;
 <p>&nbsp;
 <hr>
@@ -1249,93 +1278,23 @@ FORTRAN Datatype API -- h5t
 <p>&nbsp;
 <hr>
 <p>&nbsp;
-<a name="h5tget_member_index_f">
+<a name="h5tis_variable_str_f">
 <p>&nbsp;
 </a>
 
 
-<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tget_member_index_f</strong>
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tis_variable_str_f</strong>
 <pre>
- 
-           SUBROUTINE h5tget_member_index_f(type_id, member_name, index , hdferr) 
+
+          SUBROUTINE h5tis_variable_str_f(type_id, status, hdferr) 
             IMPLICIT NONE
-            INTEGER(HID_T), INTENT(IN) :: type_id ! Datatype identifier 
-            CHARACTER(LEN=*), INTENT(IN) :: member_name  !name of a field of
-                                                         !a compound datatype 
-                                                         ! or a member of ENUM type
-            INTEGER, INTENT(OUT) :: index !Field index (0-based) of the field name to retrieve 
-            INTEGER, INTENT(OUT) :: hdferr        ! Error code
+            INTEGER(HID_T), INTENT(IN) :: type_id   ! Datatype identifier 
+            LOGICAL, INTENT(OUT)       :: status    ! Logical flag:
+                                                    ! .TRUE. is datatype is a varibale string
+                                                    ! .FALSE. otherwise 
+            INTEGER, INTENT(OUT) :: hdferr          ! Error code
 
-          END SUBROUTINE h5tget_member_index_f
-</pre>
-
-
-<p>&nbsp;
-<p>&nbsp;
-<hr>
-<p>&nbsp;
-<a name="h5tarray_create_f">
-<p>&nbsp;
-</a>
-
-
-<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tarray_create_f</strong>
-<pre>
- 
-           SUBROUTINE h5tarray_create_f(base_type_id, rank, dims, type_id, hdferr) 
-            IMPLICIT NONE
-            INTEGER(HID_T), INTENT(IN) :: base_type_id  ! Datatype identifier 
-                                                        ! of base type
-            INTEGER, INTENT(IN) :: rank                 ! Array rank
-            INTEGER(HSIZE_T), DIMENSION(*), INTENT(IN) :: dims 
-                                                        ! Array dimensions
-            INTEGER(HID_T), INTENT(OUT) :: type_id      ! Array datatype identifier
-            INTEGER, INTENT(OUT) :: hdferr              ! Error code
-
-          END SUBROUTINE h5tarray_create_f
-</pre>
-
-
-<p>&nbsp;
-<p>&nbsp;
-<hr>
-<p>&nbsp;
-<a name="h5tget_array_ndims_f">
-<p>&nbsp;
-</a>
-
-
-<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tget_array_ndims_f</strong>
-<pre>
- 
-           SUBROUTINE h5tget_array_ndims_f(type_id, ndims, hdferr) 
-            IMPLICIT NONE
-            INTEGER(HID_T), INTENT(IN) :: type_id ! Array datatype identifier 
-            INTEGER, INTENT(OUT) :: ndims         ! Number of array idimensions
-            INTEGER, INTENT(OUT) :: hdferr        ! Error code
-          END SUBROUTINE h5tget_array_ndims_f
-</pre>
-
-
-<p>&nbsp;
-<p>&nbsp;
-<hr>
-<p>&nbsp;
-<a name="h5tget_array_dims_f">
-<p>&nbsp;
-</a>
-
-
-<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tget_array_dims_f</strong>
-<pre>
- 
-           SUBROUTINE h5tget_array_dims_f(type_id, dims, hdferr) 
-            IMPLICIT NONE
-            INTEGER(HID_T), INTENT(IN) :: type_id ! Array datatype identifier 
-            INTEGER(HSIZE_T), DIMENSION(*), INTENT(OUT) :: dims 
-                                                  ! Sizes of array dimesions
-            INTEGER, INTENT(OUT) :: hdferr        ! Error code
-          END SUBROUTINE h5tget_array_dims_f
+          END SUBROUTINE h5tis_variable_str_f
 </pre>
 
 
@@ -1359,7 +1318,69 @@ FORTRAN Datatype API -- h5t
           END SUBROUTINE h5tget_super_f
 </pre>
 
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5tarray_create_f">
+<p>&nbsp;
+</a>
 
+
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tarray_create_f</strong>
+<pre>
+ 
+           SUBROUTINE h5tarray_create_f(base_id, rank, dims, type_id, hdferr) 
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: base_id ! Identifier of array base datatype
+            INTEGER, INTENT(IN)        ::  rank   ! Rank of the array
+            INTEGER(HSIZE_T), DIMENSION(*), INTENT(IN) :: dims !Sizes of each array dimension
+
+            INTEGER(HID_T), INTENT(OUT) :: type_id ! Identifier of the array datatype
+            INTEGER, INTENT(OUT)        :: hdferr  ! Error code
+          END SUBROUTINE h5tarray_create_f
+</pre>
+
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5tget_array_ndims_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tget_array_ndims_f</strong>
+<pre>
+ 
+           SUBROUTINE h5tget_array_ndims_f(type_id, ndims, hdferr) 
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: type_id  ! Identifier of the array datatype
+            INTEGER, INTENT(OUT)       ::  ndims   ! Number of array dimensions
+            INTEGER, INTENT(OUT)       :: hdferr   ! Error code
+          END SUBROUTINE h5tget_array_ndims_f
+</pre>
+
+
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5tget_array_dims_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5tget_array_dims_f</strong>
+<pre>
+ 
+           SUBROUTINE h5tget_array_dims_f(type_id, dims, hdferr) 
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: type_id                ! Identifier of the array datatype
+            INTEGER(HSIZE_T), DIMENSION(*), INTENT(OUT) ::  dims ! Buffer to store array datatype
+            INTEGER, INTENT(OUT)       :: hdferr                 ! Error code
+          END SUBROUTINE h5tget_array_dims_f
+</pre>
 
 </dl>
 
@@ -1368,14 +1389,13 @@ FORTRAN Datatype API -- h5t
 <hr>
 
 
-
-<address>
+<!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
-</address>
-
-Last modified:  19 December 2002
 <br>
-Describes HDF5 Release 1.4.5, February 2003
+Describes HDF5 Release 1.6.0, July 2003
+</address><!-- #EndLibraryItem -->
+
+Last modified:  5 June 2003
 
 </body>
 </html>

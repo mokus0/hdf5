@@ -83,8 +83,21 @@ H5_DLL herr_t H5V_stride_optimize2(unsigned *np, hsize_t *elmt_size,
 				    hssize_t *stride2);
 H5_DLL herr_t H5V_array_fill(void *_dst, const void *src, size_t size,
 			      size_t count);
+H5_DLL herr_t H5V_array_down(unsigned n, const hsize_t *total_size,
+    hsize_t *down);
+H5_DLL hsize_t H5V_array_offset_pre(unsigned n, const hsize_t *total_size,
+    const hsize_t *acc, const hssize_t *offset);
 H5_DLL hsize_t H5V_array_offset(unsigned n, const hsize_t *total_size,
-				 const hssize_t *offset);
+    const hssize_t *offset);
+H5_DLL herr_t H5V_array_calc(hsize_t offset, unsigned n,
+    const hsize_t *total_size, hssize_t *coords);
+H5_DLL herr_t H5V_chunk_index(unsigned ndims, const hssize_t *coord,
+    const hsize_t *chunk, const hsize_t *nchunks, const hsize_t *down_nchunks,
+    hsize_t *chunk_idx);
+H5_DLL ssize_t H5V_memcpyvv(void *_dst,
+    size_t dst_max_nseq, size_t *dst_curr_seq, size_t dst_len_arr[], hsize_t dst_off_arr[],
+    const void *_src,
+    size_t src_max_nseq, size_t *src_curr_seq, size_t src_len_arr[], hsize_t src_off_arr[]);
 
 
 /*-------------------------------------------------------------------------
@@ -109,11 +122,16 @@ H5_DLL hsize_t H5V_array_offset(unsigned n, const hsize_t *total_size,
 static H5_inline hsize_t UNUSED
 H5V_vector_reduce_product(unsigned n, const hsize_t *v)
 {
-    hsize_t                  ans = 1;
+    hsize_t                  ret_value = 1;
 
-    if (n && !v) return 0;
-    while (n--) ans *= *v++;
-    return ans;
+    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
+    FUNC_ENTER_NOINIT(H5V_vector_reduce_product);
+
+    if (n && !v) HGOTO_DONE(0);
+    while (n--) ret_value *= *v++;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 /*-------------------------------------------------------------------------
@@ -136,11 +154,19 @@ H5V_vector_reduce_product(unsigned n, const hsize_t *v)
 static H5_inline htri_t UNUSED
 H5V_vector_zerop_u(int n, const hsize_t *v)
 {
-    if (!v) return TRUE;
-    while (n--) {
-	if (*v++) return FALSE;
-    }
-    return TRUE;
+    htri_t      ret_value=TRUE;       /* Return value */
+
+    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
+    FUNC_ENTER_NOINIT(H5V_vector_zerop_u);
+
+    if (!v)
+        HGOTO_DONE(TRUE);
+    while (n--)
+	if (*v++)
+            HGOTO_DONE(FALSE);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 /*-------------------------------------------------------------------------
@@ -163,11 +189,19 @@ H5V_vector_zerop_u(int n, const hsize_t *v)
 static H5_inline htri_t UNUSED
 H5V_vector_zerop_s(int n, const hssize_t *v)
 {
-    if (!v) return TRUE;
-    while (n--) {
-	if (*v++) return FALSE;
-    }
-    return TRUE;
+    htri_t      ret_value=TRUE;       /* Return value */
+
+    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
+    FUNC_ENTER_NOINIT(H5V_vector_zerop_s);
+
+    if (!v)
+        HGOTO_DONE(TRUE);
+    while (n--)
+	if (*v++)
+            HGOTO_DONE(FALSE);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 /*-------------------------------------------------------------------------
@@ -192,14 +226,21 @@ H5V_vector_zerop_s(int n, const hssize_t *v)
 static H5_inline int UNUSED
 H5V_vector_cmp_u (int n, const hsize_t *v1, const hsize_t *v2)
 {
-    if (v1 == v2) return 0;
+    int ret_value=0;    /* Return value */
+
+    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
+    FUNC_ENTER_NOINIT(H5V_vector_cmp_u);
+
+    if (v1 == v2) HGOTO_DONE(0);
     while (n--) {
-        if ((v1 ? *v1 : 0) < (v2 ? *v2 : 0)) return -1;
-        if ((v1 ? *v1 : 0) > (v2 ? *v2 : 0)) return 1;
+        if ((v1 ? *v1 : 0) < (v2 ? *v2 : 0)) HGOTO_DONE(-1);
+        if ((v1 ? *v1 : 0) > (v2 ? *v2 : 0)) HGOTO_DONE(1);
         if (v1) v1++;
         if (v2) v2++;
     }
-    return 0;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -225,14 +266,21 @@ H5V_vector_cmp_u (int n, const hsize_t *v1, const hsize_t *v2)
 static H5_inline int UNUSED
 H5V_vector_cmp_s (unsigned n, const hssize_t *v1, const hssize_t *v2)
 {
-    if (v1 == v2) return 0;
+    int ret_value=0;    /* Return value */
+
+    /* Use FUNC_ENTER_NOINIT here to avoid performance issues */
+    FUNC_ENTER_NOINIT(H5V_vector_cmp_s);
+
+    if (v1 == v2) HGOTO_DONE(0);
     while (n--) {
-        if ((v1 ? *v1 : 0) < (v2 ? *v2 : 0)) return -1;
-        if ((v1 ? *v1 : 0) > (v2 ? *v2 : 0)) return 1;
+        if ((v1 ? *v1 : 0) < (v2 ? *v2 : 0)) HGOTO_DONE(-1);
+        if ((v1 ? *v1 : 0) > (v2 ? *v2 : 0)) HGOTO_DONE(1);
         if (v1) v1++;
         if (v2) v2++;
     }
-    return 0;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 

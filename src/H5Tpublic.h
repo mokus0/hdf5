@@ -138,6 +138,12 @@ typedef enum H5T_cmd_t {
     H5T_CONV_FREE	= 2	/*function is being removed from path	     */
 } H5T_cmd_t;
 
+/* How is the `bkg' buffer used by the conversion function? */
+typedef enum H5T_bkg_t {
+    H5T_BKG_NO		= 0, 	/*background buffer is not needed, send NULL */
+    H5T_BKG_YES		= 1	/*init bkg buf with data before conversion   */
+} H5T_bkg_t;
+
 /* Type conversion client data */
 typedef struct H5T_cdata_t {
     H5T_cmd_t		command;/*what should the conversion function do?    */
@@ -152,6 +158,13 @@ typedef enum H5T_pers_t {
     H5T_PERS_HARD	= 0,	/*hard conversion function		     */
     H5T_PERS_SOFT	= 1 	/*soft conversion function		     */
 } H5T_pers_t;
+
+/* The order to retrieve atomic native datatype */
+typedef enum H5T_direction_t {
+    H5T_DIR_DEFAULT     = 0,    /*default direction is inscendent            */
+    H5T_DIR_ASCEND      = 1,    /*in inscendent order                        */
+    H5T_DIR_DESCEND     = 2     /*in descendent order                        */
+} H5T_direction_t;
 
 /* Variable Length Datatype struct in memory */
 /* (This is only used for VL sequences, not VL strings, which are stored in char *'s) */
@@ -185,13 +198,21 @@ typedef herr_t (*H5T_overflow_t)(hid_t src_id, hid_t dst_id,
 				 void *src_buf, void *dst_buf);
 
 
+/* When this header is included from H5Tprivate.h, don't make calls to H5open() */
+#undef H5OPEN
+#ifndef _H5Tprivate_H
+#define H5OPEN          H5open(),
+#else   /* _H5Tprivate_H */
+#define H5OPEN
+#endif  /* _H5Tprivate_H */
+
 /*
  * The IEEE floating point types in various byte orders.
  */
-#define H5T_IEEE_F32BE		(H5open(), H5T_IEEE_F32BE_g)
-#define H5T_IEEE_F32LE		(H5open(), H5T_IEEE_F32LE_g)
-#define H5T_IEEE_F64BE		(H5open(), H5T_IEEE_F64BE_g)
-#define H5T_IEEE_F64LE		(H5open(), H5T_IEEE_F64LE_g)
+#define H5T_IEEE_F32BE		(H5OPEN H5T_IEEE_F32BE_g)
+#define H5T_IEEE_F32LE		(H5OPEN H5T_IEEE_F32LE_g)
+#define H5T_IEEE_F64BE		(H5OPEN H5T_IEEE_F64BE_g)
+#define H5T_IEEE_F64LE		(H5OPEN H5T_IEEE_F64LE_g)
 H5_DLLVAR hid_t H5T_IEEE_F32BE_g;
 H5_DLLVAR hid_t H5T_IEEE_F32LE_g;
 H5_DLLVAR hid_t H5T_IEEE_F64BE_g;
@@ -201,32 +222,32 @@ H5_DLLVAR hid_t H5T_IEEE_F64LE_g;
  * These are "standard" types.  For instance, signed (2's complement) and
  * unsigned integers of various sizes and byte orders.
  */
-#define H5T_STD_I8BE		(H5open(), H5T_STD_I8BE_g)
-#define H5T_STD_I8LE		(H5open(), H5T_STD_I8LE_g)
-#define H5T_STD_I16BE		(H5open(), H5T_STD_I16BE_g)
-#define H5T_STD_I16LE		(H5open(), H5T_STD_I16LE_g)
-#define H5T_STD_I32BE		(H5open(), H5T_STD_I32BE_g)
-#define H5T_STD_I32LE		(H5open(), H5T_STD_I32LE_g)
-#define H5T_STD_I64BE		(H5open(), H5T_STD_I64BE_g)
-#define H5T_STD_I64LE		(H5open(), H5T_STD_I64LE_g)
-#define H5T_STD_U8BE		(H5open(), H5T_STD_U8BE_g)
-#define H5T_STD_U8LE		(H5open(), H5T_STD_U8LE_g)
-#define H5T_STD_U16BE		(H5open(), H5T_STD_U16BE_g)
-#define H5T_STD_U16LE		(H5open(), H5T_STD_U16LE_g)
-#define H5T_STD_U32BE		(H5open(), H5T_STD_U32BE_g)
-#define H5T_STD_U32LE		(H5open(), H5T_STD_U32LE_g)
-#define H5T_STD_U64BE		(H5open(), H5T_STD_U64BE_g)
-#define H5T_STD_U64LE		(H5open(), H5T_STD_U64LE_g)
-#define H5T_STD_B8BE		(H5open(), H5T_STD_B8BE_g)
-#define H5T_STD_B8LE		(H5open(), H5T_STD_B8LE_g)
-#define H5T_STD_B16BE		(H5open(), H5T_STD_B16BE_g)
-#define H5T_STD_B16LE		(H5open(), H5T_STD_B16LE_g)
-#define H5T_STD_B32BE		(H5open(), H5T_STD_B32BE_g)
-#define H5T_STD_B32LE		(H5open(), H5T_STD_B32LE_g)
-#define H5T_STD_B64BE		(H5open(), H5T_STD_B64BE_g)
-#define H5T_STD_B64LE		(H5open(), H5T_STD_B64LE_g)
-#define H5T_STD_REF_OBJ	    (H5open(), H5T_STD_REF_OBJ_g)
-#define H5T_STD_REF_DSETREG (H5open(), H5T_STD_REF_DSETREG_g)
+#define H5T_STD_I8BE		(H5OPEN H5T_STD_I8BE_g)
+#define H5T_STD_I8LE		(H5OPEN H5T_STD_I8LE_g)
+#define H5T_STD_I16BE		(H5OPEN H5T_STD_I16BE_g)
+#define H5T_STD_I16LE		(H5OPEN H5T_STD_I16LE_g)
+#define H5T_STD_I32BE		(H5OPEN H5T_STD_I32BE_g)
+#define H5T_STD_I32LE		(H5OPEN H5T_STD_I32LE_g)
+#define H5T_STD_I64BE		(H5OPEN H5T_STD_I64BE_g)
+#define H5T_STD_I64LE		(H5OPEN H5T_STD_I64LE_g)
+#define H5T_STD_U8BE		(H5OPEN H5T_STD_U8BE_g)
+#define H5T_STD_U8LE		(H5OPEN H5T_STD_U8LE_g)
+#define H5T_STD_U16BE		(H5OPEN H5T_STD_U16BE_g)
+#define H5T_STD_U16LE		(H5OPEN H5T_STD_U16LE_g)
+#define H5T_STD_U32BE		(H5OPEN H5T_STD_U32BE_g)
+#define H5T_STD_U32LE		(H5OPEN H5T_STD_U32LE_g)
+#define H5T_STD_U64BE		(H5OPEN H5T_STD_U64BE_g)
+#define H5T_STD_U64LE		(H5OPEN H5T_STD_U64LE_g)
+#define H5T_STD_B8BE		(H5OPEN H5T_STD_B8BE_g)
+#define H5T_STD_B8LE		(H5OPEN H5T_STD_B8LE_g)
+#define H5T_STD_B16BE		(H5OPEN H5T_STD_B16BE_g)
+#define H5T_STD_B16LE		(H5OPEN H5T_STD_B16LE_g)
+#define H5T_STD_B32BE		(H5OPEN H5T_STD_B32BE_g)
+#define H5T_STD_B32LE		(H5OPEN H5T_STD_B32LE_g)
+#define H5T_STD_B64BE		(H5OPEN H5T_STD_B64BE_g)
+#define H5T_STD_B64LE		(H5OPEN H5T_STD_B64LE_g)
+#define H5T_STD_REF_OBJ	        (H5OPEN H5T_STD_REF_OBJ_g)
+#define H5T_STD_REF_DSETREG     (H5OPEN H5T_STD_REF_DSETREG_g)
 H5_DLLVAR hid_t H5T_STD_I8BE_g;
 H5_DLLVAR hid_t H5T_STD_I8LE_g;
 H5_DLLVAR hid_t H5T_STD_I16BE_g;
@@ -257,10 +278,10 @@ H5_DLLVAR hid_t H5T_STD_REF_DSETREG_g;
 /*
  * Types which are particular to Unix.
  */
-#define H5T_UNIX_D32BE		(H5open(), H5T_UNIX_D32BE_g)
-#define H5T_UNIX_D32LE		(H5open(), H5T_UNIX_D32LE_g)
-#define H5T_UNIX_D64BE		(H5open(), H5T_UNIX_D64BE_g)
-#define H5T_UNIX_D64LE		(H5open(), H5T_UNIX_D64LE_g)
+#define H5T_UNIX_D32BE		(H5OPEN H5T_UNIX_D32BE_g)
+#define H5T_UNIX_D32LE		(H5OPEN H5T_UNIX_D32LE_g)
+#define H5T_UNIX_D64BE		(H5OPEN H5T_UNIX_D64BE_g)
+#define H5T_UNIX_D64LE		(H5OPEN H5T_UNIX_D64LE_g)
 H5_DLLVAR hid_t H5T_UNIX_D32BE_g;
 H5_DLLVAR hid_t H5T_UNIX_D32LE_g;
 H5_DLLVAR hid_t H5T_UNIX_D64BE_g;
@@ -270,13 +291,13 @@ H5_DLLVAR hid_t H5T_UNIX_D64LE_g;
  * Types particular to the C language.  String types use `bytes' instead
  * of `bits' as their size.
  */
-#define H5T_C_S1		(H5open(), H5T_C_S1_g)
+#define H5T_C_S1		(H5OPEN H5T_C_S1_g)
 H5_DLLVAR hid_t H5T_C_S1_g;
 
 /*
  * Types particular to Fortran.
  */
-#define H5T_FORTRAN_S1		(H5open(), H5T_FORTRAN_S1_g)
+#define H5T_FORTRAN_S1		(H5OPEN H5T_FORTRAN_S1_g)
 H5_DLLVAR hid_t H5T_FORTRAN_S1_g;
 
 /*
@@ -346,29 +367,29 @@ H5_DLLVAR hid_t H5T_FORTRAN_S1_g;
  * same as `LONG' and `DOUBLE' respectively.
  */
 #define H5T_NATIVE_CHAR		(CHAR_MIN?H5T_NATIVE_SCHAR:H5T_NATIVE_UCHAR)
-#define H5T_NATIVE_SCHAR        (H5open(), H5T_NATIVE_SCHAR_g)
-#define H5T_NATIVE_UCHAR        (H5open(), H5T_NATIVE_UCHAR_g)
-#define H5T_NATIVE_SHORT        (H5open(), H5T_NATIVE_SHORT_g)
-#define H5T_NATIVE_USHORT       (H5open(), H5T_NATIVE_USHORT_g)
-#define H5T_NATIVE_INT          (H5open(), H5T_NATIVE_INT_g)
-#define H5T_NATIVE_UINT         (H5open(), H5T_NATIVE_UINT_g)
-#define H5T_NATIVE_LONG         (H5open(), H5T_NATIVE_LONG_g)
-#define H5T_NATIVE_ULONG        (H5open(), H5T_NATIVE_ULONG_g)
-#define H5T_NATIVE_LLONG        (H5open(), H5T_NATIVE_LLONG_g)
-#define H5T_NATIVE_ULLONG       (H5open(), H5T_NATIVE_ULLONG_g)
-#define H5T_NATIVE_FLOAT        (H5open(), H5T_NATIVE_FLOAT_g)
-#define H5T_NATIVE_DOUBLE       (H5open(), H5T_NATIVE_DOUBLE_g)
-#define H5T_NATIVE_LDOUBLE	(H5open(), H5T_NATIVE_LDOUBLE_g)
-#define H5T_NATIVE_B8		(H5open(), H5T_NATIVE_B8_g)
-#define H5T_NATIVE_B16		(H5open(), H5T_NATIVE_B16_g)
-#define H5T_NATIVE_B32		(H5open(), H5T_NATIVE_B32_g)
-#define H5T_NATIVE_B64		(H5open(), H5T_NATIVE_B64_g)
-#define H5T_NATIVE_OPAQUE       (H5open(), H5T_NATIVE_OPAQUE_g)
-#define H5T_NATIVE_HADDR	(H5open(), H5T_NATIVE_HADDR_g)
-#define H5T_NATIVE_HSIZE	(H5open(), H5T_NATIVE_HSIZE_g)
-#define H5T_NATIVE_HSSIZE	(H5open(), H5T_NATIVE_HSSIZE_g)
-#define H5T_NATIVE_HERR		(H5open(), H5T_NATIVE_HERR_g)
-#define H5T_NATIVE_HBOOL	(H5open(), H5T_NATIVE_HBOOL_g)
+#define H5T_NATIVE_SCHAR        (H5OPEN H5T_NATIVE_SCHAR_g)
+#define H5T_NATIVE_UCHAR        (H5OPEN H5T_NATIVE_UCHAR_g)
+#define H5T_NATIVE_SHORT        (H5OPEN H5T_NATIVE_SHORT_g)
+#define H5T_NATIVE_USHORT       (H5OPEN H5T_NATIVE_USHORT_g)
+#define H5T_NATIVE_INT          (H5OPEN H5T_NATIVE_INT_g)
+#define H5T_NATIVE_UINT         (H5OPEN H5T_NATIVE_UINT_g)
+#define H5T_NATIVE_LONG         (H5OPEN H5T_NATIVE_LONG_g)
+#define H5T_NATIVE_ULONG        (H5OPEN H5T_NATIVE_ULONG_g)
+#define H5T_NATIVE_LLONG        (H5OPEN H5T_NATIVE_LLONG_g)
+#define H5T_NATIVE_ULLONG       (H5OPEN H5T_NATIVE_ULLONG_g)
+#define H5T_NATIVE_FLOAT        (H5OPEN H5T_NATIVE_FLOAT_g)
+#define H5T_NATIVE_DOUBLE       (H5OPEN H5T_NATIVE_DOUBLE_g)
+#define H5T_NATIVE_LDOUBLE	(H5OPEN H5T_NATIVE_LDOUBLE_g)
+#define H5T_NATIVE_B8		(H5OPEN H5T_NATIVE_B8_g)
+#define H5T_NATIVE_B16		(H5OPEN H5T_NATIVE_B16_g)
+#define H5T_NATIVE_B32		(H5OPEN H5T_NATIVE_B32_g)
+#define H5T_NATIVE_B64		(H5OPEN H5T_NATIVE_B64_g)
+#define H5T_NATIVE_OPAQUE       (H5OPEN H5T_NATIVE_OPAQUE_g)
+#define H5T_NATIVE_HADDR	(H5OPEN H5T_NATIVE_HADDR_g)
+#define H5T_NATIVE_HSIZE	(H5OPEN H5T_NATIVE_HSIZE_g)
+#define H5T_NATIVE_HSSIZE	(H5OPEN H5T_NATIVE_HSSIZE_g)
+#define H5T_NATIVE_HERR		(H5OPEN H5T_NATIVE_HERR_g)
+#define H5T_NATIVE_HBOOL	(H5OPEN H5T_NATIVE_HBOOL_g)
 H5_DLLVAR hid_t H5T_NATIVE_SCHAR_g;
 H5_DLLVAR hid_t H5T_NATIVE_UCHAR_g;
 H5_DLLVAR hid_t H5T_NATIVE_SHORT_g;
@@ -394,12 +415,12 @@ H5_DLLVAR hid_t H5T_NATIVE_HERR_g;
 H5_DLLVAR hid_t H5T_NATIVE_HBOOL_g;
 
 /* C9x integer types */
-#define H5T_NATIVE_INT8			(H5open(), H5T_NATIVE_INT8_g)
-#define H5T_NATIVE_UINT8		(H5open(), H5T_NATIVE_UINT8_g)
-#define H5T_NATIVE_INT_LEAST8		(H5open(), H5T_NATIVE_INT_LEAST8_g)
-#define H5T_NATIVE_UINT_LEAST8		(H5open(), H5T_NATIVE_UINT_LEAST8_g)
-#define H5T_NATIVE_INT_FAST8 		(H5open(), H5T_NATIVE_INT_FAST8_g)
-#define H5T_NATIVE_UINT_FAST8		(H5open(), H5T_NATIVE_UINT_FAST8_g)
+#define H5T_NATIVE_INT8			(H5OPEN H5T_NATIVE_INT8_g)
+#define H5T_NATIVE_UINT8		(H5OPEN H5T_NATIVE_UINT8_g)
+#define H5T_NATIVE_INT_LEAST8		(H5OPEN H5T_NATIVE_INT_LEAST8_g)
+#define H5T_NATIVE_UINT_LEAST8		(H5OPEN H5T_NATIVE_UINT_LEAST8_g)
+#define H5T_NATIVE_INT_FAST8 		(H5OPEN H5T_NATIVE_INT_FAST8_g)
+#define H5T_NATIVE_UINT_FAST8		(H5OPEN H5T_NATIVE_UINT_FAST8_g)
 H5_DLLVAR hid_t H5T_NATIVE_INT8_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT8_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_LEAST8_g;
@@ -407,12 +428,12 @@ H5_DLLVAR hid_t H5T_NATIVE_UINT_LEAST8_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_FAST8_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT_FAST8_g;
 
-#define H5T_NATIVE_INT16		(H5open(), H5T_NATIVE_INT16_g)
-#define H5T_NATIVE_UINT16		(H5open(), H5T_NATIVE_UINT16_g)
-#define H5T_NATIVE_INT_LEAST16		(H5open(), H5T_NATIVE_INT_LEAST16_g)
-#define H5T_NATIVE_UINT_LEAST16		(H5open(), H5T_NATIVE_UINT_LEAST16_g)
-#define H5T_NATIVE_INT_FAST16		(H5open(), H5T_NATIVE_INT_FAST16_g)
-#define H5T_NATIVE_UINT_FAST16		(H5open(), H5T_NATIVE_UINT_FAST16_g)
+#define H5T_NATIVE_INT16		(H5OPEN H5T_NATIVE_INT16_g)
+#define H5T_NATIVE_UINT16		(H5OPEN H5T_NATIVE_UINT16_g)
+#define H5T_NATIVE_INT_LEAST16		(H5OPEN H5T_NATIVE_INT_LEAST16_g)
+#define H5T_NATIVE_UINT_LEAST16		(H5OPEN H5T_NATIVE_UINT_LEAST16_g)
+#define H5T_NATIVE_INT_FAST16		(H5OPEN H5T_NATIVE_INT_FAST16_g)
+#define H5T_NATIVE_UINT_FAST16		(H5OPEN H5T_NATIVE_UINT_FAST16_g)
 H5_DLLVAR hid_t H5T_NATIVE_INT16_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT16_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_LEAST16_g;
@@ -420,12 +441,12 @@ H5_DLLVAR hid_t H5T_NATIVE_UINT_LEAST16_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_FAST16_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT_FAST16_g;
 
-#define H5T_NATIVE_INT32		(H5open(), H5T_NATIVE_INT32_g)
-#define H5T_NATIVE_UINT32		(H5open(), H5T_NATIVE_UINT32_g)
-#define H5T_NATIVE_INT_LEAST32		(H5open(), H5T_NATIVE_INT_LEAST32_g)
-#define H5T_NATIVE_UINT_LEAST32		(H5open(), H5T_NATIVE_UINT_LEAST32_g)
-#define H5T_NATIVE_INT_FAST32		(H5open(), H5T_NATIVE_INT_FAST32_g)
-#define H5T_NATIVE_UINT_FAST32		(H5open(), H5T_NATIVE_UINT_FAST32_g)
+#define H5T_NATIVE_INT32		(H5OPEN H5T_NATIVE_INT32_g)
+#define H5T_NATIVE_UINT32		(H5OPEN H5T_NATIVE_UINT32_g)
+#define H5T_NATIVE_INT_LEAST32		(H5OPEN H5T_NATIVE_INT_LEAST32_g)
+#define H5T_NATIVE_UINT_LEAST32		(H5OPEN H5T_NATIVE_UINT_LEAST32_g)
+#define H5T_NATIVE_INT_FAST32		(H5OPEN H5T_NATIVE_INT_FAST32_g)
+#define H5T_NATIVE_UINT_FAST32		(H5OPEN H5T_NATIVE_UINT_FAST32_g)
 H5_DLLVAR hid_t H5T_NATIVE_INT32_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT32_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_LEAST32_g;
@@ -433,12 +454,12 @@ H5_DLLVAR hid_t H5T_NATIVE_UINT_LEAST32_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_FAST32_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT_FAST32_g;
 
-#define H5T_NATIVE_INT64		(H5open(), H5T_NATIVE_INT64_g)
-#define H5T_NATIVE_UINT64		(H5open(), H5T_NATIVE_UINT64_g)
-#define H5T_NATIVE_INT_LEAST64		(H5open(), H5T_NATIVE_INT_LEAST64_g)
-#define H5T_NATIVE_UINT_LEAST64 	(H5open(), H5T_NATIVE_UINT_LEAST64_g)
-#define H5T_NATIVE_INT_FAST64		(H5open(), H5T_NATIVE_INT_FAST64_g)
-#define H5T_NATIVE_UINT_FAST64		(H5open(), H5T_NATIVE_UINT_FAST64_g)
+#define H5T_NATIVE_INT64		(H5OPEN H5T_NATIVE_INT64_g)
+#define H5T_NATIVE_UINT64		(H5OPEN H5T_NATIVE_UINT64_g)
+#define H5T_NATIVE_INT_LEAST64		(H5OPEN H5T_NATIVE_INT_LEAST64_g)
+#define H5T_NATIVE_UINT_LEAST64 	(H5OPEN H5T_NATIVE_UINT_LEAST64_g)
+#define H5T_NATIVE_INT_FAST64		(H5OPEN H5T_NATIVE_INT_FAST64_g)
+#define H5T_NATIVE_UINT_FAST64		(H5OPEN H5T_NATIVE_UINT_FAST64_g)
 H5_DLLVAR hid_t H5T_NATIVE_INT64_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT64_g;
 H5_DLLVAR hid_t H5T_NATIVE_INT_LEAST64_g;
@@ -459,11 +480,6 @@ H5_DLL htri_t H5Tcommitted(hid_t type_id);
 /* Operations defined on compound data types */
 H5_DLL herr_t H5Tinsert(hid_t parent_id, const char *name, size_t offset,
 			 hid_t member_id);
-#if defined(WANT_H5_V1_2_COMPAT) || defined(H5_WANT_H5_V1_2_COMPAT)
-H5_DLL herr_t H5Tinsert_array(hid_t parent_id, const char *name,
-			       size_t offset, int ndims, const size_t dim[],
-			       const int *perm, hid_t member_id);
-#endif /* WANT_H5_V1_2_COMPAT */
 H5_DLL herr_t H5Tpack(hid_t type_id);
 
 /* Operations defined on enumeration data types */
@@ -509,16 +525,13 @@ H5_DLL int H5Tget_nmembers(hid_t type_id);
 H5_DLL char *H5Tget_member_name(hid_t type_id, int membno);
 H5_DLL int H5Tget_member_index(hid_t type_id, const char *name);
 H5_DLL size_t H5Tget_member_offset(hid_t type_id, int membno);
-#if defined(WANT_H5_V1_2_COMPAT) || defined(H5_WANT_H5_V1_2_COMPAT)
-H5_DLL int H5Tget_member_dims(hid_t type_id, int membno, size_t dims[]/*out*/,
-			       int perm[]/*out*/);
-#endif /* WANT_H5_V1_2_COMPAT */
 H5_DLL H5T_class_t H5Tget_member_class(hid_t type_id, int membno);
 H5_DLL hid_t H5Tget_member_type(hid_t type_id, int membno);
 H5_DLL herr_t H5Tget_member_value(hid_t type_id, int membno,
 				   void *value/*out*/);
 H5_DLL H5T_cset_t H5Tget_cset(hid_t type_id);
 H5_DLL htri_t H5Tis_variable_str(hid_t type_id);
+H5_DLL hid_t H5Tget_native_type(hid_t type_id, H5T_direction_t direction); 
 
 /* Setting property values */
 H5_DLL herr_t H5Tset_size(hid_t type_id, size_t size);

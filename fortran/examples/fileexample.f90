@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -11,7 +12,7 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
+!
 !
 ! The following example demonstrates how to create and close an HDF5 file.
 ! It creates a file called 'file.h5',  and then closes the file.

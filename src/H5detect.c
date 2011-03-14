@@ -13,7 +13,6 @@ static const char *FileHeader = "\n\
  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *\n\
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *\n\
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *";
-
 /*
  *
  * Created:	H5detect.c
@@ -40,6 +39,8 @@ static const char *FileHeader = "\n\
  */
 #undef NDEBUG
 #include "H5private.h"
+#include "H5Tpublic.h"
+#include "H5Rpublic.h"
 
 #define MAXDETECT 64
 /*
@@ -57,9 +58,17 @@ typedef struct detected_t {
     int			epos, esize;	/*information about exponent	*/
     unsigned long	bias;		/*exponent bias for floating pt.*/
     size_t		align;		/*required byte alignment	*/
+    size_t		comp_align;	/*alignment for structure       */
 } detected_t;
 
-static void print_results(int nd, detected_t *d);
+/* This structure holds structure alignment for pointers, hvl_t, hobj_ref_t, 
+ * hdset_reg_ref_t */
+typedef struct malign_t {
+    const char          *name;      
+    size_t              comp_align;         /*alignment for structure   */
+} malign_t;
+   
+static void print_results(int nd, detected_t *d, int na, malign_t *m);
 static void iprint(detected_t *);
 static int byte_cmp(int, void *, void *);
 static int bit_cmp(int, int *, void *, void *);
@@ -170,8 +179,13 @@ precision (detected_t *d)
       INFO.perm[_i] = _j;						      \
    }									      \
    INFO.sign = ('U'!=*(#VAR));						      \
-   ALIGNMENT(TYPE, INFO.align);						      \
    precision (&(INFO));							      \
+   ALIGNMENT(TYPE, INFO);						      \
+   if(!strcmp(INFO.varname, "SCHAR")  || !strcmp(INFO.varname, "SHORT") ||    \
+      !strcmp(INFO.varname, "INT")   || !strcmp(INFO.varname, "LONG")  ||     \
+      !strcmp(INFO.varname, "LLONG")) {                                       \
+      COMP_ALIGNMENT(TYPE,INFO.comp_align);                                   \
+   }                                                                          \
 }
 
 /*-------------------------------------------------------------------------
@@ -253,26 +267,78 @@ precision (detected_t *d)
 									      \
    _v1 = 1.0;								      \
    INFO.bias = find_bias (INFO.epos, INFO.esize, INFO.perm, &_v1);	      \
-   ALIGNMENT(TYPE, INFO.align);						      \
    precision (&(INFO));							      \
+   ALIGNMENT(TYPE, INFO);						      \
+   if(!strcmp(INFO.varname, "FLOAT") || !strcmp(INFO.varname, "DOUBLE") ||    \
+      !strcmp(INFO.varname, "LDOUBLE")) {                                     \
+      COMP_ALIGNMENT(TYPE,INFO.comp_align);                                   \
+   }                                                                          \
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	DETECT_M
+ *
+ * Purpose:	This macro takes only miscellaneous structures or pointer
+ *              (pointer, hvl_t, hobj_ref_t, hdset_reg_ref_t).  It  
+ *		constructs the names and decides the alignment in structure.
+ *
+ * Return:	void
+ *
+ * Programmer:	Raymond Lu
+ *		slu@ncsa.uiuc.edu
+ *		Dec 9, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+#define DETECT_M(TYPE,VAR,INFO) {					      \
+   INFO.name = #VAR;							      \
+   COMP_ALIGNMENT(TYPE, INFO.comp_align);				      \
+}
+
+/* Detect alignment for C structure */
+#define COMP_ALIGNMENT(TYPE,COMP_ALIGN) {			              \
+    struct {                                                                  \
+        char    c;                                                            \
+        TYPE    x;                                                            \
+    } s;                                                                      \
+                                                                              \
+    COMP_ALIGN = (size_t)((char*)(&(s.x)) - (char*)(&s));                     \
 }
 
 #if defined(H5_HAVE_LONGJMP) && defined(H5_HAVE_SIGNAL)
-#define ALIGNMENT(TYPE,ALIGN) {						      \
+#define ALIGNMENT(TYPE,INFO) {						      \
     char		*volatile _buf=NULL;				      \
-    volatile TYPE	_val=0;						      \
+    volatile TYPE	_val=1;						      \
+    volatile TYPE	_val2;						      \
     volatile size_t	_ano=0;						      \
     void		(*_handler)(int) = signal(SIGBUS, sigbus_handler);    \
-    void		(*_handler2)(int) = signal(SIGSEGV, sigsegv_handler);    \
+    void		(*_handler2)(int) = signal(SIGSEGV, sigsegv_handler);	\
 									      \
     _buf = malloc(sizeof(TYPE)+align_g[NELMTS(align_g)-1]);		      \
     if (setjmp(jbuf_g)) _ano++;						      \
     if (_ano<NELMTS(align_g)) {						      \
-	*((TYPE*)(_buf+align_g[_ano])) = _val; /*possible SIGBUS or SEGSEGV*/	      \
-	_val = *((TYPE*)(_buf+align_g[_ano]));	/*possible SIGBUS or SEGSEGV*/	      \
-	(ALIGN)=align_g[_ano];						      \
+	*((TYPE*)(_buf+align_g[_ano])) = _val; /*possible SIGBUS or SEGSEGV*/	\
+	_val2 = *((TYPE*)(_buf+align_g[_ano]));	/*possible SIGBUS or SEGSEGV*/	\
+	/* Cray Check: This section helps detect alignment on Cray's */	      \
+        /*              vector machines (like the SV1) which mask off */      \
+	/*              pointer values when pointing to non-word aligned */   \
+	/*              locations with pointers that are supposed to be */    \
+	/*              word aligned. -QAK */                                 \
+	memset(_buf, 0xff, sizeof(TYPE)+align_g[NELMTS(align_g)-1]);	      \
+	if(INFO.perm[0]) /* Big-Endian */				      \
+	    memcpy(_buf+align_g[_ano]+(INFO.size-((INFO.offset+INFO.precision)/8)),((char *)&_val)+(INFO.size-((INFO.offset+INFO.precision)/8)),(size_t)(INFO.precision/8)); \
+	else /* Little-Endian */					      \
+	    memcpy(_buf+align_g[_ano]+(INFO.offset/8),((char *)&_val)+(INFO.offset/8),(size_t)(INFO.precision/8)); \
+	_val2 = *((TYPE*)(_buf+align_g[_ano]));				      \
+	if(_val!=_val2)							      \
+	    longjmp(jbuf_g, 1);						      \
+	/* End Cray Check */						      \
+	(INFO.align)=align_g[_ano];					      \
     } else {								      \
-	(ALIGN)=0;							      \
+	(INFO.align)=0;							      \
 	fprintf(stderr, "unable to calculate alignment for %s\n", #TYPE);     \
     }									      \
     free(_buf);								      \
@@ -280,12 +346,12 @@ precision (detected_t *d)
     signal(SIGSEGV, _handler2); /*restore original handler*/		      \
 }
 #else
-#define ALIGNMENT(TYPE,ALIGN) (ALIGN)=0
+#define ALIGNMENT(TYPE,INFO) (INFO.align)=0
 #endif
 
 #if 0
 #if defined(H5_HAVE_FORK) && defined(H5_HAVE_WAITPID)
-#define ALIGNMENT(TYPE,ALIGN) {						      \
+#define ALIGNMENT(TYPE,INFO) {						      \
     char	*_buf;							      \
     TYPE	_val=0;							      \
     size_t	_ano;							      \
@@ -311,7 +377,7 @@ precision (detected_t *d)
 	    exit(1);							      \
 	}								      \
 	if (WIFEXITED(_status) && 0==WEXITSTATUS(_status)) {		      \
-	    ALIGN=align_g[_ano];					      \
+	    INFO.align=align_g[_ano];					      \
 	    break;							      \
 	}								      \
 	if (WIFSIGNALED(_status) && SIGBUS==WTERMSIG(_status)) {	      \
@@ -321,12 +387,12 @@ precision (detected_t *d)
 	break;								      \
     }									      \
     if (_ano>=NELMTS(align_g)) {					      \
-	ALIGN=0;							      \
+	INFO.align=0;							      \
 	fprintf(stderr, "unable to calculate alignment for %s\n", #TYPE);     \
     }									      \
 }
 #else
-#define ALIGNMENT(TYPE,ALIGN) (ALIGN)=0
+#define ALIGNMENT(TYPE,INFO) (INFO.align)=0
 #endif
 #endif
 
@@ -397,10 +463,10 @@ sigbus_handler(int UNUSED signo)
  *-------------------------------------------------------------------------
  */
 static void
-print_results(int nd, detected_t *d)
+print_results(int nd, detected_t *d, int na, malign_t *misc_align)
 {
 
-    int		i;
+    int		i, j;
 
     /* Include files */
     printf("\
@@ -428,7 +494,9 @@ int\n\
 H5TN_term_interface(void)\n\
 {\n\
     interface_initialize_g = 0;\n\
-    return 0;\n\
+    FUNC_ENTER_NOINIT(H5TN_term_interface);\n\
+    \n\
+    FUNC_LEAVE_NOAPI(0);\n\
 }\n");
 
     /* The interface initialization function */
@@ -436,9 +504,10 @@ H5TN_term_interface(void)\n\
 herr_t\n\
 H5TN_init_interface(void)\n\
 {\n\
-   H5T_t	*dt = NULL;\n\
+    H5T_t	*dt = NULL;\n\
+    herr_t	ret_value = SUCCEED;\n\
 \n\
-   FUNC_ENTER (H5TN_init_interface, FAIL);\n");
+    FUNC_ENTER_NOAPI(H5TN_init_interface, FAIL);\n");
 
     for (i = 0; i < nd; i++) {
 
@@ -449,19 +518,17 @@ H5TN_init_interface(void)\n\
 
 	/* The part common to fixed and floating types */
 	printf("\
-   if (NULL==(dt = H5FL_ALLOC (H5T_t,1))) {\n\
-      HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,\n\
-		     \"memory allocation failed\");\n\
-   }\n\
-   dt->state = H5T_STATE_IMMUTABLE;\n\
-   dt->ent.header = HADDR_UNDEF;\n\
-   dt->type = H5T_%s;\n\
-   dt->size = %d;\n\
-   dt->u.atomic.order = H5T_ORDER_%s;\n\
-   dt->u.atomic.offset = %d;\n\
-   dt->u.atomic.prec = %d;\n\
-   dt->u.atomic.lsb_pad = H5T_PAD_ZERO;\n\
-   dt->u.atomic.msb_pad = H5T_PAD_ZERO;\n",
+    if (NULL==(dt = H5FL_CALLOC (H5T_t)))\n\
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,\"memory allocation failed\");\n\
+    dt->state = H5T_STATE_IMMUTABLE;\n\
+    dt->ent.header = HADDR_UNDEF;\n\
+    dt->type = H5T_%s;\n\
+    dt->size = %d;\n\
+    dt->u.atomic.order = H5T_ORDER_%s;\n\
+    dt->u.atomic.offset = %d;\n\
+    dt->u.atomic.prec = %d;\n\
+    dt->u.atomic.lsb_pad = H5T_PAD_ZERO;\n\
+    dt->u.atomic.msb_pad = H5T_PAD_ZERO;\n",
 	       d[i].msize ? "FLOAT" : "INTEGER",/*class			*/
 	       d[i].size,			/*size			*/
 	       d[i].perm[0] ? "BE" : "LE",	/*byte order		*/
@@ -471,19 +538,19 @@ H5TN_init_interface(void)\n\
 	if (0 == d[i].msize) {
 	    /* The part unique to fixed point types */
 	    printf("\
-   dt->u.atomic.u.i.sign = H5T_SGN_%s;\n",
+    dt->u.atomic.u.i.sign = H5T_SGN_%s;\n",
 		   d[i].sign ? "2" : "NONE");
 	} else {
 	    /* The part unique to floating point types */
 	    printf("\
-   dt->u.atomic.u.f.sign = %d;\n\
-   dt->u.atomic.u.f.epos = %d;\n\
-   dt->u.atomic.u.f.esize = %d;\n\
-   dt->u.atomic.u.f.ebias = 0x%08lx;\n\
-   dt->u.atomic.u.f.mpos = %d;\n\
-   dt->u.atomic.u.f.msize = %d;\n\
-   dt->u.atomic.u.f.norm = H5T_NORM_%s;\n\
-   dt->u.atomic.u.f.pad = H5T_PAD_ZERO;\n",
+    dt->u.atomic.u.f.sign = %d;\n\
+    dt->u.atomic.u.f.epos = %d;\n\
+    dt->u.atomic.u.f.esize = %d;\n\
+    dt->u.atomic.u.f.ebias = 0x%08lx;\n\
+    dt->u.atomic.u.f.mpos = %d;\n\
+    dt->u.atomic.u.f.msize = %d;\n\
+    dt->u.atomic.u.f.norm = H5T_NORM_%s;\n\
+    dt->u.atomic.u.f.pad = H5T_PAD_ZERO;\n",
 		   d[i].sign,	/*sign location */
 		   d[i].epos,	/*exponent loc	*/
 		   d[i].esize,	/*exponent size */
@@ -495,17 +562,36 @@ H5TN_init_interface(void)\n\
 
 	/* Atomize the type */
 	printf("\
-   if ((H5T_NATIVE_%s_g = H5I_register (H5I_DATATYPE, dt))<0) {\n\
-      HRETURN_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,\n\
-		     \"can't initialize type system (atom registration \"\n\
-		     \"failure\");\n\
-   }\n",
+    if ((H5T_NATIVE_%s_g = H5I_register (H5I_DATATYPE, dt))<0)\n\
+        HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,\"can't initialize type system (atom registration failure\");\n",
 	       d[i].varname);
-	printf("   H5T_NATIVE_%s_ALIGN_g = %lu;\n",
+	printf("    H5T_NATIVE_%s_ALIGN_g = %lu;\n",
 	       d[i].varname, (unsigned long)(d[i].align));
+
+        /* Variables for alignment of compound datatype */
+        if(!strcmp(d[i].varname, "SCHAR")  || !strcmp(d[i].varname, "SHORT") || 
+            !strcmp(d[i].varname, "INT")   || !strcmp(d[i].varname, "LONG")  || 
+            !strcmp(d[i].varname, "LLONG") || !strcmp(d[i].varname, "FLOAT") || 
+            !strcmp(d[i].varname, "DOUBLE") || !strcmp(d[i].varname, "LDOUBLE")) { 
+            printf("    H5T_NATIVE_%s_COMP_ALIGN_g = %lu;\n",
+                    d[i].varname, (unsigned long)(d[i].comp_align));
+        }
     }
 
-    printf("   FUNC_LEAVE (SUCCEED);\n}\n");
+    /* Structure alignment for pointers, hvl_t, hobj_ref_t, hdset_reg_ref_t */
+    printf("\n    /* Structure alignment for pointers, hvl_t, hobj_ref_t, hdset_reg_ref_t */\n");
+    for(j=0; j<na; j++)
+        printf("    H5T_%s_COMP_ALIGN_g = %lu;\n", misc_align[j].name, (unsigned long)(misc_align[j].comp_align));
+        
+    printf("\
+\n\
+done:\n\
+    if(ret_value<0) {\n\
+        if(dt!=NULL)\n\
+            H5FL_FREE(H5T_t,dt);\n\
+    }\n\
+\n\
+    FUNC_LEAVE_NOAPI(ret_value);\n}\n");
 }
 
 
@@ -931,9 +1017,15 @@ bit.\n";
      * The FQDM of this host or the empty string.
      */
 #ifdef H5_HAVE_GETHOSTNAME
+#ifdef WIN32 
+/* windows DLL cannot recognize gethostname, so turn off on windows for the time being!
+    KY, 2003-1-14 */
+    host_name[0] = '\0';
+#else
     if (gethostname(host_name, sizeof(host_name)) < 0) {
 	host_name[0] = '\0';
     }
+#endif
 #else
     host_name[0] = '\0';
 #endif
@@ -994,8 +1086,9 @@ int
 main(void)
 {
     detected_t		d[MAXDETECT];
-    volatile int	nd = 0;
-
+    malign_t            m[MAXDETECT];
+    volatile int	nd = 0, na = 0;
+    
 #if defined(H5_HAVE_SETSYSINFO) && defined(SSI_NVPAIRS)
 #if defined(UAC_NOPRINT) && defined(UAC_SIGBUS)
     /*
@@ -1017,7 +1110,7 @@ main(void)
     /* C89 integer types */
     DETECT_I(signed char,	  SCHAR,        d[nd]); nd++;
     DETECT_I(unsigned char,	  UCHAR,        d[nd]); nd++;
-    DETECT_I(short,		  SHORT,        d[nd]); nd++;
+    DETECT_I(short,		  SHORT,        d[nd]); nd++; 
     DETECT_I(unsigned short,	  USHORT,       d[nd]); nd++;
     DETECT_I(int,		  INT,	        d[nd]); nd++;
     DETECT_I(unsigned int,	  UINT,	        d[nd]); nd++;
@@ -1128,6 +1221,13 @@ main(void)
     DETECT_F(long double,	  LDOUBLE,      d[nd]); nd++;
 #endif
 
-    print_results (nd, d);
+    /* Detect structure alignment for pointers, hvl_t, hobj_ref_t, hdset_reg_ref_t */
+    DETECT_M(void *,              POINTER,      m[na]); na++;
+    DETECT_M(hvl_t,               HVL,          m[na]); na++;
+    DETECT_M(hobj_ref_t,          HOBJREF,      m[na]); na++;
+    DETECT_M(hdset_reg_ref_t,     HDSETREGREF,  m[na]); na++;
+    
+    print_results (nd, d, na, m);
+    
     return 0;
 }

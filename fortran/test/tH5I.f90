@@ -1,4 +1,18 @@
 
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!   Copyright by the Board of Trustees of the University of Illinois.         *
+!   All rights reserved.                                                      *
+!                                                                             *
+!   This file is part of HDF5.  The full HDF5 copyright notice, including     *
+!   terms governing use, modification, and redistribution, is contained in    *
+!   the files COPYING and Copyright.html.  COPYING can be found at the root   *
+!   of the source code distribution tree; Copyright.html can be found at the  *
+!   root level of an installed copy of the electronic HDF5 document set and   *
+!   is linked from the top-level documents page.  It can also be found at     *
+!   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+!   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!
     SUBROUTINE identifier_test(cleanup, total_error)
 
 !   This subroutine tests following functionalities: h5iget_type_f
@@ -11,7 +25,7 @@
 
      CHARACTER(LEN=6), PARAMETER :: filename = "itestf" ! File name
      CHARACTER(LEN=80) :: fix_filename
-     CHARACTER(LEN=9), PARAMETER :: dsetname = "itestdset" ! Dataset name
+     CHARACTER(LEN=10), PARAMETER :: dsetname = "/itestdset" ! Dataset name
      CHARACTER(LEN=10), PARAMETER :: groupname = "itestgroup"! group name
      CHARACTER(LEN=10), PARAMETER :: aname = "itestattr"! group name
           
@@ -38,6 +52,9 @@
      INTEGER     ::   type !object identifier
      INTEGER     ::   error ! Error flag
      INTEGER, DIMENSION(7) :: data_dims
+     CHARACTER(LEN=80) name_buf
+     INTEGER(SIZE_T)   buf_size
+     INTEGER(SIZE_T)   name_size
 
 
      !
@@ -69,6 +86,19 @@
      CALL h5dcreate_f(file_id, dsetname, H5T_NATIVE_INTEGER, dspace_id, &
                dset_id, error)
      CALL check("h5dcreate_f",error,total_error)
+     buf_size = 80
+     CALL h5iget_name_f(dset_id, name_buf, buf_size, name_size, error)
+     CALL check("h5iget_name_f",error,total_error)
+          if (name_size .ne. len(dsetname)) then
+              write(*,*) "h5iget_name returned wrong name size"
+              total_error = total_error + 1
+              goto 100
+          endif
+          if (name_buf(1:name_size) .ne. dsetname) then
+              write(*,*) "h5iget_name returned wrong name"
+              total_error = total_error + 1
+          endif
+100       continue
 
      !
      ! Write data_in to the dataset

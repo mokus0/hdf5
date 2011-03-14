@@ -21,16 +21,12 @@
 #include "H5Spublic.h"
 
 /* Private headers needed by this file */
-#include "H5private.h"
-#include "H5Dpublic.h"
-#include "H5Fprivate.h"
-#include "H5Oprivate.h"
-
-#define H5S_RESERVED_ATOMS  2
-
-/* Flags to indicate special dataspace features are active */
-#define H5S_VALID_MAX	0x01
-#define H5S_VALID_PERM	0x02
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Dprivate.h"		/* Dataset functions			*/
+#include "H5Fprivate.h"		/* Files				*/
+#include "H5Gprivate.h"		/* Groups				*/
+#include "H5Oprivate.h"		/* Object headers		  	*/
+#include "H5Pprivate.h"		/* Property lists			*/
 
 /* Flags for H5S_find */
 #define H5S_CONV_PAR_IO_POSSIBLE        0x0001
@@ -41,138 +37,107 @@
 #define H5S_CONV_STORAGE_CHUNKED        0x0004  /* i.e. '2' */
 #define H5S_CONV_STORAGE_MASK           0x0006
 
-/* Forward references of common typedefs */
+/* Forward references of package typedefs */
 typedef struct H5S_t H5S_t;
 typedef struct H5S_pnt_node_t H5S_pnt_node_t;
-
-/* Enumerated type for the type of selection */
-typedef enum {
-    H5S_SEL_ERROR	= -1, 		/* Error			*/
-    H5S_SEL_NONE	= 0,           	/* Nothing selected 		*/
-    H5S_SEL_POINTS	= 1,         	/* Sequence of points selected	*/
-    H5S_SEL_HYPERSLABS	= 2,     	/* Hyperslab selection defined	*/
-    H5S_SEL_ALL		= 3,            /* Entire extent selected	*/
-    H5S_SEL_N		= 4		/*THIS MUST BE LAST		*/
-}H5S_sel_type;
+typedef struct H5S_hyper_span_t H5S_hyper_span_t;
+typedef struct H5S_hyper_span_info_t H5S_hyper_span_info_t;
+typedef struct H5S_hyper_dim_t H5S_hyper_dim_t;
 
 /* Point selection iteration container */
 typedef struct {
-    hsize_t elmt_left;      /* Number of elements left to iterate over */
     H5S_pnt_node_t *curr;   /* Pointer to next node to output */
 } H5S_point_iter_t;
 
 /* Hyperslab selection iteration container */
 typedef struct {
-    hsize_t elmt_left;      /* Number of elements left to iterate over */
-    hssize_t *pos;          /* Position to start iterating at */
+    /* Common fields for all hyperslab selections */
+    hssize_t *off;          /* Offset in span node (used as position for regular hyperslabs) */
+    unsigned iter_rank;     /* Rank of iterator information */
+                            /* (This should always be the same as the dataspace
+                             * rank, except for regular hyperslab selections in
+                             * which there are contiguous regions in the lower
+                             * dimensions which have been "flattened" out
+                             */
+
+    /* "Flattened" regular hyperslab selection fields */
+    H5S_hyper_dim_t *diminfo;   /* "Flattened" regular selection information */
+    hsize_t *size;          /* "Flattened" dataspace extent information */
+    hssize_t *sel_off;      /* "Flattened" selection offset information */
+
+    /* Irregular hyperslab selection fields */
+    H5S_hyper_span_info_t *spans;  /* Pointer to copy of the span tree */
+    H5S_hyper_span_t **span;/* Array of pointers to span nodes */
 } H5S_hyper_iter_t;
 
 /* "All" selection iteration container */
 typedef struct {
-    hsize_t elmt_left;      /* Number of elements left to iterate over */
     hsize_t offset;         /* Next element to output */
 } H5S_all_iter_t;
 
+typedef struct H5S_sel_iter_t H5S_sel_iter_t;
+
+/* Method to retrieve the current coordinates of iterator for current selection */
+typedef herr_t (*H5S_sel_iter_coords_func_t)(const H5S_sel_iter_t *iter, hssize_t *coords);
+/* Method to retrieve the current block of iterator for current selection */
+typedef herr_t (*H5S_sel_iter_block_func_t)(const H5S_sel_iter_t *iter, hssize_t *start, hssize_t *end);
+/* Method to determine number of elements left in iterator for current selection */
+typedef hsize_t (*H5S_sel_iter_nelmts_func_t)(const H5S_sel_iter_t *iter);
+/* Method to determine if there are more blocks left in the current selection */
+typedef htri_t (*H5S_sel_iter_has_next_block_func_t)(const H5S_sel_iter_t *iter);
+/* Method to move selection iterator to the next element in the selection */
+typedef herr_t (*H5S_sel_iter_next_func_t)(H5S_sel_iter_t *iter, size_t nelem);
+/* Method to move selection iterator to the next block in the selection */
+typedef herr_t (*H5S_sel_iter_next_block_func_t)(H5S_sel_iter_t *iter);
+/* Method to release iterator for current selection */
+typedef herr_t (*H5S_sel_iter_release_func_t)(H5S_sel_iter_t *iter);
+
 /* Selection iteration container */
-typedef union {
-    H5S_point_iter_t pnt;   /* Point selection iteration information */
-    H5S_hyper_iter_t hyp;   /* Hyperslab selection iteration information */
-    H5S_all_iter_t all;     /* "All" selection iteration information */
-} H5S_sel_iter_t;
+struct H5S_sel_iter_t {
+    /* Information common to all iterators */
+    unsigned rank;              /* Rank of dataspace the selection iterator is operating on */
+    hsize_t *dims;              /* Dimensions of dataspace the selection is operating on */
+    hsize_t elmt_left;          /* Number of elements left to iterate over */
 
-/*
- * Data space conversions usually take place in two halves.  One half
- * transfers data points between memory and a data type conversion array
- * where the points are contiguous, and the other half transfers points
- * between the type conversion array and the file.
- */
-typedef struct H5S_fconv_t {
-    /* Identification */
-    const char 		*name;
-    H5S_sel_type	type;
-    
-    /* Initialize file element numbering information */
-    herr_t (*init)(const struct H5O_layout_t *layout, const H5S_t *space,
-		   H5S_sel_iter_t *iter);
+    /* Information specific to each type of iterator */
+    union {
+        H5S_point_iter_t pnt;   /* Point selection iteration information */
+        H5S_hyper_iter_t hyp;   /* New Hyperslab selection iteration information */
+        H5S_all_iter_t all;     /* "All" selection iteration information */
+    } u;
 
-    /* Determine optimal number of elements to transfer */
-    hsize_t (*avail)(const H5S_t *file_space, const H5S_sel_iter_t *file_iter,
-		    hsize_t max);
-
-    /* Gather elements from disk to type conversion buffer */
-    hsize_t (*gath)(H5F_t *f, const struct H5O_layout_t *layout,
-		   const struct H5O_pline_t *pline,
-		   const struct H5O_fill_t *fill,
-		   const struct H5O_efl_t *efl, size_t elmt_size,
-		   const H5S_t *file_space, H5S_sel_iter_t *file_iter,
-		   hsize_t nelmts, hid_t dxpl_id, void *tconv_buf/*out*/);
-
-    /* Scatter elements from type conversion buffer to disk */
-    herr_t (*scat)(H5F_t *f, const struct H5O_layout_t *layout,
-		   const struct H5O_pline_t *pline,
-		   const struct H5O_fill_t *fill,
-		   const struct H5O_efl_t *efl, size_t elmt_size,
-		   const H5S_t *file_space, H5S_sel_iter_t *file_iter,
-		   hsize_t nelmts, hid_t dxpl_id, const void *tconv_buf);
-} H5S_fconv_t;
-
-typedef struct H5S_mconv_t {
-    /* Identification */
-    const char		*name;
-    H5S_sel_type	type;
-    
-    /* Initialize memory element numbering information */
-    herr_t (*init)(const struct H5O_layout_t *layout, const H5S_t *space,
-		   H5S_sel_iter_t *iter);
-
-    /* Gather elements from app buffer to type conversion buffer */
-    hsize_t (*gath)(const void *buf, size_t elmt_size,
-		   const H5S_t *mem_space, H5S_sel_iter_t *mem_iter,
-		   hsize_t nelmts, void *tconv_buf/*out*/);
-
-    /* Scatter elements from type conversion buffer to application buffer */
-    herr_t (*scat)(const void *tconv_buf, size_t elmt_size,
-		   const H5S_t *mem_space, H5S_sel_iter_t *mem_iter,
-		   hsize_t nelmts, void *buf/*out*/);
-} H5S_mconv_t;
+    /* Methods on selections */
+    H5S_sel_iter_coords_func_t iter_coords;     /* Method to retrieve the current coordinates of iterator for current selection */
+    H5S_sel_iter_block_func_t iter_block;       /* Method to retrieve the current block of iterator for current selection */
+    H5S_sel_iter_nelmts_func_t iter_nelmts;     /* Method to determine number of elements left in iterator for current selection */
+    H5S_sel_iter_has_next_block_func_t iter_has_next_block;         /* Method to query if there is another block left in the selection */
+    H5S_sel_iter_next_func_t iter_next;         /* Method to move selection iterator to the next element in the selection */
+    H5S_sel_iter_next_block_func_t iter_next_block;     /* Method to move selection iterator to the next block in the selection */
+    H5S_sel_iter_release_func_t iter_release;   /* Method to release iterator for current selection */
+};
 
 typedef struct H5S_conv_t {
-    const H5S_fconv_t	*f;
-    const H5S_mconv_t	*m;
+    H5S_sel_type	ftype;
+    H5S_sel_type	mtype;
 
     /*
      * If there is no data type conversion then it might be possible to
      * transfer data points between application memory and the file in one
      * step without going through the data type conversion buffer.
-     *
-     * rky 980918
-     * If the direct read or write function determines that the transfer
-     * must be done indirectly, i.e., through the conversion buffer or
-     * (in the case of parallel MPI-IO) in block-by-block transfers
-     * then the function returns with the value of must_convert!=0,
-     * the function's return value is SUCCEED,
-     * and no transfer of data is attempted.
-     * Otherwise the direct read or write function returns must_convert 0,
-     * with the function's return value being SUCCEED or FAIL
-     * depending on whether or not the transfer of data was successful.
      */
     
     /* Read from file to application w/o intermediate scratch buffer */
     herr_t (*read)(H5F_t *f, const struct H5O_layout_t *layout,
-		   const struct H5O_pline_t *pline,
-		   const struct H5O_fill_t *fill,
-		   const struct H5O_efl_t *efl, size_t elmt_size,
-		   const H5S_t *file_space, const H5S_t *mem_space,
-		   hid_t dxpl_id, void *buf/*out*/);
+           H5P_genplist_t *dc_plist, const H5D_storage_t *store,
+           size_t elmt_size, const H5S_t *file_space,
+           const H5S_t *mem_space, hid_t dxpl_id, void *buf/*out*/);
 
 
     /* Write directly from app buffer to file */
-    herr_t (*write)(H5F_t *f, const struct H5O_layout_t *layout,
-		   const struct H5O_pline_t *pline,
-		   const struct H5O_fill_t *fill,
-		   const struct H5O_efl_t *efl, size_t elmt_size,
-		   const H5S_t *file_space, const H5S_t *mem_space,
-		   hid_t dxpl_id, const void *buf);
+    herr_t (*write)(H5F_t *f, struct H5O_layout_t *layout,
+           H5P_genplist_t *dc_plist, const union H5D_storage_t *store, 
+           size_t elmt_size, const H5S_t *file_space,
+           const H5S_t *mem_space, hid_t dxpl_id, const void *buf);
     
 #ifdef H5S_DEBUG
     struct {
@@ -195,19 +160,7 @@ typedef struct H5S_conv_t {
 #endif
 } H5S_conv_t;
 
-/* Conversion information for the various data space selection types */
-H5_DLLVAR const H5S_fconv_t	H5S_POINT_FCONV[];
-H5_DLLVAR const H5S_mconv_t	H5S_POINT_MCONV[];
-H5_DLLVAR const H5S_fconv_t	H5S_ALL_FCONV[];
-H5_DLLVAR const H5S_mconv_t	H5S_ALL_MCONV[];
-H5_DLLVAR const H5S_fconv_t	H5S_HYPER_FCONV[];
-H5_DLLVAR const H5S_mconv_t	H5S_HYPER_MCONV[];
-H5_DLLVAR const H5S_fconv_t	H5S_NONE_FCONV[];
-H5_DLLVAR const H5S_mconv_t	H5S_NONE_MCONV[];
-
-/* We get the declaration of H5G_entry_t from the H5Oprivate.h file */
-
-H5_DLL H5S_t *H5S_create(H5S_class_t type);
+/* Operations on dataspaces */
 H5_DLL H5S_t *H5S_copy(const H5S_t *src);
 H5_DLL herr_t H5S_close(H5S_t *ds);
 H5_DLL H5S_conv_t *H5S_find(const H5S_t *mem_space, const H5S_t *file_space,
@@ -218,73 +171,82 @@ H5_DLL hsize_t H5S_get_npoints_max(const H5S_t *ds);
 H5_DLL int H5S_get_simple_extent_ndims(const H5S_t *ds);
 H5_DLL int H5S_get_simple_extent_dims(const H5S_t *ds, hsize_t dims[]/*out*/,
 					hsize_t max_dims[]/*out*/);
-H5_DLL herr_t H5S_modify(struct H5G_entry_t *ent, const H5S_t *space, hid_t dxpl_id);
+H5_DLL herr_t H5S_modify(struct H5G_entry_t *ent, const H5S_t *space,
+        hbool_t update_time, hid_t dxpl_id);
+H5_DLL herr_t H5S_append(H5F_t *f, hid_t dxpl_id, struct H5O_t *oh, const H5S_t *ds);
 H5_DLL H5S_t *H5S_read(struct H5G_entry_t *ent, hid_t dxpl_id);
-H5_DLL int H5S_cmp(const H5S_t *ds1, const H5S_t *ds2);
-H5_DLL htri_t H5S_is_simple(const H5S_t *sdim);
-H5_DLL unsigned H5S_nelem(const H5S_t *space);
-H5_DLL herr_t H5S_select_hyperslab(H5S_t *space, H5S_seloper_t op,
-				    const hssize_t start[],
-				    const hsize_t *_stride,
-				    const hsize_t count[],
-				    const hsize_t *_block);
-H5_DLL int H5S_get_hyperslab(const H5S_t *ds, hssize_t offset[]/*out*/,
-			       hsize_t size[]/*out*/, hsize_t stride[]/*out*/);
-H5_DLL herr_t H5S_select_copy(H5S_t *dst, const H5S_t *src);
-H5_DLL herr_t H5S_extent_release(H5S_t *space);
-H5_DLL herr_t H5S_select_release(H5S_t *space);
-H5_DLL hssize_t H5S_get_select_npoints(const H5S_t *space);
 H5_DLL int H5S_extend(H5S_t *space, const hsize_t *size);
-H5_DLL herr_t H5S_set_extent_simple(H5S_t *space, int rank,
-				     const hsize_t *dims, const hsize_t *max);
-H5_DLL htri_t H5S_select_valid(const H5S_t *space);
+H5_DLL int H5S_set_extent(H5S_t *space, const hsize_t *size);
+H5_DLL herr_t H5S_set_extent_real(H5S_t *space, const hsize_t *size);
+H5_DLL H5S_t *H5S_create_simple(unsigned rank, const hsize_t dims[/*rank*/],
+		  const hsize_t maxdims[/*rank*/]);
 H5_DLL herr_t H5S_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE *stream,
 			 int indent, int fwidth);
-H5_DLL hssize_t H5S_select_serial_size(const H5S_t *space);
-H5_DLL herr_t H5S_select_serialize(const H5S_t *space, uint8_t *buf);
+
+/* Operations on selections */
 H5_DLL herr_t H5S_select_deserialize(H5S_t *space, const uint8_t *buf);
-H5_DLL htri_t H5S_select_contiguous(const H5S_t *space);
-H5_DLL htri_t H5S_select_single(const H5S_t *space);
-H5_DLL htri_t H5S_select_regular(const H5S_t *space);
+H5_DLL H5S_sel_type H5S_get_select_type(const H5S_t *space);
+H5_DLL herr_t H5S_select_iterate(void *buf, hid_t type_id, const H5S_t *space,
+				H5D_operator_t op, void *operator_data);
+H5_DLL herr_t H5S_select_fill(void *fill, size_t fill_size,
+                                const H5S_t *space, void *buf);
+H5_DLL herr_t H5S_select_fscat (H5F_t *f, struct H5O_layout_t *layout,
+        H5P_genplist_t *dc_plist, const union H5D_storage_t *store, size_t elmt_size,
+        const H5S_t *file_space, H5S_sel_iter_t *file_iter, hsize_t nelmts,
+        hid_t dxpl_id, const void *_buf);
+H5_DLL hsize_t H5S_select_fgath (H5F_t *f, const struct H5O_layout_t *layout,
+        H5P_genplist_t *dc_plist, const union H5D_storage_t *store, size_t elmt_size,
+        const H5S_t *file_space, H5S_sel_iter_t *file_iter, hsize_t nelmts,
+        hid_t dxpl_id, void *buf);
+H5_DLL herr_t H5S_select_mscat (const void *_tscat_buf, size_t elmt_size,
+        const H5S_t *space, H5S_sel_iter_t *iter, hsize_t nelmts,
+        hid_t dxpl_id, void *_buf/*out*/);
+H5_DLL hsize_t H5S_select_mgath (const void *_buf, size_t elmt_size,
+        const H5S_t *space, H5S_sel_iter_t *iter, hsize_t nelmts,
+        hid_t dxpl_id, void *_tgath_buf/*out*/);
+H5_DLL herr_t H5S_select_read(H5F_t *f, const struct H5O_layout_t *layout,
+        H5P_genplist_t *dc_plist, const union H5D_storage_t *store, size_t elmt_size,
+        const H5S_t *file_space, const H5S_t *mem_space, hid_t dxpl_id,
+        void *buf/*out*/);
+H5_DLL herr_t H5S_select_write(H5F_t *f, struct H5O_layout_t *layout,
+        H5P_genplist_t *dc_plist, const union H5D_storage_t *store, size_t elmt_size,
+        const H5S_t *file_space, const H5S_t *mem_space, hid_t dxpl_id,
+        const void *buf/*out*/);
+H5_DLL htri_t H5S_select_valid(const H5S_t *space);
+H5_DLL hssize_t H5S_get_select_npoints(const H5S_t *space);
+H5_DLL herr_t H5S_get_select_bounds(const H5S_t *space, hssize_t *start, hssize_t *end);
+H5_DLL herr_t H5S_select_offset(H5S_t *space, const hssize_t *offset);
+H5_DLL herr_t H5S_select_copy(H5S_t *dst, const H5S_t *src);
 H5_DLL htri_t H5S_select_shape_same(const H5S_t *space1, const H5S_t *space2);
-H5_DLL herr_t H5S_select_iterate(void *buf, hid_t type_id, H5S_t *space,
-				  H5D_operator_t op, void *operator_data);
-H5_DLL herr_t H5S_sel_iter_release(const H5S_t *space,
-				    H5S_sel_iter_t *sel_iter);
+H5_DLL herr_t H5S_select_release(H5S_t *ds);
+H5_DLL herr_t H5S_select_all(H5S_t *space, unsigned rel_prev);
+H5_DLL herr_t H5S_select_none(H5S_t *space);
+H5_DLL herr_t H5S_select_hyperslab (H5S_t *space, H5S_seloper_t op, const hssize_t start[],
+    const hsize_t *stride, const hsize_t count[], const hsize_t *block);
+H5_DLL herr_t H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock,
+    hsize_t numblocks, hsize_t *buf);
+H5_DLL herr_t H5S_hyper_add_span_element(H5S_t *space, unsigned rank,
+    hssize_t *coords);
+H5_DLL herr_t H5S_hyper_reset_scratch(H5S_t *space);
+H5_DLL herr_t H5S_hyper_convert(H5S_t *space);
+H5_DLL htri_t H5S_hyper_intersect (H5S_t *space1, H5S_t *space2);
+H5_DLL herr_t H5S_hyper_adjust(H5S_t *space, const hssize_t *offset);
+H5_DLL herr_t H5S_hyper_move(H5S_t *space, const hssize_t *offset);
+
+/* Operations on selection iterators */
+H5_DLL herr_t H5S_select_iter_init(H5S_sel_iter_t *iter, const H5S_t *space, size_t elmt_size);
+H5_DLL herr_t H5S_select_iter_coords(const H5S_sel_iter_t *sel_iter, hssize_t *coords);
+H5_DLL hsize_t H5S_select_iter_nelmts(const H5S_sel_iter_t *sel_iter);
+H5_DLL herr_t H5S_select_iter_next(H5S_sel_iter_t *sel_iter, size_t nelem);
+H5_DLL herr_t H5S_select_iter_release(H5S_sel_iter_t *sel_iter);
 
 #ifdef H5_HAVE_PARALLEL
-/* MPI-IO function to read directly from app buffer to file rky980813 */
-H5_DLL herr_t H5S_mpio_spaces_read(H5F_t *f,
-				    const struct H5O_layout_t *layout,
-				    const struct H5O_pline_t *pline,
-		                    const struct H5O_fill_t *fill,
-				    const struct H5O_efl_t *efl,
-				    size_t elmt_size, const H5S_t *file_space,
-				    const H5S_t *mem_space, hid_t dxpl_id,
-				    void *buf/*out*/);
-
-/* MPI-IO function to write directly from app buffer to file rky980813 */
-H5_DLL herr_t H5S_mpio_spaces_write(H5F_t *f,
-				     const struct H5O_layout_t *layout,
-				     const struct H5O_pline_t *pline,
-		                     const struct H5O_fill_t *fill,
-				     const struct H5O_efl_t *efl,
-				     size_t elmt_size, const H5S_t *file_space,
-				     const H5S_t *mem_space, hid_t dxpl_id,
-				     const void *buf);
-
-/* MPI-IO function to check if a direct I/O transfer is possible between
- * memory and the file */
-H5_DLL htri_t H5S_mpio_opt_possible(const H5S_t *mem_space,
-                                     const H5S_t *file_space, const unsigned flags);
-
 #ifndef _H5S_IN_H5S_C
 /* Global vars whose value comes from environment variable */
 /* (Defined in H5S.c) */
 H5_DLLVAR hbool_t		H5S_mpi_opt_types_g;
 H5_DLLVAR hbool_t		H5S_mpi_prefer_derived_types_g;
 #endif /* _H5S_IN_H5S_C */
-
 #endif /* H5_HAVE_PARALLEL */
 
 #endif /* _H5Sprivate_H */

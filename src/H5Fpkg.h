@@ -27,10 +27,16 @@
 #ifndef _H5Fpkg_H
 #define _H5Fpkg_H
 
+/* Get package's private header */
 #include "H5Fprivate.h"
 
-/* This is a near top-level header! Try not to include much! */
-#include "H5private.h"
+/* Other public headers needed by this file */
+#include "H5Bpublic.h"          /* B-tree header, for H5B_NUM_BTREE_ID */
+
+/* Other private headers needed by this file */
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5FOprivate.h"        /* File objects                         */
+#include "H5Gprivate.h"		/* Groups 			  	*/
 
 /*
  * Feature: Define this constant to be non-zero if you want to enable code
@@ -72,15 +78,13 @@
 #else
 #   define H5F_OVERFLOW_SIZET2OFFT(X) 0
 #endif
-
 #if (H5_SIZEOF_HSIZE_T >= H5_SIZEOF_OFF_T)
-#   define H5F_OVERFLOW_HSIZET2OFFT(X)  \
-   ((hsize_t)(X)>=(hsize_t)((hsize_t)1<<(8*sizeof(off_t)-1)))
-#else                                           
-#   define H5F_OVERFLOW_HSIZET2OFFT(X) 0                                                                           
-#endif         
-
-
+#   define H5F_OVERFLOW_HSIZET2OFFT(X)					      \
+    ((hsize_t)(X)>=(hsize_t)((hsize_t)1<<(8*sizeof(off_t)-1)))
+#else
+#   define H5F_OVERFLOW_HSIZET2OFFT(X) 0
+#endif
+    
 /* The raw data chunk cache */
 typedef struct H5F_rdcc_t {
     unsigned		ninits;	/* Number of chunk creations		*/
@@ -88,7 +92,7 @@ typedef struct H5F_rdcc_t {
     unsigned		nmisses;/* Number of cache misses		*/
     unsigned		nflushes;/* Number of cache flushes		*/
     size_t		nbytes;	/* Current cached raw data in bytes	*/
-    int		nslots;	/* Number of chunk slots allocated	*/
+    size_t		nslots;	/* Number of chunk slots allocated	*/
     struct H5F_rdcc_ent_t *head; /* Head of doubly linked list		*/
     struct H5F_rdcc_ent_t *tail; /* Tail of doubly linked list		*/
     int		nused;	/* Number of chunk slots in use		*/
@@ -107,6 +111,13 @@ typedef struct H5F_file_t {
     H5FD_t	*lf; 		/* Lower level file handle for I/O	*/
     unsigned	nrefs;		/* Ref count for times file is opened	*/
     uint32_t	consist_flags;	/* File Consistency Flags		*/
+
+    /* Cached values from FCPL */
+    size_t	sizeof_addr;	/* Size of addresses in file            */
+    size_t	sizeof_size;	/* Size of offsets in file              */
+    unsigned	sym_leaf_k;	/* Size of leaves in symbol tables      */
+    int btree_k[H5B_NUM_BTREE_ID];  /* B-tree key values for each type  */
+
     haddr_t	boot_addr;	/* Absolute address of boot block	*/
     haddr_t	base_addr;	/* Absolute base address for rel.addrs. */
     haddr_t	freespace_addr;	/* Relative address of free-space info	*/
@@ -114,31 +125,28 @@ typedef struct H5F_file_t {
     unsigned	boot_chksum;	/* Boot block checksum                  */
     unsigned	drvr_chksum;	/* Driver info block checksum           */
     struct H5AC_t *cache;	/* The object cache			*/
-    H5F_create_t *fcpl;		/* File-creation property list		*/
-                                /* (This actually ends up being a pointer to a */
-                                /* H5P_t type, which is returned from H5P_copy */
-                                /* But that's ok because we only access it like */
-                                /* a H5F_create_t until we pass it back to */
-                                /* H5P_close to release it - QAK) */
-    int	        mdc_nelmts;	/* Size of meta data cache (elements)	*/
-    int	        rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
+    hid_t       fcpl_id;	/* File creation property list ID 	*/
+    int	mdc_nelmts;		/* Size of meta data cache (elements)	*/
+    size_t	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
     size_t	rdcc_nbytes;	/* Size of raw data chunk cache	(bytes)	*/
     double	rdcc_w0;	/* Preempt read chunks first? [0.0..1.0]*/
     hsize_t	threshold;	/* Threshold for alignment		*/
     hsize_t	alignment;	/* Alignment				*/
     unsigned	gc_ref;		/* Garbage-collect references?		*/
     struct H5G_t *root_grp;	/* Open root group			*/
-    int	        ncwfs;		/* Num entries on cwfs list		*/
+    int	ncwfs;			/* Num entries on cwfs list		*/
     struct H5HG_heap_t **cwfs;	/* Global heap cache			*/
+    H5FO_t *open_objs;          /* Open objects in file                 */
 
     /* Data Sieve Buffering fields */
     unsigned char *sieve_buf;   /* Buffer to hold data sieve buffer */
-    haddr_t     sieve_loc;      /* File location (offset) of the data sieve buffer */
-    hsize_t     sieve_size;     /* Size of the data sieve buffer used (in bytes) */
-    hsize_t     sieve_buf_size; /* Size of the data sieve buffer allocated (in bytes) */
-    unsigned    sieve_dirty;    /* Flag to indicate that the data sieve buffer is dirty */
+    haddr_t sieve_loc;          /* File location (offset) of the data sieve buffer */
+    size_t sieve_size;          /* Size of the data sieve buffer used (in bytes) */
+    size_t sieve_buf_size;      /* Size of the data sieve buffer allocated (in bytes) */
+    unsigned sieve_dirty;       /* Flag to indicate that the data sieve buffer is dirty */
 
     H5F_rdcc_t	rdcc;		/* Raw data chunk cache			*/
+    H5F_close_degree_t fc_degree;   /* File close behavior degree	*/
 } H5F_file_t;
 
 /* A record of the mount table */
@@ -177,46 +185,56 @@ struct H5F_t {
 };
 
 #ifdef H5_HAVE_PARALLEL
+/* Whether a single process writes metadata */
 H5_DLLVAR  hbool_t H5_mpi_1_metawrite_g;
 H5_DLLVAR  hbool_t H5_mpiposix_1_metawrite_g;
 #endif /* H5_HAVE_PARALLEL */
 
 /* Private functions, not part of the publicly documented API */
-H5_DLL void H5F_encode_length_unusual(const H5F_t *f, uint8_t **p,
-				       uint8_t *l);
+#ifdef NOT_YET
+H5_DLL void H5F_encode_length_unusual(const H5F_t *f, uint8_t **p, uint8_t *l);
+#endif /* NOT_YET */
+H5_DLL herr_t H5F_mountpoint(struct H5G_entry_t *find/*in,out*/);
 H5_DLL herr_t H5F_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
 			 int indent, int fwidth);
-H5_DLL herr_t H5F_istore_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
-				int indent, int fwidth, int ndims);
-H5_DLL herr_t H5F_mountpoint(struct H5G_entry_t *find/*in,out*/);
+H5_DLL herr_t H5F_sieve_overlap_clear(H5F_t *f, haddr_t addr, hsize_t size);
 
 /* Functions that operate on indexed storage */
 H5_DLL herr_t H5F_istore_init (H5F_t *f);
-H5_DLL herr_t H5F_istore_flush (H5F_t *f, hid_t dxpl_id, hbool_t preempt);
+H5_DLL herr_t H5F_istore_flush (H5F_t *f, hid_t dxpl_id, unsigned flags);
 H5_DLL herr_t H5F_istore_dest (H5F_t *f, hid_t dxpl_id);
+H5_DLL ssize_t H5F_istore_readvv(H5F_t *f, hid_t dxpl_id,
+    const struct H5O_layout_t *layout, struct H5P_genplist_t *dc_plist, hssize_t chunk_coords[],
+    size_t chunk_max_nseq, size_t *chunk_curr_seq, size_t chunk_len_arr[], hsize_t chunk_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    void *buf);
+H5_DLL ssize_t H5F_istore_writevv(H5F_t *f, hid_t dxpl_id,
+    const struct H5O_layout_t *layout, struct H5P_genplist_t *dc_plist, hssize_t chunk_coords[],
+    size_t chunk_max_nseq, size_t *chunk_curr_seq, size_t chunk_len_arr[], hsize_t chunk_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    const void *buf);
 H5_DLL herr_t H5F_istore_stats (H5F_t *f, hbool_t headers);
-H5_DLL herr_t H5F_istore_create(H5F_t *f, hid_t dxpl_id,
-				 struct H5O_layout_t *layout/*in,out*/);
-H5_DLL herr_t H5F_istore_read(H5F_t *f, hid_t dxpl_id,
-			       const struct H5O_layout_t *layout,
-			       const struct H5O_pline_t *pline,
-			       const struct H5O_fill_t *fill,
-                               const hsize_t size_m[], const hssize_t offset_m[],
-			       const hssize_t offset[], const hsize_t size[],
-			       void *buf/*out*/);
-H5_DLL herr_t H5F_istore_write(H5F_t *f, hid_t dxpl_id,
-				const struct H5O_layout_t *layout,
-				const struct H5O_pline_t *pline,
-				const struct H5O_fill_t *fill,
-                                const hsize_t size_m[], const hssize_t offset_m[],
-				const hssize_t offset[], const hsize_t size[],
-				const void *buf);
+H5_DLL herr_t H5F_istore_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
+				int indent, int fwidth, int ndims);
 
 /* Functions that operate on contiguous storage wrt boot block */
-H5_DLL herr_t H5F_contig_read(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr, hsize_t size,
-                hid_t dxpl_id, void *_buf/*out*/);
-H5_DLL herr_t H5F_contig_write(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr,
-                  hsize_t size, hid_t dxpl_id, const void *buf);
+H5_DLL ssize_t H5F_contig_readvv(H5F_t *f, hsize_t _max_data, haddr_t _addr,
+    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    hid_t dxpl_id, void *buf);
+H5_DLL ssize_t H5F_contig_writevv(H5F_t *f, hsize_t _max_data, haddr_t _addr,
+    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    hid_t dxpl_id, const void *buf);
 
+/* Functions that operate on compact dataset storage */
+H5_DLL ssize_t H5F_compact_readvv(H5F_t UNUSED *f, const struct H5O_layout_t *layout,
+    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_size_arr[], hsize_t dset_offset_arr[], 
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_size_arr[], hsize_t mem_offset_arr[], 
+    hid_t UNUSED dxpl_id, void *buf);
+H5_DLL ssize_t H5F_compact_writevv(H5F_t UNUSED *f, struct H5O_layout_t *layout,
+    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_size_arr[], hsize_t dset_offset_arr[], 
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_size_arr[], hsize_t mem_offset_arr[], 
+    hid_t UNUSED dxpl_id, const void *buf);
 #endif
 

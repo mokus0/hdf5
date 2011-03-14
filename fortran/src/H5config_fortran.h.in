@@ -1,24 +1,40 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
 /* src/H5config_fortran.h.in.  Generated from configure.in by autoheader.  */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define if support for deflate filter is enabled */
+#undef HAVE_FILTER_DEFLATE
+
+/* Define if support for Fletcher32 checksum is enabled */
+#undef HAVE_FILTER_FLETCHER32
+
+/* Define if support for shuffle filter is enabled */
+#undef HAVE_FILTER_SHUFFLE
+
+/* Define if support for szip filter is enabled */
+#undef HAVE_FILTER_SZIP
+
+/* Define if we have GPFS support */
+#undef HAVE_GPFS
+
+/* Define to 1 if you have the <gpfs.h> header file. */
+#undef HAVE_GPFS_H
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `m' library (-lm). */
+#undef HAVE_LIBM
+
+/* Define to 1 if you have the `nsl' library (-lnsl). */
+#undef HAVE_LIBNSL
+
+/* Define to 1 if you have the `socket' library (-lsocket). */
+#undef HAVE_LIBSOCKET
+
+/* Define to 1 if you have the `sz' library (-lsz). */
+#undef HAVE_LIBSZ
 
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
@@ -32,11 +48,20 @@
 /* Define if `MPI_Info_c2f' and `MPI_Info_f2c' exists */
 #undef HAVE_MPI_MULTI_LANG_Info
 
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#undef HAVE_NETINET_TCP_H
+
+/* Define if `socklen_t' is defined */
+#undef HAVE_SOCKLEN_T
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
+
+/* Define if the stream virtual file driver should be compiled */
+#undef HAVE_STREAM
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -44,11 +69,17 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the <sys/filio.h> header file. */
+#undef HAVE_SYS_FILIO_H
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <szlib.h> header file. */
+#undef HAVE_SZLIB_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H

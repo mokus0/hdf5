@@ -26,10 +26,11 @@
 #include "H5private.h"		/*library functions			*/
 #include "H5Eprivate.h"		/*error handling			*/
 #include "H5Fprivate.h"		/*files					*/
-#include "H5FDprivate.h"	/*file driver			        */
-#include "H5FDsec2.h"           /*sec2 file driver                      */
-#include "H5FLprivate.h"	/*free lists	                        */
-#include "H5MMprivate.h"        /*memory allocation                     */
+#include "H5FDprivate.h"	/*file driver				  */
+#include "H5FDsec2.h"           /* Sec2 file driver */
+#include "H5FLprivate.h"	/*Free Lists	  */
+#include "H5Iprivate.h"		/*object IDs				  */
+#include "H5MMprivate.h"        /* Memory allocation */
 #include "H5Pprivate.h"		/*property lists			*/
 
 #ifdef MAX
@@ -86,6 +87,7 @@ typedef struct H5FD_sec2_t {
 #endif
 } H5FD_sec2_t;
 
+
 /*
  * This driver supports systems that have the lseek64() function by defining
  * some macros here so we don't have to have conditional compilations later
@@ -110,7 +112,7 @@ typedef struct H5FD_sec2_t {
 #   define file_truncate	_ftruncatei64
 #else
 #   define file_offset_t	off_t
-#   define file_seek		HDlseek
+#   define file_seek		lseek
 #   define file_truncate	HDftruncate
 #endif
 
@@ -147,15 +149,17 @@ static herr_t H5FD_sec2_query(const H5FD_t *_f1, unsigned long *flags);
 static haddr_t H5FD_sec2_get_eoa(H5FD_t *_file);
 static herr_t H5FD_sec2_set_eoa(H5FD_t *_file, haddr_t addr);
 static haddr_t H5FD_sec2_get_eof(H5FD_t *_file);
+static herr_t  H5FD_sec2_get_handle(H5FD_t *_file, hid_t fapl, void** file_handle);
 static herr_t H5FD_sec2_read(H5FD_t *_file, H5FD_mem_t type, hid_t fapl_id, haddr_t addr,
-			     hsize_t size, void *buf);
+			     size_t size, void *buf);
 static herr_t H5FD_sec2_write(H5FD_t *_file, H5FD_mem_t type, hid_t fapl_id, haddr_t addr,
-			      hsize_t size, const void *buf);
-static herr_t H5FD_sec2_flush(H5FD_t *_file, hid_t dxpl_id);
+			      size_t size, const void *buf);
+static herr_t H5FD_sec2_flush(H5FD_t *_file, hid_t dxpl_id, unsigned closing);
 
 static const H5FD_class_t H5FD_sec2_g = {
     "sec2",					/*name			*/
     MAXADDR,					/*maxaddr		*/
+    H5F_CLOSE_WEAK,				/* fc_degree		*/
     NULL,					/*sb_size		*/
     NULL,					/*sb_encode		*/
     NULL,					/*sb_decode		*/
@@ -175,10 +179,13 @@ static const H5FD_class_t H5FD_sec2_g = {
     H5FD_sec2_get_eoa,				/*get_eoa		*/
     H5FD_sec2_set_eoa, 				/*set_eoa		*/
     H5FD_sec2_get_eof,				/*get_eof		*/
+    H5FD_sec2_get_handle,                       /*get_handle            */
     H5FD_sec2_read,				/*read			*/
     H5FD_sec2_write,				/*write			*/
     H5FD_sec2_flush,				/*flush			*/
-    H5FD_FLMAP_SINGLE,				/*fl_map		*/
+    NULL,                                       /*lock                  */
+    NULL,                                       /*unlock                */
+    H5FD_FLMAP_SINGLE 				/*fl_map		*/
 };
 
 /* Interface initialization */
@@ -210,12 +217,18 @@ H5FL_DEFINE_STATIC(H5FD_sec2_t);
 hid_t
 H5FD_sec2_init(void)
 {
-    FUNC_ENTER(H5FD_sec2_init, FAIL);
+    hid_t ret_value=H5FD_SEC2_g;        /* Return value */
 
-    if (H5I_VFL!=H5Iget_type(H5FD_SEC2_g))
+    FUNC_ENTER_NOAPI(H5FD_sec2_init, FAIL);
+
+    if (H5I_VFL!=H5I_get_type(H5FD_SEC2_g))
         H5FD_SEC2_g = H5FDregister(&H5FD_sec2_g);
 
-    FUNC_LEAVE(H5FD_SEC2_g);
+    /* Set return value */
+    ret_value=H5FD_SEC2_g;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -238,17 +251,19 @@ H5FD_sec2_init(void)
 herr_t
 H5Pset_fapl_sec2(hid_t fapl_id)
 {
-    herr_t ret_value=FAIL;
+    H5P_genplist_t *plist;      /* Property list pointer */
+    herr_t ret_value;
 
-    FUNC_ENTER(H5Pset_fapl_sec2, FAIL);
+    FUNC_ENTER_API(H5Pset_fapl_sec2, FAIL);
     H5TRACE1("e","i",fapl_id);
     
-    if (H5P_FILE_ACCESS!=H5Pget_class(fapl_id))
-        HRETURN_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a fapl");
+    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access property list");
 
-    ret_value= H5Pset_driver(fapl_id, H5FD_SEC2, NULL);
+    ret_value= H5P_set_driver(plist, H5FD_SEC2, NULL);
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -275,24 +290,25 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
 	       haddr_t maxaddr)
 {
     int	o_flags;
-    int		fd;
+    int		fd=(-1);
     H5FD_sec2_t	*file=NULL;
 #ifdef WIN32
     HFILE filehandle;
     struct _BY_HANDLE_FILE_INFORMATION fileinfo;
     int results;   
 #endif
-    h5_stat_t sb;
+    h5_stat_t	sb;
+    H5FD_t	*ret_value;
 
-    FUNC_ENTER(H5FD_sec2_open, NULL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_open, NULL);
 
     /* Check arguments */
     if (!name || !*name)
-        HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "invalid file name");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "invalid file name");
     if (0==maxaddr || HADDR_UNDEF==maxaddr)
-        HRETURN_ERROR(H5E_ARGS, H5E_BADRANGE, NULL, "bogus maxaddr");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, NULL, "bogus maxaddr");
     if (ADDR_OVERFLOW(maxaddr))
-        HRETURN_ERROR(H5E_ARGS, H5E_OVERFLOW, NULL, "bogus maxaddr");
+        HGOTO_ERROR(H5E_ARGS, H5E_OVERFLOW, NULL, "bogus maxaddr");
 
     /* Build the open flags */
     o_flags = (H5F_ACC_RDWR & flags) ? O_RDWR : O_RDONLY;
@@ -302,16 +318,14 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
 
     /* Open the file */
     if ((fd=HDopen(name, o_flags, 0666))<0)
-        HRETURN_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to open file");
-    if (HDfstat(fd, &sb)<0) {
-        HDclose(fd);
-        HRETURN_ERROR(H5E_FILE, H5E_BADFILE, NULL, "unable to fstat file");
-    }
+        HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to open file");
+    if (HDfstat(fd, &sb)<0)
+        HGOTO_ERROR(H5E_FILE, H5E_BADFILE, NULL, "unable to fstat file");
 
     /* Create the new file struct */
-    if (NULL==(file=H5FL_ALLOC(H5FD_sec2_t,1)))
-        HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL,
-		      "unable to allocate file struct");
+    if (NULL==(file=H5FL_CALLOC(H5FD_sec2_t)))
+        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "unable to allocate file struct");
+
     file->fd = fd;
     file->eof = sb.st_size;
     file->pos = HADDR_UNDEF;
@@ -325,7 +339,17 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
     file->device = sb.st_dev;
     file->inode = sb.st_ino;
 #endif
-    FUNC_LEAVE((H5FD_t*)file);
+
+    /* Set return value */
+    ret_value=(H5FD_t*)file;
+
+done:
+    if(ret_value==NULL) {
+        if(fd>=0)
+            HDclose(fd);
+    } /* end if */
+
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -349,15 +373,17 @@ static herr_t
 H5FD_sec2_close(H5FD_t *_file)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5FD_sec2_close, FAIL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_close, FAIL);
 
     if (HDclose(file->fd)<0)
-        HRETURN_ERROR(H5E_IO, H5E_CANTCLOSEFILE, FAIL, "unable to close file");
+        HGOTO_ERROR(H5E_IO, H5E_CANTCLOSEFILE, FAIL, "unable to close file");
 
     H5FL_FREE(H5FD_sec2_t,file);
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -386,24 +412,34 @@ H5FD_sec2_cmp(const H5FD_t *_f1, const H5FD_t *_f2)
     const H5FD_sec2_t	*f2 = (const H5FD_sec2_t*)_f2;
     int ret_value=0;
 
-    FUNC_ENTER(H5FD_sec2_cmp, H5FD_VFD_DEFAULT);
+    FUNC_ENTER_NOAPI(H5FD_sec2_cmp, H5FD_VFD_DEFAULT);
 
 #ifdef WIN32
-    if (f1->fileindexhi < f2->fileindexhi) ret_value= -1;
-    if (f1->fileindexhi > f2->fileindexhi) ret_value= 1;
+    if (f1->fileindexhi < f2->fileindexhi) HGOTO_DONE(-1);
+    if (f1->fileindexhi > f2->fileindexhi) HGOTO_DONE(1);
 
-    if (f1->fileindexlo < f2->fileindexlo) ret_value= -1;
-    if (f1->fileindexlo > f2->fileindexlo) ret_value= 1;
+    if (f1->fileindexlo < f2->fileindexlo) HGOTO_DONE(-1);
+    if (f1->fileindexlo > f2->fileindexlo) HGOTO_DONE(1);
 
 #else
-    if (f1->device < f2->device) ret_value= -1;
-    if (f1->device > f2->device) ret_value= 1;
+#ifdef H5_DEV_T_IS_SCALAR
+    if (f1->device < f2->device) HGOTO_DONE(-1);
+    if (f1->device > f2->device) HGOTO_DONE(1);
+#else /* H5_DEV_T_IS_SCALAR */
+    /* If dev_t isn't a scalar value on this system, just use memcmp to
+     * determine if the values are the same or not.  The actual return value
+     * shouldn't really matter...
+     */
+    if(HDmemcmp(&(f1->device),&(f2->device),sizeof(dev_t))<0) HGOTO_DONE(-1);
+    if(HDmemcmp(&(f1->device),&(f2->device),sizeof(dev_t))>0) HGOTO_DONE(1);
+#endif /* H5_DEV_T_IS_SCALAR */
 
-    if (f1->inode < f2->inode) ret_value= -1;
-    if (f1->inode > f2->inode) ret_value= 1;
+    if (f1->inode < f2->inode) HGOTO_DONE(-1);
+    if (f1->inode > f2->inode) HGOTO_DONE(1);
 #endif
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -425,11 +461,11 @@ H5FD_sec2_cmp(const H5FD_t *_f1, const H5FD_t *_f2)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_sec2_query(const H5FD_t UNUSED *_f, unsigned long *flags /* out */)
+H5FD_sec2_query(const H5FD_t UNUSED * _f, unsigned long *flags /* out */)
 {
     herr_t ret_value=SUCCEED;
 
-    FUNC_ENTER(H5FD_sec2_query, FAIL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_query, FAIL);
 
     /* Set the VFL feature flags that this driver supports */
     if(flags) {
@@ -440,7 +476,8 @@ H5FD_sec2_query(const H5FD_t UNUSED *_f, unsigned long *flags /* out */)
         *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -466,10 +503,15 @@ static haddr_t
 H5FD_sec2_get_eoa(H5FD_t *_file)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
+    haddr_t ret_value;  /* Return value */
 
-    FUNC_ENTER(H5FD_sec2_get_eoa, HADDR_UNDEF);
+    FUNC_ENTER_NOAPI(H5FD_sec2_get_eoa, HADDR_UNDEF);
 
-    FUNC_LEAVE(file->eoa);
+    /* Set return value */
+    ret_value=file->eoa;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -495,12 +537,14 @@ static herr_t
 H5FD_sec2_set_eoa(H5FD_t *_file, haddr_t addr)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5FD_sec2_set_eoa, FAIL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_set_eoa, FAIL);
 
     file->eoa = addr;
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -528,10 +572,46 @@ static haddr_t
 H5FD_sec2_get_eof(H5FD_t *_file)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
+    haddr_t ret_value;  /* Return value */
 
-    FUNC_ENTER(H5FD_get_get_eof, HADDR_UNDEF);
+    FUNC_ENTER_NOAPI(H5FD_get_get_eof, HADDR_UNDEF);
 
-    FUNC_LEAVE(MAX(file->eof, file->eoa));
+    /* Set return value */
+    ret_value=MAX(file->eof, file->eoa);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:       H5FD_sec2_get_handle
+ * 
+ * Purpose:        Returns the file handle of sec2 file driver.
+ * 
+ * Returns:        Non-negative if succeed or negative if fails.
+ * 
+ * Programmer:     Raymond Lu
+ *                 Sept. 16, 2002
+ * 
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t  
+H5FD_sec2_get_handle(H5FD_t *_file, hid_t UNUSED fapl, void** file_handle)
+{   
+    H5FD_sec2_t         *file = (H5FD_sec2_t *)_file;
+    herr_t              ret_value = SUCCEED;
+                             
+    FUNC_ENTER_NOAPI(H5FD_sec2_get_handle, FAIL);
+                           
+    if(!file_handle)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "file handle not valid");
+    *file_handle = &(file->fd);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -556,32 +636,29 @@ H5FD_sec2_get_eof(H5FD_t *_file)
  */
 static herr_t
 H5FD_sec2_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, haddr_t addr,
-	       hsize_t size, void *buf/*out*/)
+	       size_t size, void *buf/*out*/)
 {
     H5FD_sec2_t		*file = (H5FD_sec2_t*)_file;
     ssize_t		nbytes;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER(H5FD_sec2_read, FAIL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_read, FAIL);
 
     assert(file && file->pub.cls);
     assert(buf);
 
     /* Check for overflow conditions */
     if (HADDR_UNDEF==addr)
-        HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "addr undefined");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "addr undefined");
     if (REGION_OVERFLOW(addr, size))
-        HRETURN_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
+        HGOTO_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
     if (addr+size>file->eoa)
-        HRETURN_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
+        HGOTO_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
 
     /* Seek to the correct location */
     if ((addr!=file->pos || OP_READ!=file->op) &&
-            file_seek(file->fd, (file_offset_t)addr, SEEK_SET)<0) {
-        file->pos = HADDR_UNDEF;
-        file->op = OP_UNKNOWN;
-        HRETURN_ERROR(H5E_IO, H5E_SEEKERROR, FAIL,
-		      "unable to seek to proper position");
-    }
+            file_seek(file->fd, (file_offset_t)addr, SEEK_SET)<0)
+        HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to seek to proper position");
 
     /*
      * Read data, being careful of interrupted system calls, partial results,
@@ -589,24 +666,18 @@ H5FD_sec2_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, hadd
      */
     while (size>0) {
         do {
-            H5_CHECK_OVERFLOW(size,hsize_t,size_t);
-            nbytes = HDread(file->fd, buf, (size_t)size);
+            nbytes = HDread(file->fd, buf, size);
         } while (-1==nbytes && EINTR==errno);
-        if (-1==nbytes) {
-            /* error */
-            file->pos = HADDR_UNDEF;
-            file->op = OP_UNKNOWN;
-            HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "file read failed");
-        }
+        if (-1==nbytes) /* error */
+            HGOTO_ERROR(H5E_IO, H5E_READERROR, FAIL, "file read failed");
         if (0==nbytes) {
             /* end of file but not end of format address space */
-            H5_CHECK_OVERFLOW(size,hsize_t,size_t);
-            HDmemset(buf, 0, (size_t)size);
+            HDmemset(buf, 0, size);
             size = 0;
         }
         assert(nbytes>=0);
-        assert((hsize_t)nbytes<=size);
-        size -= (hsize_t)nbytes;
+        assert((size_t)nbytes<=size);
+        size -= nbytes;
         addr += (haddr_t)nbytes;
         buf = (char*)buf + nbytes;
     }
@@ -614,7 +685,15 @@ H5FD_sec2_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, hadd
     /* Update current position */
     file->pos = addr;
     file->op = OP_READ;
-    FUNC_LEAVE(SUCCEED);
+
+done:
+    if(ret_value<0) {
+        /* Reset last file I/O information */
+        file->pos = HADDR_UNDEF;
+        file->op = OP_UNKNOWN;
+    } /* end if */
+
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -638,32 +717,29 @@ H5FD_sec2_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, hadd
  */
 static herr_t
 H5FD_sec2_write(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, haddr_t addr,
-		hsize_t size, const void *buf)
+		size_t size, const void *buf)
 {
     H5FD_sec2_t		*file = (H5FD_sec2_t*)_file;
     ssize_t		nbytes;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER(H5FD_sec2_write, FAIL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_write, FAIL);
 
     assert(file && file->pub.cls);
     assert(buf);
 
     /* Check for overflow conditions */
     if (HADDR_UNDEF==addr) 
-        HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "addr undefined");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "addr undefined");
     if (REGION_OVERFLOW(addr, size))
-        HRETURN_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
+        HGOTO_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
     if (addr+size>file->eoa)
-        HRETURN_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
+        HGOTO_ERROR(H5E_ARGS, H5E_OVERFLOW, FAIL, "addr overflow");
     
     /* Seek to the correct location */
     if ((addr!=file->pos || OP_WRITE!=file->op) &&
-            file_seek(file->fd, (file_offset_t)addr, SEEK_SET)<0) {
-        file->pos = HADDR_UNDEF;
-        file->op = OP_UNKNOWN;
-        HRETURN_ERROR(H5E_IO, H5E_SEEKERROR, FAIL,
-		      "unable to seek to proper position");
-    }
+            file_seek(file->fd, (file_offset_t)addr, SEEK_SET)<0)
+        HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to seek to proper position");
 
     /*
      * Write the data, being careful of interrupted system calls and partial
@@ -671,18 +747,13 @@ H5FD_sec2_write(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, had
      */
     while (size>0) {
         do {
-            H5_CHECK_OVERFLOW(size,hsize_t,size_t);
-            nbytes = HDwrite(file->fd, buf, (size_t)size);
+            nbytes = HDwrite(file->fd, buf, size);
         } while (-1==nbytes && EINTR==errno);
-        if (-1==nbytes) {
-            /* error */
-            file->pos = HADDR_UNDEF;
-            file->op = OP_UNKNOWN;
-            HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "file write failed");
-        }
+        if (-1==nbytes) /* error */
+            HGOTO_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "file write failed");
         assert(nbytes>0);
-        assert((hsize_t)nbytes<=size);
-        size -= (hsize_t)nbytes;
+        assert((size_t)nbytes<=size);
+        size -= nbytes;
         addr += (haddr_t)nbytes;
         buf = (const char*)buf + nbytes;
     }
@@ -693,7 +764,14 @@ H5FD_sec2_write(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, had
     if (file->pos>file->eof)
         file->eof = file->pos;
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    if(ret_value<0) {
+        /* Reset last file I/O information */
+        file->pos = HADDR_UNDEF;
+        file->op = OP_UNKNOWN;
+    } /* end if */
+
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -715,21 +793,21 @@ H5FD_sec2_write(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, had
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_sec2_flush(H5FD_t *_file, hid_t UNUSED dxpl_id)
+H5FD_sec2_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned UNUSED closing)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
-#ifdef WIN32
-    HFILE filehandle;   /* Windows file handle */
-    LARGE_INTEGER li;   /* 64-bit integer for SetFilePointer() call */
-#endif /* WIN32 */
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5FD_sec2_flush, FAIL);
+    FUNC_ENTER_NOAPI(H5FD_sec2_flush, FAIL);
 
     assert(file);
 
     /* Extend the file to make sure it's large enough */
-    if (file->eoa>file->eof) {
+    if (file->eoa!=file->eof) {
 #ifdef WIN32
+        HFILE filehandle;   /* Windows file handle */
+        LARGE_INTEGER li;   /* 64-bit integer for SetFilePointer() call */
+
         /* Map the posix file handle to a Windows file handle */
         filehandle = _get_osfhandle(file->fd);
 
@@ -738,10 +816,10 @@ H5FD_sec2_flush(H5FD_t *_file, hid_t UNUSED dxpl_id)
         li.QuadPart = file->eoa;
         SetFilePointer((HANDLE)filehandle,li.LowPart,&li.HighPart,FILE_BEGIN);
         if(SetEndOfFile((HANDLE)filehandle)==0)
-            HRETURN_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly");
+            HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly");
 #else /* WIN32 */
         if (-1==file_truncate(file->fd, (file_offset_t)file->eoa))
-            HRETURN_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly");
+            HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly");
 #endif /* WIN32 */
 
         /* Update the eof value */
@@ -752,5 +830,6 @@ H5FD_sec2_flush(H5FD_t *_file, hid_t UNUSED dxpl_id)
         file->op = OP_UNKNOWN;
     }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }

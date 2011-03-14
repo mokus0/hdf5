@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: ttsafe.c,v 1.6.2.3 2002/06/10 19:48:51 wendling Exp $ */
+/* $Id: ttsafe.c,v 1.11 2003/06/26 02:10:32 koziol Exp $ */
 
 /*
  * FILE
@@ -41,7 +41,8 @@
 #endif
 
 #include <stdarg.h>
-#include <ttsafe.h>
+
+#include "ttsafe.h"
 
 #ifndef H5_HAVE_THREADSAFE
 int main(void)
@@ -314,7 +315,7 @@ int main(int argc, char *argv[])
 	if (num_errs)
 		print_func("!!! %d Error(s) were detected !!!\n\n", (int) num_errs);
 	else
-		print_func("All tests were successful. \n\n");
+		print_func("All threadsafe tests were successful. \n\n");
 
 	if (Summary) {
 		print_func("Summary of Test Results:\n");

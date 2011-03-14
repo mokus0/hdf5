@@ -1,5 +1,8 @@
 <html>
+  <head>
+    <title>HDF5 Software Changes</title>
 
+<!-- #BeginLibraryItem "/ed_libs/styles_Gen.lbi" -->
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
   * Copyright by the Board of Trustees of the University of Illinois.         *
@@ -16,44 +19,472 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
-  <head>
-    <title>HDF5 Software Changes</title>
-  </head>
+<link href="../ed_styles/GenElect.css" rel="stylesheet" type="text/css">
+<!-- #EndLibraryItem --></head>
 
   <body bgcolor="#FFFFFF">
-
-
-<hr>
+  
+  
+<!-- #BeginLibraryItem "/ed_libs/NavBar_ADevG.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="../index.html">HDF5 documents and links</a>&nbsp;<br>
-   <a href="../H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-   <a href="../RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
-   <!--
-   <a href="../Glossary.html">Glossary</a><br>
-   -->
+    <a href="../index.html">HDF5 documents and links</a>&nbsp;<br>
+    <a href="../H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+    <!--
+    <a href="Glossary.html">Glossary</a><br>
+    -->
 </td>
 <td valign=top align=right>
-   <br>
-   <a href="../H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
-   <a href="../ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;
+    <a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User's Guide</a>&nbsp;<br>
+    <a href="../RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+    <a href="../ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;<br>
 </td></tr>
 </table>
 </center>
 <hr>
-
-
-<center>
+<!-- #EndLibraryItem --><center>
 <h1>HDF5 Software Changes from Release to Release</h1>
 </center>
 
-This document is intended to assist application developers who must keep 
-an application synchroniaed with the HDF5 library or related software.
-
 <!-- Document API CHANGES ONLY in this file. -->
 
-<h2>Release 1.4.5 (current release) versus Release 1.4.4</h2> 
+This document is intended to assist application developers who must keep 
+an application synchronized with the HDF5 library or related software.
+
+
+<h2>Release 1.6.0 (current release) versus Release 1.4.5</h2> 
+
+<dir>
+
+This section lists the API-level changes that have been made in the 
+transition from the HDF5 Release 1.4.<i>x</i> series to Release 1.6.0.
+
+
+    <h3>New Functions and Tools</h3>
+        <dl>
+  <dt>The following functions are new for Release 1.6.0 and are included in the
+        <a href="../RM_H5Front.html"><cite>HDF5 Reference Manual</cite></a>.
+
+<dd>
+<table border="0">
+  <tr>
+    <td align="left" valign="top"><code>H5Dget_offset</code></td>
+    <td align="left" valign="top"><em>hsize_t</em> <code>H5Dget_offset</code> (<em>hid_t </em><code>dset_id</code>)</td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Dget_space_status</code></td>
+    <td align="left" valign="top"><em>hid_t</em> <code>H5Dget_space_status</code> (<em>hid_t</em> 
+	<code>dset_id</code>, <em>H5D_space_status_t *</em><code>status</code>)
+    </td> 
+  </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Fget_obj_ids</code></td>
+    <td align="left" valign="top">
+        <em>int </em><code>H5Fget_obj_ids</code> (<em>hid_t</em> <code>file_id</code>,
+        <em>unsigned int</em> <code>types</code>, 
+        <em>int</em> <code>max_objs</code>, <em>hid_t *</em><code>obj_id_list</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Fget_vfd_handle</code></td>
+    <td align="left" valign="top">
+        <em>herr_t </em><code>H5Fget_vfd_handle</code> (<em>hid_t</em> <code>file_id</code>,
+        <em>hid_t</em> <code>fapl_id</code>, <em>void *</em><code>file_handle</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Gget_num_objs</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Gget_num_objs</code> (<em>hid_t</em> <code>loc_id</code>,
+        <em>hsize_t* </em> <code>num_obj</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Gget_objname_by_idx</code></td>
+    <td align="left" valign="top">
+        <em>ssize_t</em> <code>H5Gget_objname_by_idx</code> (<em>hid_t</em> <code>group_id</code>, 
+        <em>hsize_t</em> <code>idx</code>, <em>char *</em><code>name</code>, 
+        <em>size_t*</em> <code>size</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Gget_objtype_by_idx</code></td>
+    <td align="left" valign="top">
+        <em>int</em> <code>H5Gget_objtype_by_idx</code> (<em>hid_t</em> <code>group_id</code>, 
+        <em>hsize_t</em> <code>idx</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Iget_name</code></td>
+    <td align="left" valign="top">
+        <em>ssize_t</em> <code>H5Iget_name</code> (<em>hid_t</em> <code>obj_id</code>,
+	<em>char *</em><code>name</code>, <em>size_t</em> <code>size</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pall_filters_avail</code></td>
+    <td align="left" valign="top">
+        <em>htri_t</em> <code>H5Pall_filters_avail</code> (<em>hid_t</em> <code>dcpl_id</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pfill_value_defined</code></td>
+    <td align="left" valign="top">
+        <em>herr_t </em><code>H5Pfill_value_defined</code> (<em>hid_t</em> <code>plist_id</code>,
+        <em>H5D_fill_value_t *</em><code>status</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_alloc_time</code></td>
+    <td align="left" valign="top">
+        <em>herr_t </em><code>H5Pget_alloc_time</code> (<em>hid_t</em> <code>plist_id</code>,
+        <em>H5D_alloc_time_t *</em><code>alloc_time</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_edc_check</code></td>
+    <td align="left" valign="top">
+        <em>H5Z_EDC_t</em> <code>H5Pget_edc_check</code> (<em>hid_t</em> 
+        <code>plist</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_family_offset</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pget_family_offset</code> (<em>hid_t</em> <code>fapl_id</code>,
+        <em>hsize_t *</em><code>offset</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_fapl_mpiposix</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pget_fapl_mpiposix</code> (<em>hid_t</em> <code>fapl_id</code>,
+        <em>MPI_Comm *</em><code>comm</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_fill_time</code></td>
+    <td align="left" valign="top">
+        <em>herr_t </em><code>H5Pget_fill_time</code> (<em>hid_t</em> <code>plist_id</code>,
+        <em>H5D_fill_time_t *</em><code>fill_time</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_filter_by_id</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pget_filter_by_id</code> (<em>hid_t</em> <code>plist_id</code>,
+        <em>H5Z_filter_t</em> <code>filter</code>, <em>unsigned int *</em><code>flags</code>,
+        <em>size_t *</em><code>cd_nelmts</code>, <em>unsigned int</em> <code>cd_values[]</code>,
+        <em>size_t</em> <code>namelen</code>, <em>char *</em><code>name[]</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_hyper_vector_size</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pget_hyper_vector_size</code> (<em>hid_t</em> <code>dxpl_id</code>,
+        <em>size_t *</em><code>vector_size</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pget_multi_type</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pget_multi_type</code> (<em>hid_t</em> <code>fapl_id</code>,
+        <em>H5FD_mem_t *</em><code>type</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pmodify_filter</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pmodify_filter</code> (<em>hid_t</em> <code>plist</code>,
+        <em>H5Z_filter_t</em> <code>filter</code>, <em>unsigned int</em> <code>flags</code>,
+        <em>size_t</em> <code>cd_nelmts</code>, <em>const unsigned int</em> <code>cd_values[]</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_alloc_time</code></td>
+    <td align="left" valign="top">
+        <em>herr_t </em><code>H5Pset_alloc_time</code> (<em>hid_t</em> 
+	<code>plist_id</code>, <em>H5D_alloc_time_t</em> <code>alloc_time</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_edc_check</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_edc_check</code> (<em>hid_t</em> 
+	<code>plist</code>, <em>H5Z_EDC_t</em> <code>check</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_family_offset</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_family_offset</code> (<em>hid_t</em> <code>fapl_id</code>,
+        <em>hsize_t</em> <code>offset</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_fapl_mpiposix</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_fapl_mpiposix</code> (<em>hid_t</em> <code>fapl_id</code>,
+        <em>MPI_Comm</em> <code>comm</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_fill_time</code></td>
+    <td align="left" valign="top">
+        <em>herr_t </em><code>H5Pset_fill_time</code> (<em>hid_t</em> <code>plist_id</code>,
+        <em>H5D_fill_time_t</em> <code>fill_time</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_filter</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_filter</code> 
+        (<em>hid_t</em> <code>plist</code>, <em>H5Z_filter_t</em> <code>filter</code>,
+        <em>unsigned int</em> <code>flags</code>, <em>size_t</em> <code>cd_nelmts</code>,
+        <em>const unsigned int</em> <code>cd_values[])</code>
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_filter_callback</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_filter_callback</code> (<em>hid_t</em> 
+        <code>plist</code>, <em>H5Z_filter_func_t</em> <code>func</code>,
+        <em>void *</em><code>op_data</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_fletcher32</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_fletcher32</code> (<em>hid_t</em> 
+        <code>plist</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_hyper_vector_size</code>&nbsp;</td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_hyper_vector_size</code> (<em>hid_t</em> <code>dxpl_id</code>,
+        <em>size_t</em> <code>vector_size</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_multi_type</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_multi_type</code> (<em>hid_t</em> <code>fapl_id</code>,
+        <em>H5FD_mem_t</em> <code>type</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_shuffle</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_shuffle</code> (<em>hid_t</em> <code>plist_id</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Pset_szip</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Pset_szip</code> (<em>hid_t</em> <code>plist</code>,
+        <em>unsigned int</em> <code>options_mask</code>, <em>unsigned int</em> 
+	<code>pixels_per_block</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Rget_object_type</code></td>
+    <td align="left" valign="top">
+        <em>int</em> <code>H5Rget_object_type</code> (<em>hid_t</em> <code>id</code>,
+        <em>void *</em><code>ref</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5set_free_list_limits</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5set_free_list_limits</code> (<em>int</em> <code>reg_global_lim</code>, 
+        <em>int</em> <code>reg_list_lim</code>, <em>int</em> <code>arr_global_lim</code>,
+        <em>int</em> <code>arr_list_lim</code>, <em>int</em> <code>blk_global_lim</code>, 
+	<em>int</em> <code>blk_list_lim</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Sget_select_type</code></td>
+    <td align="left" valign="top">
+        <em>H5S_sel_type</em> <code>H5Sget_select_type</code> (<em>hid_t</em> <code>space_id</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Tdetect_class</code></td>
+    <td align="left" valign="top">
+        <em>htri_t </em><code>H5Tdetect_class</code> (<em>hid_t</em> <code>dtype_id</code>,
+        <em>H5T_class_t</em> <code>dtype_class</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Tget_native_type</code></td>
+    <td align="left" valign="top">
+        <em>hid_t</em> <code>H5Tget_native_type</code> (<em>hid_t</em> <code>type_id</code>,
+        <em>H5T_direction_t</em> <code>direction</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Tis_variable_str</code></td>
+    <td align="left" valign="top">
+        <em>htri_t </em><code>H5Tis_variable_str</code> (<em>hid_t </em><code>dtype_id</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Zfilter_avail</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Zfilter_avail</code> (<em>H5Z_filter_t</em> <code>filter</code>)
+    </td>
+  </tr>
+  <tr>
+    <td align="left" valign="top"><code>H5Zunregister</code></td>
+    <td align="left" valign="top">
+        <em>herr_t</em> <code>H5Zunregister</code> (<em>H5Z_filter_t</em> <code>filter</code>)
+    </td>
+  </tr>   
+</table>    
+    </dd>
+    <dd>&nbsp;</dd>
+
+  </dt>
+  <dt>The following tools are new for Release 1.5 and are included in the
+        <a href="../RM_H5Front.html"><cite>HDF5 Reference Manual</cite></a>.
+    <dd><code>h5diff</code>
+    <dd><code>h5import</code>
+    <dd><code>h5fc</code> 
+    <dd><code>h5c++</code> 
+    <dd><code>h5perf</code>
+    <dd><code>h5redeploy</code>
+  </dt>
+</dl>
+
+
+    <h3>Deleted Functions</h3>
+        The following functions are deprecated in HDF5 Release 1.6.0.
+        A backward compatibility mode is provided in this release,
+        enabling these functions and other Release 1.4.x compatibility
+        features, but is available only when the HDF5 library is 
+        configured with the flag <code>H5_WANT_H5_V1_4_COMPAT</code>.
+        The backward compatibility mode is not enabled in the 
+        binaries distributed by NCSA.
+
+        <dir>
+        <table border=0>
+        <tr valign="top" align="left"><td>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        </td><td>
+<pre>
+<code>H5Pset_hyper_cache</code>
+<code>H5Pget_hyper_cache</code>
+</pre>
+        </td><td>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        </td><td>
+<pre>
+<code>H5Rget_object_type</code>
+</pre>
+        </td><td>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        </td><td>
+<pre>&nbsp;
+
+</pre>
+        </td></tr>
+        </table>
+        </dir>
+        <p>
+	The above functions will eventually be removed from the HDF5 
+        distribution and from the <cite>HDF5 Reference Manual</cite>.
+
+
+    <h3>Functions with Changed Syntax</h3>
+        The following functions have changed as noted.
+        <dir>
+        <dl>
+        <dt>C functions:
+        <dt><code>H5FDflush and VFL "flush" callbacks</code>
+          <dd>An extra parameter <code>closing</code> has been added to 
+                these functions,
+                to allow the library to indicate that the file will be closed
+                following the call to "flush".  Actions in the "flush" call
+                that are duplicated in the VFL "close" call may be omitted by
+                the VFL driver.
+        <dt>* <code>H5Gget_objtype_by_idx</code>
+          <dd>The function return type has changed from 
+              <code><em>int</em></code> to
+              the enumerated type <code><em>H5G_obj_t</em></code>.
+        <dt>* <code>H5Pset(get)_buffer</code>
+          <dd>The <code>size</code> parameter for <code>H5Pset_buffer</code> 
+                has changed from type <code><em>hsize_t</em></code> to 
+                <code><em>size_t</em></code>. 
+          <dd>The <code>H5Pget_buffer</code> return type has similarly
+                changed from <code><em>hsize_t</em></code> to 
+                <code><em>size_t</em></code>. 
+        <dt>* <code>H5Pset(get)_cache</code>
+          <dd>The <code>rdcc_nelmts</code> parameter has changed from type 
+                <code><em>int</em></code> to 
+                <code><em>size_t</em></code>. 
+        <dt>* <code>H5Pset_fapl_log</code>
+          <dd>The <code>verbosity</code> parameter has been removed.
+          <dd>Two new parameters have been added:  
+              <code>flags</code> of type <code><em>unsigned</em></code> and 
+              <code>buf_size</code> of type <code><em>size_t</em></code>. 
+        <dt>* <code>H5Pset(get)_fapl_mpiposix</code>
+          <dd>A <code>use_gpfs</code> parameter of type
+                <code><em>hbool_t</em></code> has been added.
+        <dt>* <code>H5Pset(get)_sieve_buf_size</code>
+          <dd>The <code>size</code> parameter has changed from type 
+                <code><em>hsize_t</em></code> to 
+                <code><em>size_t</em></code>. 
+        <dt>* <code>H5Pset(get)_sym_k</code>
+          <dd>The <code>lk</code> parameter has changed from type 
+                <code><em>int</em></code> to 
+                <code><em>unsigned</em></code>. 
+        <dt>* <code>H5Sget_select_bounds</code>
+          <dd>The <code>start</code> and <code>end</code> parameters have 
+                changed from type <code><em>hsize_t *</em></code>
+                to <code><em>hssize_t *</em></code> to better match the 
+                rest of the dataspace API.
+        <dt>* <code>H5Zregister</code>
+          <dd>This function is substantially revised in Release 1.6.0 with
+              a new <code>H5Z_class_t</code> struct and 
+              new <i>set local</i> and <i>can apply</i> callback functions.
+        <dt>&nbsp;
+        <dt>Fortran90 functions:
+        <dt><code>h5pset(get)_fapl_core_f</code>
+          <dd>The <code>backing_store</code> parameter has changed from
+              <code><em>INTEGER</em></code> to <code><em>LOGICAL</em></code> 
+              to better match the C API.
+        <dt><code>h5pset(get)_preserve_f</code>
+          <dd>The <code>flag</code> parameter has changed from
+              <code><em>INTEGER</em></code> to <code><em>LOGICAL</em></code> 
+              to better match the C API.
+        </dl>
+        </dir>
+
+        <p>
+        Backward compatibility with the Release 1.4.x syntax is available
+        for the functions indicated above with a leading asterisk (*).
+        The backward compatibility features are available only when the 
+        HDF5 library is configured with the flag 
+        <code>H5_WANT_H5_V1_4_COMPAT</code>,
+        is not enabled in the binaries distributed by NCSA, and
+        will eventually be removed from the HDF5 distribution. 
+        
+
+    <h3>Constants with Changed Values</h3>
+        
+
+</dir>
+<p>&nbsp;
+
+
+
+
+
+
+<h2>Release 1.4.5 versus Release 1.4.4</h2> 
 <dir>
     <h3>C Library</h3>
     <dir>
@@ -63,7 +494,6 @@ an application synchroniaed with the HDF5 library or related software.
         <table border=0>
         <tr valign=top align=left><td>
 <pre>
-<!-- List added function(s) here.  Remove forced spaces. -->
 herr_t H5Pset_fapl_mpiposix(hid_t fapl_id, MPI_Comm comm);
 herr_t H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/);
 </pre>
@@ -73,53 +503,44 @@ herr_t H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/);
 
       <b>Changed functions:</b>
         <dir>
+        The following functions have changed behavior.
+        <p>
         <table border=0>
         <tr valign=top align=left><td>
-        The following functions have changed behavior.
-        <dir>
-        <dl>
-        <dt><code>H5Pset_fapl_mpio</code>
-        <dt><code>H5Pget_fapl_mpio</code>
-        <dt><code>H5Fcreate</code>
-        <dt><code>H5Fopen</code>
-        <dt><code>H5Fclose</code>
-          <dd>
+        <code>H5Pset_fapl_mpio&nbsp;&nbsp;</code><br>
+        <code>H5Pget_fapl_mpio</code><br>
+        <code>H5Fcreate</code><br>
+        <code>H5Fopen</code><br>
+        <code>H5Fclose</code>
+        </td><td>
     Previously, the Communicator and Info object arguments supplied
-    to H5Pset_fapl_mpio() are stored in the property with its handle
-    values.  This meant changes to the communicator or the Info object
-    after calling H5Pset_fapl_mpio would affect the how the property
-    list function.  This was also the case when H5Fopen/create operated.
+    to <code>H5Pset_fapl_mpio</code> were stored in the property with 
+    its handle values.  
+    This meant changes to the communicator or the Info object
+    after calling <code>H5Pset_fapl_mpio</code> would affect the how 
+    the property list functioned.  
+    This was also the case when <code>H5Fopen/create</code> operated.
     They just stored the handle value.  This is not according to the
-    MPI-2 defined behavior of how Info objects should be handled. (MPI-2
-    defines Info objects must be parsed when called.)<br>
-    H5Pset_fapl_mpio now stores a duplicate of each of the communicator
-    and Info object.<br>
-    H5Pget_fapl_mpio returns a duplicate of its stored communicator and
-    Info object.  It is now the responsibility of the applications to free
-    those objects when done.<br>
-    H5Fcreate and H5Fopen also store a duplicate of the communicator and Info
-    object supplied by the File Access Property list.
-    H5Fclose frees the duplicates.<br>
-    (Advice to users)User applications should release the communicator and
-    Info object returned by H5Pget_fapl_mpio when they are no longer needed.
-    (end of advice).
-        </dl>
-        </dir>
-
-<!--
-<pre>
-List deleted function(s) here.  Remove forced spaces. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-</pre>
--->
-        </td><td>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        </td><td>
-<pre>
-<!-- List deleted function(s) here.  Remove forced spaces. -->&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-</pre>
+    MPI-2 defined behavior of how Info objects should be handled. 
+    (MPI-2 defines Info objects must be parsed when called.)<br>
+    <code>H5Pset_fapl_mpio</code> now stores a duplicate of each of 
+    the communicator and Info object.<br>
+    <code>H5Pget_fapl_mpio</code> now returns a duplicate of its 
+    stored communicator and Info object.  
+    It is now the responsibility of the applications to free
+    those objects when done.<p>
+    <code>H5Fcreate</code> and <code>H5Fopen</code> also store 
+    a duplicate of the communicator and Info
+    object supplied by the file access property List.
+    <code>H5Fclose</code> frees the duplicates.<p>
+    Advice to users: User applications should release the communicator and
+    Info object returned by <code>H5Pget_fapl_mpio</code> when they are 
+    no longer needed.
         </td></tr>
         </table>
         </dir>
+
+
 
       <b>Removed functions:</b>
         <dir>
@@ -240,7 +661,7 @@ List deleted function(s) here.  Remove forced spaces. &nbsp;&nbsp;&nbsp;&nbsp;&n
       <code>h5dwrite_f, h5dread_f, h5awrite_f, h5aread_f </code>were  overloaded 
       with <code>dims</code> argument to be assumed size array of type <code>INTEGER(HSIZE_T).</code> 
       We recommend to use the subroutines with the new type.  Module subroutines 
-      that accept <code>dims</code> as <code>INTEGER</code> array of size <code>7</code> will be deprecated in the 1.6 release.
+      that accept <code>dims</code> as <code>INTEGER</code> array of size <code>7</code> will be deprecated in the 1.6.0 release.
 
     </dir>
 </dir>
@@ -603,41 +1024,32 @@ V1.4.0
 
 
 
-
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_ADevG.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="../index.html">HDF5 documents and links</a>&nbsp;<br>
-   <a href="../H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-   <a href="../RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
-   <!--
-   <a href="../Glossary.html">Glossary</a><br>
-   -->
+    <a href="../index.html">HDF5 documents and links</a>&nbsp;<br>
+    <a href="../H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+    <!--
+    <a href="Glossary.html">Glossary</a><br>
+    -->
 </td>
 <td valign=top align=right>
-   <br>
-   <a href="../H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
-   <a href="../ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;
+    <a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User's Guide</a>&nbsp;<br>
+    <a href="../RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+    <a href="../ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;<br>
 </td></tr>
 </table>
 </center>
-
-
-
 <hr>
-<address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
-</address>
-
-<!-- Created: Spring 1999 -->
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
+<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+<br>
+Describes HDF5 Release 1.6.0, July 2003
+</address><!-- #EndLibraryItem --><!-- Created: Spring 1999 -->
 <!-- hhmts start -->
-Last modified:  2 February 2003 
+Last modified: 2 July 2003 
 <!-- hhmts end -->
 
-<br>
-Describes HDF5 Release 1.4.5, February 2003
-
-
-  </body>
+</body>
 </html>

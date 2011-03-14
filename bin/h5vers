@@ -3,7 +3,9 @@ perl -x -S $0 "$@"
 exit
 
 #! perl
-#
+require 5.003;
+use strict;
+
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -16,10 +18,6 @@ exit
 # http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
 # access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 #
-require 5.003;
-use strict;
-
-###
 # Robb Matzke <matzke@llnl.gov>
 # 17 July 1998
 

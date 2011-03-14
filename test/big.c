@@ -35,7 +35,7 @@ const char *FILENAME[] = {
 #   define GB8LL	0	/*cannot do the test*/
 #endif
 
-/* Prototypes */
+/* Protocols */
 static void usage(void);
 
 
@@ -90,12 +90,12 @@ is_sparse(void)
     int		fd;
     h5_stat_t	sb;
     
-    if ((fd=open("x.h5", O_RDWR|O_TRUNC|O_CREAT, 0666))<0) return 0;
-    if (lseek(fd, (off_t)(1024*1024), SEEK_SET)!=1024*1024) return 0;
-    if (5!=write(fd, "hello", 5)) return 0;
-    if (close(fd)<0) return 0;
+    if ((fd=HDopen("x.h5", O_RDWR|O_TRUNC|O_CREAT, 0666))<0) return 0;
+    if (HDlseek(fd, (off_t)(1024*1024), SEEK_SET)!=1024*1024) return 0;
+    if (5!=HDwrite(fd, "hello", 5)) return 0;
+    if (HDclose(fd)<0) return 0;
     if (HDstat("x.h5", &sb)<0) return 0;
-    if (unlink("x.h5")<0) return 0;
+    if (HDunlink("x.h5")<0) return 0;
 #ifdef H5_HAVE_STAT_ST_BLOCKS
     return ((unsigned long)sb.st_blocks*512 < (unsigned long)sb.st_size);
 #else
@@ -134,11 +134,7 @@ enough_room(hid_t fapl)
     for (i=0; i<NELMTS(fd); i++) fd[i] = -1;
 
     /* Get file name template */
-#ifdef H5_WANT_H5_V1_2_COMPAT
-    assert(H5F_LOW_FAMILY==H5Pget_driver(fapl));
-#else /* H5_WANT_H5_V1_2_COMPAT */
     assert(H5FD_FAMILY==H5Pget_driver(fapl));
-#endif /* H5_WANT_H5_V1_2_COMPAT */
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
 
     /* Create files */
@@ -198,6 +194,7 @@ writer (hid_t fapl, int wrt_n)
     int		i, j;
     FILE	*out = fopen(DNAME, "w");
     char	filename[1024];
+    hid_t       dcpl;
 
     TESTING("large dataset write");
     
@@ -217,8 +214,24 @@ writer (hid_t fapl, int wrt_n)
     }
     
     /* Create the datasets */
+/* 
+ *  The fix below is provided for bug#921
+ *  H5Dcreate with H5P_DEFAULT creation properties
+ *  will create a set of solid 1GB files; test will crash if quotas are enforced
+ *  or it will take some time to write a file.
+ *  We should create a dataset allocating space late and never writing fill values.
+ *  EIP 4/8/03
+
     if ((d1=H5Dcreate (file, "d1", H5T_NATIVE_INT, space1, H5P_DEFAULT))<0 ||
 	(d2=H5Dcreate (file, "d2", H5T_NATIVE_INT, space2, H5P_DEFAULT))<0) {
+	goto error;
+    }
+*/
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
+    H5Pset_alloc_time(dcpl, H5D_ALLOC_TIME_LATE);
+    H5Pset_fill_time(dcpl, H5D_FILL_TIME_NEVER);
+    if ((d1=H5Dcreate (file, "d1", H5T_NATIVE_INT, space1, dcpl))<0 ||
+	(d2=H5Dcreate (file, "d2", H5T_NATIVE_INT, space2, dcpl))<0) {
 	goto error;
     }
     
@@ -418,6 +431,7 @@ main (int ac, char **av)
     hid_t	fapl=-1;
     hsize_t	family_size;
     hsize_t	family_size_def;	/* default family file size */
+    double	family_size_def_dbl;	/* default family file size */
     int		cflag=1;		/* check file system before test */
     
     /* parameters setup */
@@ -429,7 +443,8 @@ main (int ac, char **av)
 	    /* specify a different family file size */
 	    ac--; av++;
 	    if (ac > 0){
-		family_size_def = (hsize_t) atof(*av);
+		family_size_def_dbl = atof(*av);
+                H5_ASSIGN_OVERFLOW(family_size_def,family_size_def_dbl,double,hsize_t);
 		if (family_size_def <= 0)
 		    family_size_def = (hsize_t)FAMILY_SIZE;
 	    }
@@ -457,11 +472,7 @@ main (int ac, char **av)
     fapl = h5_fileaccess();
 
     /* The file driver must be the family driver */
-#ifdef H5_WANT_H5_V1_2_COMPAT
-    if (H5F_LOW_FAMILY!=H5Pget_driver(fapl)) {
-#else /* H5_WANT_H5_V1_2_COMPAT */
     if (H5FD_FAMILY!=H5Pget_driver(fapl)) {
-#endif /* H5_WANT_H5_V1_2_COMPAT */
 	HDfprintf(stdout,
 	   "Changing file drivers to the family driver, %Hu bytes each\n",
 	   family_size_def);

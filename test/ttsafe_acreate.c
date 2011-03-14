@@ -40,16 +40,14 @@
  *	Incorporated into library tests.
  *
  *	19 May 2000, Bill Wendling
- *	Changed so that it creates its own HDF5 file and removes it at
- *	cleanup time. Added num_errs flag.
+ *	Changed so that it creates its own HDF5 file and removes it at cleanup
+ *	time. Added num_errs flag.
  *
  ********************************************************************/
 
 #include "ttsafe.h"
 
-#ifndef H5_HAVE_THREADSAFE
-static int dummy;	/* just to create a non-empty object file */
-#else
+#ifdef H5_HAVE_THREADSAFE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,10 +55,6 @@ static int dummy;	/* just to create a non-empty object file */
 #define FILENAME	"ttsafe_acreate.h5"
 #define DATASETNAME	"IntData"
 #define NUM_THREADS	16
-
-/* Global variables */
-extern int num_errs;
-extern int Verbosity;
 
 void *tts_acreate_thread(void *);
 

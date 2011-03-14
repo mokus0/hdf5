@@ -25,6 +25,7 @@
  *-------------------------------------------------------------------------
  */
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
+#define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
 
 #include "H5private.h"
 #include "H5Iprivate.h"
@@ -34,7 +35,7 @@
 #include "H5Gprivate.h"
 #include "H5HGprivate.h"
 #include "H5HLprivate.h"
-#include "H5Oprivate.h"
+#include "H5Opkg.h"
 
 /* File drivers */
 #include "H5FDfamily.h"
@@ -63,7 +64,7 @@
 int
 main(int argc, char *argv[])
 {
-    hid_t	fid, plist=H5P_DEFAULT;
+    hid_t	fid, fapl, dxpl;
     H5F_t       *f;
     haddr_t     addr=0, extra=0;
     uint8_t     sig[16];
@@ -76,14 +77,27 @@ main(int argc, char *argv[])
 	HDexit(1);
     }
 
+    /* Initialize the library */
+    if(H5open ()<0) {
+        fprintf(stderr, "cannot initialize the library\n");
+        HDexit(1);
+    }
+
     /*
      * Open the file and get the file descriptor.
      */
-    if (strchr (argv[1], '%')) {
-	plist = H5Pcreate (H5P_FILE_ACCESS);
-	H5Pset_fapl_family (plist, (hsize_t)0, H5P_DEFAULT);
+    if((dxpl = H5Pcreate (H5P_DATASET_XFER))<0) {
+        fprintf(stderr, "cannot create dataset transfer property list\n");
+        HDexit(1);
     }
-    if ((fid = H5Fopen(argv[1], H5F_ACC_RDONLY, plist)) < 0) {
+    if((fapl = H5Pcreate (H5P_FILE_ACCESS))<0) {
+        fprintf(stderr, "cannot create file access property list\n");
+        HDexit(1);
+    }
+    if (strchr (argv[1], '%')) {
+	H5Pset_fapl_family (fapl, (hsize_t)0, H5P_DEFAULT);
+    }
+    if ((fid = H5Fopen(argv[1], H5F_ACC_RDONLY, fapl)) < 0) {
         fprintf(stderr, "cannot open file\n");
         HDexit(1);
     }
@@ -106,7 +120,7 @@ main(int argc, char *argv[])
      * Read the signature at the specified file position.
      */
     HDfprintf(stdout, "Reading signature at address %a (rel)\n", addr);
-    if (H5F_block_read(f, H5FD_MEM_SUPER, addr, (hsize_t)sizeof(sig), H5P_DEFAULT, sig)<0) {
+    if (H5F_block_read(f, H5FD_MEM_SUPER, addr, sizeof(sig), dxpl, sig)<0) {
         fprintf(stderr, "cannot read signature\n");
         HDexit(3);
     }
@@ -114,25 +128,25 @@ main(int argc, char *argv[])
         /*
          * Debug the boot block.
          */
-        status = H5F_debug(f, H5P_DEFAULT, addr, stdout, 0, VCOL);
+        status = H5F_debug(f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL);
 
     } else if (!HDmemcmp(sig, H5HL_MAGIC, H5HL_SIZEOF_MAGIC)) {
         /*
          * Debug a local heap.
          */
-        status = H5HL_debug(f, H5P_DEFAULT, addr, stdout, 0, VCOL);
+        status = H5HL_debug(f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL);
 	
     } else if (!HDmemcmp (sig, H5HG_MAGIC, H5HG_SIZEOF_MAGIC)) {
 	/*
 	 * Debug a global heap collection.
 	 */
-	status = H5HG_debug (f, H5P_DEFAULT, addr, stdout, 0, VCOL);
+	status = H5HG_debug (f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL);
 
     } else if (!HDmemcmp(sig, H5G_NODE_MAGIC, H5G_NODE_SIZEOF_MAGIC)) {
         /*
          * Debug a symbol table node.
          */
-        status = H5G_node_debug(f, H5P_DEFAULT, addr, stdout, 0, VCOL, extra);
+        status = H5G_node_debug(f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL, extra);
 
     } else if (!HDmemcmp(sig, H5B_MAGIC, H5B_SIZEOF_MAGIC)) {
         /*
@@ -144,17 +158,16 @@ main(int argc, char *argv[])
 	
         switch (subtype) {
         case H5B_SNODE_ID:
-            status = H5G_node_debug(f, H5P_DEFAULT, addr, stdout, 0, VCOL, extra);
+            status = H5G_node_debug(f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL, extra);
             break;
 
 	case H5B_ISTORE_ID:
 	    ndims = (int)extra;
-	    status = H5F_istore_debug (f, H5P_DEFAULT, addr, stdout, 0, VCOL, ndims);
+	    status = H5F_istore_debug (f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL, ndims);
 	    break;
 
         default:
-            fprintf(stderr, "Unknown B-tree subtype %u\n",
-		    (unsigned)(subtype));
+            fprintf(stderr, "Unknown B-tree subtype %u\n", (unsigned)(subtype));
             HDexit(4);
         }
 
@@ -163,7 +176,7 @@ main(int argc, char *argv[])
          * This could be an object header.  Since they don't have a signature
          * it's a somewhat "ify" detection.
          */
-        status = H5O_debug(f, H5P_DEFAULT, addr, stdout, 0, VCOL);
+        status = H5O_debug(f, H5P_DATASET_XFER_DEFAULT, addr, stdout, 0, VCOL);
 
     } else {
         /*
@@ -190,6 +203,8 @@ main(int argc, char *argv[])
         fprintf(stderr, "An error occurred\n");
         HDexit(5);
     }
+    H5Pclose(dxpl);
+    H5Pclose(fapl);
     H5Fclose(fid);
     return 0;
 }

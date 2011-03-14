@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5public.h,v 1.262.2.82 2003/04/05 21:39:09 hdfadmin Exp $ */
+/* $Id: H5public.h,v 1.341.2.1 2003/07/03 21:18:14 epourmal Exp $ */
 
 
 /*
@@ -31,15 +31,21 @@
  * prevent repeated include.
  */
 #include "H5pubconf.h"		/*from configure                             */
+
+#ifdef H5_HAVE_FEATURES_H
+#include <features.h>           /*for setting POSIX, BSD, etc. compatibility */
+#endif
+#ifdef H5_HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 #ifdef H5_STDC_HEADERS
 #   include <limits.h>		/*for H5T_NATIVE_CHAR defn in H5Tpublic.h    */
 #endif
 #ifdef H5_HAVE_STDINT_H
 #   include <stdint.h>		/*for C9x types				     */
 #endif
-#ifdef H5_HAVE_INTTYPES_H
-#   include <inttypes.h>	/* For uint64_t on some platforms 	     */
+#ifdef H5_HAVE_INTTYPES_H 
+#   include <inttypes.h>        /* For uint64_t on some platforms            */ 
 #endif
 #ifdef H5_HAVE_STDDEF_H
 #   include <stddef.h>
@@ -59,15 +65,20 @@
 #ifdef H5_HAVE_SRB              /*for SRB I/O                                */
 #include <srbClient.h>
 #endif
+
 #include "H5api_adpt.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
-#define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	5	/* For tweaks, bug-fixes, or development     */
-#define H5_VERS_SUBRELEASE "post2"	/* For pre-releases like snap0       */
+#define H5_VERS_MINOR	6	/* For minor interface/format changes  	     */
+#define H5_VERS_RELEASE	0	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.4.5-post2"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.6.0"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -140,38 +151,49 @@ typedef unsigned __int64	hsize_t;
 typedef signed __int64		hssize_t;
 #       define H5_SIZEOF_HSIZE_T H5_SIZEOF___INT64
 #   endif
-#else
+#else /* H5_HAVE_LARGE_HSIZET */
 typedef size_t			hsize_t;
 typedef ssize_t			hssize_t;
 #       define H5_SIZEOF_HSIZE_T H5_SIZEOF_SIZE_T
-#endif
+#endif /* H5_HAVE_LARGE_HSIZET */
 
 /*
  * File addresses have there own types.
  */
 #if H5_SIZEOF_UINT64_T>=8
-    typedef uint64_t		haddr_t;
-#   define HADDR_UNDEF		((haddr_t)(int64_t)(-1))
+    typedef uint64_t                haddr_t;
+#   define HADDR_UNDEF              ((haddr_t)(int64_t)(-1))
+#   ifdef H5_HAVE_PARALLEL
+#       define HADDR_AS_MPI_TYPE    MPI_LONG_LONG_INT
+#   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF_INT>=8
-    typedef unsigned		haddr_t;
-#   define HADDR_UNDEF		((haddr_t)(-1))
+    typedef unsigned                haddr_t;
+#   define HADDR_UNDEF              ((haddr_t)(-1))
+#   ifdef H5_HAVE_PARALLEL
+#       define HADDR_AS_MPI_TYPE    MPI_UNSIGNED
+#   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF_LONG>=8
-    typedef unsigned long	haddr_t;
-#   define HADDR_UNDEF		((haddr_t)(long)(-1))
+    typedef unsigned long           haddr_t;
+#   define HADDR_UNDEF              ((haddr_t)(long)(-1))
+#   ifdef H5_HAVE_PARALLEL
+#       define HADDR_AS_MPI_TYPE    MPI_UNSIGNED_LONG
+#   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF_LONG_LONG>=8
-    typedef unsigned long long	haddr_t;
-#   define HADDR_UNDEF		((haddr_t)(long long)(-1))
+    typedef unsigned long long      haddr_t;
+#   define HADDR_UNDEF              ((haddr_t)(long long)(-1))
+#   ifdef H5_HAVE_PARALLEL
+#       define HADDR_AS_MPI_TYPE    MPI_LONG_LONG_INT
+#   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF___INT64>=8
-    typedef unsigned __int64	haddr_t;
-#   define HADDR_UNDEF		((haddr_t)(__int64)(-1))
+    typedef unsigned __int64        haddr_t;
+#   define HADDR_UNDEF              ((haddr_t)(__int64)(-1))
+#   ifdef H5_HAVE_PARALLEL
+#       define HADDR_AS_MPI_TYPE    MPI_LONG_LONG_INT
+#   endif  /* H5_HAVE_PARALLEL */
 #else
 #   error "nothing appropriate for haddr_t"
 #endif
 #define HADDR_MAX		(HADDR_UNDEF-1)
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Functions in H5.c */
 H5_DLL herr_t H5open(void);

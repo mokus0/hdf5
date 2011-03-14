@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -11,7 +12,7 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
+!
     MODULE HDF5
        USE H5GLOBAL
        USE H5F
@@ -25,5 +26,6 @@
        USE H5P
        USE H5FDMPIO
        USE H5R
+       USE H5Z
        USE H5LIB
     END MODULE HDF5

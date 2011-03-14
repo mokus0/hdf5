@@ -12,7 +12,7 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
+!
 !
 ! This example shows how to create a dataset in a particular group.
 ! It opens the file created in the previous example and creates two datasets.

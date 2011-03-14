@@ -1,4 +1,10 @@
 <html>
+<head>
+<title>
+HDF5/H5Z API Specification
+</title>
+
+<!-- #BeginLibraryItem "/ed_libs/styles_RM.lbi" -->
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -16,22 +22,19 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
-<head>
-<title>
-HDF5/H5Z API Specification
-</title>
-</head>
+<link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 
 
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
+<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
-<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
+<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -52,97 +55,383 @@ And in this document, the
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
-H5Z&nbsp;&nbsp;
+<a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
 <hr>
-
-
-<center>
-<h1>H5Z: Compression Interface</h1>
+<!-- #EndLibraryItem --><center>
+<h1>H5Z: Filter and Compression Interface</h1>
 </center>
 
-<h2>Compression API Functions</h2>
+<h2>Filter and Compression API Functions</h2>
 
-This function enable the user to configure a new compression
-method for the local environment.
+These functions enable the user to configure new filters
+for the local environment.
 
-<table border=0>
+<table border=0 width=80%>
 <tr><td valign=top>
+<ul>
+    <li><a href="#Compression-FilterAvail">H5Zfilter_avail</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
     <li><a href="#Compression-Register">H5Zregister</a>
 </ul>
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
-    &nbsp;
+    <li><a href="#Compression-Unregister">H5Zunregister</a>
 </ul>
 </td></tr>
 </table>
 
 <p>
-HDF5 supports compression of raw data by compression methods 
-built into the library or defined by an application. 
-A compression method is associated with a dataset when the dataset is 
-created and is applied independently to each storage chunk of the dataset. 
-The dataset must use the <code>H5D_CHUNKED</code> storage layout. 
+HDF5 supports a filter pipeline that provides the capability for standard 
+and customized raw data processing during I/O operations.  
+HDF5 is distributed with a small set of standard filters such as 
+compression (gzip and a shuffling algorithm) and 
+error checking (Fletcher32 checksum).
+For further flexibility, the library allows a 
+user application to extend the pipeline through the 
+creation and registration of customized filters.
 <p>
-The HDF5 library does not support compression for contiguous datasets 
+As mentioned above, one set of filters distributed with HDF5 provides 
+built-in methods for raw data compression.  
+The flexibility of the filter pipeline implementation enables the 
+definition of additional filters by a user application.
+A filter<br>
+&nbsp;&mdash;&nbsp;
+    is associated with a dataset when the dataset is created,<br>
+&nbsp;&mdash;&nbsp;
+    can be used only with chunked data (ie., datasets stored in the
+    <code>H5D_CHUNKED</code> storage layout), and<br>
+&nbsp;&mdash;&nbsp;
+    is applied independently to each chunk of the dataset.
+<p>
+The HDF5 library does not support filters for contiguous datasets 
 because of the difficulty of implementing random access for partial I/O. 
-Compact dataset compression is not supported because it would not produce 
+Compact dataset filters are not supported because it would not produce 
 significant results.
 <p>
 See <a href="Datasets.html"><cite>The Dataset Interface (H5D)</cite></a> 
 in the <cite>HDF5 User's Guide</cite> for further information regarding 
 data compression.
 
+<p>
+<strong>The FORTRAN90 Interfaces:</strong>
+
+<br>
+<font size=-1>
+<i>In general, each FORTRAN90 subroutine performs exactly the same task 
+as the corresponding C function.  The links below go to the C function 
+descriptions, which serve as general descriptions for both.  A button, 
+under <strong>Non-C API(s)</strong> at the end of the C function description,
+opens an external browser window displaying the FORTRAN90-specific 
+information.  You will probably want to adjust the size and location of 
+this external window so that both browser windows are visible and to 
+facilitate moving easily between them.</i>
+</font>
+
+<table border=0 width=80%>
+<tr><td valign=top>
+    <ul>
+    <li><a href="#Compression-FilterAvail">h5zfilter_avail_f</a>
+    </ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+    <ul>
+<!--<li><a href="#Compression-Register">h5zregister_f</a>        -->
+    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+    </ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+    <ul>
+    <li><a href="#Compression-Unregister">h5zunregister_f</a>
+    </ul>
+</td></tr>
+</table>
+
+
 <hr>
 <dl>
 <dt><strong>Name:</strong> <a name="Compression-Register">H5Zregister</a>
 <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Zregister</code>(<em>H5Z_method_t</em> <code>method</code>,
-        <em>const char *</em><code>name</code>,
-        <em>H5Z_func_t</em> <code>function</code>
+    <dd><em>herr_t</em> <code>H5Zregister</code>(<em>const H5Z_class_t</em> <code>filter_class</code>)
     )
 <dt><strong>Purpose:</strong>
-    <dd> Registers new compression / uncompression function.
+    <dd>Registers new filter.
 <dt><strong>Description:</strong>
-    <dd><code>H5Zregister</code> registers a new compression / uncompression 
-         function for the compression method specified by 
-         the method number, <code>method</code>.  
-         <p>
-         <code>name</code> is used for debugging and may be the null pointer. 
-         <p>
-         <code>function</code> is a user-defined function providing both
-         compression and uncompression; it may be the null pointer.
-         <p>
-         The statistics associated with a method number are not reset
-         by this function; they accumulate over the life of the library.
+    <dd><code>H5Zregister</code> registers a new filter with the
+      HDF5 library.  
+      <p>
+      Making a new filter available to an application is a two-step 
+      process.  The first step is to write
+      the three filter callback functions described below:
+      <code>can_apply_func</code>, <code>set_local_func</code>, and
+      <code>filter_func</code>.
+      This call to <code>H5Zregister</code>, 
+      <span class="termEmphasis">registering</span> the filter with the
+      library, is the second step.  
+      The <code>can_apply_func</code> and <code>set_local_func</code>
+      fields can be set to <code>NULL</code> 
+      if they are not required for the filter being registered.
+      <p>
+      <code>H5Zregister</code> accepts a single parameter, 
+      the <code>filter_class</code> data structure, 
+      which is defined as follows:
+      <pre>
+   &nbsp;   typedef struct H5Z_class_t {
+   &nbsp;       H5Z_filter_t filter_id;
+   &nbsp;       const char  *comment;
+   &nbsp;       H5Z_can_apply_func_t can_apply_func;
+   &nbsp;       H5Z_set_local_func_t set_local_func;
+   &nbsp;       H5Z_func_t filter_func;            
+   &nbsp;   } H5Z_class_t;
+      </pre>
+        
+      <p>
+      <code>filter_id</code> is the identifier for the new filter. 
+      This is a user-defined value between 
+      <code>H5Z_FILTER_RESERVED</code> and <code>H5Z_FILTER_MAX</code>, 
+      both of which are defined in the HDF5 source file 
+      <code>H5Zpublic.h</code>.
+      <p>
+      <code>comment</code> is used for debugging, 
+      may contain a descriptive name for the filter, 
+      and may be the null pointer. 
+      <p>
+      <code>can_apply_func</code>, described in detail below, 
+      is a user-defined callback function which determines whether 
+      the combination of the dataset creation property list values, 
+      the datatype, and the dataspace represent a valid combination 
+      to apply this filter to.
+      <p>
+      <code>set_local_func</code>, described in detail below, 
+      is a user-defined callback function which sets any parameters that 
+      are specific to this dataset, based on the combination of the 
+      dataset creation property list values, the datatype, and the 
+      dataspace.
+      <p>
+      <code>filter_func</code>, described in detail below, 
+      is a user-defined callback function which performs the action 
+      of the filter.
+      <p>
+      The statistics associated with a filter are not reset
+      by this function; they accumulate over the life of the library.
+
+      <p>
+      <strong>The callback functions</strong> 
+      <br>
+      Before <code>H5Zregister</code> can link a filter into an 
+      application, three callback functions must be defined 
+      as described in the HDF5 Library header file <code>H5Zpublic.h</code>.
+
+      <p>
+      <u>The <i>can apply</i> callback function</u> is defined as follows:<br>
+      <dir>
+          <em>typedef herr_t</em> (*<code>H5Z_can_apply_func_t</code>)
+          (<em>hid_t</em> <code>dcpl_id</code>,
+          <em>hid_t</em> <code>type_id</code>,
+          <em>hid_t</em> <code>space_id</code>)
+      </dir>
+      <p>
+      Before a dataset is created, the <i>can apply</i> callbacks for 
+      any filters used in the dataset creation property list are called
+      with the dataset's dataset creation property list, <code>dcpl_id</code>,
+      the dataset's datatype, <code>type_id</code>, and
+      a dataspace describing a chunk, <code>space_id</code>,
+      (for chunked dataset storage).
+      <p>
+      This callback must determine whether the combination of the 
+      dataset creation property list settings, the datatype, and the 
+      dataspace represent a valid combination to which to apply this filter.  
+      For example, an invalid combination may involve 
+      the filter not operating correctly on certain datatypes,
+      on certain datatype sizes, or on certain sizes of the chunk dataspace.
+      <p>
+      This callback can be the <code>NULL</code> pointer, in which case 
+      the library will assume that the filter can be applied to a dataset with 
+      any combination of dataset creation property list values, datatypes, 
+      and dataspaces.
+      <p>
+      The <i>can apply</i> callback function must return 
+      a positive value for a valid combination, 
+      zero for an invalid combination, and 
+      a negative value for an error.
+
+      <p>
+      <u>The <i>set local</i> callback function</u> is defined as follows:<br>
+      <dir>
+          <em>typedef herr_t</em> (*<code>H5Z_set_local_func_t</code>)
+          (<em>hid_t</em> <code>dcpl_id</code>,
+          <em>hid_t</em> <code>type_id</code>,
+          <em>hid_t</em> <code>space_id</code>)
+      </dir>
+      <p>
+      After the <i>can apply</i> callbacks are checked for a new dataset, 
+      the <i>set local</i> callback functions for any filters used in the 
+      dataset creation property list are called.  
+      These callbacks receive 
+      <code>dcpl_id</code>, the dataset's private copy of the dataset
+      creation property list passed in to <code>H5Dcreate</code> 
+      (i.e. not the actual property list passed in to <code>H5Dcreate</code>);
+      <code>type_id</code>, the datatype identifier passed in to 
+      <code>H5Dcreate</code>, 
+      which is not copied and should not be modified; and 
+      <code>space_id</code>, a dataspace describing the chunk 
+      (for chunked dataset storage), which should also not be modified.
+      <p>
+      The <i>set local</i> callback must set any filter parameters that are  
+      specific to this dataset, based on the combination of the 
+      dataset creation property list values, the datatype, and the dataspace.  
+      For example, some filters perform different actions based on 
+      different datatypes, datatype sizes, numbers of dimensions, 
+      or dataspace sizes.
+      <p>
+      The <i>set local</i> callback may be the <code>NULL</code> pointer, 
+      in which case, the library will assume that there are 
+      no dataset-specific settings for this filter.
+      <p>
+      The <i>set local</i> callback function must return 
+      a non-negative value on success and 
+      a negative value for an error.
+
+      <p>
+      <u>The <i>filter operation</i> callback function</u>, 
+      defining the filter's operation on the data, is defined as follows:
+      <dir>
+          <em>typedef size_t</em> (*<code>H5Z_func_t</code>)
+          (<em>unsigned int</em> <code>flags</code>,
+          <em>size_t</em> <code>cd_nelmts</code>,
+          <em>const unsigned int</em> <code>cd_values[]</code>,
+          <em>size_t</em> <code>nbytes</code>,
+          <em>size_t *</em><code>buf_size</code>,
+          <em>void **</em><code>buf</code>)
+      </dir>
+
+      <p>
+      The parameters <code>flags</code>, <code>cd_nelmts</code>, 
+      and <code>cd_values</code> are the same as for the function
+      <a href="RM_H5P.html#Property-SetFilter"><code>H5Pset_filter</code></a>.
+      The one exception is that an additional flag, 
+      <code>H5Z_FLAG_REVERSE</code>, is set when 
+      the filter is called as part of the input pipeline. 
+      <p>
+      The parameter <code>*buf</code> points to the input buffer 
+      which has a size of <code>*buf_size</code> bytes,
+      <code>nbytes</code> of which are valid data. 
+      <p>
+      The filter should perform the transformation in place if
+      possible.  If the transformation cannot be done in place, 
+      then the filter should allocate a new buffer with
+      <code>malloc()</code> and assign it to <code>*buf</code>,
+      assigning the allocated size of that buffer to
+      <code>*buf_size</code>. 
+      The old buffer should be freed by calling <code>free()</code>.
+      <p>
+      If successful, the <i>filter operation</i> callback function 
+      returns the number of valid bytes of data contained in <code>*buf</code>.
+      In the case of failure, the return value is <code>0</code> (zero)
+      and all pointer arguments are left unchanged.
+<dt><strong>Note:</strong>
+    <dd>The <code>H5Zregister</code> interface is substantially revised 
+      from the HDF5 Release 1.4.x series.  
+      The <code>H5Z_class_t</code> struct and 
+      the <i>set local</i> and <i>can apply</i> callback functions
+      first appeared in HDF5 Release 1.6.
 <dt><strong>Parameters:</strong>
     <dl>
-        <dt><em>H5Z_method_t</em> <code>method</code>
-            <dd>IN: Number specifying compression method.
-        <dt><em>const char *</em><code>name</code>
-            <dd>IN: Name associated with the method number.  
-                Used for debugging purposes only.
-        <dt><em>H5Z_func_t</em> <code>function</code>
-            <dd>IN: Compression / uncompression method.
+        <dt><em>const H5Z_class_t</em> <code>filter_class</code>
+            <dd>IN: Struct containing filter-definition information.
     </dl>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5z_FORTRAN.html#h5zregister_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
+
+
 <hr>
+<dl>
+  <dt><strong>Name:</strong> <a name="Compression-Unregister">H5Zunregister</a>
+  <dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5Zunregister</code>(<em>H5Z_filter_t</em> <code>filter</code>)
+  <dt><strong>Purpose:</strong>
+    <dd>Unregisters a filter.
+  <dt><strong>Description:</strong>
+    <dd><code>H5Zunregister</code> unregisters the filter 
+        specified in <code>filter</code>.  
+	<p>
+	After a call to <code>H5Zunregister</code>, the filter
+	specified in <code>filter</code> will no longer be 
+	available to the application.
+  <dt><strong>Parameters:</strong>
+    <dl>
+        <dt><em>H5Z_filter_t</em> <code>filter</code>
+            <dd>IN: Identifier of the filter to be unregistered.
+    </dl>
+  <dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+  <dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5z_FORTRAN.html#h5zunregister_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
+</dl>
+
+<hr>
+<dl>
+  <dt><strong>Name:</strong> <a name="Compression-FilterAvail">H5Zfilter_avail</a>
+  <dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5Zfilter_avail</code>(<em>H5Z_filter_t</em> <code>filter</code>)
+  <dt><strong>Purpose:</strong>
+    <dd>Determines whether a filter is available.
+  <dt><strong>Description:</strong>
+    <dd><code>H5Zfilter_avail</code> determines whether the filter 
+        specified in <code>filter</code> is available to the application.
+  <dt><strong>Parameters:</strong>
+    <dl>
+        <dt><em>H5Z_filter_t</em> <code>filter</code>
+            <dd>IN: Filter identifier.
+    </dl>
+  <dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+  <dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5z_FORTRAN.html#h5zfilter_avail_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
+</dl>
+
+
+
+
+
+
+
+
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
+<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
-<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
+<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -163,22 +452,20 @@ And in this document, the
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
-H5Z&nbsp;&nbsp;
+<a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
 <hr>
-
-
-<address>
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
-
 <br>
-Last modified:  6 February 2002
-<br>
-Describes HDF5 Release 1.4.5, February 2003
+Describes HDF5 Release 1.6.0, July 2003
+</address><!-- #EndLibraryItem --> 
 
+Last modified:  10 June 2003
+ 
 </body>
 </html>

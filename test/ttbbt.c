@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: ttbbt.c,v 1.2.2.3 2002/06/10 19:48:51 wendling Exp $ */
+/* $Id: ttbbt.c,v 1.7 2003/03/31 18:59:03 wendling Exp $ */
 
 /*
    FILE
@@ -35,6 +35,7 @@
  */
 
 #include <time.h>
+
 #include "testhdf5.h"
 #include "H5TBprivate.h"
 
@@ -43,7 +44,7 @@
 
 #define RandInt(a,b) ((rand()%(((b)-(a))+1))+(a))
 
-int tcompare (void * k1, void * k2, int cmparg);
+int tcompare (const void * k1, const void * k2, int cmparg);
 
 static void swap_arr(int *arr, int a, int b)
 {
@@ -58,11 +59,11 @@ static void swap_arr(int *arr, int a, int b)
 }   /* end swap_arr() */
 
 int
-tcompare(void * k1, void * k2, int cmparg)
+tcompare(const void * k1, const void * k2, int cmparg)
 {
     /* shut compiler up */
     cmparg=cmparg;
-    return ((int) ((*(int *) k1) - (*(int *) k2)));
+    return ((int) ((*(const int *) k1) - (*(const int *) k2)));
 }
 
 void

@@ -71,6 +71,9 @@ static const H5E_major_mesg_t H5E_major_mesg_g[] = {
     {H5E_REFERENCE,	"References layer"},
     {H5E_VFL,		"Virtual File Layer"},
     {H5E_TBBT,		"Threaded, Balanced, Binary Trees"},
+    {H5E_FPHDF5,	"Flexible Parallel HDF5"},
+    {H5E_TST,		"Ternary Search Trees"},
+    {H5E_RS,		"Reference Counted Strings"},
 };
 
 static const H5E_minor_mesg_t H5E_minor_mesg_g[] = {
@@ -88,6 +91,8 @@ static const H5E_minor_mesg_t H5E_minor_mesg_g[] = {
     {H5E_CANTCOPY, 	"Unable to copy object"},
     {H5E_CANTFREE, 	"Unable to free object"},
     {H5E_ALREADYEXISTS, "Object already exists"},
+    {H5E_CANTLOCK, 	"Unable to lock object"},
+    {H5E_CANTUNLOCK, 	"Unable to unlock object"},
 
     /* File accessability errors */
     {H5E_FILEEXISTS, 	"File already exists"},
@@ -109,14 +114,17 @@ static const H5E_minor_mesg_t H5E_minor_mesg_g[] = {
     {H5E_FCNTL,         "File control (fcntl) failed"},
 
     /* Function entry/exit interface errors */
-    {H5E_CANTINIT, 	"Unable to initialize"},
+    {H5E_CANTINIT, 	"Unable to initialize object"},
     {H5E_ALREADYINIT, 	"Object already initialized"},
+    {H5E_CANTRELEASE, 	"Unable to release object"},
 
     /* Object atom related errors */
     {H5E_BADATOM, 	"Unable to find atom information (already closed?)"},
+    {H5E_BADGROUP, 	"Unable to find ID group information"},
     {H5E_CANTREGISTER, 	"Unable to register new atom"},
     {H5E_CANTINC,      	"Unable to increment reference count"},
     {H5E_CANTDEC,      	"Unable to decrement reference count"},
+    {H5E_NOIDS,      	"Out of IDs for group"},
 
     /* Cache related errors */
     {H5E_CANTFLUSH, 	"Unable to flush data from cache"},
@@ -148,26 +156,45 @@ static const H5E_minor_mesg_t H5E_minor_mesg_g[] = {
     {H5E_SLINK,		"Symbolic link error"},
 
     /* Datatype conversion errors */
-    {H5E_CANTCONVERT,		"Can't convert datatypes"},
+    {H5E_CANTCONVERT,	"Can't convert datatypes"},
+    {H5E_BADSIZE,	"Bad size for object"},
 
     /* Dataspace errors */
-    {H5E_CANTCLIP,		"Can't clip hyperslab region"},
-    {H5E_CANTCOUNT,		"Can't count elements"},
+    {H5E_CANTCLIP,	"Can't clip hyperslab region"},
+    {H5E_CANTCOUNT,	"Can't count elements"},
+    {H5E_CANTSELECT,    "Can't select hyperslab"},
+    {H5E_CANTNEXT,      "Can't move to next iterator location"},
+    {H5E_BADSELECT,     "Invalid selection"},
+    {H5E_CANTCOMPARE,   "Can't compare objects"},
 
     /* Property list errors */
-    {H5E_CANTGET,		"Can't get value"},
-    {H5E_CANTSET,		"Can't set value"},
+    {H5E_CANTGET,	"Can't get value"},
+    {H5E_CANTSET,	"Can't set value"},
+    {H5E_DUPCLASS,	"Duplicate class name in parent class"},
 
     /* Parallel MPI errors */
     {H5E_MPI,		"Some MPI function failed"},
-    {H5E_MPIERRSTR,     "MPI Error String"}
+    {H5E_MPIERRSTR,     "MPI Error String"},
+
+    /* FPHDF5 errors */
+    {H5E_CANTMAKETREE,  "Can't create a binary tree node"},
+    {H5E_CANTRECV,      "Can't receive messages from processes"},
+    {H5E_CANTSENDMDATA, "Can't send metadata message"},
+    {H5E_CANTCHANGE,    "Can't register change with server"},
+    {H5E_CANTALLOC,     "Can't allocate from file"},
+
+    /* I/O pipeline errors */
+    {H5E_NOFILTER,      "Requested filter is not available"},
+    {H5E_CALLBACK,      "Callback failed"},
+    {H5E_CANAPPLY,      "Error from filter \"can apply\" callback"},
+    {H5E_SETLOCAL,      "Error from filter \"set local\" callback"}
+
 };
 
 /* Interface initialization? */
 static int interface_initialize_g = 0;
 #define INTERFACE_INIT H5E_init_interface
 static herr_t H5E_init_interface (void);
-const hbool_t H5E_clearable_g = TRUE;	/* DO NOT CHANGE */
 
 #ifdef H5_HAVE_THREADSAFE
 /*
@@ -206,6 +233,10 @@ int	H5E_mpi_error_str_len;
 herr_t (*H5E_auto_g)(void*) = (herr_t(*)(void*))H5Eprint;
 void *H5E_auto_data_g = NULL;
 
+
+/* Static function declarations */
+static herr_t H5E_walk_cb (int n, H5E_error_t *err_desc, void *client_data);
+
 
 #ifdef H5_HAVE_THREADSAFE
 /*-------------------------------------------------------------------------
@@ -225,17 +256,26 @@ void *H5E_auto_data_g = NULL;
  *
  *-------------------------------------------------------------------------
  */
-H5E_t *H5E_get_stack(void)
+H5E_t *
+H5E_get_stack(void)
 {
-    H5E_t *estack = pthread_getspecific(H5TS_errstk_key_g);
+    H5E_t *estack;
+    H5E_t *ret_value;   /* Return value */
 
+    FUNC_ENTER_NOAPI(H5E_get_stack,NULL);
+
+    estack = pthread_getspecific(H5TS_errstk_key_g);
     if (!estack) {
         /* no associated value with current thread - create one */
         estack = (H5E_t *)H5MM_malloc(sizeof(H5E_t));
         pthread_setspecific(H5TS_errstk_key_g, (void *)estack);
     }
 
-    return estack;
+    /* Set return value */
+    ret_value=estack;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 #endif  /* H5_HAVE_THREADSAFE */
 
@@ -261,9 +301,11 @@ H5E_t *H5E_get_stack(void)
 static herr_t
 H5E_init_interface (void)
 {
-  FUNC_ENTER(H5E_init_interface, FAIL);
-  H5E_auto_data_g = stderr;
-  FUNC_LEAVE(SUCCEED);
+    FUNC_ENTER_NOINIT(H5E_init_interface);
+
+    H5E_auto_data_g = stderr;
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }
 
 
@@ -296,13 +338,16 @@ H5E_init_interface (void)
 herr_t
 H5Eset_auto(H5E_auto_t func, void *client_data)
 {
-    FUNC_ENTER (H5Eset_auto, FAIL);
+    herr_t ret_value=SUCCEED;   /* Return value */
+
+    FUNC_ENTER_API(H5Eset_auto, FAIL);
     H5TRACE2("e","xx",func,client_data);
     
     H5E_auto_g = func;
     H5E_auto_data_g = client_data;
 
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -325,13 +370,16 @@ H5Eset_auto(H5E_auto_t func, void *client_data)
 herr_t
 H5Eget_auto(H5E_auto_t *func, void **client_data)
 {
-    FUNC_ENTER (H5Eget_auto, FAIL);
+    herr_t ret_value=SUCCEED;   /* Return value */
+
+    FUNC_ENTER_API(H5Eget_auto, FAIL);
     H5TRACE2("e","*x*x",func,client_data);
 
     if (func) *func = H5E_auto_g;
     if (client_data) *client_data = H5E_auto_data_g;
 
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -353,10 +401,14 @@ H5Eget_auto(H5E_auto_t *func, void **client_data)
 herr_t
 H5Eclear(void)
 {
-    FUNC_ENTER (H5Eclear, FAIL);
+    herr_t ret_value=SUCCEED;   /* Return value */
+
+    FUNC_ENTER_API(H5Eclear, FAIL);
     H5TRACE0("e","");
     /* FUNC_ENTER() does all the work */
-    FUNC_LEAVE (SUCCEED);
+
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -385,10 +437,10 @@ herr_t
 H5Eprint(FILE *stream)
 {
     H5E_t	*estack = H5E_get_my_stack ();
-    hbool_t	H5E_clearable_g = FALSE; /*override global*/
-    herr_t	status = FAIL;
+    herr_t	ret_value = FAIL;
     
-    FUNC_ENTER (H5Eprint, FAIL);
+    /* Don't clear the error stack! :-) */
+    FUNC_ENTER_API_NOCLEAR(H5Eprint, FAIL);
     /*NO TRACE*/
     
     if (!stream) stream = stderr;
@@ -410,9 +462,11 @@ H5Eprint(FILE *stream)
 #endif
     if (estack && estack->nused>0) fprintf (stream, "  Back trace follows.");
     HDfputc ('\n', stream);
-    status = H5E_walk (H5E_WALK_DOWNWARD, H5Ewalk_cb, (void*)stream);
+
+    ret_value = H5E_walk (H5E_WALK_DOWNWARD, H5E_walk_cb, (void*)stream);
     
-    FUNC_LEAVE (status);
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -434,18 +488,21 @@ H5Eprint(FILE *stream)
 herr_t
 H5Ewalk(H5E_direction_t direction, H5E_walk_t func, void *client_data)
 {
-    hbool_t	H5E_clearable_g = FALSE; /*override global*/
-    herr_t	status = FAIL;
+    herr_t	ret_value;
 
-    FUNC_ENTER (H5Ewalk, FAIL);
+    /* Don't clear the error stack! :-) */
+    FUNC_ENTER_API_NOCLEAR(H5Ewalk, FAIL);
     H5TRACE3("e","Edxx",direction,func,client_data);
-    status = H5E_walk (direction, func, client_data);
-    FUNC_LEAVE (status);
+
+    ret_value = H5E_walk (direction, func, client_data);
+
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
 /*-------------------------------------------------------------------------
- * Function:	H5Ewalk_cb
+ * Function:	H5E_walk_cb
  *
  * Purpose:	This is a default error stack traversal callback function
  *		that prints error messages to the specified output stream.
@@ -477,14 +534,15 @@ H5Ewalk(H5E_direction_t direction, H5E_walk_t func, void *client_data)
  *
  *-------------------------------------------------------------------------
  */
-herr_t
-H5Ewalk_cb(int n, H5E_error_t *err_desc, void *client_data)
+static herr_t
+H5E_walk_cb(int n, H5E_error_t *err_desc, void *client_data)
 {
     FILE		*stream = (FILE *)client_data;
     const char		*maj_str = NULL;
     const char		*min_str = NULL;
     const int		indent = 2;
 
+    FUNC_ENTER_NOINIT(H5E_walk_cb);
     /*NO TRACE*/
 
     /* Check arguments */
@@ -504,7 +562,7 @@ H5Ewalk_cb(int n, H5E_error_t *err_desc, void *client_data)
     fprintf (stream, "%*sminor(%02d): %s\n",
 	     indent*2, "", err_desc->min_num, min_str);
 
-    return SUCCEED;
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }
 
 
@@ -529,6 +587,7 @@ const char *
 H5Eget_major (H5E_major_t n)
 {
     unsigned	i;
+    const char *ret_value="Invalid major error number";
     
     /*
      * WARNING: Do not call the FUNC_ENTER() or FUNC_LEAVE() macros since
@@ -537,13 +596,15 @@ H5Eget_major (H5E_major_t n)
      *		traversal and adding/removing entries as the result of an
      *		error would most likely mess things up.
      */
+    FUNC_ENTER_API_NOINIT(H5Eget_major);
+
     for (i=0; i<NELMTS (H5E_major_mesg_g); i++) {
-	if (H5E_major_mesg_g[i].error_code==n) {
-	    return H5E_major_mesg_g[i].str;
-	}
+	if (H5E_major_mesg_g[i].error_code==n)
+	    HGOTO_DONE(H5E_major_mesg_g[i].str);
     }
 
-    return "Invalid major error number";
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -568,6 +629,7 @@ const char *
 H5Eget_minor (H5E_minor_t n)
 {
     unsigned	i;
+    const char *ret_value="Invalid minor error number";
     
     /*
      * WARNING: Do not call the FUNC_ENTER() or FUNC_LEAVE() macros since
@@ -576,13 +638,15 @@ H5Eget_minor (H5E_minor_t n)
      *		traversal and adding/removing entries as the result of an
      *		error would most likely mess things up.
      */
+    FUNC_ENTER_API_NOINIT(H5Eget_minor);
+
     for (i=0; i<NELMTS (H5E_minor_mesg_g); i++) {
-	if (H5E_minor_mesg_g[i].error_code==n) {
-	    return H5E_minor_mesg_g[i].str;
-	}
+	if (H5E_minor_mesg_g[i].error_code==n)
+	    HGOTO_DONE(H5E_minor_mesg_g[i].str);
     }
 
-    return "Invalid minor error number";
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -621,6 +685,7 @@ H5E_push(H5E_major_t maj_num, H5E_minor_t min_num, const char *function_name,
      *		HERROR().  HERROR() is called by HRETURN_ERROR() which could
      *		be called by FUNC_ENTER().
      */
+    FUNC_ENTER_NOINIT(H5E_push);
 
     /*
      * Don't fail if arguments are bad.  Instead, substitute some default
@@ -644,7 +709,7 @@ H5E_push(H5E_major_t maj_num, H5E_minor_t min_num, const char *function_name,
 	estack->nused++;
     }
     
-    return SUCCEED; /*don't use FUNC_LEAVE() here */
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }
 
 
@@ -676,10 +741,13 @@ H5Epush(const char *file, const char *func, unsigned line, H5E_major_t maj,
 {
     herr_t	ret_value;
     
-    FUNC_ENTER(H5Epush, FAIL);
+    FUNC_ENTER_API(H5Epush, FAIL);
     H5TRACE6("e","ssIuEjEns",file,func,line,maj,min,str);
+
     ret_value = H5E_push(maj, min, func, file, line, str);
-    FUNC_LEAVE(ret_value);
+
+done:
+    FUNC_LEAVE_API(ret_value);
 }
 
 
@@ -701,10 +769,14 @@ herr_t
 H5E_clear(void)
 {
     H5E_t	*estack = H5E_get_my_stack ();
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5E_clear, FAIL);
+    FUNC_ENTER_NOAPI(H5E_clear, FAIL);
+
     if (estack) estack->nused = 0;
-    FUNC_LEAVE(SUCCEED);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -740,8 +812,9 @@ H5E_walk (H5E_direction_t direction, H5E_walk_t func, void *client_data)
     H5E_t	*estack = H5E_get_my_stack ();
     int		i;
     herr_t	status;
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5E_walk, FAIL);
+    FUNC_ENTER_NOAPI(H5E_walk, FAIL);
 
     /* check args, but rather than failing use some default value */
     if (direction!=H5E_WALK_UPWARD && direction!=H5E_WALK_DOWNWARD) {
@@ -760,6 +833,7 @@ H5E_walk (H5E_direction_t direction, H5E_walk_t func, void *client_data)
 	}
     }
     
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 

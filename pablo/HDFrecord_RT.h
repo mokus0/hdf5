@@ -79,7 +79,7 @@
 /*
  * HDFrecord.h: Class to represent HDF records.
  *
- *	$Header: /afs/ncsa/projects/hdf/cvs/hdf5/pablo/HDFrecord_RT.h,v 1.1.4.1 2001/04/24 21:20:03 dwells Exp $
+ *	$Header: /afs/ncsa/projects/hdf/cvs/hdf5/pablo/HDFrecord_RT.h,v 1.2 2001/03/13 19:28:03 dwells Exp $
  */
 
 #ifndef HDFRECORD_RT_H

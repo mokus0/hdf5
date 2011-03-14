@@ -26,6 +26,7 @@
      INTEGER :: error 
      INTEGER :: mounting_total_error = 0
      INTEGER :: reopen_total_error = 0
+     INTEGER :: fclose_total_error = 0
      INTEGER :: dataset_total_error = 0
      INTEGER :: extend_dataset_total_error = 0
      INTEGER :: refobj_total_error = 0
@@ -35,21 +36,26 @@
      INTEGER :: element_total_error = 0
      INTEGER :: basic_select_total_error = 0
      INTEGER :: total_error_compoundtest = 0
-     INTEGER :: enum_total_error = 0
      INTEGER :: basic_datatype_total_error = 0
+     INTEGER :: enum_total_error = 0
      INTEGER :: external_total_error = 0
+     INTEGER :: multi_file_total_error = 0
      INTEGER :: attribute_total_error = 0
      INTEGER :: identifier_total_error = 0
      INTEGER :: group_total_error = 0
      INTEGER :: error_total_error = 0
      INTEGER :: vl_total_error = 0
+     INTEGER :: z_total_error = 0
+     INTEGER :: sz_total_error = 0
      INTEGER :: majnum, minnum, relnum
      CHARACTER(LEN=8) error_string
      CHARACTER(LEN=8) :: success = ' PASSED '
      CHARACTER(LEN=8) :: failure = '*FAILED*'
+     CHARACTER(LEN=8) :: skip = '--SKIP--'
      CHARACTER(LEN=4) :: e_format ='(8a)'
      LOGICAL :: cleanup = .TRUE.
 !     LOGICAL :: cleanup = .FALSE.
+     LOGICAL :: szip_flag
 
      CALL h5open_f(error) 
      write(*,*) '                       ==========================                            '
@@ -74,7 +80,6 @@
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing FILE Interface                   '
 !     write(*,*) '========================================='
-
      error_string = failure
      CALL mountingtest(cleanup, mounting_total_error)
      IF (mounting_total_error == 0) error_string = success
@@ -91,6 +96,14 @@
      write(*, fmt = '(58x,a)', advance = 'no') ' ' 
      write(*, fmt = e_format) error_string
      total_error = total_error + reopen_total_error 
+
+     error_string = failure
+     CALL file_close(cleanup, fclose_total_error)
+     IF (fclose_total_error == 0) error_string = success
+     write(*, fmt = '(21a)', advance = 'no') ' File open/close test'     
+     write(*, fmt = '(49x,a)', advance = 'no') ' ' 
+     write(*, fmt = e_format) error_string
+     total_error = total_error + fclose_total_error 
 
 
 !     write(*,*)
@@ -222,6 +235,15 @@
      write(*, fmt = e_format) error_string
      total_error = total_error + external_total_error 
     
+     error_string = failure
+     cleanup = .FALSE.
+     CALL multi_file_test(cleanup, multi_file_total_error)
+     IF (multi_file_total_error == 0) error_string = success
+     write(*, fmt = '(23a)', advance = 'no') ' Multi file driver test'     
+     write(*, fmt = '(47x,a)', advance = 'no')  ' '
+     write(*, fmt = e_format) error_string
+     total_error = total_error + multi_file_total_error 
+    
 !     write(*,*)
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing ATTRIBUTE interface              ' 
@@ -247,6 +269,23 @@
      write(*, fmt = '(54x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + identifier_total_error 
+
+     error_string = failure
+     CALL filters_test(cleanup, z_total_error)
+     IF (z_total_error == 0) error_string = success
+     write(*, fmt = '(13a)', advance = 'no') ' Filters test'     
+     write(*, fmt = '(57x,a)', advance = 'no')  ' '
+     write(*, fmt = e_format) error_string
+     total_error = total_error + z_total_error 
+
+     CALL szip_test(szip_flag, cleanup, sz_total_error)
+     IF (.NOT. szip_flag) error_string = skip
+     IF (sz_total_error == 0) error_string = success
+     IF (sz_total_error .gt. 0) error_string = failure
+     write(*, fmt = '(18a)', advance = 'no') ' SZIP filter test'     
+     write(*, fmt = '(53x,a)', advance = 'no')  ' '
+     write(*, fmt = e_format) error_string
+     if(sz_total_error .gt. 0) total_error = total_error + sz_total_error 
 
 !     write(*,*)
 !     write(*,*) '========================================='

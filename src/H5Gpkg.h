@@ -27,15 +27,11 @@
 #ifndef _H5Gpkg_H
 #define _H5Gpkg_H
 
-#include "H5ACprivate.h"
+/* Get package's private header */
 #include "H5Gprivate.h"
 
-#define H5G_NODE_VERS   1               /*symbol table node version number   */
-#define H5G_SIZE_HINT   1024            /*default root grp size hint         */
-#define H5G_NODE_K(F) ((unsigned)((F)->shared->fcpl->sym_leaf_k))
-#define H5G_NODE_SIZEOF_HDR(F) (H5G_NODE_SIZEOF_MAGIC + 4)
-
-#define H5G_DEFAULT_ROOT_SIZE  32
+/* Other private headers needed by this file */
+#include "H5ACprivate.h"	/* Metadata cache			  */
 
 /*
  * A symbol table node is a collection of symbol table entries.  It can
@@ -51,14 +47,6 @@ typedef struct H5G_node_t {
 } H5G_node_t;
 
 /*
- * Each key field of the B-link tree that points to symbol table
- * nodes consists of this structure...
- */
-typedef struct H5G_node_key_t {
-    size_t      offset;                 /*offset into heap for name          */
-} H5G_node_key_t;
-
-/*
  * A group handle passed around through layers of the library within and
  * above the H5G layer.
  */
@@ -66,15 +54,6 @@ struct H5G_t {
     int         nref;                   /*open reference count               */
     H5G_entry_t ent;                    /*info about the group               */
 };
-
-/*
- * During name lookups (see H5G_namei()) we sometimes want information about
- * a symbolic link or a mount point.  The normal operation is to follow the
- * symbolic link or mount point and return information about its target.
- */
-#define H5G_TARGET_NORMAL	0x0000
-#define H5G_TARGET_SLINK	0x0001
-#define H5G_TARGET_MOUNT	0x0002
 
 /*
  * These operations can be passed down from the H5G_stab layer to the
@@ -121,6 +100,18 @@ typedef struct H5G_bt_ud2_t {
 } H5G_bt_ud2_t;
 
 /*
+ * Data exchange structure to pass through the B-tree layer for the
+ * H5B_iterate function.
+ */
+typedef struct H5G_bt_ud3_t {
+    struct H5G_t *group;	/*the group to which group_id points	     */
+    hsize_t      idx;           /*index of group member to be querried       */
+    char         *name;         /*member name to be returned                 */
+    hsize_t      num_objs;      /*the number of objects having been traversed*/
+    int          type;          /*member type to be returned                 */
+} H5G_bt_ud3_t;
+
+/*
  * This is the class identifier to give to the B-tree functions.
  */
 H5_DLLVAR H5B_class_t H5B_SNODE[1];
@@ -139,6 +130,7 @@ H5_DLL herr_t H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
 			     H5G_entry_t *obj_ent/*out*/, hid_t dxpl_id);
 H5_DLL herr_t H5G_stab_insert(H5G_entry_t *grp_ent, const char *name,
 			       H5G_entry_t *obj_ent, hid_t dxpl_id);
+H5_DLL herr_t H5G_stab_delete(H5F_t *f, hid_t dxpl_id, haddr_t btree_addr, haddr_t heap_addr);
 H5_DLL herr_t H5G_stab_remove(H5G_entry_t *grp_ent, const char *name, hid_t dxpl_id);
 
 /*
@@ -148,4 +140,14 @@ H5_DLL herr_t H5G_ent_decode_vec(H5F_t *f, const uint8_t **pp,
 				  H5G_entry_t *ent, int n);
 H5_DLL herr_t H5G_ent_encode_vec(H5F_t *f, uint8_t **pp,
 				  const H5G_entry_t *ent, int n);
+
+/* Functions that understand symbol table nodes */
+H5_DLL int H5G_node_iterate (H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
+		     void UNUSED *_rt_key, void *_udata);
+H5_DLL int H5G_node_sumup(H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
+		     void UNUSED *_rt_key, void *_udata);
+H5_DLL int H5G_node_name(H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
+		     void UNUSED *_rt_key, void *_udata);
+H5_DLL int H5G_node_type(H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
+		     void UNUSED *_rt_key, void *_udata);
 #endif

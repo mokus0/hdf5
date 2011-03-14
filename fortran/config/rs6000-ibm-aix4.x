@@ -6,12 +6,10 @@
 #
 # See BlankForm in this directory for details.
 
-# CFLAGS must be set else configure set it to -g
-CFLAGS="$CFLAGS"
-
 # Cross compiling defaults
 ac_cv_c_bigendian=${ac_cv_c_bigendian='yes'}
 hdf5_cv_printf_ll=${hdf5_cv_printf_ll='ll'}
+
 
 # The default Fortran 90 compiler
 
@@ -36,7 +34,9 @@ if test "X-" = "X-$F9X"; then
 fi
 
 if test "X-" = "X-$f9x_flags_set"; then
-    FFLAGS="-static -O -qsuffix=f=f90 -qmoddir=./ -I./ -I../src -k"
+    F9XSUFFIXFLAG="-qsuffix=f=f90"
+    FFLAGS="-static -O ${F9XSUFFIXFLAG} -qmoddir=./ -k"
+    FSEARCH_DIRS="-I./ -I../src"
     DEBUG_FFLAGS="-O"
     PROD_FFLAGS="-O"
     PROFILE_FFLAGS="-O"

@@ -12,10 +12,10 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* This file contains C stubs for H5G Fortran APIs (iteration) */
-
+/* This files contains C stubs for H5G Fortran APIs */
 
 #include "hdf5.h"
+#include "H5private.h"
 #include "H5Git.h"
 #define FALSE 0
 
@@ -127,7 +127,7 @@ H5Gget_obj_info_idx( hid_t loc_id, char *group_name, int idx, char **objname, si
 		(*objname)[max_objname_len]='\0';
 
 		/* Free the name we strdup'ed in obj_info() */
-		free(retVal.name);
+		HDfree(retVal.name);
    	} /* end if */
 	else
 	 	*(*objname)='\0';

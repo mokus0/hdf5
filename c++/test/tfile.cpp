@@ -12,13 +12,18 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/***********************************************************
-*
-* Test program:  tfile
-*
-* Test the low-level file I/O features
-*
-*************************************************************/
+/*****************************************************************************
+   FILE
+   tfile.cpp - HDF5 C++ testing the file I/O features
+
+   EXTERNAL ROUTINES/VARIABLES:
+     These routines are in the test directory of the C library:
+        h5_reset() -- in h5test.c, resets the library by closing it
+        h5_fileaccess() -- in h5test.c, returns a file access template
+        h5_fixname() -- in h5test.c, create a file name from a file base name
+        h5_cleanup() -- in h5test.c, cleanup temporary test files
+
+ ***************************************************************************/
 
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
@@ -73,7 +78,7 @@ static void
 test_file_create(void)
 {
     /* Output message about test being performed */
-    MESSAGE(5, ("Testing Low-Level File Creation I/O\n"));
+    MESSAGE(5, ("Testing File Creation I/O\n"));
 
     /* Test create with various sequences of H5F_ACC_EXCL and */
     /* H5F_ACC_TRUNC flags */
@@ -147,7 +152,12 @@ test_file_create(void)
     	VERIFY(parm1, F1_OFFSET_SIZE, "FileCreatPropList::getSizes");
     	VERIFY(parm2, F1_LENGTH_SIZE, "FileCreatPropList::getSizes");
 
-    	int  iparm1, iparm2;		/*file-creation parameters	*/
+    	int  iparm1;		/*file-creation parameters	*/
+#ifdef H5_WANT_H5_V1_4_COMPAT
+    	int  iparm2;	/*file-creation parameters	*/
+#else /* H5_WANT_H5_V1_4_COMPAT */
+    	unsigned  iparm2;	/*file-creation parameters	*/
+#endif /* H5_WANT_H5_V1_4_COMPAT */
     	tmpl1.getSymk( iparm1, iparm2);
     	VERIFY(iparm1, F1_SYM_INTERN_K, "FileCreatPropList::getSymk");
     	VERIFY(iparm2, F1_SYM_LEAF_K, "FileCreatPropList::getSymk");
@@ -196,7 +206,12 @@ test_file_create(void)
     	VERIFY(parm1, F2_OFFSET_SIZE, "FileCreatPropList::getSizes");
     	VERIFY(parm2, F2_LENGTH_SIZE, "FileCreatPropList::getSizes");
 
-    	int  iparm1, iparm2;		/*file-creation parameters	*/
+    	int  iparm1;		/*file-creation parameters	*/
+#ifdef H5_WANT_H5_V1_4_COMPAT
+    	int  iparm2;	/*file-creation parameters	*/
+#else /* H5_WANT_H5_V1_4_COMPAT */
+    	unsigned  iparm2;	/*file-creation parameters	*/
+#endif /* H5_WANT_H5_V1_4_COMPAT */
     	tmpl1->getSymk( iparm1, iparm2);
     	VERIFY(iparm1, F2_SYM_INTERN_K, "FileCreatPropList::getSymk");
     	VERIFY(iparm2, F2_SYM_LEAF_K, "FileCreatPropList::getSymk");
@@ -259,7 +274,7 @@ static void
 test_file_open(void)
 {
     /* Output message about test being performed */
-    MESSAGE(5, ("Testing Low-Level File Opening I/O\n"));
+    MESSAGE(5, ("Testing File Opening I/O\n"));
 
     try {
 
@@ -267,7 +282,6 @@ test_file_open(void)
 	H5File fid1 (FILE2, H5F_ACC_RDWR );
 
 	/* Get the file-creation template */
-	//FileCreatPropList tmpl1;
 	FileCreatPropList tmpl1 = fid1.getCreatePlist();
 
 	/* Get the file-creation parameters */
@@ -279,7 +293,12 @@ test_file_open(void)
 	VERIFY(parm1, F2_OFFSET_SIZE, "FileCreatPropList::getSizes");
 	VERIFY(parm2, F2_LENGTH_SIZE, "FileCreatPropList::getSizes");
 
-	int  iparm1, iparm2;            /*file-creation parameters      */
+	int  iparm1;            /*file-creation parameters      */
+#ifdef H5_WANT_H5_V1_4_COMPAT
+	int  iparm2;       /*file-creation parameters      */
+#else /* H5_WANT_H5_V1_4_COMPAT */
+	unsigned  iparm2;       /*file-creation parameters      */
+#endif /* H5_WANT_H5_V1_4_COMPAT */
 	tmpl1.getSymk( iparm1, iparm2);
 	VERIFY(iparm1, F2_SYM_INTERN_K, "FileCreatPropList::getSymk");
 	VERIFY(iparm2, F2_SYM_LEAF_K, "FileCreatPropList::getSymk");
@@ -309,7 +328,7 @@ void
 test_file(void)
 {
     /* Output message about test being performed */
-    MESSAGE(5, ("Testing Low-Level File I/O\n"));
+    MESSAGE(5, ("Testing File I/O operations\n"));
 
     test_file_create();	/* Test file creation (also creation templates) */
     test_file_open();	/* Test file opening */

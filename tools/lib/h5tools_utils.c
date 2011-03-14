@@ -147,7 +147,7 @@ get_option(int argc, const char **argv, const char *opts, const struct long_opti
     if (sp == 1 && argv[opt_ind][0] == '-' && argv[opt_ind][1] == '-') {
         /* long command line option */
         const char *arg = &argv[opt_ind][2];
-        register int i;
+        int i;
 
         for (i = 0; l_opts && l_opts[i].name; i++) {
             size_t len = HDstrlen(l_opts[i].name);
@@ -281,16 +281,13 @@ indentation(int x)
  * Function:    print_version
  *
  * Purpose:     Print the program name and the version information which is
- *		defined the same as the HDF5 library version. If name is not
- *              given (set as NULL), the library name is used.
+ *		defined the same as the HDF5 library version.
  *
  * Return:      void
  *
  * Programmer:  unknown
  *
  * Modifications:
- *		Albert Cheng, 2002/05/24
- *		print library name if progname is not given, 
  *
  *-------------------------------------------------------------------------
  */
@@ -298,8 +295,7 @@ void
 print_version(const char *progname)
 {
     printf("%s: Version %u.%u.%u%s%s\n",
-           (progname ? progname : "HDF5 Library"),
-	   H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE,
+           progname, H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE,
            H5_VERS_SUBRELEASE[0] ? "-" : "", H5_VERS_SUBRELEASE);
 }
 
@@ -354,6 +350,7 @@ init_table(table_t **tbl)
 void
 init_prefix(char **prefix, size_t prefix_len)
 {
+    assert(prefix_len > 0);
     *prefix = HDcalloc(prefix_len, 1);
 }
 
@@ -397,7 +394,7 @@ free_table(table_t **table)
 int 
 search_obj(table_t *table, unsigned long *objno)
 {
-    register int i;
+    int i;
 
     for (i = 0; i < table->nobjs; i++)
         if (table->objs[i].objno[0] == *objno && table->objs[i].objno[1] == *(objno + 1))
@@ -429,7 +426,7 @@ find_objs(hid_t group, const char *name, void *op_data)
     H5G_stat_t statbuf;
     char *tmp;
     find_objs_t *info = (find_objs_t*)op_data;
-    register int i;
+    int i;
 
     if (info->threshold > 1)
         /*will get an infinite loop if greater than 1*/
@@ -510,7 +507,7 @@ find_objs(hid_t group, const char *name, void *op_data)
                 /* named data type */
                 info->type_table->objs[info->type_table->nobjs-1].objflag = 1;
             } else {
-                HDfree(info->type_table->objs[i].objname);
+                free(info->type_table->objs[i].objname);
                 info->type_table->objs[i].objname = HDstrdup(tmp);
                 info->type_table->objs[i].recorded = 1; 
 
@@ -545,7 +542,7 @@ find_objs(hid_t group, const char *name, void *op_data)
 void 
 dump_table(char* tablename, table_t *table)
 {
-    register int i;
+    int i;
 
     printf("%s: # of entries = %d\n", tablename,table->nobjs);
 
@@ -654,7 +651,7 @@ get_objectname(table_t *table, int idx)
 static void
 add_obj(table_t *table, unsigned long *objno, char *objname)
 {
-    register int i;
+    int i;
 
     if (table->nobjs == table->size) {
         table->size *= 2;
@@ -672,6 +669,6 @@ add_obj(table_t *table, unsigned long *objno, char *objname)
     i = table->nobjs++;
     table->objs[i].objno[0] = objno[0];
     table->objs[i].objno[1] = objno[1];
-    HDfree(table->objs[i].objname);
+    free(table->objs[i].objname);
     table->objs[i].objname = HDstrdup(objname);
 }

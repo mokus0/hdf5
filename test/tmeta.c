@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tmeta.c,v 1.8.4.4 2002/06/10 19:48:48 wendling Exp $ */
+/* $Id: tmeta.c,v 1.12 2003/03/31 18:59:02 wendling Exp $ */
 
 /***********************************************************
 *

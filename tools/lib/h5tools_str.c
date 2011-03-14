@@ -495,6 +495,15 @@ h5tools_print_char(h5tools_str_t *str, const h5dump_t *info, unsigned char ch)
  *		Added support for printing raw data. If info->raw is non-zero
  *		then data is printed in hexadecimal format.
  *
+ *              Robb Matzke, 2003-01-10
+ *              Binary output format is dd:dd:... instead of 0xdddd... so it
+ *              doesn't look like a hexadecimal integer, and thus users will
+ *              be less likely to complain that HDF5 didn't properly byte
+ *              swap their data during type conversion.
+ *
+ *              Robb Matzke, LLNL, 2003-06-05
+ *              If TYPE is a variable length string then the pointer to
+ *              the value to pring (VP) is a pointer to a `char*'.
  *-------------------------------------------------------------------------
  */
 char *
@@ -537,12 +546,15 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
 
     if (info->raw) {
         size_t i;
-
-        h5tools_str_append(str, "0x");
         n = H5Tget_size(type);
-
-        for (i = 0; i < n; i++)
+        if (1==n) {
+            h5tools_str_append(str, OPT(info->fmt_raw, "0x%02x"), ucp_vp[0]);
+        } else {
+            for (i = 0; i < n; i++) {
+                if (i) h5tools_str_append(str, ":");
             h5tools_str_append(str, OPT(info->fmt_raw, "%02x"), ucp_vp[i]);
+            }
+        }
     } else if (H5Tequal(type, H5T_NATIVE_FLOAT)) {
         memcpy(&tempfloat, vp, sizeof(float));	
         h5tools_str_append(str, OPT(info->fmt_float, "%g"), tempfloat);
@@ -551,20 +563,24 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         h5tools_str_append(str, OPT(info->fmt_double, "%g"), tempdouble);
     } else if (info->ascii && (H5Tequal(type, H5T_NATIVE_SCHAR) ||
                                H5Tequal(type, H5T_NATIVE_UCHAR))) {
-        h5tools_print_char(str, info, *ucp_vp);
+        h5tools_print_char(str, info, (unsigned char)(*ucp_vp));
     } else if (H5T_STRING == H5Tget_class(type)) {
         unsigned int i;
+        char *s;
 
         quote = '\0';
-
         if(H5Tis_variable_str(type)) {
-            size = HDstrlen(cp_vp);
-        } else 
+            /* cp_vp is the pointer into the struct where a `char*' is stored. So we have
+             * to dereference the pointer to get the `char*' to pass to HDstrlen(). */
+            s = *(char**)cp_vp;
+            size = HDstrlen(s);
+        } else {
+            s = cp_vp;
             size = H5Tget_size(type);
-
+        }
         pad = H5Tget_strpad(type);
 
-        for (i = 0; i < size && (cp_vp[i] != '\0' || pad != H5T_STR_NULLTERM); i++) {
+        for (i=0; i<size && (s[i] || pad!=H5T_STR_NULLTERM); i++) {
             int j = 1;
 
             /*
@@ -573,7 +589,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
              * of times.
              */
             if (info->str_repeat > 0)
-                while (i + j < size && cp_vp[i] == cp_vp[i + j])
+                while (i + j < size && s[i] == s[i + j])
                     j++;
             
             /*
@@ -594,7 +610,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
             }
                 
             /* Print the character */
-            h5tools_print_char(str, info, ucp_vp[i]);
+            h5tools_print_char(str, info, (unsigned char)(s[i]));
             
             /* Print the repeat count */
             if (info->str_repeat && j > info->str_repeat) {
@@ -698,28 +714,6 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
             /* The value */
             offset = H5Tget_member_offset(type, j);
             memb = H5Tget_member_type(type, j);
-#ifdef WANT_H5_V1_2_COMPAT
-            /* v1.2 returns the base type of an array field, work around this */
-            {
-                hid_t new_memb;         /* datatype for array, if necessary */
-                int     arrndims;       /* Array rank for reading */
-                size_t	dims[H5S_MAX_RANK];    /* Array dimensions for reading */
-                hsize_t	arrdims[H5S_MAX_RANK];    /* Array dimensions for reading */
-                int k;              /* Local index variable */
-
-                /* Get the array dimensions */
-                arrndims=H5Tget_member_dims(type,j,dims,NULL);
-
-                /* Patch up array information */
-                if(arrndims>0) {
-                    for(k=0; k<arrndims; k++)
-                        arrdims[k]=dims[k];
-                    new_memb=H5Tarray_create(memb,arrndims,arrdims,NULL);
-                    H5Tclose(memb);
-                    memb=new_memb;
-                } /* end if */
-            }
-#endif /* WANT_H5_V1_2_COMPAT */
 
             ctx->indent_level++;
             h5tools_str_sprint(str, info, container, memb, cp_vp + offset , ctx);
@@ -753,12 +747,13 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
             h5tools_str_append(str, h5tools_escape(enum_name, sizeof(enum_name), TRUE));
         } else {
             size_t i;
-
-            h5tools_str_append(str, "0x");
             n = H5Tget_size(type);
-
+            if (1==n) {
+                h5tools_str_append(str, "0x%02x", ucp_vp[0]);
+            } else {
             for (i = 0; i < n; i++)
-                h5tools_str_append(str, "%02x", ucp_vp[i]);
+                    h5tools_str_append(str, "%s%02x", i?":":"", ucp_vp[i]);
+            }
         }
     } else if (H5Tequal(type, H5T_STD_REF_DSETREG)) {
         /*
@@ -791,7 +786,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         if (h5tools_is_zero(vp, H5Tget_size(type))) {
             h5tools_str_append(str, "NULL");
         } else {
-            otype = H5Rget_object_type(container, vp);
+            otype = H5Rget_obj_type(container, H5R_OBJECT, vp);
             obj = H5Rdereference(container, H5R_OBJECT, vp);
             H5Gget_objinfo(obj, ".", FALSE, &sb);
 
@@ -834,9 +829,12 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         assert(ndims >= 1 && ndims <= H5S_MAX_RANK);
 
         /* Calculate the number of array elements */
-        for (k = 0, temp_nelmts = 1; k < ndims; k++)
-            temp_nelmts *=dims[k];
-	    H5_ASSIGN_OVERFLOW(nelmts,temp_nelmts,hsize_t,size_t);
+        for (k = 0, nelmts = 1; k < ndims; k++){
+			temp_nelmts = nelmts;
+			temp_nelmts *= dims[k];
+			assert(temp_nelmts==(hsize_t)((size_t)temp_nelmts));
+            nelmts = (size_t)temp_nelmts;
+		}	
         /* Print the opening bracket */
         h5tools_str_append(str, "%s", OPT(info->arr_pre, "["));
 
@@ -917,12 +915,13 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
     } else {
         /* All other types get printed as hexadecimal */
         size_t i;
-
-        h5tools_str_append(str, "0x");
         n = H5Tget_size(type);
-
-        for (i = 0; i < n; i++)
-            h5tools_str_append(str, "%02x", ucp_vp[i]);
+        if (1==n) {
+            h5tools_str_append(str, "0x%02x", ucp_vp[0]);
+        } else {
+            for (i = 0; i < n; i++)
+                h5tools_str_append(str, "%s%02x", i?":":"", ucp_vp[i]);
+        }
     }
 
     return h5tools_str_fmt(str, start, OPT(info->elmt_fmt, "%s"));

@@ -22,18 +22,21 @@
 #ifndef __H5FDmpiposix_H
 #define __H5FDmpiposix_H
 
-#ifdef H5_HAVE_PARALLEL
-
 #include "H5FDpublic.h"
 #include "H5Ipublic.h"
 
+#ifdef H5_HAVE_PARALLEL
 #   define H5FD_MPIPOSIX	(H5FD_mpiposix_init())
-
+#else
+#   define H5FD_MPIPOSIX	(-1)
+#endif
 
 /* Macros */
 
 #define IS_H5FD_MPIPOSIX(f)	/* (H5F_t *f) */				    \
     (H5FD_MPIPOSIX==H5F_get_driver_id(f))
+
+#ifdef H5_HAVE_PARALLEL
 
 /* Function prototypes */
 #ifdef __cplusplus
@@ -41,8 +44,13 @@ extern "C" {
 #endif
 
 H5_DLL hid_t H5FD_mpiposix_init(void);
+#ifdef H5_WANT_H5_V1_4_COMPAT
 H5_DLL herr_t H5Pset_fapl_mpiposix(hid_t fapl_id, MPI_Comm comm);
 H5_DLL herr_t H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/);
+#else /* H5_WANT_H5_V1_4_COMPAT */
+H5_DLL herr_t H5Pset_fapl_mpiposix(hid_t fapl_id, MPI_Comm comm, hbool_t use_gpfs);
+H5_DLL herr_t H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/, hbool_t *use_gpfs/*out*/);
+#endif /* H5_WANT_H5_V1_4_COMPAT */
 H5_DLL MPI_Comm H5FD_mpiposix_communicator(H5FD_t *_file);
 H5_DLL herr_t H5FD_mpiposix_closing(H5FD_t *file);
 H5_DLL int H5FD_mpiposix_mpi_rank(H5FD_t *_file);
@@ -55,4 +63,5 @@ H5_DLL int H5FD_mpiposix_mpi_size(H5FD_t *_file);
 #endif /*H5_HAVE_PARALLEL*/
 
 #endif /* __H5FDmpiposix_H */
+
 

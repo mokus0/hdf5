@@ -107,7 +107,7 @@ test_1a(hid_t file)
     TESTING("fixed-size data space, exact storage");
 
     /* Create the dataset */
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     cur_size[0] = max_size[0] = 100;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0,
 	(hsize_t)(max_size[0]*sizeof(int)))<0) goto error;
@@ -120,6 +120,10 @@ test_1a(hid_t file)
 
     /* Read dataset creation information */
     if ((dset = H5Dopen (file, "dset1"))<0) goto error;
+
+    /* Test dataset address.  Should be undefined. */
+    if (H5Dget_offset(dset)!=HADDR_UNDEF) goto error;
+        
     if ((dcpl = H5Dget_create_plist (dset))<0) goto error;
     if ((n=H5Pget_external_count (dcpl))<0) goto error;
     if (1!=n) {
@@ -186,7 +190,7 @@ test_1b(hid_t file)
     hsize_t	max_size[1];		/*maximum data space size	*/
 
     TESTING("external storage is too small");
-    if ((dcpl = H5Pcreate (H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl = H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     cur_size[0] = max_size[0] = 100;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0,
 	(hsize_t)(max_size[0]*sizeof(int)-1))<0) goto error;
@@ -242,7 +246,7 @@ test_1c(hid_t file)
     hsize_t	max_size[1];		/*maximum data space size	*/
 
     TESTING("extendible dataspace, exact external size");
-    if ((dcpl=H5Pcreate (H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate (H5P_DATASET_CREATE))<0) goto error;
     cur_size[0] = 100;
     max_size[0] = 200;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0,
@@ -293,7 +297,7 @@ test_1d(hid_t file)
     hsize_t	max_size[1];		/*maximum data space size	*/
 
     TESTING("extendible dataspace, external storage is too small");
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     cur_size[0] = 100;
     max_size[0] = 200;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0,
@@ -355,7 +359,7 @@ test_1e(hid_t file)
     TESTING("unlimited dataspace, unlimited external storage");
 
     /* Create dataset */
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE)) < 0) goto error;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0, H5F_UNLIMITED)<0) goto error;
     cur_size[0] = 100;
     max_size[0] = H5S_UNLIMITED;
@@ -432,7 +436,7 @@ test_1f(hid_t file)
     hsize_t	max_size[1];		/*data space maximum size	*/
 
     TESTING("multiple external files");
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     cur_size[0] = max_size[0] = 100;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0,
 	(hsize_t)(max_size[0]*sizeof(int)/4))<0) goto error;
@@ -538,7 +542,7 @@ test_1h(void)
     herr_t	status;			/*return status			*/
     
     TESTING("address overflow in external files");
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     if (H5Pset_external(dcpl, "ext1.data", (off_t)0, H5F_UNLIMITED-1)<0) goto error;
     H5E_BEGIN_TRY {
 	status = H5Pset_external(dcpl, "ext2.data", (off_t)0, (hsize_t)100);
@@ -627,7 +631,7 @@ test_2 (hid_t fapl)
     if (H5Gclose(grp)<0) goto error;
 
     /* Create the dataset */
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     if (H5Pset_external (dcpl, "extern_1a.raw",  (off_t)0, (hsize_t)sizeof part)<0 ||
 	H5Pset_external (dcpl, "extern_2a.raw", (off_t)10, (hsize_t)sizeof part)<0 ||
 	H5Pset_external (dcpl, "extern_3a.raw", (off_t)20, (hsize_t)sizeof part)<0 ||
@@ -714,7 +718,7 @@ test_3 (hid_t fapl)
     hid_t	dset=-1;		/*dataset			*/
     unsigned	i;			/*miscellaneous counters	*/
     int		fd;			/*external file descriptor	*/
-    int		part[25], whole[100];	/*raw data buffers		*/
+    int	    part[25],whole[100];	/*raw data buffers		*/
     hsize_t	cur_size=100;		/*current data space size	*/
     hsize_t	max_size=200;		/*maximum data space size	*/
     hssize_t	hs_start=100;		/*hyperslab starting offset	*/
@@ -731,7 +735,7 @@ test_3 (hid_t fapl)
     }
 
     /* Create the external file list */
-    if ((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
+    if((dcpl=H5Pcreate(H5P_DATASET_CREATE))<0) goto error;
     if (H5Pset_external(dcpl, "extern_1b.raw", (off_t)0, (hsize_t)sizeof part)<0 ||
 	H5Pset_external(dcpl, "extern_2b.raw", (off_t)10, (hsize_t)sizeof part)<0 ||
 	H5Pset_external(dcpl, "extern_3b.raw", (off_t)20, (hsize_t)sizeof part)<0 ||

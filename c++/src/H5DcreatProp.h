@@ -25,7 +25,7 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	static const DSetCreatPropList DEFAULT;
 
 	// Creates a dataset creation property list
-	DSetCreatPropList() : PropList( H5P_DATASET_CREATE ) {}
+	DSetCreatPropList();
 
 	// Copy constructor: creates a copy of a DSetCreatPropList object;
 	// often used by the compiler when passing by value occurs.

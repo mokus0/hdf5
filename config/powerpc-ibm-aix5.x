@@ -4,35 +4,23 @@
 # after configure starts and defines, among other things, flags for
 # the various compile modes.
 
-# Figure out what compilers being used.
 # Use AIX supplied C compiler by default, xlc for serial, mpcc_r for parallel.
-case "X$CC" in
-    *mpcc_r)
-        enable_parallel=yes
-        CC_BASENAME=mpcc_r
-        ;;
-    *xlc)
-        CC_BASENAME=xlc
-        ;;
-    X)
-	# not defined, use default.
-        if [ "$enable_parallel" = yes ]; then
-            CC=mpcc_r
-	    CC_BASENAME=mpcc_r
-	else
-            CC=xlc
-	    CC_BASENAME=xlc
-	fi
-	# Use -D_LARGE_FILES by default to support large file size.
-	# User can override this by defining $CC.
-	CPPFLAGS="$CPPFLAGS -D_LARGE_FILES"
-        ;;
-esac
-
-# For Parallel mode, define RUNPARALLEL if not defined.
-if [ "$enable_parallel" = yes ]; then
-    RUNPARALLEL=${RUNPARALLEL="env MP_PROCS=3 MP_TASKS_PER_NODE=3 poe"}
+# Use -D_LARGE_FILES by default to support large file size.
+if test "X-" =  "X-$CC"; then
+  if test "X-$enable_parallel" = "X-yes"; then
+    CC='mpcc_r -qlanglvl=ansi -D_LARGE_FILES'
+    CC_BASENAME=mpcc_r
+  else
+    CC='xlc -qlanglvl=ansi -D_LARGE_FILES'
+    CC_BASENAME=xlc
+  fi
 fi
+
+# Define RUNPARALLEL if parallel mode is enabled or a parallel compiler used.
+if test "X-$enable_parallel" = "X-yes" -o X-$CC_BASENAME = X-mpcc_r; then
+    RUNPARALLEL=${RUNPARALLEL="MP_PROCS=\$\${NPROCS:=3} MP_TASKS_PER_NODE=\$\${NPROCS:=3} poe"}
+fi
+
 
 #----------------------------------------------------------------------------
 # Compiler flags. The CPPFLAGS values should not include package debug
@@ -40,28 +28,15 @@ fi
 # `--enable-debug' switch of configure.
 
 case $CC_BASENAME in
-    xlc)
+    xlc|mpcc_r)
 	# Turn off shared lib option.  It causes some test suite to fail.
 	enable_shared="${enable_shared:-no}"
 	# CFLAGS must be set else configure set it to -g
 	CFLAGS="$CFLAGS"
 	DEBUG_CFLAGS="-g"
 	DEBUG_CPPFLAGS=
-	# xlc -O causes errors (detected by test/dtypes). Turn it off for now.
-	PROD_CFLAGS=
-	PROD_CPPFLAGS=
-	PROFILE_CFLAGS="-pg"
-	PROFILE_CPPFLAGS=
-	;;
-
-    mpcc_r)
-	# Turn off shared lib option.  It causes some test suite to fail.
-	enable_shared="${enable_shared:-no}"
-	# CFLAGS must be set else configure set it to -g
-	CFLAGS="$CFLAGS"
-	DEBUG_CFLAGS="-g"
-	DEBUG_CPPFLAGS=
-	PROD_CFLAGS="-O"
+	# -O causes test/dtypes to fail badly. Turn it off for now.
+	PROD_CFLAGS=""
 	PROD_CPPFLAGS=
 	PROFILE_CFLAGS="-pg"
 	PROFILE_CPPFLAGS=

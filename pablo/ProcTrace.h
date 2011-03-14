@@ -88,18 +88,21 @@
 #undef RUNTIME_TRACE
 #endif
 enum HDF_IDS {
-RUNTIME_TRACE,
+NO_TRACE = 0,
+RUNTIME_TRACE = 1,
 SUMMARY_TRACE,
 MPI_RUNTIME_TRACE,
 MPI_SUMMARY_TRACE,
-NO_TRACE,
+DETAILED=RUNTIME_TRACE,
+LAST_TRACE_TYPE=MPI_SUMMARY_TRACE,
 #include "HDFidList.h"
 NUM_HDF_IDS
 } ;
 
-#define SUPPRESS_MPIO_TRACE 2
+#define SUPPRESS_MPIO_TRACE 6
 #define ID_HDF_Last_Entry ID_ALLHDF
 
-void HDFinitTrace( const char *, int trace_id, ... ); 
+void HDFinitTrace( const char *, int procNum, int trace_id, ... ); 
 void HDFendTrace( void ); 
+void setHDFcallLevel( int ); 
 #endif /* PROCTRACE_H */

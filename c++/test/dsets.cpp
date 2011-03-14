@@ -12,13 +12,19 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/***********************************************************
-*
-* Test program:  dsets
-*
-* Test the dataset interface
-*
-*************************************************************/
+/*****************************************************************************
+   FILE
+   dsets.cpp - HDF5 C++ testing the functionalities associated with the
+        C dataset interface (H5D)
+
+   EXTERNAL ROUTINES/VARIABLES:
+     These routines are in the test directory of the C library:
+        h5_reset() -- in h5test.c, resets the library by closing it
+        h5_fileaccess() -- in h5test.c, returns a file access template
+        h5_fixname() -- in h5test.c, create a file name from a file base name
+        h5_cleanup() -- in h5test.c, cleanup temporary test files
+
+ ***************************************************************************/
 
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
@@ -34,6 +40,8 @@
 using namespace H5;
 #endif
 
+#include "h5cpputil.h"
+
 const char *FILENAME[] = {
     "dataset",
     NULL
@@ -46,7 +54,11 @@ const char *FILENAME[] = {
 #define DSET_COMPRESS_NAME	"compressed"
 #define DSET_BOGUS_NAME		"bogus"
 
-#define H5Z_BOGUS		305
+#define H5Z_FILTER_BOGUS		305
+
+/* Local prototypes for filter functions */
+static size_t bogus(unsigned int flags, size_t cd_nelmts, 
+    const unsigned int *cd_values, size_t nbytes, size_t *buf_size, void **buf);
 
 
 /*-------------------------------------------------------------------------
@@ -247,7 +259,6 @@ test_simple_io( H5File& file)
 	/* Create a small conversion buffer to test strip mining */
 	DSetMemXferPropList xfer;
 
-	//if (H5Pset_buffer (xfer, 1000, tconv_buf, NULL)<0) goto error;
 	xfer.setBuffer (1000, tconv_buf, NULL);
 
 	/* Create the dataset */
@@ -362,6 +373,15 @@ test_tconv( H5File& file)
 	return -1;
 }
 
+/* This message derives from H5Z */
+const H5Z_class_t H5Z_BOGUS[1] = {{
+    H5Z_FILTER_BOGUS,		/* Filter id number		*/
+    "bogus",			/* Filter name for debugging	*/
+    NULL,                       /* The "can apply" callback     */
+    NULL,                       /* The "set local" callback     */
+    bogus,			/* The actual filter function	*/
+}};
+
 /*-------------------------------------------------------------------------
  * Function:	bogus
  *
@@ -415,11 +435,7 @@ static herr_t
 test_compression(H5File& file)
 {
     const char		*not_supported;
-    not_supported = "    Deflate compression is not supported.\n"
-		    "    The zlib was not found when hdf5 was configured.";
-    
-    TESTING("compression (setup)");
-    
+    not_supported = "    Deflate compression is not enabled.";
     int		points[100][200];
     int		check[100][200];
     hsize_t	i, j, n;
@@ -454,16 +470,16 @@ test_compression(H5File& file)
 	dscreatplist.setChunk (2, chunk_size);
 	dscreatplist.setDeflate (6);
   
+	DataSet* dataset;
+
+#ifdef H5_HAVE_FILTER_DEFLATE
+    TESTING("compression (setup)");
+    
 	/* Create the dataset */
-	DataSet* dataset = new DataSet (file.createDataSet 
+	dataset = new DataSet (file.createDataSet 
 	    (DSET_COMPRESS_NAME, PredType::NATIVE_INT, space1, dscreatplist));
   
-#ifdef H5_HAVE_COMPRESSION
     PASSED();
-#else
-    SKIPPED();
-    cout << not_supported << endl;
-#endif
 
 	/*----------------------------------------------------------------------
 	* STEP 1: Read uninitialized data.  It should be zero.
@@ -484,12 +500,7 @@ test_compression(H5File& file)
 		}
 	    }
 	}
-#ifdef H5_HAVE_COMPRESSION
     PASSED();
-#else
-    SKIPPED();
-    cout << not_supported << endl;
-#endif
 
 	/*----------------------------------------------------------------------
 	* STEP 2: Test compression by setting up a chunked dataset and writing
@@ -506,15 +517,9 @@ test_compression(H5File& file)
 	    }
 	}
 
-	//if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer, points)<0) goto error;
 	dataset->write ((void*) points, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
 
-#ifdef H5_HAVE_COMPRESSION
     PASSED();
-#else
-    SKIPPED();
-    cout << not_supported << endl;
-#endif
 
 	/*----------------------------------------------------------------------
 	* STEP 3: Try to read the data we just wrote.
@@ -533,12 +538,7 @@ test_compression(H5File& file)
 		if (status == -1) goto error;
 	    }
 
-#ifdef H5_HAVE_COMPRESSION
     PASSED();
-#else
-    SKIPPED();
-    cout << not_supported << endl;
-#endif
 
 	/*----------------------------------------------------------------------
 	* STEP 4: Write new data over the top of the old data.  The new data is
@@ -569,12 +569,7 @@ test_compression(H5File& file)
 		if (status == -1) goto error;
 	    }
 
-#ifdef H5_HAVE_COMPRESSION
     PASSED();
-#else
-    SKIPPED();
-    cout << not_supported << endl;
-#endif
 
 	/*----------------------------------------------------------------------
 	* STEP 5: Close the dataset and then open it and read it again.  This
@@ -586,7 +581,6 @@ test_compression(H5File& file)
     
 	delete dataset;
     
-	//if ((dataset = H5Dopen (file, DSET_COMPRESS_NAME))<0) goto error;
 	dataset = new DataSet (file.openDataSet (DSET_COMPRESS_NAME));
 	dataset->read ((void*)check, PredType::NATIVE_INT, DataSpace::ALL, DataSpace::ALL, xfer);
 
@@ -598,12 +592,7 @@ test_compression(H5File& file)
 		if (status == -1) goto error;
 	    }
 
-#ifdef H5_HAVE_COMPRESSION
     PASSED();
-#else
-    SKIPPED();
-    cout << not_supported << endl;
-#endif
     
 
 	/*----------------------------------------------------------------------
@@ -641,9 +630,13 @@ test_compression(H5File& file)
 	    }
 	}
 	}
-#ifdef H5_HAVE_COMPRESSION
+
+	delete dataset;
+
     PASSED();
+
 #else
+    TESTING("deflate filter");
     SKIPPED();
     cout << not_supported << endl;
 #endif
@@ -655,11 +648,13 @@ test_compression(H5File& file)
 	*/
 	TESTING("compression (app-defined method)");
 
-	// BMR: not sure how to handle this yet
-	if (H5Zregister (H5Z_BOGUS, DSET_BOGUS_NAME, bogus)<0) goto error;
-	if (H5Pset_filter (dscreatplist.getId(), H5Z_BOGUS, 0, 0, NULL)<0) goto error;
-	dscreatplist.setFilter (H5Z_BOGUS, 0, 0, NULL);
-	delete dataset;
+#ifdef H5_WANT_H5_V1_4_COMPAT
+        if (H5Zregister (H5Z_FILTER_BOGUS, "bogus", bogus)<0) goto error;
+#else /* H5_WANT_H5_V1_4_COMPAT */
+        if (H5Zregister (H5Z_BOGUS)<0) goto error;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
+	if (H5Pset_filter (dscreatplist.getId(), H5Z_FILTER_BOGUS, 0, 0, NULL)<0) goto error;
+	dscreatplist.setFilter (H5Z_FILTER_BOGUS, 0, 0, NULL);
 
 	DataSpace space2 (2, size, NULL);
 	dataset = new DataSet (file.createDataSet (DSET_BOGUS_NAME, PredType::NATIVE_INT, space2, dscreatplist));
@@ -672,7 +667,8 @@ test_compression(H5File& file)
 	    for (j = 0; j < size[1]; j++)
 	    {
 		int status = check_values (i, j, points[i][j], check[i][j]);
-		if (status == -1) goto error;
+		if (status == -1) 
+		    goto error;
 	    }
 
 	PASSED();
@@ -736,11 +732,7 @@ test_multiopen (H5File& file)
 	// Create first dataset
 	DataSet dset1 = file.createDataSet ("multiopen", PredType::NATIVE_INT, *space, dcpl);
     
-	//BMR: Quincey said Rob gave a tweak to have dataset being the first
-	// argument in this call but actually shouldn't be valid, so just 
-	// ignore the argument dset1.  Just open the first dataset again
-	// from the file to another DataSet object.
-	// if ((dset2=H5Dopen (dset1, "."))<0) goto error;
+	// Open again the first dataset from the file to another DataSet object.
 	DataSet dset2 = file.openDataSet ("multiopen");
 
 	// Relieve the dataspace
@@ -751,11 +743,9 @@ test_multiopen (H5File& file)
 	dset1.extend (cur_size);
 
 	/* Get the size from the second handle */
-	//if ((space = H5Dget_space (dset2))<0) goto error;
 	space = new DataSpace (dset2.getSpace());
 
 	hsize_t		tmp_size[1];
-	//if (H5Sget_simple_extent_dims (space, tmp_size, NULL)<0) goto error;
 	space->getSimpleExtentDims (tmp_size);
 	if (cur_size[0]!=tmp_size[0]) 
 	{
@@ -783,7 +773,7 @@ test_multiopen (H5File& file)
 /*-------------------------------------------------------------------------
  * Function:	test_types
  *
- * Purpose:	Make some datasets with various types so we can test h5ls.
+ * Purpose:	Test various types - should be moved to dtypes.cpp
  *
  * Return:	Success:	0
  *
@@ -976,45 +966,6 @@ test_types(H5File& file)
  error:
     return -1;
 }
-
-
-/*-------------------------------------------------------------------------
- * Function:	test_report
- *
- * Purpose:	Prints out the number of errors for dataset tests if there  
- *		were any failures occurred.  If no failure, test_report
- *		prints out the "All dataset tests passed" message 
- *
- * Return:	if any failure has occurred:	1
- *
- *		if no failure occurs:	0
- *
- * Programmer:	Binh-Minh Ribler (using C code segment for reporting tests)
- *		Friday, February 6, 2001
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-int test_report( int nerrors )
-{
-   if (nerrors)
-   {
-      nerrors = MAX(1, nerrors);
-	if (1 == nerrors)
-	    cout << "***** " << nerrors << " DATASET TEST" 
-					<< " FAILED! *****" << endl;
-	else
-	    cout << "***** " << nerrors << " DATASET TESTS" 
-					<< " FAILED! *****" << endl;
-      return 1;
-   }
-   else 
-   {
-      cout << "All dataset tests passed." << endl;
-      return 0;
-   }
-}
 
 /*-------------------------------------------------------------------------
  * Function:	main
@@ -1079,11 +1030,12 @@ main(void)
     }
     catch (Exception E) 
     {
-	return( test_report( nerrors ));
+	return(test_report(nerrors, string(" Dataset")));
     }
     /* use C test utility routine to clean up data files */
     h5_cleanup(FILENAME, fapl_id);
 
     /* print out dsets test results */
-    return( test_report( nerrors ));
+    cerr << endl << endl;
+    return(test_report(nerrors, string(" Dataset")));
 }

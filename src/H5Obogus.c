@@ -28,19 +28,22 @@
  *
  *-------------------------------------------------------------------------
  */
+
+#define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
+
 #include "H5private.h"
 #include "H5Eprivate.h"
 #include "H5MMprivate.h"
-#include "H5Oprivate.h"
+#include "H5Opkg.h"             /* Object header functions                 */
 
 #ifdef H5O_ENABLE_BOGUS
 #define PABLO_MASK      H5O_bogus_mask
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_bogus_decode(H5F_t *f, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_bogus_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
 static herr_t H5O_bogus_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static size_t H5O_bogus_size(H5F_t *f, const void *_mesg);
-static herr_t H5O_bogus_debug(H5F_t *f, const void *_mesg, FILE * stream,
+static herr_t H5O_bogus_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			     int indent, int fwidth);
 
 /* This message derives from H5O */
@@ -54,6 +57,7 @@ const H5O_class_t H5O_BOGUS[1] = {{
     H5O_bogus_size,          	/*raw message size              */
     NULL,         	        /*free internal memory          */
     NULL,		        /*free method			*/
+    NULL,		        /* file delete method		*/
     NULL,		    	/*get share method		*/
     NULL,			/*set share method		*/
     H5O_bogus_debug,         	/*debug the message             */
@@ -83,10 +87,11 @@ static int interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_bogus_decode(H5F_t UNUSED *f, const uint8_t *p,
+H5O_bogus_decode(H5F_t UNUSED *f, hid_t dxpl_id, const uint8_t *p,
 		H5O_shared_t UNUSED *sh)
 {
-    H5O_bogus_t             *mesg;
+    H5O_bogus_t *mesg=NULL;
+    void *ret_value;            /* Return value */
 
     FUNC_ENTER(H5O_bogus_decode, NULL);
 
@@ -97,18 +102,23 @@ H5O_bogus_decode(H5F_t UNUSED *f, const uint8_t *p,
 
     /* Allocate the bogus message */
     if (NULL==(mesg = H5MM_calloc(sizeof(H5O_bogus_t))))
-	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* decode */
     UINT32DECODE(p, mesg->u);
 
     /* Validate the bogus info */
-    if(mesg->u!=H5O_BOGUS_VALUE) {
-        H5MM_xfree(mesg);
-	HRETURN_ERROR (H5E_OHDR, H5E_BADVALUE, NULL, "invalid bogus value :-)");
-    } /* end if */
+    if(mesg->u!=H5O_BOGUS_VALUE)
+	HGOTO_ERROR (H5E_OHDR, H5E_BADVALUE, NULL, "invalid bogus value :-)");
 
-    FUNC_LEAVE(mesg);
+    /* Set return value */
+    ret_value=mesg;
+
+done:
+    if(ret_value==NULL && mesg!=NULL)
+        H5MM_xfree(mesg);
+
+    FUNC_LEAVE(ret_value);
 } /* end H5O_bogus_decode() */
 
 
@@ -192,7 +202,7 @@ H5O_bogus_size(H5F_t UNUSED *f, const void UNUSED *mesg)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_bogus_debug(H5F_t UNUSED *f, const void *_mesg, FILE *stream,
+H5O_bogus_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE *stream,
 	       int indent, int fwidth)
 {
     const H5O_bogus_t	*mesg = (const H5O_bogus_t *)_mesg;
@@ -212,4 +222,5 @@ H5O_bogus_debug(H5F_t UNUSED *f, const void *_mesg, FILE *stream,
     FUNC_LEAVE(SUCCEED);
 }
 #endif /* H5O_ENABLE_BOGUS */
+
 

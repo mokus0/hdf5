@@ -74,7 +74,7 @@ hid_t DataSet::p_getType() const
       return( type_id );
    else
    {
-      throw DataSetIException(NULL, "H5Dget_type failed");
+      throw DataSetIException(0, "H5Dget_type failed");
    }
 }
 
@@ -156,6 +156,20 @@ void DataSet::read( void* buf, const DataType& mem_type, const DataSpace& mem_sp
    }
 }
 
+void DataSet::read( string& strg, const DataType& mem_type, const DataSpace& mem_space, const DataSpace& file_space, const DSetMemXferPropList& xfer_plist ) const
+{
+   // Allocate C character string for reading
+   size_t size = mem_type.getSize();
+   char* strg_C = new char[size+1];  // temporary C-string for C API
+
+   // Use the overloaded member to read
+   read(strg_C, mem_type, mem_space, file_space, xfer_plist);
+
+   // Get the String and clean up
+   strg = strg_C;
+   delete strg_C;
+}
+
 // Writes raw data from an application buffer buffer to a dataset, 
 // converting from memory datatype and dataspace to file datatype 
 // and dataspace.
@@ -172,6 +186,16 @@ void DataSet::write( const void* buf, const DataType& mem_type, const DataSpace&
    {
       throw DataSetIException("DataSet::write", "H5Dwrite failed");
    }
+}
+
+void DataSet::write( const string& strg, const DataType& mem_type, const DataSpace& mem_space, const DataSpace& file_space, const DSetMemXferPropList& xfer_plist ) const
+{
+   // Convert string to C-string
+   const char* strg_C;
+   strg_C = strg.c_str();  // strg_C refers to the contents of strg as a C-str
+
+   // Use the overloaded member
+   write(strg_C, mem_type, mem_space, file_space, xfer_plist);
 }
 
 // Iterates over all selected elements in a dataspace. 
@@ -199,6 +223,47 @@ void DataSet::extend( const hsize_t* size ) const
    }
 }
 
+/*--------------------------------------------------------------------------
+ NAME
+    fillMemBuf
+ PURPOSE 
+    Fills a selection in memory with a value
+ USAGE
+    fillMemBuf(fill, fill_type, buf, buf_type, space)
+    fillMemBuf(buf, buf_type, space)
+        void *buf;              IN/OUT: Memory buffer to fill selection within
+        DataType& buf_type;     IN: Datatype of the elements in buffer
+        DataSpace& space;       IN: Dataspace describing memory buffer &
+                                    containing selection to use.
+        const void *fill;       IN: Pointer to fill value to use - default NULL
+        DataType& fill_type;    IN: Datatype of the fill value
+ DESCRIPTION
+    Use the selection in the dataspace to fill elements in a memory buffer.
+ COMMENTS, BUGS, ASSUMPTIONS
+    Second usage uses all zeros as fill value
+--------------------------------------------------------------------------*/
+void DataSet::fillMemBuf(const void *fill, DataType& fill_type, void *buf, DataType& buf_type, DataSpace& space)
+{
+    hid_t fill_type_id = fill_type.getId();
+    hid_t buf_type_id = buf_type.getId();
+    hid_t space_id = space.getId();
+    herr_t ret_value = H5Dfill(fill, fill_type_id, buf, buf_type_id, space_id);
+    if( ret_value < 0 )
+    {
+	throw DataSetIException("DataSet::fillMemBuf", "H5Dfill failed");
+    }
+}
+void DataSet::fillMemBuf(void *buf, DataType& buf_type, DataSpace& space)
+{
+    hid_t buf_type_id = buf_type.getId();
+    hid_t space_id = space.getId();
+    herr_t ret_value = H5Dfill(NULL, buf_type_id, buf, buf_type_id, space_id);
+    if( ret_value < 0 )
+    {
+	throw DataSetIException("DataSet::fillMemBuf", "H5Dfill failed");
+    }
+}
+
 // This private function calls the C API H5Dclose to close this dataset.
 // Used by IdComponent::reset
 void DataSet::p_close() const
@@ -206,7 +271,7 @@ void DataSet::p_close() const
    herr_t ret_value = H5Dclose( id );
    if( ret_value < 0 )
    {
-      throw DataSetIException(NULL, "H5Dclose failed");
+      throw DataSetIException(0, "H5Dclose failed");
    }
 }
 
@@ -221,7 +286,7 @@ DataSet::~DataSet()
     try {
 	resetIdComponent( this ); }
     catch (Exception close_error) { // thrown by p_close
-	cerr << "DataSet::~DataSet" << close_error.getDetailMsg() << endl;
+        cerr << "DataSet::~DataSet - " << close_error.getDetailMsg() << endl;
     }
 }
 

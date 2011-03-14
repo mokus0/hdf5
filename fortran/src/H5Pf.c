@@ -12,8 +12,7 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* This file contains C stubs for H5P Fortran APIs */
-
+/* This files contains C stubs for H5P Fortran APIs */
 
 #include "H5f90.h"
 
@@ -21,53 +20,23 @@
 /*----------------------------------------------------------------------------
  * Name:        h5pcreate_c
  * Purpose:     Call H5Pcreate to create a property list 
- * Inputs:      classtype - type of the property list 
+ * Inputs:      class - property list class identifier
  * Outputs:     prp_id - identifier of the created property list 
  * Returns:     0 on success, -1 on failure
  * Programmer:  Elena Pourmal
- *              Saturday, August 14, 1999
+ *              Wednesday, October 9, 2002
  * Modifications:
  *---------------------------------------------------------------------------*/
 
 int_f 
-nh5pcreate_c ( int_f *classtype, hid_t_f *prp_id )
+nh5pcreate_c ( hid_t_f *class, hid_t_f *prp_id )
 {
-  H5P_class_t c_classtype;
-  int CASE;
+  hid_t c_class;
   int ret_value = 0;
   hid_t c_prp_id;
-  /*CASE = (int)*classtype; */
-  c_classtype = (H5P_class_t)*classtype;
-/*
-
-  switch (CASE) {
-
-     case (H5P_FILE_CREATE_F):
-       c_classtype = H5P_FILE_CREATE;
-       break;
-
-     case(H5P_FILE_ACCESS_F): 
-       c_classtype = H5P_FILE_ACCESS;
-       break;
-
-     case(H5P_DATASET_CREATE_F):
-       c_classtype = H5P_DATASET_CREATE;
-       break;
-
-     case(H5P_DATASET_XFER_F):
-       c_classtype = H5P_DATASET_XFER;
-       break;
-
-     case(H5P_MOUNT_F):
-       c_classtype = H5P_MOUNT;
-       break;
-
-     default:
-       ret_value = -1;
-       return ret_value;
- }
-*/
-   c_prp_id = H5Pcreate(c_classtype); 
+  
+  c_class = (hid_t)*class;
+  c_prp_id = H5Pcreate(c_class); 
 
   if ( c_prp_id  < 0  ) ret_value = -1;
   *prp_id = (hid_t_f)c_prp_id;
@@ -88,9 +57,8 @@ int_f
 nh5pclose_c ( hid_t_f *prp_id )
 {
   int ret_value = 0;
-  hid_t c_prp_id;
+  hid_t c_prp_id=(*prp_id);
 
-  c_prp_id = *prp_id;
   if ( H5Pclose(c_prp_id) < 0  ) ret_value = -1;
   return ret_value;
 }
@@ -115,9 +83,37 @@ nh5pcopy_c ( hid_t_f *prp_id , hid_t_f *new_prp_id)
   hid_t c_new_prp_id;
 
   c_prp_id = *prp_id;
-  c_new_prp_id = H5Tcopy(c_prp_id); 
+  c_new_prp_id = H5Pcopy(c_prp_id); 
   if ( c_new_prp_id < 0  ) ret_value = -1;
   *new_prp_id = (hid_t_f)c_new_prp_id;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pequal_c
+ * Purpose:     Call H5Pequal to check if two property lists are equal 
+ * Inputs:      plist1_id - property list identifier
+ *              plist2_id - property list identifier
+ * Outputs:     c_flag    - flag to indicate that lists are eqaul
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, September 30, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pequal_c ( hid_t_f *plist1_id , hid_t_f *plist2_id, int_f * c_flag)
+{
+  int ret_value = 0;
+  hid_t c_plist1_id;
+  hid_t c_plist2_id;
+  htri_t c_c_flag;
+
+  c_plist1_id = (hid_t)*plist1_id;
+  c_plist2_id = (hid_t)*plist2_id;
+  c_c_flag = H5Pequal(c_plist1_id, c_plist2_id); 
+  if ( c_c_flag < 0  ) ret_value = -1;
+  *c_flag = (int_f)c_c_flag;
   return ret_value;
 }
 
@@ -144,24 +140,17 @@ nh5pget_class_c ( hid_t_f *prp_id , int_f *classtype)
 {
   int ret_value = 0;
   hid_t c_prp_id;
-  H5P_class_t c_classtype; 
+  hid_t c_classtype; 
 
   c_prp_id = *prp_id;
   c_classtype = H5Pget_class(c_prp_id);
   if (c_classtype == H5P_NO_CLASS ) {
- /*     *classtype = H5P_NO_CLASS_F; */
       *classtype = H5P_NO_CLASS; 
        ret_value = -1;
        return ret_value;
   }
   *classtype = (int_f)c_classtype;
-/*
-  if (c_classtype == H5P_FILE_CREATE)    *classtype = H5P_FILE_CREATE_F;
-  if (c_classtype == H5P_FILE_ACCESS)    *classtype = H5P_FILE_ACCESS_F; 
-  if (c_classtype == H5P_DATASET_CREATE) *classtype = H5P_DATASET_CREATE_F; 
-  if (c_classtype == H5P_DATASET_XFER)   *classtype = H5P_DATASET_XFER_F; 
-  if (c_classtype == H5P_MOUNT_F)        *classtype = H5P_MOUNT_F; 
-*/
+
   return ret_value;
 }
 
@@ -186,7 +175,7 @@ nh5pset_preserve_c ( hid_t_f *prp_id , int_f *flag)
   hbool_t c_flag = 0;
 
   if (*flag > 0) c_flag = 1;
-  c_prp_id = *prp_id;
+  c_prp_id = (hid_t)*prp_id;
   status = H5Pset_preserve(c_prp_id, c_flag);
   if ( status < 0  ) ret_value = -1;
   return ret_value;
@@ -210,10 +199,9 @@ nh5pget_preserve_c ( hid_t_f *prp_id , int_f *flag)
 {
   int ret_value = 0;
   hid_t c_prp_id;
-  herr_t status;
   int c_flag; 
 
-  c_prp_id = *prp_id;
+  c_prp_id = (hid_t)*prp_id;
   c_flag = H5Pget_preserve(c_prp_id);
   if ( c_flag < 0  ) ret_value = -1;
   *flag = (int_f)c_flag;
@@ -239,8 +227,8 @@ nh5pset_deflate_c ( hid_t_f *prp_id , int_f *level)
   int c_level;
   herr_t status;
 
-  c_prp_id = *prp_id;
-  c_level = *level;
+  c_prp_id = (hid_t)*prp_id;
+  c_level = (int)*level;
   status = H5Pset_deflate(c_prp_id, c_level);
   if ( status < 0  ) ret_value = -1;
   return ret_value;
@@ -281,11 +269,13 @@ nh5pset_chunk_c ( hid_t_f *prp_id, int_f *rank, hsize_t_f *dims )
        c_dims[i] =  dims[*rank - i - 1];
   }
 
-  c_prp_id = *prp_id;
-  c_rank = *rank;
+  c_prp_id = (hid_t)*prp_id;
+  c_rank = (int)*rank;
   status = H5Pset_chunk(c_prp_id, c_rank, c_dims);
-  if (status < 0) return ret_value;
+  if (status < 0) goto DONE;
   ret_value = 0;
+
+DONE:
   HDfree (c_dims);
   return ret_value;
 }  
@@ -317,15 +307,15 @@ nh5pget_chunk_c ( hid_t_f *prp_id, int_f *max_rank, hsize_t_f *dims )
   c_dims =  malloc(sizeof(hsize_t) * (*max_rank ));
   if (!c_dims) return ret_value;
 
-  c_prp_id = *prp_id;
-  c_max_rank = *max_rank;
+  c_prp_id = (hid_t)*prp_id;
+  c_max_rank = (int)*max_rank;
   rank = H5Pget_chunk(c_prp_id, c_max_rank, c_dims);
 
   /*
    * Transpose dimension arrays because of C-FORTRAN storage order
    */
   for (i = 0; i < *max_rank ; i++) {
-       dims[*max_rank - i - 1] = c_dims[i];
+       dims[*max_rank - i - 1] = (hsize_t_f)c_dims[i];
   }
   HDfree (c_dims);
   if (rank < 0) return ret_value;
@@ -381,8 +371,8 @@ nh5pset_fill_value_c (hid_t_f *prp_id, hid_t_f *type_id, void *fillvalue)
      /*
       * Call H5Pset_fill_value function.
       */
-     c_prp_id = *prp_id;
-     c_type_id = *type_id;
+     c_prp_id = (hid_t)*prp_id;
+     c_type_id = (int)*type_id;
      ret = H5Pset_fill_value(c_prp_id, c_type_id, fillvalue);
 
      if (ret < 0) return ret_value;
@@ -437,8 +427,8 @@ nh5pget_fill_value_c (hid_t_f *prp_id, hid_t_f *type_id, void *fillvalue)
      /*
       * Call H5Pget_fill_value function.
       */
-     c_prp_id = *prp_id;
-     c_type_id = *type_id;
+     c_prp_id = (hid_t)*prp_id;
+     c_type_id = (int)*type_id;
      ret = H5Pget_fill_value(c_prp_id, c_type_id, fillvalue);
 
      if (ret < 0) return ret_value;
@@ -465,7 +455,6 @@ nh5pget_version_c (hid_t_f *prp_id, int_f * boot,int_f * freelist, int_f * stab,
 {
      int ret_value = -1;
      hid_t c_prp_id;
-     int i;
      herr_t ret;
      int c_boot;
      int c_freelist;
@@ -477,12 +466,14 @@ nh5pget_version_c (hid_t_f *prp_id, int_f * boot,int_f * freelist, int_f * stab,
       */
      c_prp_id = *prp_id;
      ret = H5Pget_version(c_prp_id, &c_boot, &c_freelist, &c_stab, &c_shhdr);
-         *boot = (int_f)c_boot;
-         *freelist = (int_f)c_freelist;
-         *stab = (int_f)c_stab;
-         *shhdr = (int_f)c_shhdr;
      if (ret < 0) return ret_value;
+
+     *boot = (int_f)c_boot;
+     *freelist = (int_f)c_freelist;
+     *stab = (int_f)c_stab;
+     *shhdr = (int_f)c_shhdr;
      ret_value = 0;
+
      return ret_value;
 }      
 
@@ -502,19 +493,19 @@ nh5pget_userblock_c (hid_t_f *prp_id, hsize_t_f * size)
 {
      int ret_value = -1;
      hid_t c_prp_id;
-     int i;
      herr_t ret;
      hsize_t c_size;
 
      /*
       * Call H5Pget_userblock function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_userblock(c_prp_id, &c_size);
-
-         *size = (hsize_t_f)c_size;
      if (ret < 0) return ret_value;
+
+     *size = (hsize_t_f)c_size;
      ret_value = 0;
+
      return ret_value;
 }      
 
@@ -541,7 +532,7 @@ nh5pset_userblock_c (hid_t_f *prp_id, hsize_t_f * size)
      /*
       * Call H5Pset_userblock function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_userblock(c_prp_id, c_size);
 
      if (ret < 0) return ret_value;
@@ -566,7 +557,6 @@ nh5pget_sizes_c (hid_t_f *prp_id, size_t_f * sizeof_addr, size_t_f * sizeof_size
 {
      int ret_value = -1;
      hid_t c_prp_id;
-     int i;
      herr_t ret;
      size_t c_sizeof_addr;
      size_t c_sizeof_size;
@@ -574,13 +564,14 @@ nh5pget_sizes_c (hid_t_f *prp_id, size_t_f * sizeof_addr, size_t_f * sizeof_size
      /*
       * Call H5Pget_sizes function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_sizes(c_prp_id, &c_sizeof_addr, &c_sizeof_size);
-
-         *sizeof_addr = (size_t_f)c_sizeof_addr;
-         *sizeof_size = (size_t_f)c_sizeof_size;
      if (ret < 0) return ret_value;
+
+     *sizeof_addr = (size_t_f)c_sizeof_addr;
+     *sizeof_size = (size_t_f)c_sizeof_size;
      ret_value = 0;
+
      return ret_value;
 }      
 
@@ -608,7 +599,7 @@ nh5pset_sizes_c (hid_t_f *prp_id, size_t_f * sizeof_addr, size_t_f * sizeof_size
      /*
       * Call H5Pset_sizes function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_sizes(c_prp_id, c_addr, c_size);
 
      if (ret < 0) return ret_value;
@@ -640,9 +631,9 @@ nh5pset_sym_k_c (hid_t_f *prp_id, int_f* ik, int_f* lk)
      /*
       * Call H5Pset_sym_k function.
       */
-     c_prp_id = *prp_id;
-     c_ik = *ik;
-     c_lk = *lk;
+     c_prp_id = (hid_t)*prp_id;
+     c_ik = (int)*ik;
+     c_lk = (int)*lk;
      ret = H5Pset_sym_k(c_prp_id, c_ik, c_lk);
 
      if (ret < 0) return ret_value;
@@ -667,15 +658,18 @@ nh5pget_sym_k_c (hid_t_f *prp_id, int_f* ik, int_f* lk)
 {
      int ret_value = -1;
      hid_t c_prp_id;
-     int i;
      herr_t ret;
      int c_ik;
+#ifdef H5_WANT_H5_V1_4_COMPAT
      int c_lk;
+#else /* H5_WANT_H5_V1_4_COMPAT */
+     unsigned c_lk;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
 
      /*
       * Call H5Pget_sym_k function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_sym_k(c_prp_id, &c_ik, &c_lk);
      *ik = (int_f)c_ik;
      *lk = (int_f)c_lk;
@@ -706,8 +700,8 @@ nh5pset_istore_k_c (hid_t_f *prp_id, int_f* ik)
      /*
       * Call H5Pset_istore_k function.
       */
-     c_prp_id = *prp_id;
-     c_ik = *ik;
+     c_prp_id = (hid_t)*prp_id;
+     c_ik = (int)*ik;
      ret = H5Pset_istore_k(c_prp_id, c_ik);
 
      if (ret < 0) return ret_value;
@@ -737,7 +731,7 @@ nh5pget_istore_k_c (hid_t_f *prp_id, int_f* ik)
      /*
       * Call H5Pget_istore_k function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_istore_k(c_prp_id, &c_ik);
      *ik = (int_f)c_ik;
      if (ret < 0) return ret_value;
@@ -796,7 +790,7 @@ nh5pset_fapl_stdio_c (hid_t_f *prp_id)
      /*
       * Call H5Pset_fapl_stdio function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_fapl_stdio(c_prp_id); 
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -853,7 +847,7 @@ nh5pset_fapl_sec2_c (hid_t_f *prp_id)
      /*
       * Call H5Pset_fapl_sec2 function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_fapl_sec2(c_prp_id); 
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -882,7 +876,7 @@ nh5pget_fapl_sec2_c (hid_t_f *prp_id, int_f* sec2)
      /*
       * Call H5Pget_fapl_sec2 function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_fapl_sec2(c_prp_id); 
      if (ret < 0) return ret_value;
      *sec2 = (int_f)ret;
@@ -981,7 +975,7 @@ nh5pset_fapl_core_c (hid_t_f *prp_id, size_t_f* increment, int_f *flag)
      /*
       * Call H5Pset_fapl_core function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_fapl_core(c_prp_id, c_increment, c_backing_store); 
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -1011,7 +1005,7 @@ nh5pget_fapl_core_c (hid_t_f *prp_id, size_t_f* increment, int_f *flag)
      /*
       * Call H5Pset_fapl_core function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_fapl_core(c_prp_id, &c_increment, &c_backing_store); 
      if (ret < 0) return ret_value;
      *increment = (size_t_f)c_increment;
@@ -1046,7 +1040,7 @@ nh5pset_fapl_family_c(hid_t_f *prp_id, hsize_t_f* memb_size, hid_t_f* memb_plist
      /*
       * Call H5Pset_fapl_family function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_fapl_family(c_prp_id, c_memb_size, c_memb_plist); 
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -1077,7 +1071,7 @@ nh5pget_fapl_family_c(hid_t_f *prp_id, hsize_t_f* memb_size, hid_t_f* memb_plist
      /*
       * Call H5Pget_fapl_family function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_fapl_family(c_prp_id, &c_memb_size, &c_memb_plist); 
      if (ret < 0) return ret_value;
      *memb_size = (hsize_t_f)c_memb_size;
@@ -1119,9 +1113,9 @@ nh5pset_cache_c(hid_t_f *prp_id, int_f* mdc_nelmts, int_f* rdcc_nelmts,  size_t_
      /*
       * Call H5Pset_cache function.
       */
-     c_prp_id = *prp_id;
-     c_mdc_nelmts = *mdc_nelmts;
-     c_rdcc_nelmts = *rdcc_nelmts;
+     c_prp_id = (hid_t)*prp_id;
+     c_mdc_nelmts = (int)*mdc_nelmts;
+     c_rdcc_nelmts = (int)*rdcc_nelmts;
      ret = H5Pset_cache(c_prp_id, c_mdc_nelmts, c_rdcc_nelmts, c_rdcc_nbytes, c_rdcc_w0  );
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -1145,19 +1139,19 @@ nh5pset_cache_c(hid_t_f *prp_id, int_f* mdc_nelmts, int_f* rdcc_nelmts,  size_t_
  * Modifications: Changed type of the rdcc_w0 parameter to be real_f instead of double
  *---------------------------------------------------------------------------*/
 int_f
-nh5pget_cache_c(hid_t_f *prp_id, int_f* mdc_nelmts, int_f* rdcc_nelmts, size_t_f* rdcc_nbytes , real_f* rdcc_w0)
+nh5pget_cache_c(hid_t_f *prp_id, int_f* mdc_nelmts, size_t_f* rdcc_nelmts, size_t_f* rdcc_nbytes , real_f* rdcc_w0)
 {
      int ret_value = -1;
      hid_t c_prp_id;
      herr_t ret;
-     int c_mdc_nelmts, c_rdcc_nelmts; 
+     int c_mdc_nelmts;
+     size_t c_rdcc_nelmts; 
      size_t c_rdcc_nbytes;
-     hid_t c_memb_plist;
      double c_rdcc_w0; 
      /*
       * Call H5Pget_cache function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_cache(c_prp_id, &c_mdc_nelmts, &c_rdcc_nelmts, &c_rdcc_nbytes, &c_rdcc_w0);
      if (ret < 0) return ret_value;
      *mdc_nelmts = (int_f)c_mdc_nelmts;
@@ -1195,22 +1189,28 @@ nh5pset_fapl_split_c(hid_t_f *prp_id, int_f* meta_len, _fcd meta_ext, hid_t_f* m
      herr_t ret = -1;
      char* c_meta_ext;
      char* c_raw_ext;
+
      c_meta_ext = (char *)HD5f2cstring(meta_ext, (int)*meta_len); 
      if (c_meta_ext == NULL) return ret_value;
      c_raw_ext = (char *)HD5f2cstring(raw_ext, (int)*raw_len); 
-     if (c_raw_ext == NULL) return ret_value;
+     if (c_raw_ext == NULL) { HDfree(c_meta_ext);
+                              return ret_value;
+                            }
 
      /*
       * Call H5Pset_fapl_split function.
       */
-     c_prp_id = *prp_id;
-     c_meta_plist = *meta_plist;
-     c_raw_plist = *raw_plist; 
+     c_prp_id = (hid_t)*prp_id;
+     c_meta_plist = (hid_t)*meta_plist;
+     c_raw_plist = (hid_t)*raw_plist; 
      ret = H5Pset_fapl_split(c_prp_id, c_meta_ext, c_meta_plist, c_raw_ext, c_raw_plist );
+
+     if (ret < 0) goto DONE;
+     ret_value = 0;
+
+DONE:
      HDfree(c_meta_ext);
      HDfree(c_raw_ext);
-     if (ret < 0) return ret_value;
-     ret_value = 0;
      return ret_value;
 }
 
@@ -1324,7 +1324,7 @@ nh5pget_gc_references_c (hid_t_f *prp_id, int_f* gc_references)
      /*
       * Call H5Pget_gc_references function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_gc_references(c_prp_id, &c_gc_references);
      if (ret < 0) return ret_value;
      *gc_references = (int_f)c_gc_references;
@@ -1354,7 +1354,7 @@ nh5pset_layout_c (hid_t_f *prp_id, int_f* layout)
      /*
       * Call H5Pset_layout function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_layout(c_prp_id, c_layout);
 
      if (ret < 0) return ret_value;
@@ -1382,7 +1382,7 @@ nh5pget_layout_c (hid_t_f *prp_id, int_f* layout)
      /*
       * Call H5Pget_layout function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      c_layout = H5Pget_layout(c_prp_id);
      if (c_layout < 0) return ret_value;
      *layout = (int_f)c_layout;
@@ -1427,12 +1427,14 @@ nh5pset_filter_c (hid_t_f *prp_id, int_f* filter, int_f* flags, size_t_f* cd_nel
      /*
       * Call H5Pset_filter function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_filter(c_prp_id, c_filter, c_flags, c_cd_nelmts,c_cd_values );
 
-     if (ret < 0) return ret_value;
+     if (ret < 0) goto DONE;
      ret_value = 0;
-     free(c_cd_values);
+
+DONE:
+     HDfree(c_cd_values);
      return ret_value;
 }
 
@@ -1456,11 +1458,13 @@ nh5pget_nfilters_c (hid_t_f *prp_id, int_f* nfilters)
      /*
       * Call H5Pget_nfilters function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      c_nfilters = H5Pget_nfilters(c_prp_id);
      if (c_nfilters < 0) return ret_value;
+
      *nfilters = (int_f)c_nfilters;
      ret_value = 0;
+
      return ret_value;
 }
 
@@ -1492,39 +1496,45 @@ nh5pget_filter_c(hid_t_f *prp_id, int_f* filter_number, int_f* flags, size_t_f* 
      int c_filter_number;
      unsigned int  c_flags;
      size_t c_cd_nelmts, c_namelen;
+     size_t c_cd_nelmts_in;
      H5Z_filter_t c_filter;
      unsigned int * c_cd_values;
      char* c_name;
      int i;
 
-     c_cd_nelmts = (size_t)*cd_nelmts;
+     c_cd_nelmts_in = (size_t)*cd_nelmts;
      c_namelen = (size_t)*namelen;
      c_name = (char*)malloc(sizeof(char)*c_namelen);
      if (!c_name) return ret_value;
 
-     c_cd_values = (unsigned int*)malloc(sizeof(unsigned int)*((int)c_cd_nelmts));
-     if (!c_cd_values) return ret_value;
+     c_cd_values = (unsigned int*)malloc(sizeof(unsigned int)*((int)c_cd_nelmts_in));
+     if (!c_cd_values) {HDfree(c_name);
+                        return ret_value;
+                       }
+                        
  
      /*
       * Call H5Pget_filter function.
       */
-     c_prp_id = *prp_id;
-     c_filter_number = *filter_number;
+     c_prp_id = (hid_t)*prp_id;
+     c_filter_number = (int)*filter_number;
      c_filter = H5Pget_filter(c_prp_id, c_filter_number, &c_flags, &c_cd_nelmts, c_cd_values, c_namelen, c_name);
 
-     if (c_filter < 0) return ret_value;
+     if (c_filter < 0) goto DONE;
 
-     *filter_id = c_filter;
-     *cd_nelmts = c_cd_nelmts;
-     *flags = c_flags;
+     *filter_id = (int_f)c_filter;
+     *cd_nelmts = (size_t_f)c_cd_nelmts;
+     *flags = (int_f)c_flags;
      HD5packFstring(c_name, _fcdtocp(name), strlen(c_name)); 
  
-     for (i = 0; i < c_cd_nelmts; i++)
+     for (i = 0; i < c_cd_nelmts_in; i++)
           cd_values[i] = (int_f)c_cd_values[i];
     
+     ret_value = 0;
+
+DONE:
      HDfree(c_name);
      HDfree(c_cd_values);
-     ret_value = 0;
      return ret_value;
 } 
 
@@ -1550,26 +1560,28 @@ nh5pset_external_c (hid_t_f *prp_id, _fcd name, int_f* namelen, int_f* offset, h
      hid_t c_prp_id;
      herr_t ret;
      hsize_t c_bytes;
-     char* c_name;
+     const char* c_name;
      int c_namelen;
      off_t c_offset;
-
      c_bytes = (hsize_t) *bytes;
-     c_offset = (off_t)*offset;
+     c_offset = (off_t) *offset;
      
-     c_namelen = *namelen;
+     
+     c_namelen = (int)*namelen;
      c_name = (char *)HD5f2cstring(name, c_namelen); 
      if (c_name == NULL) return ret_value;
 
      /*
       * Call H5Pset_external function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_external(c_prp_id, c_name, c_offset, c_bytes);
-     HDfree(c_name);
 
-     if (ret < 0) return ret_value;
+     if (ret < 0) goto DONE;
      ret_value = 0;
+
+DONE:
+     HDfree(c_name);
      return ret_value;
 }
 
@@ -1593,7 +1605,7 @@ nh5pget_external_count_c (hid_t_f *prp_id, int_f* count)
      /*
       * Call H5Pget_external_count function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      c_count = H5Pget_external_count(c_prp_id);
      if (c_count < 0) return ret_value;
      *count = (int_f)c_count;
@@ -1617,7 +1629,7 @@ nh5pget_external_count_c (hid_t_f *prp_id, int_f* count)
  * Modifications:
  *---------------------------------------------------------------------------*/
 int_f
-nh5pget_external_c(hid_t_f *prp_id,int*idx, size_t_f* name_size, _fcd name, int_f* offset, hsize_t_f*bytes)
+nh5pget_external_c(hid_t_f *prp_id, int_f *idx, size_t_f* name_size, _fcd name, int_f* offset, hsize_t_f*bytes)
 {
      int ret_value = -1;
      hid_t c_prp_id;
@@ -1625,7 +1637,6 @@ nh5pget_external_c(hid_t_f *prp_id,int*idx, size_t_f* name_size, _fcd name, int_
      herr_t status;
      size_t c_namelen;
      char* c_name;
-     int i;
      off_t c_offset;
      hsize_t size;
 
@@ -1638,21 +1649,19 @@ nh5pget_external_c(hid_t_f *prp_id,int*idx, size_t_f* name_size, _fcd name, int_
      /*
       * Call H5Pget_external function.
       */
-     c_prp_id = *prp_id;
-     c_idx = *idx;
+     c_prp_id = (hid_t)*prp_id;
+     c_idx = (int)*idx;
      status = H5Pget_external(c_prp_id, c_idx, c_namelen, c_name, &c_offset, &size );
 
-     if (status < 0) {
-                      HDfree(c_name);
-                      return ret_value;
-     }
+     if (status < 0) goto DONE;
 
      *offset = (int_f)c_offset;
      *bytes = (hsize_t_f)size;
      HD5packFstring(c_name, _fcdtocp(name), strlen(c_name)); 
-    
-     HDfree(c_name);
      ret_value = 0;
+
+DONE:    
+     HDfree(c_name);
      return ret_value;
 } 
 
@@ -1670,21 +1679,26 @@ nh5pget_external_c(hid_t_f *prp_id,int*idx, size_t_f* name_size, _fcd name, int_
  * Modifications:
  *---------------------------------------------------------------------------*/
 int_f
-nh5pset_hyper_cache_c(hid_t_f *prp_id, int_f* cache, int_f* limit)
+nh5pset_hyper_cache_c(hid_t_f *prp_id, int_f * cache, int_f * limit)
 {
      int ret_value = -1;
      hid_t c_prp_id;
+#ifdef H5_WANT_H5_V1_4_COMPAT
      herr_t ret;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
      unsigned c_cache, c_limit;
+
      c_cache = (unsigned) *cache;
      c_limit = (unsigned) *limit;
 
      /*
       * Call H5Pset_hyper_cache function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
+#ifdef H5_WANT_H5_V1_4_COMPAT
      ret = H5Pset_hyper_cache(c_prp_id, c_cache, c_limit);
      if (ret < 0) return ret_value;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
      ret_value = 0;
      return ret_value;
 } 
@@ -1703,21 +1717,23 @@ nh5pset_hyper_cache_c(hid_t_f *prp_id, int_f* cache, int_f* limit)
  * Modifications:
  *---------------------------------------------------------------------------*/
 int_f
-nh5pget_hyper_cache_c(hid_t_f *prp_id, int_f* cache, int_f* limit)
+nh5pget_hyper_cache_c(hid_t_f *prp_id, int_f * cache, int_f * limit)
 {
      int ret_value = -1;
+#ifdef H5_WANT_H5_V1_4_COMPAT
      hid_t c_prp_id;
      herr_t ret;
      unsigned c_cache, c_limit;
      /*
       * Call H5Pget__hyper_cache function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_hyper_cache(c_prp_id, &c_cache, &c_limit);
      if (ret < 0) return ret_value;
      *cache = (int_f)c_cache;
      *limit = (int_f)c_limit;   
      ret_value = 0;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
      return ret_value;
 } 
 
@@ -1751,7 +1767,7 @@ nh5pset_btree_ratios_c(hid_t_f *prp_id, real_f* left, real_f* middle, real_f* ri
      /*
       * Call H5Pset_btree_ratios function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pset_btree_ratios(c_prp_id, c_left, c_middle, c_right);
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -1783,7 +1799,7 @@ nh5pget_btree_ratios_c(hid_t_f *prp_id, real_f* left, real_f* middle, real_f* ri
      /*
       * Call H5Pget_btree_ratios function.
       */
-     c_prp_id = *prp_id;
+     c_prp_id = (hid_t)*prp_id;
      ret = H5Pget_btree_ratios(c_prp_id, &c_left, &c_middle, &c_right);
      *left = (real_f)c_left;
      *middle = (real_f)c_middle;
@@ -1792,3 +1808,1505 @@ nh5pget_btree_ratios_c(hid_t_f *prp_id, real_f* left, real_f* middle, real_f* ri
      ret_value = 0;
      return ret_value;
 } 
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_fclose_degree_c
+ * Purpose:     Call H5Pget_fclose_degree to determine file close behavior
+ * Inputs:      fapl_id - file access identifier 
+ * Outputs:
+ *              degree  - possible values are:
+ *              		H5F_CLOSE_DEFAULT
+ *              		H5F_CLOSE_WEAK
+ *              		H5F_CLOSE_SEMI
+ *              		H5F_CLOSE_STRONG
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Thursday, September 26, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_fclose_degree_c ( hid_t_f *fapl_id , int_f *degree)
+{
+  int ret_value = -1;
+  hid_t c_fapl_id;
+  H5F_close_degree_t c_degree; 
+
+  c_fapl_id = (hid_t)*fapl_id;
+  if( H5Pget_fclose_degree(c_fapl_id, &c_degree) < 0) return ret_value;
+  
+  *degree = (int_f)c_degree;
+  ret_value = 0;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_fclose_degree_c
+ * Purpose:     Call H5Pset_fclose_degree to set file close behavior
+ * Inputs:      fapl_id - file access identifier 
+ *              degree  - possible values are:
+ *              		H5F_CLOSE_DEFAULT
+ *              		H5F_CLOSE_WEAK
+ *              		H5F_CLOSE_SEMI
+ *              		H5F_CLOSE_STRONG
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Thursday, September 26, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_fclose_degree_c ( hid_t_f *fapl_id , int_f *degree)
+{
+  int ret_value = -1;
+  hid_t c_fapl_id;
+  hid_t c_degree; 
+
+  c_fapl_id = (hid_t)*fapl_id;
+  c_degree = (H5F_close_degree_t)*degree;
+  if( H5Pset_fclose_degree(c_fapl_id, c_degree) < 0) return ret_value;
+  
+  ret_value = 0;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_buffer_c
+ * Purpose:     Call H5Pset_buffer to set size of conversion buffer 
+ * Inputs:      prp_id - t`dataset trasfer property list identifier
+ *              size   - size of the buffer
+ * Outputs:     NONE 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Wednesday, October 2, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_buffer_c ( hid_t_f *prp_id , hsize_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  hsize_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_size = (hsize_t)*size;
+  if ( H5Pset_buffer(c_prp_id, c_size, NULL, NULL) < 0  ) ret_value = -1;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_buffer_c
+ * Purpose:     Call H5Pget_buffer to get size of conversion buffer 
+ * Inputs:      prp_id - t`dataset trasfer property list identifier
+ * Outputs:     size - size of conversion buffer 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Wednesday, October 2, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_buffer_c ( hid_t_f *prp_id , hsize_t_f *size)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  hsize_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_size = H5Pget_buffer(c_prp_id, NULL, NULL);
+  if ( c_size < 0  ) return ret_value;
+  *size = (hsize_t)c_size;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pfill_value_defined_c
+ * Purpose:     Call H5Pfill_value_defined to check if fill value is defined
+ * Inputs:      prp_id - dataset creation property list identifier
+ * Outputs:     flag - fill value status flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Friday, October 4, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pfill_value_defined_c ( hid_t_f *prp_id , int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5D_fill_value_t c_flag;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pfill_value_defined(c_prp_id, &c_flag) < 0  ) return ret_value;
+  *flag = (int_f)c_flag;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_alloc_time_c
+ * Purpose:     Call H5Pget_alloc_time to get space allocation 
+ *              time for dataset during creation
+ * Inputs:      prp_id - dataset creation property list identifier
+ * Outputs:     flag - allocation time flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Friday, October 4, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_alloc_time_c ( hid_t_f *prp_id , int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5D_alloc_time_t c_flag;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pget_alloc_time(c_prp_id, &c_flag) < 0  ) return ret_value;
+  *flag = (int_f)c_flag;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_alloc_time_c
+ * Purpose:     Call H5Pset_alloc_time to get space allocation 
+ *              time for dataset during creation
+ * Inputs:      prp_id - dataset creation property list identifier
+ *              flag - allocation time flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Friday, October 4, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_alloc_time_c ( hid_t_f *prp_id , int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5D_alloc_time_t c_flag;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_flag = (H5D_alloc_time_t)*flag;
+  if ( H5Pset_alloc_time(c_prp_id, c_flag) < 0  ) return ret_value;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_fill_time_c
+ * Purpose:     Call H5Pget_fill_time to get fill value writing
+ *              time for dataset during creation
+ * Inputs:      prp_id - dataset creation property list identifier
+ * Outputs:     flag - fill value writing  time flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Friday, October 4, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_fill_time_c ( hid_t_f *prp_id , int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5D_fill_time_t c_flag;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pget_fill_time(c_prp_id, &c_flag) < 0  ) return ret_value;
+  *flag = (int_f)c_flag;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_fill_time_c
+ * Purpose:     Call H5Pset_fill_time to set fill value writing
+ *              time for dataset during creation
+ * Inputs:      prp_id - dataset creation property list identifier
+ *              flag - fill value writing  time flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Friday, October 4, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_fill_time_c ( hid_t_f *prp_id , int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5D_fill_time_t c_flag;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_flag = (H5D_fill_time_t)*flag;
+  if ( H5Pset_fill_time(c_prp_id, c_flag) < 0  ) return ret_value;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_meta_block_size_c
+ * Purpose:     Call H5Pset_meta_block_size to set size of  metadata block
+ * Inputs:      prp_id - file access  property list identifier
+ *              size   - size of the metadata block
+ * Outputs:     NONE 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_meta_block_size_c ( hid_t_f *prp_id , hsize_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  hsize_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_size = (hsize_t)*size;
+  if ( H5Pset_meta_block_size(c_prp_id, c_size) < 0  ) ret_value = -1;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_meta_block_size_c
+ * Purpose:     Call H5Pget_meta_block_size to get size of  metadata block
+ * Inputs:      prp_id - file access  property list identifier
+ * Outputs:     
+ *              size   - size of the metadata block
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_meta_block_size_c ( hid_t_f *prp_id , hsize_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  hsize_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pget_meta_block_size(c_prp_id, &c_size) < 0  ) ret_value = -1;
+  *size = (hsize_t_f)c_size;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_sieve_buf_size_c
+ * Purpose:     Call H5Pset_sieve_buf_size to set size of datasieve buffer
+ * Inputs:      prp_id - file access  property list identifier
+ *              size   - size of the buffer
+ * Outputs:     NONE 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_sieve_buf_size_c ( hid_t_f *prp_id , size_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  size_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_size = (size_t)*size;
+  if ( H5Pset_sieve_buf_size(c_prp_id, c_size) < 0  ) ret_value = -1;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_sieve_buf_size_c
+ * Purpose:     Call H5Pget_sieve_buf_size to get size of datasieve buffer
+ * Inputs:      prp_id - file access  property list identifier
+ * Outputs:     
+ *              size   - size of the buffer
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_sieve_buf_size_c ( hid_t_f *prp_id , size_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  size_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pget_sieve_buf_size(c_prp_id, &c_size) < 0  ) ret_value = -1;
+  *size = (size_t_f)c_size;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_small_data_block_size_c
+ * Purpose:     Call H5Pset_small_data_block_size to set size of raw small data block
+ * Inputs:      prp_id - file access  property list identifier
+ *              size   - size of the block
+ * Outputs:     NONE 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_small_data_block_size_c ( hid_t_f *prp_id , hsize_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  hsize_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_size = (hsize_t)*size;
+  if ( H5Pset_small_data_block_size(c_prp_id, c_size) < 0  ) ret_value = -1;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_small_data_block_size_c
+ * Purpose:     Call H5Pget_small_data_block_size to get size of raw small data block
+ * Inputs:      prp_id - file access  property list identifier
+ * Outputs:     
+ *              size   - size of the block
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_small_data_block_size_c ( hid_t_f *prp_id , hsize_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  hsize_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pget_small_data_block_size(c_prp_id, &c_size) < 0  ) ret_value = -1;
+  *size = (hsize_t_f)c_size;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_hyper_vector_size_c
+ * Purpose:     Call H5Pset_hyper_vector_size to set size of the hyper vector
+ * Inputs:      prp_id - dataset transfer property list identifier
+ *              size   - size of the vector
+ * Outputs:     NONE 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_hyper_vector_size_c ( hid_t_f *prp_id , size_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  size_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_size = (size_t)*size;
+  if ( H5Pset_hyper_vector_size(c_prp_id, c_size) < 0  ) ret_value = -1;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_hyper_vector_size_c
+ * Purpose:     Call H5Pget_hyper_vector_size to get size of the hyper vector
+ * Inputs:      prp_id - dataset transfer property list identifier
+ * Outputs:     
+ *              size   - size of the vector
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday, October 7, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_hyper_vector_size_c ( hid_t_f *prp_id , size_t_f *size)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  size_t c_size;
+
+  c_prp_id = (hid_t)*prp_id;
+  if ( H5Pget_hyper_vector_size(c_prp_id, &c_size) < 0  ) ret_value = -1;
+  *size = (size_t_f)c_size; 
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pcreate_class_c
+ * Purpose:     Call H5Pcreate_class ito create a new property class
+ * Inputs:      parent - property list class identifier
+ *              name   - name of the new class
+ *              name_len - lenght of the "name" buffer
+ * Outputs:     class - new class identifier
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pcreate_class_c(hid_t_f *parent, _fcd name, int_f *name_len, hid_t_f *class)
+{
+     int ret_value = -1;
+     hid_t c_parent;
+     hid_t c_class;
+     char* c_name;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+     c_parent = (hid_t)*parent;
+
+     /*
+      * Call H5Pcreate_class function.
+      */
+     c_class = H5Pcreate_class(c_parent, c_name, NULL, NULL,NULL,NULL,NULL,NULL);
+     if (c_class < 0) goto DONE;
+     *class = (hid_t_f)c_class;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pregisterc_c
+ * Purpose:     Call h5pregister_c to registers a permanent property 
+ * Inputs:      class - property list class identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ *              size - property size 
+ *              value - property value of character type
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pregisterc_c(hid_t_f *class, _fcd name, int_f *name_len, size_t_f *size, _fcd value, int_f *value_len)
+{
+     int ret_value = -1;
+     
+     /*
+      * Call h5pregister_c function
+      */
+      ret_value = nh5pregister_c(class, name, name_len, size, _fcdtocp(value));
+      return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pregister_c
+ * Purpose:     Call H5Pregister to registers a permanent property 
+ * Inputs:      class - property list class identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ *              size - property size 
+ *              value - property value 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pregister_c(hid_t_f *class, _fcd name, int_f *name_len, size_t_f *size, void *value)
+{
+     int ret_value = -1;
+     hid_t c_class;
+     char* c_name;
+     size_t c_size;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+     c_size = (size_t)*size;
+     c_class = (hid_t)*class;
+
+     /*
+      * Call H5Pregister function.
+      */
+     if( H5Pregister(c_class, c_name, c_size, value, NULL,NULL,NULL,NULL,NULL,NULL) <0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pinsertc_c
+ * Purpose:     Call h5pinsert_c to register a temporary property 
+ * Inputs:      plist - property list identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ *              size - property size 
+ *              value - property value of character type
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pinsertc_c(hid_t_f *plist, _fcd name, int_f *name_len, size_t_f *size, _fcd value, int_f *value_len)
+{
+     int ret_value = -1;
+     
+     /*
+      * Call h5pinsert_c function
+      */
+      ret_value = nh5pinsert_c(plist, name, name_len, size, _fcdtocp(value));
+      return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pinsert_c
+ * Purpose:     Call H5Pinsert to iinsert a temporary property
+ * Inputs:      plist - property list class identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ *              size - property size 
+ *              value - property value 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pinsert_c(hid_t_f *plist, _fcd name, int_f *name_len, size_t_f *size, void *value)
+{
+     int ret_value = -1;
+     hid_t c_plist;
+     char* c_name;
+     size_t c_size;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+     c_size = (size_t)*size;
+     c_plist = (hid_t)*plist;
+
+     /*
+      * Call H5Pinsert function.
+      */
+     if( H5Pinsert(c_plist, c_name, c_size, value, NULL,NULL,NULL,NULL,NULL) <0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pexist_c
+ * Purpose:     Call H5Pexist to querie whether a property name exists 
+ *              in a property list or class
+ * Inputs:      plist - property list or property class identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ * Returns:     nonnegative on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pexist_c(hid_t_f *class, _fcd name, int_f *name_len)
+{
+     int ret_value = -1;
+     hid_t c_class;
+     char* c_name;
+     htri_t status;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+
+     c_class = (hid_t)*class;
+     /*
+      * Call H5Pexist function.
+      */
+     status = H5Pexist(c_class, c_name);
+     ret_value = status;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return  ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pisa_class_c
+ * Purpose:     Call H5Pisa_class to querie whether a property is a  
+ *              member of a class 
+ * Inputs:      plist - property list identifier
+ *              class - property class identifier
+ * Returns:     nonnegative on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pisa_class_c(hid_t_f *plist, hid_t_f *class)
+{
+     int ret_value = -1;
+     hid_t c_class;
+     hid_t c_plist;
+     htri_t status;
+
+     c_class = (hid_t)*class;
+     c_plist = (hid_t)*plist;
+
+     /*
+      * Call H5Pisa_class function.
+      */
+     status = H5Pisa_class(c_plist, c_class);
+     ret_value = status;
+     return  ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_size_c
+ * Purpose:     Call H5Pget_size to querie the size of the property
+ * Inputs:      plist - property list to query
+ *              name   - name of the property
+ *              name_len - length of the "name" buffer
+ * Outputs:     size - size of the property in bytes
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pget_size_c(hid_t_f *plist, _fcd name, int_f *name_len, size_t_f *size)
+{
+     int ret_value = -1;
+     hid_t c_plist;
+     char* c_name;
+     size_t c_size;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+
+     c_plist = (hid_t)*plist;
+     /*
+      * Call H5Pget_size function.
+      */
+     if( H5Pget_size(c_plist, c_name, &c_size) < 0) goto DONE;
+     *size = (size_t_f)c_size;
+      ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_nprops_c
+ * Purpose:     Call H5Pget_nporps to get number of the properties in the list
+ * Inputs:      plist - property list to query
+ * Outputs:     nprops - number of properties in the list
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pget_nprops_c(hid_t_f *plist, size_t_f *nprops)
+{
+     int ret_value = -1;
+     hid_t c_plist;
+     size_t c_nprops;
+
+     c_plist = (hid_t)*plist;
+
+     /*
+      * Call H5Pget_nprops function.
+      */
+     if( H5Pget_nprops(c_plist, &c_nprops) < 0) return ret_value;
+
+     *nprops = (size_t_f)c_nprops;
+     ret_value = 0;
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_class_parent_c
+ * Purpose:     Call H5Pget_class_parent to get the parent class of 
+ *              a genereic property class
+ * Inputs:      prp_id - property list to query
+ * Outputs:     parent_id - parent classs identifier
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pget_class_parent_c(hid_t_f *prp_id, hid_t_f *parent_id)
+{
+     int ret_value = -1;
+     hid_t c_prp_id;
+     hid_t c_parent_id;
+
+     c_prp_id = (hid_t)*prp_id;
+
+     /*
+      * Call H5Pget_class_parent function.
+      */
+     c_parent_id = H5Pget_class_parent(c_prp_id);
+     if( c_parent_id < 0) return ret_value;
+
+     *parent_id =(hid_t_f)c_parent_id;
+     ret_value = 0;
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pcopy_prop_c
+ * Purpose:     Call H5Pcopy_prop to copy a property from one list or 
+ *              class to another
+ * Inputs:      dst_id - identifier of destination property list
+ *              src_id - identifier of source property list
+ *              name   - name of the property
+ *              name_len - length of the "name" buffer
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pcopy_prop_c(hid_t_f *dst_id, hid_t_f *src_id, _fcd name, int_f *name_len)
+{
+     int ret_value = -1;
+     hid_t c_dst_id, c_src_id;
+     char* c_name;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+
+     c_dst_id = (hid_t)*dst_id;
+     c_src_id = (hid_t)*src_id;
+     /*
+      * Call H5Pcopy_prop function.
+      */
+     if( H5Pcopy_prop(c_dst_id, c_src_id, c_name) < 0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5premove_c
+ * Purpose:     Call H5Premove to remove a property from a list
+ * Inputs:      plid - identifier of property list
+ *              name   - name of the property to remove
+ *              name_len - length of the "name" buffer
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5premove_c(hid_t_f *plid, _fcd name, int_f *name_len)
+{
+     int ret_value = -1;
+     hid_t c_plid;
+     char* c_name;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+
+     c_plid = (hid_t)*plid;
+     /*
+      * Call H5Premove function.
+      */
+     if( H5Premove(c_plid, c_name) < 0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5punregister_c
+ * Purpose:     Call H5Punregister to remove a property from a property class
+ * Inputs:      class - identifier of property class
+ *              name   - name of the property to unregister
+ *              name_len - length of the "name" buffer
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5punregister_c(hid_t_f *class, _fcd name, int_f *name_len)
+{
+     int ret_value = -1;
+     hid_t c_class;
+     char* c_name;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+
+     c_class = (hid_t)*class;
+     /*
+      * Call H5Punregister function.
+      */
+     if( H5Punregister(c_class, c_name) < 0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pclose_class_c
+ * Purpose:     Call H5Pclose_class to close property class
+ * Inputs:      class - identifier of property class to close
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pclose_class_c(hid_t_f *class)
+{
+     int ret_value = -1;
+     hid_t c_class;
+
+     c_class = (hid_t)*class;
+     /*
+      * Call H5Pclose_class function.
+      */
+     if( H5Pclose_class(c_class) < 0) return ret_value;
+     ret_value = 0;
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_class_name_c
+ * Purpose:     Call H5Pget_class_name to get property class name 
+ * Inputs:      class - identifier of property class
+ *              name   - ibuffer to retrieve name in
+ *              name_len - length of the "name" buffer
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pget_class_name_c(hid_t_f *class, _fcd name, int_f *name_len)
+{
+     int ret_value = -1;
+     hid_t c_class;
+     char* c_name;
+
+
+     c_class = (hid_t)*class;
+     /*
+      * Call H5Pget_class_name function.
+      */
+     c_name = H5Pget_class_name(c_class); 
+     if( c_name == NULL) goto DONE;
+
+     HD5packFstring(c_name, _fcdtocp(name), (int)*name_len);
+     ret_value = strlen(c_name);
+
+DONE:
+     HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_c
+ * Purpose:     Call h5setc_c to set property with the character string value
+ * Inputs:      plist - property list identifier
+ *              name   - name of property
+ *              name_len - length of the "name" buffer
+ *              value - property value of character type
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5psetc_c(hid_t_f *plist, _fcd name, int_f *name_len, _fcd value, int_f *value_len)
+{
+     int ret_value = -1;
+     
+     /*
+      * Call h5pset_c function
+      */
+      ret_value = nh5pset_c(plist, name, name_len, _fcdtocp(value));
+      return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_c
+ * Purpose:     Call H5Pset to set property value
+ * Inputs:      plist - property list class identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ *              value - property value 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pset_c(hid_t_f *plist, _fcd name, int_f *name_len, void *value)
+{
+     int ret_value = -1;
+     hid_t c_plist;
+     char* c_name;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+     c_plist = (hid_t)*plist;
+
+     /*
+      * Call H5Pset function.
+      */
+     if( H5Pset(c_plist, c_name, value) <0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pgetc_c
+ * Purpose:     Call h5set_c to set property with the character string value
+ * Inputs:      plist - property list identifier
+ *              name   - name of property
+ *              name_len - length of the "name" buffer
+ * Output:      value - property value of character type
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pgetc_c(hid_t_f *plist, _fcd name, int_f *name_len, _fcd value, int_f *value_len)
+{
+     int ret_value = -1;
+     
+     /*
+      * Call h5pget_c function
+      */
+      ret_value = nh5pget_c(plist, name, name_len, _fcdtocp(value));
+      return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_c
+ * Purpose:     Call H5Pget to set property value
+ * Inputs:      plist - property list class identifier
+ *              name   - name of the new property
+ *              name_len - length of the "name" buffer
+ * Output:      value - property value 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              October 11, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pget_c(hid_t_f *plist, _fcd name, int_f *name_len, void *value)
+{
+     int ret_value = -1;
+     hid_t c_plist;
+     char* c_name;
+
+     c_name = (char *)HD5f2cstring(name, (int)*name_len); 
+     if (c_name == NULL) goto DONE;
+     c_plist = (hid_t)*plist;
+
+     /*
+      * Call H5Pset function.
+      */
+     if( H5Pget(c_plist, c_name, value) <0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     if(c_name != NULL) HDfree(c_name);
+     return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_shuffle_c
+ * Purpose:     Call H5Pset_shuffle 
+ * Inputs:      prp_id - property list identifier 
+ *              type_size - size of the datatype in bytes
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Wednesday, March 12, 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_shuffle_c ( hid_t_f *prp_id )
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  herr_t status;
+
+  c_prp_id = (hid_t)*prp_id;
+  status = H5Pset_shuffle(c_prp_id);
+  if ( status < 0  ) ret_value = -1;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_fletcher32_c
+ * Purpose:     Call H5Pset_fletcher32 to enable EDC
+ * Inputs:      prp_id - dataset creation property list identifier 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Thursday, March 13, 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_fletcher32_c ( hid_t_f *prp_id )
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  herr_t status;
+
+  c_prp_id = (hid_t)*prp_id;
+  status = H5Pset_fletcher32(c_prp_id);
+  if ( status < 0  ) ret_value = -1;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_edc_check_c
+ * Purpose:     Call H5Pset_edc_check to enable EDC
+ * Inputs:      prp_id - dataset transfer property list identifier 
+ *              flag   - EDC flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Thursday, March 13, 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_edc_check_c ( hid_t_f *prp_id, int_f *flag )
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  H5Z_EDC_t c_flag;
+  herr_t status;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_flag = (H5Z_EDC_t)*flag;
+  status = H5Pset_edc_check(c_prp_id, c_flag);
+  if ( status < 0  ) ret_value = -1;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_edc_check_c
+ * Purpose:     Call H5Pget_edc_check to query EDC
+ * Inputs:      prp_id - dataset transfer property list identifier 
+ * Outouts:     flag   - EDC flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Thursday, March 13, 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_edc_check_c ( hid_t_f *prp_id, int_f *flag )
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  H5Z_EDC_t c_flag;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_flag = H5Pget_edc_check(c_prp_id);
+  if ( c_flag  < 0  ) ret_value = -1;
+  *flag = (int_f)c_flag;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_family_offset_c
+ * Purpose:     Call H5Pset_family_offset to set and offset for family driver
+ * Inputs:      prp_id - property list identifier 
+ *              offset - offset in bytes
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Wednesday, 19 March 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_family_offset_c ( hid_t_f *prp_id , hsize_t_f *offset)
+{
+  int ret_value = 0;
+  hid_t c_prp_id;
+  hsize_t c_offset;
+  herr_t status;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_offset = (hsize_t)*offset;
+  status = H5Pset_family_offset(c_prp_id, c_offset);
+  if ( status < 0  ) ret_value = -1;
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_fapl_multi_c
+ * Purpose:     Call H5Pset_fapl_multi to set multi file dirver
+ * Inputs:      prp_id - file_creation property list identifier 
+ *              mem_map - memory mapping array
+ *              memb_fapl - property list for each memory usage type 
+ *              memb_name - array with members names
+ *              len - array with the lenght of each name
+ *              lenmax - lenght of the name a sdeclared in Fortran
+ *              flag - flag allowing partila access when one of the files is missing
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday 24, March 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+/*nh5pset_fapl_multi_c ( hid_t_f *prp_id , int_f *memb_map, hid_t_f *memb_fapl, _fcd memb_name, int_f *len, int_f *lenmax, haddr_t_f *memb_addr, int_f *flag) */
+nh5pset_fapl_multi_c ( hid_t_f *prp_id , int_f *memb_map, hid_t_f *memb_fapl, _fcd memb_name, int_f *len, int_f *lenmax, real_f *memb_addr, int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5FD_mem_t c_memb_map[H5FD_MEM_NTYPES];
+  hid_t c_memb_fapl[H5FD_MEM_NTYPES];
+  const char *c_memb_name[H5FD_MEM_NTYPES]; 
+  haddr_t c_memb_addr[H5FD_MEM_NTYPES]; 
+  hbool_t relax; 
+  herr_t status;
+  char *tmp, *tmp_p, *tmp_pp;
+  int i;
+  int c_lenmax;
+  c_lenmax = (int)*lenmax;
+  relax = (hbool_t)*flag;
+/*
+ * Check that we got correct values from Fortran for memb_addr array
+ */
+  for (i=0; i < H5FD_MEM_NTYPES; i++) {
+       if(memb_addr[i] >= 1.) return ret_value;
+  }
+/*
+ * Take care of names array
+ */
+
+  tmp = (char *)HD5f2cstring(memb_name, c_lenmax*(H5FD_MEM_NTYPES));
+  if (tmp ==NULL) return ret_value; 
+  tmp_p = tmp;
+  for (i=0; i < H5FD_MEM_NTYPES; i++) {
+       c_memb_name[i] = (char *) malloc(len[i] + 1);
+       memcpy((char *)c_memb_name[i], tmp_p, len[i]);
+       tmp_pp = (char *)c_memb_name[i];
+       tmp_pp[len[i]] = '\0';
+       tmp_p = tmp_p + c_lenmax;
+/*       printf(" %d \n", len[i]);
+       printf("name %s \n", c_memb_name[i]);
+*/
+ } 
+/*
+ * Take care of othe arguments
+ */
+ 
+  c_prp_id = (hid_t)*prp_id;
+  for (i=0; i < H5FD_MEM_NTYPES; i++) {
+       c_memb_map[i] = (H5FD_mem_t)memb_map[i];
+       /*printf("map %d \n", c_memb_map[i]); */
+       c_memb_fapl[i] = (hid_t)memb_fapl[i];
+       /*printf("fapl %d \n", c_memb_fapl[i]); */
+       if(memb_addr[i] < 0) c_memb_addr[i] = HADDR_UNDEF;
+       else c_memb_addr[i] = (haddr_t)(((float)memb_addr[i])*(HADDR_MAX)); 
+       /*printf("address %Ld \n", c_memb_addr[i]); */
+  }     
+/*
+ * Call  H5Pset_fapl_multi function
+ */
+
+  status = H5Pset_fapl_multi(c_prp_id, c_memb_map, c_memb_fapl, c_memb_name, c_memb_addr, relax);
+  if ( status < 0  ) goto DONE;
+  ret_value = 0;
+
+DONE:
+  free(tmp);
+  for (i=0; i < H5FD_MEM_NTYPES; i++) free((char *)c_memb_name[i]);
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_fapl_multi_sc
+ * Purpose:     Call H5Pset_fapl_multi to set multi file dirver
+ * Inputs:      prp_id - file_creation property list identifier 
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              March 31 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_fapl_multi_sc ( hid_t_f *prp_id , int_f *flag)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  hbool_t relax; 
+  herr_t status;
+
+  relax = (hbool_t)*flag;
+  c_prp_id = (hid_t)*prp_id;
+/*
+ * Call  H5Pset_fapl_multi function
+ */
+
+  status = H5Pset_fapl_multi(c_prp_id, NULL, NULL, NULL, NULL, relax);
+  if ( status < 0  ) return ret_value;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_fapl_multi_c
+ * Purpose:     Call H5Pget_fapl_multi to set multi file dirver
+ * Inputs:      prp_id - file_creation property list identifier 
+ *              lenmax - lenght of the name a sdeclared in Fortran
+ * Outputs:     memb_map - memory mapping array
+ *              memb_fapl - property list for each memory usage type 
+ *              memb_name - array with members names
+ *              len - array with the lenght of each name
+ *              flag - flag allowing partila access when one of the files is missing
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Monday 24, March 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pget_fapl_multi_c ( hid_t_f *prp_id , int_f *memb_map, hid_t_f *memb_fapl, _fcd memb_name, int_f *len, int_f *lenmax, real_f *memb_addr, int_f *flag, int_f *maxlen_out)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  H5FD_mem_t c_memb_map[H5FD_MEM_NTYPES];
+  hid_t c_memb_fapl[H5FD_MEM_NTYPES];
+  char *c_memb_name[H5FD_MEM_NTYPES]; 
+  haddr_t c_memb_addr[H5FD_MEM_NTYPES];
+  hbool_t relax; 
+  herr_t status;
+  char *tmp, *tmp_p;
+  int i;
+  int c_lenmax;
+  int length = 0;
+  c_lenmax = (int)*lenmax;
+
+  c_prp_id = (hid_t)*prp_id;
+/*
+ * Call  H5Pget_fapl_multi function
+ */
+
+  status = H5Pget_fapl_multi(c_prp_id, c_memb_map, c_memb_fapl, c_memb_name, c_memb_addr, &relax);
+  if ( status < 0  ) return ret_value; 
+
+/*
+ * Take care of names array
+ */
+  tmp = (char *)malloc(c_lenmax*H5FD_MEM_NTYPES + 1);
+  tmp_p = tmp;
+  for (i=0; i < c_lenmax*H5FD_MEM_NTYPES; i++) tmp[i] = ' ';
+  tmp[c_lenmax*H5FD_MEM_NTYPES] = '\0';
+  for (i=0; i < H5FD_MEM_NTYPES; i++) {
+       memcpy(tmp_p, c_memb_name[i], strlen(c_memb_name[i]));
+       len[i] = (int_f)strlen(c_memb_name[i]);
+       length = H5_MAX(length, strlen(c_memb_name[i]));
+       tmp_p = tmp_p + c_lenmax;
+ } 
+HD5packFstring(tmp, _fcdtocp(memb_name), c_lenmax*H5FD_MEM_NTYPES);
+
+/*
+ * Take care of other arguments
+ */
+ 
+  for (i=0; i < H5FD_MEM_NTYPES; i++) {
+       memb_map[i] = (int_f)c_memb_map[i];
+       memb_fapl[i] = (hid_t_f)c_memb_fapl[i];
+#if defined(WIN32)
+       memb_addr[i] = -1;
+#else
+       if(c_memb_addr[i] == HADDR_UNDEF) memb_addr[i] = -1;
+       else memb_addr[i] = (real_f) ((long)c_memb_addr[i]/HADDR_MAX);
+#endif /*WIN32*/
+  }     
+  *flag = (int_f)relax; 
+  *maxlen_out = (int_f)length;
+  ret_value = 0;
+  free(tmp);
+  for (i=0; i < H5FD_MEM_NTYPES; i++) free(c_memb_name[i]);
+  return ret_value;
+}
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pset_szip_c
+ * Purpose:     Call H5Pset_szip to set szip compression
+ * Inputs:      prp_id - dataset creation property list identifier 
+ *              options_mask
+ *              pixels_per_block -szip compression parameters
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              April 8 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pset_szip_c ( hid_t_f *prp_id , int_f *options_mask, int_f *pixels_per_block)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  unsigned   c_options_mask;
+  unsigned  c_pixels_per_block;
+  herr_t status;
+
+  c_prp_id = (hid_t)*prp_id;
+  c_options_mask = (unsigned)*options_mask;
+  c_pixels_per_block = (unsigned)*pixels_per_block;
+/*
+ * Call  H5Pset_szip function
+ */
+
+  status = H5Pset_szip(c_prp_id, c_options_mask, c_pixels_per_block);
+  if ( status < 0  ) return ret_value;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pall_filters_avail_c
+ * Purpose:     Call H5Pall_filters_avail
+ * Inputs:      prp_id - dataset creation property list identifier 
+ * Outputs:     status - logical flag
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              April 10 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5pall_filters_avail_c ( hid_t_f *prp_id , int_f *status)
+{
+  int ret_value = -1;
+  hid_t c_prp_id;
+  htri_t c_status;
+  
+
+  c_prp_id = (hid_t)*prp_id;
+/*
+ * Call  H5Pall_filters_avail function
+ */
+
+  c_status = H5Pall_filters_avail(c_prp_id);
+  if ( c_status < 0  ) return ret_value;
+  *status = 0;
+  if (c_status == 1) *status = 1;
+  ret_value = 0;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5pget_filter_by_id_c
+ * Purpose:     Call H5Pget_filter_by_id to get information about a filter 
+ *              in a pipeline
+ * Inputs:      prp_id - property list identifier
+ *              filter_id - filter id
+ *              namelen - Anticipated number of characters in name.
+ *Outputs:      flags - Bit vector specifying certain general 
+ *                      properties of the filter.
+ *              cd_nelmts - Number of elements in cd_value
+ *              cd_values - Auxiliary data for the filter. 
+ *              name - Name of the filter
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena POurmal
+ *              April 10, 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pget_filter_by_id_c(hid_t_f *prp_id, int_f* filter_id, int_f* flags, size_t_f* cd_nelmts, int_f* cd_values, size_t_f *namelen, _fcd name)
+{
+     int ret_value = -1;
+     hid_t c_prp_id;
+     H5Z_filter_t c_filter_id;
+     unsigned int  c_flags;
+     size_t c_cd_nelmts, c_namelen;
+     size_t c_cd_nelmts_in;
+     unsigned int * c_cd_values;
+     char* c_name;
+     int i;
+     herr_t status;
+     c_cd_nelmts_in = (size_t)*cd_nelmts;
+     c_cd_nelmts = (size_t)*cd_nelmts;
+     c_namelen = (size_t)*namelen + 1;
+     c_name = (char*)malloc(sizeof(char)*c_namelen);
+     if (!c_name) return ret_value;
+
+     c_cd_values = (unsigned int*)malloc(sizeof(unsigned int)*((int)c_cd_nelmts_in));
+     if (!c_cd_values) {HDfree(c_name);
+                        return ret_value;
+                       }
+                        
+ 
+     /*
+      * Call H5Pget_filter function.
+      */
+     c_prp_id = (hid_t)*prp_id;
+     c_filter_id = (H5Z_filter_t)*filter_id;
+     status = H5Pget_filter_by_id(c_prp_id, c_filter_id, &c_flags, &c_cd_nelmts, c_cd_values, c_namelen, c_name);
+     if (status < 0) goto DONE;
+
+     *cd_nelmts = (size_t_f)c_cd_nelmts;
+     *flags = (int_f)c_flags;
+     HD5packFstring(c_name, _fcdtocp(name), strlen(c_name)); 
+ 
+     for (i = 0; i < c_cd_nelmts_in; i++)
+          cd_values[i] = (int_f)c_cd_values[i];
+    
+     ret_value = 0;
+
+DONE:
+     HDfree(c_name);
+     HDfree(c_cd_values);
+     return ret_value;
+} 
+
+/*----------------------------------------------------------------------------
+ * Name:        h5pmodify_filter_c
+ * Purpose:     Call H5Pmodify_filter to modify a filter
+ * Inputs:      prp_id - property list identifier 
+ *              filter - Filter to be modified
+ *              flags - Bit vector specifying certain general
+ *                      properties of the filter.
+ *              cd_nelmts - Number of elements in cd_values.
+ *              cd_values - Auxiliary data for the filter.
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              April 10 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5pmodify_filter_c (hid_t_f *prp_id, int_f* filter, int_f* flags, size_t_f* cd_nelmts, int_f* cd_values )
+{
+     int ret_value = -1;
+     hid_t c_prp_id;
+     herr_t ret;
+     size_t c_cd_nelmts;
+     unsigned int c_flags;
+     H5Z_filter_t c_filter;
+     unsigned int * c_cd_values;
+     int i;
+     
+     c_filter = (H5Z_filter_t)*filter;
+     c_flags = (unsigned)*flags;
+     c_cd_nelmts = (size_t)*cd_nelmts;
+     c_cd_values = (unsigned int*)malloc(sizeof(unsigned int)*((int)c_cd_nelmts));
+     if (!c_cd_values) return ret_value;
+     for (i = 0; i < c_cd_nelmts; i++)
+          c_cd_values[i] = (unsigned int)cd_values[i];
+
+     /*
+      * Call H5Pmodify_filter function.
+      */
+     c_prp_id = (hid_t)*prp_id;
+     ret = H5Pmodify_filter(c_prp_id, c_filter, c_flags, c_cd_nelmts,c_cd_values );
+
+     if (ret < 0) goto DONE;
+     ret_value = 0;
+
+DONE:
+     HDfree(c_cd_values);
+     return ret_value;
+}
+

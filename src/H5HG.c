@@ -35,19 +35,96 @@
  *		for a new object based on object size, amount of free space
  *		in the collection, and temporal locality.
  */
-#define H5F_PACKAGE		/*suppress error about including H5Fpkg */
 
-#include "H5private.h"		/*library		  		*/
-#include "H5ACprivate.h"	/*caching				*/
-#include "H5Eprivate.h"		/*error handling			*/
-#include "H5Fpkg.h"             /*file access                           */
-#include "H5FLprivate.h"	/*free lists                            */
-#include "H5HGprivate.h"	/*global heaps				*/
-#include "H5MFprivate.h"	/*file memory management		*/
-#include "H5MMprivate.h"	/*core memory management		*/
-#include "H5Pprivate.h"		/*property lists			*/
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5ACprivate.h"	/* Metadata cache			*/
+#include "H5Eprivate.h"		/* Error handling		  	*/
+#include "H5Fpkg.h"             /* File access				*/
+#include "H5FLprivate.h"	/* Free lists                           */
+#include "H5HGprivate.h"	/* Global heaps				*/
+#include "H5MFprivate.h"	/* File memory management		*/
+#include "H5MMprivate.h"	/* Memory management			*/
+
+/* Pablo information */
 #define PABLO_MASK	H5HG_mask
+
+/* Private macros */
+
+/*
+ * Global heap collection version.
+ */
+#define H5HG_VERSION	1
+
+/*
+ * Pad all global heap messages to a multiple of eight bytes so we can load
+ * the entire collection into memory and operate on it there.  Eight should
+ * be sufficient for machines that have alignment constraints because our
+ * largest data type is eight bytes.
+ */
+#define H5HG_ALIGNMENT	8
+#define H5HG_ALIGN(X)	(H5HG_ALIGNMENT*(((X)+H5HG_ALIGNMENT-1)/	      \
+					 H5HG_ALIGNMENT))
+#define H5HG_ISALIGNED(X) ((X)==H5HG_ALIGN(X))
+
+/*
+ * All global heap collections are at least this big.  This allows us to read
+ * most collections with a single read() since we don't have to read a few
+ * bytes of header to figure out the size.  If the heap is larger than this
+ * then a second read gets the rest after we've decoded the header.
+ */
+#define H5HG_MINSIZE	4096
+
+/*
+ * Maximum length of the CWFS list, the list of remembered collections that
+ * have free space.
+ */
+#define H5HG_NCWFS	16
+
+/*
+ * The maximum number of links allowed to a global heap object.
+ */
+#define H5HG_MAXLINK	65535
+
+/*
+ * The size of the collection header, always a multiple of the alignment so
+ * that the stuff that follows the header is aligned.
+ */
+#define H5HG_SIZEOF_HDR(f)						      \
+    H5HG_ALIGN(4 +			/*magic number		*/	      \
+	       1 +			/*version number	*/	      \
+	       3 +			/*reserved		*/	      \
+	       H5F_SIZEOF_SIZE(f))	/*collection size	*/
+
+/*
+ * The overhead associated with each object in the heap, always a multiple of
+ * the alignment so that the stuff that follows the header is aligned.
+ */
+#define H5HG_SIZEOF_OBJHDR(f)						      \
+    H5HG_ALIGN(2 +			/*object id number	*/	      \
+	       2 +			/*reference count	*/	      \
+	       4 +			/*reserved		*/	      \
+	       H5F_SIZEOF_SIZE(f))	/*object data size	*/
+
+/*
+ * The initial guess for the number of messages in a collection.  We assume
+ * that all objects in that collection are zero length, giving the maximum
+ * possible number of objects in the collection.  The collection itself has
+ * some overhead and each message has some overhead.  The `+2' accounts for
+ * rounding and for the free space object.
+ */
+#define H5HG_NOBJS(f,z) (int)((((z)-H5HG_SIZEOF_HDR(f))/		      \
+			       H5HG_SIZEOF_OBJHDR(f)+2))
+
+/*
+ * Makes a global heap object pointer undefined, or checks whether one is
+ * defined.
+ */
+#define H5HG_undef(HGP)	((HGP)->idx=0)
+#define H5HG_defined(HGP) ((HGP)->idx!=0)
+
+/* Private typedefs */
 
 typedef struct H5HG_obj_t {
     int		nrefs;		/*reference count		*/
@@ -61,16 +138,23 @@ struct H5HG_heap_t {
     haddr_t		addr;		/*collection address		*/
     size_t		size;		/*total size of collection	*/
     uint8_t		*chunk;		/*the collection, incl. header	*/
-    int		nalloc;		/*numb object slots allocated	*/
+    size_t		nalloc;		/*numb object slots allocated	*/
     H5HG_obj_t	*obj;		/*array of object descriptions	*/
 };
 
 /* PRIVATE PROTOTYPES */
+static H5HG_heap_t *H5HG_create(H5F_t *f, hid_t dxpl_id, size_t size);
+#ifdef NOT_YET
+static void *H5HG_peek(H5F_t *f, hid_t dxpl_id, H5HG_t *hobj);
+#endif /* NOT_YET */
+
+/* Metadata cache callbacks */
 static H5HG_heap_t *H5HG_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void *udata1,
 			      void *udata2);
 static herr_t H5HG_flush(H5F_t *f, hid_t dxpl_id, hbool_t dest, haddr_t addr,
 			 H5HG_heap_t *heap);
 static herr_t H5HG_dest(H5F_t *f, H5HG_heap_t *heap);
+static herr_t H5HG_clear(H5HG_heap_t *heap);
 
 /*
  * H5HG inherits cache-like properties from H5AC
@@ -80,6 +164,7 @@ static const H5AC_class_t H5AC_GHEAP[1] = {{
     (H5AC_load_func_t)H5HG_load,
     (H5AC_flush_func_t)H5HG_flush,
     (H5AC_dest_func_t)H5HG_dest,
+    (H5AC_clear_func_t)H5HG_clear,
 }};
 
 /* Interface initialization */
@@ -117,7 +202,7 @@ H5FL_BLK_DEFINE_STATIC(heap_chunk);
  *
  *-------------------------------------------------------------------------
  */
-H5HG_heap_t *
+static H5HG_heap_t *
 H5HG_create (H5F_t *f, hid_t dxpl_id, size_t size)
 {
     H5HG_heap_t	*heap = NULL;
@@ -126,38 +211,28 @@ H5HG_create (H5F_t *f, hid_t dxpl_id, size_t size)
     haddr_t	addr;
     size_t	n;
     
-    FUNC_ENTER (H5HG_create, NULL);
+    FUNC_ENTER_NOAPI(H5HG_create, NULL);
 
     /* Check args */
     assert (f);
     if (size<H5HG_MINSIZE)
         size = H5HG_MINSIZE;
     size = H5HG_ALIGN(size);
-#ifdef QAK
-printf("%s: size=%d\n",FUNC,(int)size);
-#endif /* QAK */
 
     /* Create it */
-    if (HADDR_UNDEF==(addr=H5MF_alloc(f, H5FD_MEM_GHEAP, dxpl_id, (hsize_t)size))) {
-	HGOTO_ERROR (H5E_HEAP, H5E_CANTINIT, NULL,
-		     "unable to allocate file space for global heap");
-    }
-    if (NULL==(heap = H5FL_ALLOC (H5HG_heap_t,1))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		     "memory allocation failed");
-    }
+    H5_CHECK_OVERFLOW(size,size_t,hsize_t);
+    if (HADDR_UNDEF==(addr=H5MF_alloc(f, H5FD_MEM_GHEAP, dxpl_id, (hsize_t)size)))
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTINIT, NULL, "unable to allocate file space for global heap");
+    if (NULL==(heap = H5FL_CALLOC (H5HG_heap_t)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     heap->addr = addr;
     heap->size = size;
     heap->cache_info.dirty = TRUE;
-    if (NULL==(heap->chunk = H5FL_BLK_ALLOC (heap_chunk,(hsize_t)size,0))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		     "memory allocation failed");
-    }
+    if (NULL==(heap->chunk = H5FL_BLK_MALLOC (heap_chunk,size)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     heap->nalloc = H5HG_NOBJS (f, size);
-    if (NULL==(heap->obj = H5FL_ARR_ALLOC (H5HG_obj_t,(hsize_t)heap->nalloc,1))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		     "memory allocation failed");
-    }
+    if (NULL==(heap->obj = H5FL_ARR_CALLOC (H5HG_obj_t,heap->nalloc)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* Initialize the header */
     HDmemcpy (heap->chunk, H5HG_MAGIC, H5HG_SIZEOF_MAGIC);
@@ -174,14 +249,11 @@ printf("%s: size=%d\n",FUNC,(int)size);
      * align the pointer, but this might not be the case.
      */
     n = H5HG_ALIGN(p-heap->chunk) - (p-heap->chunk);
-    memset(p, 0, n);
+    HDmemset(p, 0, n);
     p += n;
 
     /* The freespace object */
     heap->obj[0].size = size - H5HG_SIZEOF_HDR(f);
-#ifdef QAK
-printf("%s: heap->obj[0].size=%d, size=%d\n",FUNC,(int)heap->obj[0].size,(int)size);
-#endif /* QAK */
     assert(H5HG_ISALIGNED(heap->obj[0].size));
     heap->obj[0].begin = p;
     UINT16ENCODE(p, 0);	/*object ID*/
@@ -191,36 +263,30 @@ printf("%s: heap->obj[0].size=%d, size=%d\n",FUNC,(int)heap->obj[0].size,(int)si
     HDmemset (p, 0, (size_t)((heap->chunk+heap->size) - p));
 
     /* Add the heap to the cache */
-    if (H5AC_set (f, dxpl_id, H5AC_GHEAP, addr, heap)<0) {
-	HGOTO_ERROR (H5E_HEAP, H5E_CANTINIT, NULL,
-		     "unable to cache global heap collection");
-    }
+    if (H5AC_set (f, dxpl_id, H5AC_GHEAP, addr, heap)<0)
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTINIT, NULL, "unable to cache global heap collection");
 
     /* Add this heap to the beginning of the CWFS list */
     if (NULL==f->shared->cwfs) {
 	f->shared->cwfs = H5MM_malloc (H5HG_NCWFS * sizeof(H5HG_heap_t*));
-	if (NULL==(f->shared->cwfs)) {
-	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-			 "memory allocation failed");
-	}
+	if (NULL==(f->shared->cwfs))
+	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 	f->shared->cwfs[0] = heap;
 	f->shared->ncwfs = 1;
     } else {
-	HDmemmove (f->shared->cwfs+1, f->shared->cwfs,
-		   MIN (f->shared->ncwfs, H5HG_NCWFS-1)*sizeof(H5HG_heap_t*));
+	HDmemmove (f->shared->cwfs+1, f->shared->cwfs, MIN (f->shared->ncwfs, H5HG_NCWFS-1)*sizeof(H5HG_heap_t*));
 	f->shared->cwfs[0] = heap;
 	f->shared->ncwfs = MIN (H5HG_NCWFS, f->shared->ncwfs+1);
     }
 
     ret_value = heap;
 
- done:
+done:
     if (!ret_value && heap) {
-        H5FL_BLK_FREE(heap_chunk,heap->chunk);
-        H5FL_ARR_FREE (H5HG_obj_t,heap->obj);
-        H5FL_FREE (H5HG_heap_t,heap);
+        if(H5HG_dest(f,heap)<0)
+	    HDONE_ERROR(H5E_HEAP, H5E_CANTFREE, NULL, "unable to destroy global heap collection");
     }
-    FUNC_LEAVE (ret_value);
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -246,8 +312,8 @@ printf("%s: heap->obj[0].size=%d, size=%d\n",FUNC,(int)heap->obj[0].size,(int)si
  *-------------------------------------------------------------------------
  */
 static H5HG_heap_t *
-H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
-	   void UNUSED *udata2)
+H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED * udata1,
+	   void UNUSED * udata2)
 {
     H5HG_heap_t	*heap = NULL;
     H5HG_heap_t	*ret_value = NULL;
@@ -255,7 +321,7 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
     int	i;
     size_t	nalloc, need;
     
-    FUNC_ENTER (H5HG_load, NULL);
+    FUNC_ENTER_NOAPI(H5HG_load, NULL);
 
     /* check arguments */
     assert (f);
@@ -264,33 +330,22 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
     assert (!udata2);
 
     /* Read the initial 4k page */
-    if (NULL==(heap = H5FL_ALLOC (H5HG_heap_t,1))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		     "memory allocation failed");
-    }
+    if (NULL==(heap = H5FL_CALLOC (H5HG_heap_t)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     heap->addr = addr;
-    if (NULL==(heap->chunk = H5FL_BLK_ALLOC (heap_chunk,(hsize_t)H5HG_MINSIZE,0))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		     "memory allocation failed");
-    }
-    if (H5F_block_read(f, H5FD_MEM_GHEAP, addr, (hsize_t)H5HG_MINSIZE, dxpl_id,
-		       heap->chunk)<0) {
-	HGOTO_ERROR (H5E_HEAP, H5E_READERROR, NULL,
-		     "unable to read global heap collection");
-    }
+    if (NULL==(heap->chunk = H5FL_BLK_MALLOC (heap_chunk,H5HG_MINSIZE)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    if (H5F_block_read(f, H5FD_MEM_GHEAP, addr, H5HG_MINSIZE, dxpl_id, heap->chunk)<0)
+	HGOTO_ERROR (H5E_HEAP, H5E_READERROR, NULL, "unable to read global heap collection");
 
     /* Magic number */
-    if (HDmemcmp (heap->chunk, H5HG_MAGIC, H5HG_SIZEOF_MAGIC)) {
-	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL,
-		     "bad global heap collection signature");
-    }
+    if (HDmemcmp (heap->chunk, H5HG_MAGIC, H5HG_SIZEOF_MAGIC))
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL, "bad global heap collection signature");
     p = heap->chunk + H5HG_SIZEOF_MAGIC;
 
     /* Version */
-    if (H5HG_VERSION!=*p++) {
-	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL,
-		     "wrong version number in global heap");
-    }
+    if (H5HG_VERSION!=*p++)
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL, "wrong version number in global heap");
 
     /* Reserved */
     p += 3;
@@ -305,25 +360,18 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
      */
     if (heap->size > H5HG_MINSIZE) {
 	haddr_t next_addr = addr + (hsize_t)H5HG_MINSIZE;
-	if (NULL==(heap->chunk = H5FL_BLK_REALLOC (heap_chunk, heap->chunk, (hsize_t)heap->size))) {
-	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-			 "memory allocation failed");
-	}
-	if (H5F_block_read (f, H5FD_MEM_GHEAP, next_addr, (hsize_t)(heap->size-H5HG_MINSIZE),
-			    dxpl_id, heap->chunk+H5HG_MINSIZE)<0) {
-	    HGOTO_ERROR (H5E_HEAP, H5E_READERROR, NULL,
-			 "unable to read global heap collection");
-	}
+	if (NULL==(heap->chunk = H5FL_BLK_REALLOC (heap_chunk, heap->chunk, heap->size)))
+	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+	if (H5F_block_read (f, H5FD_MEM_GHEAP, next_addr, (heap->size-H5HG_MINSIZE), dxpl_id, heap->chunk+H5HG_MINSIZE)<0)
+	    HGOTO_ERROR (H5E_HEAP, H5E_READERROR, NULL, "unable to read global heap collection");
     }
 
     /* Decode each object */
     p = heap->chunk + H5HG_SIZEOF_HDR (f);
     nalloc = H5HG_NOBJS (f, heap->size);
-    if (NULL==(heap->obj = H5FL_ARR_ALLOC (H5HG_obj_t,(hsize_t)nalloc,1))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		     "memory allocation failed");
-    }
-    heap->nalloc = (int)nalloc;
+    if (NULL==(heap->obj = H5FL_ARR_CALLOC (H5HG_obj_t,nalloc)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    heap->nalloc = nalloc;
     while (p<heap->chunk+heap->size) {
 	if (p+H5HG_SIZEOF_OBJHDR(f)>heap->chunk+heap->size) {
 	    /*
@@ -335,8 +383,9 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
 	    heap->obj[0].begin = p;
 	    p += heap->obj[0].size;
 	} else {
-	    int idx;
+	    unsigned idx;
 	    uint8_t *begin = p;
+
 	    UINT16DECODE (p, idx);
 	    assert (idx<heap->nalloc);
 	    assert (NULL==heap->obj[idx].begin);
@@ -369,24 +418,20 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
     if (heap->obj[0].size>0) {
 	if (!f->shared->cwfs) {
 	    f->shared->cwfs = H5MM_malloc (H5HG_NCWFS*sizeof(H5HG_heap_t*));
-	    if (NULL==f->shared->cwfs) {
-		HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-			     "memory allocation failed");
-	    }
+	    if (NULL==f->shared->cwfs)
+		HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 	    f->shared->ncwfs = 1;
 	    f->shared->cwfs[0] = heap;
 	} else if (H5HG_NCWFS==f->shared->ncwfs) {
 	    for (i=H5HG_NCWFS-1; i>=0; --i) {
 		if (f->shared->cwfs[i]->obj[0].size < heap->obj[0].size) {
-		    HDmemcpy (f->shared->cwfs+1, f->shared->cwfs,
-			      i * sizeof(H5HG_heap_t*));
+		    HDmemmove (f->shared->cwfs+1, f->shared->cwfs, i * sizeof(H5HG_heap_t*));
 		    f->shared->cwfs[0] = heap;
 		    break;
 		}
 	    }
 	} else {
-	    HDmemcpy (f->shared->cwfs+1, f->shared->cwfs,
-		      f->shared->ncwfs*sizeof(H5HG_heap_t*));
+	    HDmemmove (f->shared->cwfs+1, f->shared->cwfs, f->shared->ncwfs*sizeof(H5HG_heap_t*));
 	    f->shared->ncwfs += 1;
 	    f->shared->cwfs[0] = heap;
 	}
@@ -394,15 +439,12 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
     
     ret_value = heap;
     
- done:
+done:
     if (!ret_value && heap) {
-        if(heap->chunk)
-            H5FL_BLK_FREE (heap_chunk,heap->chunk);
-        if(heap->obj)
-            H5FL_ARR_FREE(H5HG_obj_t,heap->obj);
-        H5FL_FREE (H5HG_heap_t,heap);
+        if(H5HG_dest(f,heap)<0)
+	    HDONE_ERROR(H5E_HEAP, H5E_CANTFREE, NULL, "unable to destroy global heap collection");
     }
-    FUNC_LEAVE (ret_value);
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -429,7 +471,9 @@ H5HG_load (H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
 static herr_t
 H5HG_flush (H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5HG_heap_t *heap)
 {
-    FUNC_ENTER (H5HG_flush, FAIL);
+    herr_t      ret_value=SUCCEED;       /* Return value */
+    
+    FUNC_ENTER_NOAPI(H5HG_flush, FAIL);
 
     /* Check arguments */
     assert (f);
@@ -438,20 +482,18 @@ H5HG_flush (H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5HG_heap_t 
     assert (heap);
 
     if (heap->cache_info.dirty) {
-	if (H5F_block_write (f, H5FD_MEM_GHEAP, addr, (hsize_t)(heap->size),
-			     dxpl_id, heap->chunk)<0) {
-	    HRETURN_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL,
-			   "unable to write global heap collection to file");
-	}
+	if (H5F_block_write (f, H5FD_MEM_GHEAP, addr, heap->size, dxpl_id, heap->chunk)<0)
+	    HGOTO_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL, "unable to write global heap collection to file");
 	heap->cache_info.dirty = 0;
     }
 
     if (destroy) {
         if(H5HG_dest(f,heap)<0)
-	    HRETURN_ERROR(H5E_HEAP, H5E_CANTFREE, FAIL, "unable to destroy global heap collection");
+	    HGOTO_ERROR(H5E_HEAP, H5E_CANTFREE, FAIL, "unable to destroy global heap collection");
     }
 
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -474,7 +516,7 @@ H5HG_dest (H5F_t *f, H5HG_heap_t *heap)
 {
     int		i;
     
-    FUNC_ENTER (H5HG_dest, FAIL);
+    FUNC_ENTER_NOINIT(H5HG_dest);
 
     /* Check arguments */
     assert (heap);
@@ -493,8 +535,37 @@ H5HG_dest (H5F_t *f, H5HG_heap_t *heap)
     heap->obj = H5FL_ARR_FREE(H5HG_obj_t,heap->obj);
     H5FL_FREE (H5HG_heap_t,heap);
 
-    FUNC_LEAVE (SUCCEED);
+    FUNC_LEAVE_NOAPI(SUCCEED);
 } /* H5HG_dest() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5HG_clear
+ *
+ * Purpose:	Mark a global heap in memory as non-dirty.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Thursday, March 20, 2003
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5HG_clear(H5HG_heap_t *heap)
+{
+    FUNC_ENTER_NOINIT(H5HG_clear);
+
+    /* Check arguments */
+    assert (heap);
+
+    /* Mark heap as clean */
+    heap->cache_info.dirty = 0;
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+} /* H5HG_clear() */
 
 
 /*-------------------------------------------------------------------------
@@ -508,7 +579,7 @@ H5HG_dest (H5F_t *f, H5HG_heap_t *heap)
  *
  * Return:	Success:	The heap object ID of the new object.
  *
- *		Failure:	Negative
+ *		Failure:	0
  *
  * Programmer:	Robb Matzke
  *              Friday, March 27, 1998
@@ -517,14 +588,14 @@ H5HG_dest (H5F_t *f, H5HG_heap_t *heap)
  *
  *-------------------------------------------------------------------------
  */
-static int
+static unsigned
 H5HG_alloc (H5F_t *f, H5HG_heap_t *heap, int cwfsno, size_t size)
 {
-    int		idx;
+    unsigned	idx;
     uint8_t	*p = NULL;
     size_t	need = H5HG_SIZEOF_OBJHDR(f) + H5HG_ALIGN(size);
 
-    FUNC_ENTER (H5HG_alloc, FAIL);
+    FUNC_ENTER_NOINIT(H5HG_alloc);
 
     /* Check args */
     assert (heap);
@@ -535,7 +606,8 @@ H5HG_alloc (H5F_t *f, H5HG_heap_t *heap, int cwfsno, size_t size)
      * object.
      */
     for (idx=1; idx<heap->nalloc; idx++) {
-	if (NULL==heap->obj[idx].begin) break;
+	if (NULL==heap->obj[idx].begin)
+            break;
     }
     assert (idx < heap->nalloc);
 
@@ -588,7 +660,7 @@ H5HG_alloc (H5F_t *f, H5HG_heap_t *heap, int cwfsno, size_t size)
     }
 
     heap->cache_info.dirty = 1;
-    FUNC_LEAVE (idx);
+    FUNC_LEAVE_NOAPI(idx);
 }
 
 
@@ -620,20 +692,20 @@ herr_t
 H5HG_insert (H5F_t *f, hid_t dxpl_id, size_t size, void *obj, H5HG_t *hobj/*out*/)
 {
     size_t	need;		/*total space needed for object		*/
-    int	cwfsno, idx;
+    int	cwfsno;
+    unsigned	idx;
     H5HG_heap_t	*heap = NULL;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER (H5HG_insert, FAIL);
+    FUNC_ENTER_NOAPI(H5HG_insert, FAIL);
 
     /* Check args */
     assert (f);
     assert (0==size || obj);
     assert (hobj);
 
-    if (0==(f->intent & H5F_ACC_RDWR)) {
-	HRETURN_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL,
-		       "no write intent on file");
-    }
+    if (0==(f->intent & H5F_ACC_RDWR))
+	HGOTO_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL, "no write intent on file");
 
     /* Find a large enough collection on the CWFS list */
     need = H5HG_SIZEOF_OBJHDR(f) + H5HG_ALIGN(size);
@@ -658,20 +730,11 @@ H5HG_insert (H5F_t *f, hid_t dxpl_id, size_t size, void *obj, H5HG_t *hobj/*out*
      * new collection large enough for the message plus the collection header.
      */
     if (cwfsno>=f->shared->ncwfs) {
-	if (NULL==(heap=H5HG_create (f, dxpl_id, need+H5HG_SIZEOF_HDR (f)))) {
-	    HRETURN_ERROR (H5E_HEAP, H5E_CANTINIT, FAIL,
-			   "unable to allocate a global heap collection");
-	}
+	if (NULL==(heap=H5HG_create (f, dxpl_id, need+H5HG_SIZEOF_HDR (f))))
+	    HGOTO_ERROR (H5E_HEAP, H5E_CANTINIT, FAIL, "unable to allocate a global heap collection");
 	assert (f->shared->ncwfs>0);
 	assert (f->shared->cwfs[0]==heap);
-#ifdef QAK
-printf("%s: f->shared->cwfs[0]->obj[0].size=%d, size=%d, need=%d, H5HG_SIZEOF_HDR(f)=%d\n",FUNC,(int)f->shared->cwfs[0]->obj[0].size,(int)size,(int)need,(int)H5HG_SIZEOF_HDR(f));
-#endif /* QAK */
-#ifdef OLD_WAY
-	assert (f->shared->cwfs[0]->obj[0].size >= need+H5HG_SIZEOF_HDR(f));
-#else /* OLD_WAY */
 	assert (f->shared->cwfs[0]->obj[0].size >= need);
-#endif /* OLD_WAY */
 	cwfsno = 0;
     }
     
@@ -688,9 +751,12 @@ printf("%s: f->shared->cwfs[0]->obj[0].size=%d, size=%d, need=%d, H5HG_SIZEOF_HD
     /* Return value */
     hobj->addr = heap->addr;
     hobj->idx = idx;
-    FUNC_LEAVE (SUCCEED);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
+#ifdef NOT_YET
 
 /*-------------------------------------------------------------------------
  * Function:	H5HG_peek
@@ -713,26 +779,25 @@ printf("%s: f->shared->cwfs[0]->obj[0].size=%d, size=%d, need=%d, H5HG_SIZEOF_HD
  *
  *-------------------------------------------------------------------------
  */
-void *
+static void *
 H5HG_peek (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
 {
     H5HG_heap_t	*heap = NULL;
-    void	*retval = NULL;
+    void	*ret_value;
     int	i;
     
-    FUNC_ENTER (H5HG_peek, NULL);
+    FUNC_ENTER_NOAPI(H5HG_peek, NULL);
 
     /* Check args */
     assert (f);
     assert (hobj);
 
     /* Load the heap and return a pointer to the object */
-    if (NULL==(heap=H5AC_find (f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL))) {
-	HRETURN_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL, "unable to load heap");
-    }
+    if (NULL==(heap=H5AC_find(f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL)))
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL, "unable to load heap");
     assert (hobj->idx>0 && hobj->idx<heap->nalloc);
-    retval = heap->obj[hobj->idx].begin + H5HG_SIZEOF_OBJHDR (f);
-    assert (retval);
+    ret_value = heap->obj[hobj->idx].begin + H5HG_SIZEOF_OBJHDR (f);
+    assert (ret_value);
 
     /*
      * Advance the heap in the CWFS list.  We might have done this already
@@ -750,8 +815,10 @@ H5HG_peek (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
 	}
     }
     
-    FUNC_LEAVE (retval);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+#endif /* NOT_YET */
 
 
 /*-------------------------------------------------------------------------
@@ -780,25 +847,23 @@ H5HG_read (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj, void *object/*out*/)
     int	i;
     size_t	size;
     uint8_t	*p = NULL;
+    void	*ret_value;
     
-    FUNC_ENTER (H5HG_read, NULL);
+    FUNC_ENTER_NOAPI(H5HG_read, NULL);
 
     /* Check args */
     assert (f);
     assert (hobj);
 
     /* Load the heap */
-    if (NULL==(heap=H5AC_find (f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL))) {
-	HRETURN_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL, "unable to load heap");
-    }
+    if (NULL==(heap=H5AC_find(f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL)))
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, NULL, "unable to load heap");
     assert (hobj->idx>0 && hobj->idx<heap->nalloc);
     assert (heap->obj[hobj->idx].begin);
     size = heap->obj[hobj->idx].size;
     p = heap->obj[hobj->idx].begin + H5HG_SIZEOF_OBJHDR (f);
-    if (!object && NULL==(object = H5MM_malloc (size))) {
-	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		       "memory allocation failed");
-    }
+    if (!object && NULL==(object = H5MM_malloc (size)))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     HDmemcpy (object, p, size);
 
     /*
@@ -817,7 +882,11 @@ H5HG_read (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj, void *object/*out*/)
 	}
     }
 
-    FUNC_LEAVE (object);
+    /* Set return value */
+    ret_value=object;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -845,35 +914,34 @@ int
 H5HG_link (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj, int adjust)
 {
     H5HG_heap_t *heap = NULL;
+    int ret_value;              /* Return value */
     
-    FUNC_ENTER (H5HG_link, FAIL);
+    FUNC_ENTER_NOAPI(H5HG_link, FAIL);
     
     /* Check args */
     assert (f);
     assert (hobj);
-    if (0==(f->intent & H5F_ACC_RDWR)) {
-	HRETURN_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL,
-		       "no write intent on file");
-    }
+    if (0==(f->intent & H5F_ACC_RDWR))
+	HGOTO_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL, "no write intent on file");
 
     /* Load the heap */
-    if (NULL==(heap=H5AC_find (f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL))) {
-	HRETURN_ERROR (H5E_HEAP, H5E_CANTLOAD, FAIL, "unable to load heap");
-    }
+    if (NULL==(heap=H5AC_find(f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL)))
+	HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, FAIL, "unable to load heap");
     assert (hobj->idx>0 && hobj->idx<heap->nalloc);
     assert (heap->obj[hobj->idx].begin);
-    if (heap->obj[hobj->idx].nrefs+adjust<0) {
-	HRETURN_ERROR (H5E_HEAP, H5E_BADRANGE, FAIL,
-		       "new link count would be out of range");
-    }
-    if (heap->obj[hobj->idx].nrefs+adjust>H5HG_MAXLINK) {
-	HRETURN_ERROR (H5E_HEAP, H5E_BADVALUE, FAIL,
-		       "new link count would be out of range");
-    }
+    if (heap->obj[hobj->idx].nrefs+adjust<0)
+	HGOTO_ERROR (H5E_HEAP, H5E_BADRANGE, FAIL, "new link count would be out of range");
+    if (heap->obj[hobj->idx].nrefs+adjust>H5HG_MAXLINK)
+	HGOTO_ERROR (H5E_HEAP, H5E_BADVALUE, FAIL, "new link count would be out of range");
     heap->obj[hobj->idx].nrefs += adjust;
-    if (adjust) heap->cache_info.dirty = TRUE;
+    if (adjust)
+        heap->cache_info.dirty = TRUE;
 
-    FUNC_LEAVE (heap->obj[hobj->idx].nrefs);
+    /* Set return value */
+    ret_value=heap->obj[hobj->idx].nrefs;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -898,21 +966,20 @@ H5HG_remove (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
     H5HG_heap_t	*heap = NULL;
     size_t	need;
     int	i;
+    unsigned	u;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER (H5HG_remove, FAIL);
+    FUNC_ENTER_NOAPI(H5HG_remove, FAIL);
 
     /* Check args */
     assert (f);
     assert (hobj);
-    if (0==(f->intent & H5F_ACC_RDWR)) {
-        HRETURN_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL,
-		       "no write intent on file");
-    }
+    if (0==(f->intent & H5F_ACC_RDWR))
+        HGOTO_ERROR (H5E_HEAP, H5E_WRITEERROR, FAIL, "no write intent on file");
 
     /* Load the heap */
-    if (NULL==(heap=H5AC_find (f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL))) {
-        HRETURN_ERROR (H5E_HEAP, H5E_CANTLOAD, FAIL, "unable to load heap");
-    }
+    if (NULL==(heap=H5AC_find(f, dxpl_id, H5AC_GHEAP, hobj->addr, NULL, NULL)))
+        HGOTO_ERROR (H5E_HEAP, H5E_CANTLOAD, FAIL, "unable to load heap");
     assert (hobj->idx>0 && hobj->idx<heap->nalloc);
     assert (heap->obj[hobj->idx].begin);
     obj_start = heap->obj[hobj->idx].begin;
@@ -920,10 +987,9 @@ H5HG_remove (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
     need = H5HG_ALIGN(heap->obj[hobj->idx].size)+H5HG_SIZEOF_OBJHDR(f);
     
     /* Move the new free space to the end of the heap */
-    for (i=0; i<heap->nalloc; i++) {
-        if (heap->obj[i].begin > heap->obj[hobj->idx].begin) {
-            heap->obj[i].begin -= need;
-        }
+    for (u=0; u<heap->nalloc; u++) {
+        if (heap->obj[u].begin > heap->obj[hobj->idx].begin)
+            heap->obj[u].begin -= need;
     }
     if (NULL==heap->obj[0].begin) {
         heap->obj[0].begin = heap->chunk + (heap->size-need);
@@ -950,8 +1016,9 @@ H5HG_remove (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
          * to the file free list.
          */
         heap->cache_info.dirty = FALSE;
+        H5_CHECK_OVERFLOW(heap->size,size_t,hsize_t);
         H5MF_xfree(f, H5FD_MEM_GHEAP, dxpl_id, heap->addr, (hsize_t)heap->size);
-        H5AC_flush (f, dxpl_id, H5AC_GHEAP, heap->addr, TRUE);
+        H5AC_flush (f, dxpl_id, H5AC_GHEAP, heap->addr, H5F_FLUSH_INVALIDATE);
         heap = NULL;
     } else {
         /*
@@ -974,7 +1041,8 @@ H5HG_remove (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
         }
     }
     
-    FUNC_LEAVE (SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -992,20 +1060,23 @@ H5HG_remove (H5F_t *f, hid_t dxpl_id, H5HG_t *hobj)
  * Modifications:
  *		Robb Matzke, 1999-07-28
  *		The ADDR argument is passed by value.
+ *
+ *              Robb Matzke, LLNL, 2003-06-05
+ *              The size does not include the object header, just the data.
  *-------------------------------------------------------------------------
  */
 herr_t
 H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
 	  int fwidth)
 {
-    int			i, nused, maxobj;
+    unsigned		u, nused, maxobj;
     unsigned		j, k;
     H5HG_heap_t		*h = NULL;
     char		buf[64];
-    size_t		size;
     uint8_t		*p = NULL;
+    herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER(H5HG_debug, FAIL);
+    FUNC_ENTER_NOAPI(H5HG_debug, FAIL);
 
     /* check arguments */
     assert(f);
@@ -1014,10 +1085,8 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
     assert(indent >= 0);
     assert(fwidth >= 0);
 
-    if (NULL == (h = H5AC_find(f, dxpl_id, H5AC_GHEAP, addr, NULL, NULL))) {
-	HRETURN_ERROR(H5E_HEAP, H5E_CANTLOAD, FAIL,
-		      "unable to load global heap collection");
-    }
+    if (NULL == (h = H5AC_find(f, dxpl_id, H5AC_GHEAP, addr, NULL, NULL)))
+	HGOTO_ERROR(H5E_HEAP, H5E_CANTLOAD, FAIL, "unable to load global heap collection");
     fprintf(stream, "%*sGlobal Heap Collection...\n", indent, "");
     fprintf(stream, "%*s%-*s %d\n", indent, "", fwidth,
 	    "Dirty:",
@@ -1026,46 +1095,45 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
 	    "Total collection size in file:",
 	    (unsigned long)(h->size));
 
-    for (i=1, nused=0, maxobj=-1; i<h->nalloc; i++) {
-	if (h->obj[i].begin) {
+    for (u=1, nused=0, maxobj=0; u<h->nalloc; u++) {
+	if (h->obj[u].begin) {
 	    nused++;
-	    if (i>maxobj) maxobj = i;
+	    if (u>maxobj) maxobj = u;
 	}
     }
-    fprintf (stream, "%*s%-*s %d/%d/", indent, "", fwidth,
+    fprintf (stream, "%*s%-*s %u/%lu/", indent, "", fwidth,
 	     "Objects defined/allocated/max:",
-	     nused, h->nalloc);
-    fprintf (stream, nused?"%d\n":"NA\n", maxobj);
+	     nused, (unsigned long)h->nalloc);
+    fprintf (stream, nused ? "%u\n": "NA\n", maxobj);
 
     fprintf (stream, "%*s%-*s %lu\n", indent, "", fwidth,
 	     "Free space:",
 	     (unsigned long)(h->obj[0].size));
 
-    for (i=1; i<h->nalloc; i++) {
-	if (h->obj[i].begin) {
-	    sprintf (buf, "Object %d", i);
+    for (u=1; u<h->nalloc; u++) {
+	if (h->obj[u].begin) {
+	    sprintf (buf, "Object %u", u);
 	    fprintf (stream, "%*s%s\n", indent, "", buf);
 	    fprintf (stream, "%*s%-*s %d\n", indent+3, "", MIN(fwidth-3, 0),
 		     "Reference count:",
-		     h->obj[i].nrefs);
+		     h->obj[u].nrefs);
 	    fprintf (stream, "%*s%-*s %lu/%lu\n", indent+3, "",
 		     MIN(fwidth-3, 0),
 		     "Size of object body:",
-		     (unsigned long)(h->obj[i].size),
-		     (unsigned long)H5HG_ALIGN(h->obj[i].size));
-	    size = h->obj[i].size - H5HG_SIZEOF_OBJHDR (f);
-	    p = h->obj[i].begin + H5HG_SIZEOF_OBJHDR (f);
-	    for (j=0; j<size; j+=16) {
+		     (unsigned long)(h->obj[u].size),
+		     (unsigned long)H5HG_ALIGN(h->obj[u].size));
+	    p = h->obj[u].begin + H5HG_SIZEOF_OBJHDR (f);
+	    for (j=0; j<h->obj[u].size; j+=16) {
 		fprintf (stream, "%*s%04d: ", indent+6, "", j);
 		for (k=0; k<16; k++) {
 		    if (8==k) fprintf (stream, " ");
-		    if (j+k<size) {
+		    if (j+k<h->obj[u].size) {
 			fprintf (stream, "%02x ", p[j+k]);
 		    } else {
 			HDfputs("   ", stream);
 		    }
 		}
-		for (k=0; k<16 && j+k<size; k++) {
+		for (k=0; k<16 && j+k<h->obj[u].size; k++) {
 		    if (8==k) fprintf (stream, " ");
 		    HDfputc(p[j+k]>' ' && p[j+k]<='~' ? p[j+k] : '.', stream);
 		}
@@ -1074,5 +1142,6 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
 	}
     }
     
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }

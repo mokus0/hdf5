@@ -12,12 +12,12 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
 !
-!   In the following example we create one file with a group in it, 
-!   and another file with a dataset. Mounting is used to
-!   access the dataset from the second file as a member of a group 
-!   in the first file. 
+!
+!In the following example we create one file with a group in it, 
+!and another file with a dataset. Mounting is used to
+!access the dataset from the second file as a member of a group 
+!in the first file. 
 !
 
      PROGRAM MOUNTEXAMPLE

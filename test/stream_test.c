@@ -6,7 +6,7 @@
  * Author:  Thomas Radke <tradke@aei-potsdam.mpg.de>
  *          Tuesday, September 12, 2000
  *
- * Version: $Id: stream_test.c,v 1.6.2.2 2001/07/02 13:56:10 tradke Exp $
+ * Version: $Id: stream_test.c,v 1.8 2001/07/02 13:05:50 tradke Exp $
  *
  * Modifications:
  *          Thomas Radke, Thursday, October 26, 2000

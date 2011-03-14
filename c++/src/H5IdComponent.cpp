@@ -26,7 +26,7 @@ namespace H5 {
 #endif
 
 // Default constructor - private
-IdComponent::IdComponent() : id( 0 )
+IdComponent::IdComponent() : id( -1 )
 {
    // starts counting object references
    ref_count = new RefCounter;

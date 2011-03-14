@@ -19,14 +19,15 @@ VPATH=.:@srcdir@
 @COMMENCE@
 
 # Subdirectories in build-order (not including `examples')
-SUBDIRS=ADGuide Graphics Intro PSandPDF TechNotes cpplus fortran
+SUBDIRS=ADGuide Graphics Intro PSandPDF TechNotes Tutor \
+        cpplus ed_libs ed_styles fortran
 DOCDIR=$(docdir)/hdf5
 
 # Public doc files (to be installed)...
 PUB_DOCS=ADGuide.html Attributes.html Big.html Caching.html Chunk_f1.gif  \
          Chunk_f2.gif Chunk_f3.gif Chunk_f4.gif Chunk_f5.gif Chunk_f6.gif \
          Chunking.html Coding.html Copyright.html Datasets.html           \
-         Dataspaces.html Datatypes.html Debugging.html                    \
+         Dataspaces.html Datatypes.html DatatypesEnum.html Debugging.html \
          EnumMap.gif Environment.html Errors.html FF-IH_FileGroup.gif     \
          FF-IH_FileObject.gif Files.html Filters.html Glossary.html       \
          Groups.html H5.api_map.html H5.format.html H5.intro.html         \

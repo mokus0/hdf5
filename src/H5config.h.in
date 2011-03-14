@@ -1,13 +1,13 @@
 /* src/H5config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define if `dev_t' is a scalar */
+#undef DEV_T_IS_SCALAR
+
 /* Define if the __attribute__(()) extension is present */
 #undef HAVE_ATTRIBUTE
 
 /* Define to 1 if you have the `BSDgettimeofday' function. */
 #undef HAVE_BSDGETTIMEOFDAY
-
-/* Define if we have zlib compression support */
-#undef HAVE_COMPRESSION
 
 /* Define to 1 if you have the `difftime' function. */
 #undef HAVE_DIFFTIME
@@ -18,11 +18,29 @@
 /* Define to 1 if you have the <dmalloc.h> header file. */
 #undef HAVE_DMALLOC_H
 
+/* Define to 1 if you have the <features.h> header file. */
+#undef HAVE_FEATURES_H
+
+/* Define if support for deflate filter is enabled */
+#undef HAVE_FILTER_DEFLATE
+
+/* Define if support for Fletcher32 checksum is enabled */
+#undef HAVE_FILTER_FLETCHER32
+
+/* Define if support for shuffle filter is enabled */
+#undef HAVE_FILTER_SHUFFLE
+
+/* Define if support for szip filter is enabled */
+#undef HAVE_FILTER_SZIP
+
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
 /* Define to 1 if you have the `fseek64' function. */
 #undef HAVE_FSEEK64
+
+/* Define if the function stack tracing code is to be compiled in */
+#undef HAVE_FUNCSTACK
 
 /* Define if the compiler understand the __FUNCTION__ keyword */
 #undef HAVE_FUNCTION
@@ -113,6 +131,9 @@
 /* Define to 1 if you have the `m' library (-lm). */
 #undef HAVE_LIBM
 
+/* Define to 1 if you have the `mpe' library (-lmpe). */
+#undef HAVE_LIBMPE
+
 /* Define to 1 if you have the `mpi' library (-lmpi). */
 #undef HAVE_LIBMPI
 
@@ -140,6 +161,9 @@
 /* Define to 1 if you have the `ssl' library (-lssl). */
 #undef HAVE_LIBSSL
 
+/* Define to 1 if you have the `sz' library (-lsz). */
+#undef HAVE_LIBSZ
+
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 
@@ -151,6 +175,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define if we have MPE support */
+#undef HAVE_MPE
 
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
@@ -257,6 +284,9 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have the <szlib.h> header file. */
+#undef HAVE_SZLIB_H
+
 /* Define if we have thread safe support */
 #undef HAVE_THREADSAFE
 
@@ -303,6 +333,12 @@
 
 /* Define if `__tm_gmtoff' is a member of `struct tm' */
 #undef HAVE___TM_GMTOFF
+
+/* Define if your system has a working `malloc' function. */
+#undef MALLOC_WORKS
+
+/* Define if shared writing must be disabled (CodeWarrior only) */
+#undef NO_SHARED_WRITING
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -433,14 +469,18 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Define if your system supports pthread_attr_setscope(&attribute,
+   PTHREAD_SCOPE_SYSTEM) call. */
+#undef SYSTEM_SCOPE_THREADS
+
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
-/* Define if the HDF5 v1.2 compatibility functions are to be compiled in */
-#undef WANT_H5_V1_2_COMPAT
+/* Define if the HDF5 v1.4 compatibility functions are to be compiled in */
+#undef WANT_H5_V1_4_COMPAT
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */

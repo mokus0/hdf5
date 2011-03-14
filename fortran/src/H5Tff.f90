@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -11,6 +12,7 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!
 !
 ! This file contains FORTRAN90 interfaces for H5T functions
 !
@@ -1925,7 +1927,7 @@
 ! Comment:		
 !----------------------------------------------------------------------
 
-          SUBROUTINE h5tget_member_name_f(type_id,index, member_name,  namelen, hdferr) 
+          SUBROUTINE h5tget_member_name_f(type_id, index, member_name,  namelen, hdferr) 
 !
 !This definition is needed for Windows DLLs
 !DEC$if defined(BUILD_HDF5_DLL)
@@ -2017,6 +2019,63 @@
 
             hdferr = h5tget_member_offset_c(type_id, member_no, offset )
           END SUBROUTINE h5tget_member_offset_f
+!----------------------------------------------------------------------
+! Name:		h5tget_member_index_f 
+!
+! Purpose: 	Retrieves the index of a compound or enumeration datatype member. 
+!
+! Inputs:  
+!		type_id		- datatype identifier
+!		name		- name of the field or member whose index to
+!                                 to be retrieved from the datatype.
+! Outputs:  
+!               index           - 0-based index of the filed or member (0 to N-1)
+!		hdferr:		- error code		
+!				 	Success:  0
+!				 	Failure: -1   
+! Optional parameters:
+!				NONE
+!
+! Programmer:	Elena Pourmal
+!		September 26, 2002
+!
+! Modifications:
+!
+! Comment:		
+!----------------------------------------------------------------------
+
+          SUBROUTINE h5tget_member_index_f(type_id, name, index, hdferr) 
+!
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: h5tget_member_index_f
+!DEC$endif
+!
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: type_id  ! Datatype identifier 
+            CHARACTER(LEN=*), INTENT(IN) :: name   ! Field or member name
+            INTEGER, INTENT(OUT) :: index          ! Field or member index
+            INTEGER, INTENT(OUT) :: hdferr          ! Error code
+            INTEGER :: namelen          ! Name length 
+
+            INTERFACE
+              INTEGER FUNCTION h5tget_member_index_c(type_id, name, namelen, index)
+              USE H5GLOBAL
+              !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+              !MS$ATTRIBUTES C,reference,alias:'_H5TGET_MEMBER_INDEX_C'::h5tget_member_index_c
+              !DEC$ ENDIF
+              !DEC$ATTRIBUTES reference ::name 
+              INTEGER(HID_T), INTENT(IN) :: type_id
+              CHARACTER(LEN=*), INTENT(IN) :: name
+              INTEGER, INTENT(IN)  :: namelen
+              INTEGER, INTENT(OUT) :: index  
+              END FUNCTION h5tget_member_index_c
+            END INTERFACE
+
+            namelen = LEN(name)
+            hdferr = h5tget_member_index_c(type_id, name, namelen, index)
+          END SUBROUTINE h5tget_member_index_f
+
 
 !----------------------------------------------------------------------
 ! Name:		h5tget_member_dim_f 
@@ -3012,64 +3071,6 @@
           END SUBROUTINE h5tget_tag_f
 
 !----------------------------------------------------------------------
-! Name:		h5tget_member_index_f 
-!
-! Purpose: 	Retrieves the index of a compound or enumeration datatype member. 
-!
-! Inputs:  
-!		type_id		- datatype identifier
-!		name		- name of the field or member whose index to
-!                                 to be retrieved from the datatype.
-! Outputs:  
-!               index           - 0-based index of the filed or member (0 to N-1)
-!		hdferr:		- error code		
-!				 	Success:  0
-!				 	Failure: -1   
-! Optional parameters:
-!				NONE
-!
-! Programmer:	Elena Pourmal
-!		September 26, 2002
-!
-! Modifications:
-!
-! Comment:		
-!----------------------------------------------------------------------
-
-          SUBROUTINE h5tget_member_index_f(type_id, name, index, hdferr) 
-!
-!This definition is needed for Windows DLLs
-!DEC$if defined(BUILD_HDF5_DLL)
-!DEC$attributes dllexport :: h5tget_member_index_f
-!DEC$endif
-!
-            IMPLICIT NONE
-            INTEGER(HID_T), INTENT(IN) :: type_id  ! Datatype identifier 
-            CHARACTER(LEN=*), INTENT(IN) :: name   ! Field or member name
-            INTEGER, INTENT(OUT) :: index          ! Field or member index
-            INTEGER, INTENT(OUT) :: hdferr          ! Error code
-            INTEGER :: namelen          ! Name length 
-
-            INTERFACE
-              INTEGER FUNCTION h5tget_member_index_c(type_id, name, namelen, index)
-              USE H5GLOBAL
-              !DEC$ IF DEFINED(HDF5F90_WINDOWS)
-              !MS$ATTRIBUTES C,reference,alias:'_H5TGET_MEMBER_INDEX_C'::h5tget_member_index_c
-              !DEC$ ENDIF
-              !DEC$ATTRIBUTES reference ::name 
-              INTEGER(HID_T), INTENT(IN) :: type_id
-              CHARACTER(LEN=*), INTENT(IN) :: name
-              INTEGER, INTENT(IN)  :: namelen
-              INTEGER, INTENT(OUT) :: index  
-              END FUNCTION h5tget_member_index_c
-            END INTERFACE
-
-            namelen = LEN(name)
-            hdferr = h5tget_member_index_c(type_id, name, namelen, index)
-          END SUBROUTINE h5tget_member_index_f
-
-
-!----------------------------------------------------------------------
 ! Name:		h5tvlen_create_f 
 !
 ! Purpose: 	Creates a new variable-lenght datatype. 
@@ -3118,4 +3119,65 @@
             hdferr = h5tvlen_create_c(type_id, vltype_id)
           END SUBROUTINE h5tvlen_create_f
 
+!----------------------------------------------------------------------
+! Name:		h5tis_variable_str_f 
+!
+! Purpose: 	Determines whether a dattype is a variable string.
+!
+! Inputs:  
+!		type_id	-  	- datartpe identifier
+! Outputs:  
+!		status		- flag to indicate if datatype
+!				  is a variable string
+!		hdferr:		- error code		
+!				 	Success:  0
+!				 	Failure: -1   
+! Optional parameters:
+!				NONE
+!
+! Programmer:	Elena Pourmal
+!		March 12, 2003
+!
+! Modifications: 	
+!
+! Comment:		
+!----------------------------------------------------------------------
+
+          SUBROUTINE h5tis_variable_str_f(type_id, status, hdferr) 
+!
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: h5tis_variable_str_f
+!DEC$endif
+!
+
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: type_id  ! Datatype identifier 
+            LOGICAL, INTENT(OUT) :: status      ! Flag, idicates if datatype
+                                                ! is a variable string or not ( TRUE or
+                                                ! FALSE)  
+            INTEGER, INTENT(OUT) :: hdferr      ! Error code
+            INTEGER :: flag                     ! "TRUE/FALSE/ERROR from C" 
+
+!            INTEGER, EXTERNAL :: h5tis_variable_str_c
+!  MS FORTRAN needs explicit interface for C functions called here.
+!
+            INTERFACE
+              INTEGER FUNCTION h5tis_variable_str_c(type_id, flag) 
+              USE H5GLOBAL
+              !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+              !MS$ATTRIBUTES C,reference,alias:'_H5TIS_VARIABLE_STR_C'::h5tis_variable_str_c
+              !DEC$ ENDIF
+              INTEGER(HID_T), INTENT(IN) :: type_id
+              INTEGER :: flag
+              END FUNCTION h5tis_variable_str_c
+            END INTERFACE
+
+            hdferr = h5tis_variable_str_c(type_id, flag)
+            status = .TRUE.
+            if (flag .EQ. 0) status = .FALSE.
+ 
+          END SUBROUTINE h5tis_variable_str_f
+
+!----------------------------------------------------------------------
       END MODULE H5T

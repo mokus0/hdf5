@@ -21,8 +21,8 @@
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #ifndef H5_NO_STD
-using namespace std;
-#endif
+    using namespace std;
+#endif  // H5_NO_STD
 #endif
 
 class H5_DLLCPP Exception {
@@ -32,7 +32,7 @@ class H5_DLLCPP Exception {
 
 	// Creates an exception with a function name where the failure occurs
 	// and an optional detailed message
-	Exception( const string& func_name, const string& message = NULL);
+	Exception( const string& func_name, const string& message = 0);
 	Exception( const char* func_name, const char* message = NULL);
 
 	// copy constructor
@@ -70,11 +70,6 @@ class H5_DLLCPP Exception {
 	static void walkErrorStack( H5E_direction_t direction, 
 				H5E_walk_t func, void* client_data);
 
-	// Default error stack traversal callback function that prints 
-	// error messages to the specified output stream.
-	static void walkDefErrorStack( int n, H5E_error_t& err_desc,
-				void* client_data);
-
 	// Prints the error stack in a default manner.
 	virtual void printError( FILE* stream = NULL ) const;
 
@@ -83,8 +78,8 @@ class H5_DLLCPP Exception {
 
    private:
 // Because 'string' is not instantiated at compilation time, this
-// warning is displayed; but the class is exported so the warning
-// is harmless
+// warning is displayed when building DLL; but the class is exported 
+// so the warning is harmless
 #if defined(WIN32)
 #pragma warning(disable: 4251)
 #endif

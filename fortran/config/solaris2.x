@@ -41,7 +41,6 @@ fi
 #
 # (for the Sparc Solaris architechture)
 #
-#R_LARGE=9
 R_LARGE=18
 R_INTEGER=9
 HSIZE_T='SELECTED_INT_KIND(R_LARGE)'
@@ -55,9 +54,11 @@ if test "X-" = "X-$F9X"; then
 fi
 
 if test "X-" = "X-$f9x_flags_set"; then
-    FFLAGS=
-    DEBUG_FFLAGS=
-    PROD_FFLAGS=
-    PROFILE_FFLAGS=
+    F9XSUFFIXFLAG=""
+    FSEARCH_DIRS=""
+    FFLAGS=""
+    DEBUG_FFLAGS=""
+    PROD_FFLAGS=""
+    PROFILE_FFLAGS=""
     f9x_flags_set=yes
 fi

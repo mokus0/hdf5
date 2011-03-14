@@ -1,9 +1,9 @@
-HDF5 version 1.4.5-post2 released on Sat Apr 12 07:43:23 CDT 2003
+HDF5 version 1.6.0 released on Thu Jul  3 16:20:52 CDT 2003
 Please refer to the release_docs/INSTALL file for installation instructions.
 ------------------------------------------------------------------------------
 
 This release is almost fully functional for the entire API defined in the
-documentation.  See the release_docs/RELEASE.txt file for information
+documentation, see the RELEASE.txt file in this directory for information
 specific to this release of the library.  The INSTALL file contains
 instructions on compiling and installing the library.  The INSTALL_parallel
 file contains instructions on installing the parallel version of the

@@ -14,8 +14,7 @@
  */
 
 #include <assert.h>
-
-#include "hdf5.h"
+#include <hdf5.h>
 
 #ifdef H5_HAVE_PARALLEL
 /* Temporary source code */

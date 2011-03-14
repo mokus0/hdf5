@@ -53,6 +53,7 @@ int             Verbosity;
 
 // Use C version of the header file testhdf5.h instead of re-coding it
 #include "testhdf5.h"
+
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
 #else
@@ -64,6 +65,8 @@ int             Verbosity;
 #ifndef H5_NO_NAMESPACE
 using namespace H5;
 #endif  /* !H5_NO_NAMESPACE */
+
+#include "h5cpputil.h"
 
 struct TestStruct {
     int    NumErrors;
@@ -141,11 +144,6 @@ print_func(const char *format,...)
     return ret_value;
 }
 
-void
-test_tbbt(void)
-{
-}
-
 int 
 main(int argc, char *argv[])
 {
@@ -172,14 +170,9 @@ main(int argc, char *argv[])
      */
     Exception::dontPrint();
 
-    // Tests are generally arranged from least to most complexity... 
-    //InitTest("metadata", test_metadata, cleanup_metadata, "Encode/decode metadata code");
-
-    // C++ API doesn't need this test */
-    InitTest("tbbt", test_tbbt, NULL,  "Threaded, Balanced, Binary Trees - not tested");
-
     // testing file creation and opening in tfile.cpp
-    InitTest("file", test_file, cleanup_file, "Low-Level File I/O");
+    InitTest("file", test_file, cleanup_file, "File I/O Operations");
+    // testing dataspace functionalities in th5s.cpp
     InitTest("h5s",  test_h5s,  cleanup_h5s,  "Dataspaces");
 
     /* Comment out tests that are not done yet. - BMR, Feb 2001
@@ -299,12 +292,7 @@ Comment out tests that are not done yet */
     }
 
     MESSAGE(2, ("\n\n"))
-
-    if (num_errs)
-        print_func("!!! %d Error(s) were detected !!!\n\n", (int) num_errs);
-    else
-        print_func("All tests were successful. \n\n");
-
+    test_report(num_errs, string(" HDF5 Base"));
     if (Summary) {
         print_func("Summary of Test Results:\n");
         print_func("Name of Test     Errors Description of Test\n");

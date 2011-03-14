@@ -12,8 +12,6 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testhdf5.h,v 1.27.2.4 2002/06/10 19:48:46 wendling Exp $ */
-
 /*
  * This header file contains information required for testing the HDF5 library.
  */
@@ -39,10 +37,10 @@ extern int              Verbosity;
     if (Verbosity>9) print_func("   Call to routine: %15s at line %4d "	      \
 				"in %s returned %ld \n",		      \
 				where, (int)__LINE__, __FILE__,		      \
-				(long)ret);				      \
-    if (ret == val) {							      \
+				(long)(ret));				      \
+    if ((ret) == (val)) {							      \
 	print_func("*** UNEXPECTED RETURN from %s is %ld at line %4d "	      \
-		   "in %s\n", where, (long)ret, (int)__LINE__, __FILE__);     \
+		   "in %s\n", where, (long)(ret), (int)__LINE__, __FILE__);     \
 	num_errs++;							      \
 	H5Eprint (stdout);						      \
     }									      \
@@ -81,11 +79,11 @@ extern int              Verbosity;
 #define VERIFY(x, val, where) do {					      \
     if (Verbosity>9) {							      \
 	print_func("   Call to routine: %15s at line %4d in %s had value "    \
-		   "%ld \n", where, (int)__LINE__, __FILE__, (long)x);	      \
+		   "%ld \n", (where), (int)__LINE__, __FILE__, (long)(x));	      \
     }									      \
-    if (x != val) {							      \
-	print_func("*** UNEXPECTED VALUE from %s is %ld at line %4d "	      \
-		   "in %s\n", where, (long)x, (int)__LINE__, __FILE__);	      \
+    if ((x) != (val)) {							      \
+	print_func("*** UNEXPECTED VALUE from %s should be %ld, but is %ld at line %4d "	      \
+		   "in %s\n", (where), (long)(val), (long)(x), (int)__LINE__, __FILE__);	      \
 	H5Eprint (stdout);						      \
 	num_errs++;							      \
     }									      \
@@ -96,12 +94,12 @@ extern int              Verbosity;
 #define RESULT(ret,func) do {						      \
     if (Verbosity>8) {							      \
 	print_func("   Call to routine: %15s at line %4d in %s returned "     \
-		   "%ld\n", func, (int)__LINE__, __FILE__, (long)ret);	      \
+		   "%ld\n", func, (int)__LINE__, __FILE__, (long)(ret));	      \
     }									      \
     if (Verbosity>9) HEprint(stdout, 0);				      \
-    if (ret == FAIL) {							      \
+    if ((ret) == FAIL) {							      \
 	print_func("*** UNEXPECTED RETURN from %s is %ld at line %4d "	      \
-		   "in %s\n", func, (long)ret, (int)__LINE__, __FILE__);      \
+		   "in %s\n", func, (long)(ret), (int)__LINE__, __FILE__);      \
 	H5Eprint (stdout);						      \
 	num_errs++;							      \
     }									      \
@@ -123,6 +121,9 @@ int                     print_func(const char *,...);
 /* Prototypes for the test routines */
 void                    test_metadata(void);
 void                    test_tbbt(void);
+void                    test_tst(void);
+void                    test_heap(void);
+void                    test_refstr(void);
 void                    test_file(void);
 void                    test_h5t(void);
 void                    test_h5s(void);
@@ -137,7 +138,7 @@ void                    test_iterate(void);
 void                    test_array(void);
 void                    test_genprop(void);
 void			test_configure(void);
-void                    test_misc(void);
+void			test_misc(void);
 
 /* Prototypes for the cleanup routines */
 void                    cleanup_metadata(void);
@@ -153,6 +154,6 @@ void                    cleanup_iterate(void);
 void                    cleanup_array(void);
 void                    cleanup_genprop(void);
 void			cleanup_configure(void);
-void                    cleanup_misc(void);
+void			cleanup_misc(void);
 
 #endif /* HDF5cleanup_H */

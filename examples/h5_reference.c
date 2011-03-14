@@ -9,6 +9,7 @@
   */        
 
 #include <stdlib.h>
+
 #include "hdf5.h"
 
 #define H5FILE_NAME "refere.h5"
@@ -36,7 +37,7 @@ main(void) {
    /* 
     *  Create  group "A" in the file.
     */
-   gid_a = H5Gcreate(fid, "A", -1);
+   gid_a = H5Gcreate(fid, "A", 0);
    
   /* 
    *  Create dataset "B" in the file.
@@ -102,11 +103,11 @@ main(void) {
    /* 
     * Find the type of referenced objects.
     */
-    status = H5Rget_object_type(did_r, &rbuf[0]);
+    status = H5Rget_obj_type(did_r, H5R_OBJECT, &rbuf[0]);
     if ( status == H5G_GROUP ) 
     printf("First dereferenced object is a group. \n");
 
-    status = H5Rget_object_type(did_r, &rbuf[1]);
+    status = H5Rget_obj_type(did_r, H5R_OBJECT, &rbuf[1]);
     if ( status == H5G_DATASET ) 
     printf("Second dereferenced object is a dataset. \n");
    /* 

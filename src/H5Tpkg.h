@@ -34,11 +34,44 @@
 #  undef H5T_DEBUG
 #endif
 
-#include "H5HGprivate.h"
-#include "H5Dprivate.h"
-#include "H5Fprivate.h"
-#include "H5Rprivate.h"
+/* Get package's private header */
 #include "H5Tprivate.h"
+
+#include "H5Dprivate.h"		/* Datasets				*/
+#include "H5Fprivate.h"		/* Files				*/
+#include "H5HGprivate.h"	/* Global heaps				*/
+
+/* Number of reserved IDs in ID group */
+#define H5T_RESERVED_ATOMS 	8
+
+/* Length of debugging name buffer */
+#define H5T_NAMELEN		32
+
+/* Statistics about a conversion function */
+struct H5T_stats_t {
+    unsigned	ncalls;			/*num calls to conversion function   */
+    hsize_t	nelmts;			/*total data points converted	     */
+    H5_timer_t	timer;			/*total time for conversion	     */
+};
+
+/* The data type conversion database */
+struct H5T_path_t {
+    char	name[H5T_NAMELEN];	/*name for debugging only	     */
+    H5T_t	*src;			/*source data type ID		     */
+    H5T_t	*dst;			/*destination data type ID	     */
+    H5T_conv_t	func;			/*data conversion function	     */
+    hbool_t	is_hard;		/*is it a hard function?	     */
+    H5T_stats_t	stats;			/*statistics for the conversion	     */
+    H5T_cdata_t	cdata;			/*data for this function	     */
+};
+
+/* VL types */
+typedef enum {
+    H5T_VLEN_BADTYPE =  -1, /* invalid VL Type */
+    H5T_VLEN_SEQUENCE=0,    /* VL sequence */
+    H5T_VLEN_STRING,        /* VL string */
+    H5T_VLEN_MAXTYPE        /* highest type (Invalid as true type) */
+} H5T_vlen_type_t;
 
 typedef struct H5T_atomic_t {
     H5T_order_t		order;	/*byte order				     */
@@ -103,15 +136,15 @@ typedef struct H5T_enum_t {
 /* VL function pointers */
 typedef hssize_t (*H5T_vlen_getlenfunc_t)(H5F_t *f, void *vl_addr);
 typedef herr_t (*H5T_vlen_readfunc_t)(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *buf, size_t len);
-typedef herr_t (*H5T_vlen_writefunc_t)(const H5D_xfer_t *xfer_parms, H5F_t *f, hid_t dxpl_id, void *vl_addr, void *buf, hsize_t seq_len, hsize_t base_size);
+typedef herr_t (*H5T_vlen_writefunc_t)(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *buf, void *bg_addr, hsize_t seq_len, hsize_t base_size);
 
 /* A VL datatype */
 typedef struct H5T_vlen_t {
     H5T_vlen_type_t     type;   /* Type of VL data in buffer */
     H5T_vlen_loc_t      loc;    /* Location of VL data in buffer */
-    H5T_cset_t   	cset;   /* For VL string. character set */
-    H5T_str_t   	pad;    /* For VL string.  space or null padding of 
-				 * extra bytes       			     */
+    H5T_cset_t          cset;   /* For VL string. character set */
+    H5T_str_t           pad;    /* For VL string.  space or null padding of 
+                                 * extra bytes */                          
     H5F_t *f;                   /* File ID (if VL data is on disk) */
     H5T_vlen_getlenfunc_t getlen;   /* Function to get VL sequence size (in element units, not bytes) */
     H5T_vlen_readfunc_t read;   /* Function to read VL sequence into buffer */
@@ -145,7 +178,7 @@ struct H5T_t {
     H5F_t		*sh_file;/*file pointer if this is a shared type     */
     H5T_class_t		type;	/*which class of type is this?		     */
     size_t		size;	/*total size of an instance of this type     */
-    hbool_t     force_conv; /* Set if this type always needs to be converted and H5T_conv_noop cannot be called */
+    hbool_t     force_conv;     /* Set if this type always needs to be converted and H5T_conv_noop cannot be called */
     struct H5T_t	*parent;/*parent type for derived data types	     */
     union {
         H5T_atomic_t	atomic; /* an atomic data type              */
@@ -181,6 +214,27 @@ typedef enum H5T_sdir_t {
 
 /* The overflow handler */
 H5_DLLVAR H5T_overflow_t H5T_overflow_g;
+
+/*
+ * Alignment information for native types. A value of N indicates that the
+ * data must be aligned on an address ADDR such that 0 == ADDR mod N. When
+ * N=1 no alignment is required; N=0 implies that alignment constraints were
+ * not calculated.  These alignment info is only for H5Tget_native_type.
+ * These values are used for structure alignment.
+ */
+H5_DLLVAR size_t	H5T_NATIVE_SCHAR_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_SHORT_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_INT_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_LONG_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_LLONG_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_FLOAT_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_DOUBLE_COMP_ALIGN_g;
+H5_DLLVAR size_t	H5T_NATIVE_LDOUBLE_COMP_ALIGN_g;
+
+H5_DLLVAR size_t H5T_POINTER_COMP_ALIGN_g;
+H5_DLLVAR size_t H5T_HVL_COMP_ALIGN_g;
+H5_DLLVAR size_t H5T_HOBJREF_COMP_ALIGN_g;
+H5_DLLVAR size_t H5T_HDSETREGREF_COMP_ALIGN_g;
 
 /*
  * Alignment information for native types. A value of N indicates that the
@@ -230,6 +284,28 @@ H5_DLLVAR size_t	H5T_NATIVE_INT_LEAST64_ALIGN_g;
 H5_DLLVAR size_t	H5T_NATIVE_UINT_LEAST64_ALIGN_g;
 H5_DLLVAR size_t	H5T_NATIVE_INT_FAST64_ALIGN_g;
 H5_DLLVAR size_t	H5T_NATIVE_UINT_FAST64_ALIGN_g;
+
+/* Common functions */
+H5_DLL herr_t H5T_init_interface(void);
+H5_DLL H5T_t *H5T_create(H5T_class_t type, size_t size);
+H5_DLL herr_t H5T_free(H5T_t *dt);
+H5_DLL H5T_sign_t H5T_get_sign(H5T_t *dt);
+H5_DLL H5T_t *H5T_get_super(H5T_t *dt);
+H5_DLL char  *H5T_get_member_name(H5T_t *dt, int membno);
+H5_DLL herr_t H5T_get_member_value(H5T_t *dt, int membno, void *value);
+H5_DLL H5T_t *H5T_get_member_type(H5T_t *dt, int membno);
+H5_DLL int H5T_get_nmembers(const H5T_t *dt);
+H5_DLL htri_t H5T_is_variable_str(H5T_t *dt);
+H5_DLL htri_t H5T_is_atomic(const H5T_t *dt);
+H5_DLL herr_t H5T_insert(H5T_t *parent, const char *name, size_t offset,
+        const H5T_t *member);
+H5_DLL H5T_t *H5T_enum_create(H5T_t *parent);
+H5_DLL herr_t H5T_enum_insert(H5T_t *dt, const char *name, void *value);
+H5_DLL int    H5T_get_array_ndims(H5T_t *dt);
+H5_DLL herr_t H5T_get_array_dims(H5T_t *dt, hsize_t dims[], int perm[]);
+H5_DLL herr_t H5T_sort_value(H5T_t *dt, int *map);
+H5_DLL herr_t H5T_sort_name(H5T_t *dt, int *map);
+H5_DLL herr_t H5T_set_size(H5T_t *dt, size_t size);
 
 /* Conversion functions */
 H5_DLL herr_t H5T_conv_noop(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
@@ -768,18 +844,18 @@ H5_DLL ssize_t H5T_bit_find(uint8_t *buf, size_t offset, size_t size,
 H5_DLL htri_t H5T_bit_inc(uint8_t *buf, size_t start, size_t size);
 
 /* VL functions */
+H5_DLL H5T_t * H5T_vlen_create(H5T_t *base);
 H5_DLL hssize_t H5T_vlen_seq_mem_getlen(H5F_t *f, void *vl_addr);
 H5_DLL herr_t H5T_vlen_seq_mem_read(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, size_t len);
-H5_DLL herr_t H5T_vlen_seq_mem_write(const H5D_xfer_t *xfer_parms, H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, hsize_t seq_len, hsize_t base_size);
+H5_DLL herr_t H5T_vlen_seq_mem_write(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, void *bg_addr, hsize_t seq_len, hsize_t base_size);
 H5_DLL hssize_t H5T_vlen_str_mem_getlen(H5F_t *f, void *vl_addr);
 H5_DLL herr_t H5T_vlen_str_mem_read(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, size_t len);
-H5_DLL herr_t H5T_vlen_str_mem_write(const H5D_xfer_t *xfer_parms, H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, hsize_t seq_len, hsize_t base_size);
+H5_DLL herr_t H5T_vlen_str_mem_write(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, void *bg_addr, hsize_t seq_len, hsize_t base_size);
 H5_DLL hssize_t H5T_vlen_disk_getlen(H5F_t *f, void *vl_addr);
 H5_DLL herr_t H5T_vlen_disk_read(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, size_t len);
-H5_DLL herr_t H5T_vlen_disk_write(const H5D_xfer_t *xfer_parms, H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, hsize_t seq_len, hsize_t base_size);
+H5_DLL herr_t H5T_vlen_disk_write(H5F_t *f, hid_t dxpl_id, void *vl_addr, void *_buf, void *bg_addr, hsize_t seq_len, hsize_t base_size);
 
 /* Array functions */
 H5_DLL H5T_t * H5T_array_create(H5T_t *base, int ndims,
         const hsize_t dim[/* ndims */], const int perm[/* ndims */]);
-
 #endif

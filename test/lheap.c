@@ -51,7 +51,7 @@ const char *FILENAME[] = {
 int
 main(void)
 {
-    hid_t	fapl=-1;		/*file access properties	*/
+    hid_t	fapl=H5P_DEFAULT;	/*file access properties	*/
     hid_t	file=-1;		/*hdf5 file 			*/
     H5F_t	*f=NULL;		/*hdf5 file pointer		*/
     char	filename[1024];		/*file name			*/
@@ -77,7 +77,7 @@ main(void)
 	H5Eprint(stdout);
 	goto error;
     }
-    if (H5HL_create(f, H5P_DEFAULT, 0, &heap_addr/*out*/)<0) {
+    if (H5HL_create(f, H5P_DATASET_XFER_DEFAULT, 0, &heap_addr/*out*/)<0) {
 	H5_FAILED();
 	H5Eprint(stdout);
 	goto error;
@@ -87,7 +87,7 @@ main(void)
         for (j=4; j<i; j++) buf[j] = '0' + j%10;
         if (j>4) buf[j] = '\0';
 
-        if ((size_t)(-1)==(obj[i]=H5HL_insert(f, H5P_DEFAULT, heap_addr, strlen(buf)+1,
+        if ((size_t)(-1)==(obj[i]=H5HL_insert(f, H5P_DATASET_XFER_DEFAULT, heap_addr, strlen(buf)+1,
 					      buf))) {
 	    H5_FAILED();
 	    H5Eprint(stdout);
@@ -100,6 +100,7 @@ main(void)
     /*
      * Test reading from the heap...
      */
+
     TESTING("local heap read");
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
     if ((file=H5Fopen(filename, H5F_ACC_RDONLY, fapl))<0) goto error;
@@ -112,7 +113,7 @@ main(void)
 	sprintf(buf, "%03d-", i);
         for (j=4; j<i; j++) buf[j] = '0' + j%10;
         if (j>4) buf[j] = '\0';
-        if (NULL==(s=H5HL_peek(f, H5P_DEFAULT, heap_addr, obj[i]))) {
+        if (NULL==(s=H5HL_peek(f, H5P_DATASET_XFER_DEFAULT, heap_addr, obj[i]))) {
 	    H5_FAILED();
 	    H5Eprint(stdout);
 	    goto error;
@@ -127,7 +128,6 @@ main(void)
     }
     if (H5Fclose(file)<0) goto error;
     PASSED();
-
 
     puts("All local heap tests passed.");
     h5_cleanup(FILENAME, fapl);

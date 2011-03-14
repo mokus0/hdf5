@@ -12,6 +12,7 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+
 #include <ctype.h>
 #include <stddef.h>                                 
 #include "H5f90.h"
@@ -24,7 +25,7 @@
  * HD5f2cstring   -- convert a Fortran string to a C string
  */
 
-/* ------------------------------- HD5c2fstr ------------------------------- 
+/* ------------------------------- HDc2fstr ------------------------------- 
 NAME
    HD5c2fstr -- convert a C string into a Fortran string IN PLACE
 USAGE
@@ -50,7 +51,7 @@ HD5c2fstr(char *str, int len)
     return 0;
 }   /* HD5c2fstr */
 
-/* ----------------------------- HD5f2cstring ------------------------------ */
+/* ----------------------------- HDf2cstring ------------------------------ */
 /*
 NAME
    HD5f2cstring -- convert a Fortran string to a C string

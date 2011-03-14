@@ -102,7 +102,7 @@ static int	clean_file_g = -1;	/*whether to cleanup temporary test     */
      /* For the PFS of TFLOPS */
 #    define HDF5_PARAPREFIX     "pfs:/pfs_grande/multi/tmp_1"
 #  else
-#    define HDF5_PARAPREFIX     "/tmp"
+#    define HDF5_PARAPREFIX     ""
 #  endif    /* __PUMAGON__ */
 #endif  /* !HDF5_PARAPREFIX */
 
@@ -136,6 +136,8 @@ static void gpfs_free_range(int handle, off_t start, off_t length);
 static void gpfs_clear_file_cache(int handle);
 static void gpfs_cancel_hints(int handle);
 static void gpfs_start_data_shipping(int handle, int num_insts);
+static void gpfs_start_data_ship_map(int handle, int partition_size,
+                                     int agent_count, int *agent_node_num);
 static void gpfs_stop_data_shipping(int handle);
 static void gpfs_invalidate_file_cache(const char *filename);
 #endif /* H5_HAVE_GPFS */
@@ -277,11 +279,9 @@ do_pio(parameters param)
 
         sprintf(base_name, "#pio_tmp_%lu", nf);
         pio_create_filename(iot, base_name, fname, sizeof(fname));
-
-#ifdef H5_HAVE_GPFS
-        if (param.h5_use_gpfs)
-            gpfs_invalidate_file_cache(fname);
-#endif  /* H5_HAVE_GPFS */
+	if (pio_debug_level > 0)
+	    HDfprintf(output, "rank %d: data filename=%s\n",
+		pio_mpi_rank_g, fname);
 
 	/* Need barrier to make sure everyone starts at the same time */
         MPI_Barrier(pio_comm_g);
@@ -290,19 +290,6 @@ do_pio(parameters param)
         hrc = do_fopen(&param, fname, &fd, PIO_CREATE | PIO_WRITE);
 
         VRFY((hrc == SUCCESS), "do_fopen failed");
-
-#ifdef H5_HAVE_GPFS
-        if (param.h5_use_gpfs)
-            /* GPFS start data shipping call */
-            switch (iot) {
-            case POSIXIO:
-                gpfs_start_data_shipping(fd.posixfd, param.num_procs);
-                break;
-            case MPIO:
-            case PHDF5:
-                break;
-            }
-#endif  /* H5_HAVE_GPFS */
 
         set_time(res.timers, HDF5_FINE_WRITE_FIXED_DIMS, START);
         hrc = do_write(&res, &fd, &param, ndsets, nbytes, buf_size, buffer);
@@ -347,20 +334,6 @@ do_pio(parameters param)
 	/* Need barrier to make sure everyone is done with the file */
 	/* before it may be removed by do_cleanupfile */
         MPI_Barrier(pio_comm_g);
-
-#ifdef H5_HAVE_GPFS
-        if (param.h5_use_gpfs)
-            /* GPFS stop data shipping call */
-            switch (iot) {
-            case POSIXIO:
-                gpfs_stop_data_shipping(fd.posixfd);
-                break;
-            case MPIO:
-            case PHDF5:
-                break;
-            }
-#endif  /* H5_HAVE_GPFS */
-
         do_cleanupfile(iot, fname);
     }
 
@@ -527,7 +500,7 @@ do_write(results *res, file_descr *fd, parameters *parms, long ndsets,
     unsigned char *buf_p;       /* Current buffer pointer               */
 
     /* POSIX variables */
-    off_t       file_offset;    /* File offset of the next transfer    */
+    off_t       file_offset;    /* File offset of the next transfer     */
     off_t       posix_file_offset;    /* Base file offset of the next transfer      */
 
     /* MPI variables */
@@ -714,17 +687,6 @@ do_write(results *res, file_descr *fd, parameters *parms, long ndsets,
                     GOTOERROR(FAIL);
                 } /* end if */
             } /* end if */
-
-#ifdef H5_HAVE_NOFILL
-            /* Disable writing fill values if asked */
-            if(parms->h5_no_fill) {
-                hrc = H5Pset_fill_time(h5dcpl, H5D_FILL_TIME_NEVER);
-                if (hrc < 0) {
-                    fprintf(stderr, "HDF5 Property List Set failed\n");
-                    GOTOERROR(FAIL);
-                } /* end if */
-            } /* end if */
-#endif
 
             sprintf(dname, "Dataset_%ld", ndset);
             h5ds_id = H5Dcreate(fd->h5fd, dname, ELMT_H5_TYPE,
@@ -1485,7 +1447,8 @@ do_fopen(parameters *param, char *fname, file_descr *fd /*out*/, int flags)
 {
     int ret_code = SUCCESS, mrc;
     herr_t hrc;
-    hid_t acc_tpl = -1;     /* file access templates */
+    hid_t acc_tpl = -1;         /* file access templates */
+    hbool_t use_gpfs = FALSE;   /* use GPFS hints        */
 
     switch (param->io_type) {
     case POSIXIO:
@@ -1553,7 +1516,11 @@ do_fopen(parameters *param, char *fname, file_descr *fd /*out*/, int flags)
         /* Use the appropriate VFL driver */
         if(param->h5_use_mpi_posix) {
             /* Set the file driver to the MPI-posix driver */
-            hrc = H5Pset_fapl_mpiposix(acc_tpl, pio_comm_g);     
+#ifdef H5_WANT_H5_V1_4_COMPAT
+            hrc = H5Pset_fapl_mpiposix(acc_tpl, pio_comm_g);
+#else /* H5_WANT_H5_V1_4_COMPAT */
+            hrc = H5Pset_fapl_mpiposix(acc_tpl, pio_comm_g, use_gpfs);
+#endif /* H5_WANT_H5_V1_4_COMPAT */
             if (hrc < 0) {
                 fprintf(stderr, "HDF5 Property List Set failed\n");
                 GOTOERROR(FAIL);
@@ -1710,10 +1677,11 @@ do_cleanupfile(iotype iot, char *fname)
  *              Subsequent GPFS_ACCESS_RANGE hints will replace a hint
  *              passed earlier.
  *
- *                  START  - The start of the access range offset, in
- *                           bytes, from the beginning of the file.
- *                  LENGTH - Length of the access range. 0 indicates to
- *                           the end of the file.
+ *                  START    - The start of the access range offset, in
+ *                             bytes, from the beginning of the file
+ *                  LENGTH   - Length of the access range. 0 indicates to
+ *                             the end of the file
+ *                  IS_WRITE - 0 indicates READ access, 1 indicates WRITE access
  * Return:      Nothing
  * Programmer:  Bill Wendling, 03. June 2002
  * Modifications:
@@ -1881,10 +1849,24 @@ gpfs_cancel_hints(int handle)
 
 /*
  * Function:    gpfs_start_data_shipping
- * Purpose:     Start up data shipping. The second parameter is the total
- *              number of open instances on all nodes that will be
- *              operating on the file. Must be called for every such
- *              instance with the same value of NUM_INSTS.
+ * Purpose:     Initiates data shipping mode.
+ *
+ *              Once all participating threads have issued this directive
+ *              for a file, GPFS enters a mode where it logically
+ *              partitions the blocks of the file among a group of agent
+ *              nodes. The agents are those nodes on which one or more
+ *              threads have issued the GPFS_DATA_SHIP_START directive.
+ *              Each thread that has issued a GPFS_DATA_SHIP_START
+ *              directive and the associated agent nodes are referred to
+ *              as the data shipping collective.
+ *
+ *              The second parameter is the total number of open
+ *              instances on all nodes that will be operating on the
+ *              file. Must be called for every such instance with the
+ *              same value of NUM_INSTS.
+ *
+ *                  NUM_INSTS - The number of open file instances, on all
+ *                              nodes, collaborating to operate on the file
  * Return:      Nothing
  * Programmer:  Bill Wendling, 28. May 2002
  * Modifications:
@@ -1914,9 +1896,73 @@ gpfs_start_data_shipping(int handle, int num_insts)
 }
 
 /*
+ * Function:    gpfs_start_data_ship_map
+ * Purpose:     Indicates which agent nodes are to be used for data
+ *              shipping. GPFS recognizes which agent nodes to use for
+ *              data shipping.
+ *
+ *                  PARTITION_SIZE - The number of contiguous bytes per
+ *                                   server. This value must be a
+ *                                   multiple of the number of bytes in a
+ *                                   single file system block
+ *                  AGENT_COUNT    - The number of entries in the
+ *                                   agentNodeNumber array
+ *                  AGENT_NODE_NUM - The data ship agent node numbers as
+ *                                   listed in the SDT or the global ODM
+ *
+ * Return:      Nothing
+ * Programmer:  Bill Wendling, 10. Jul 2002
+ * Modifications:
+ */
+static void
+gpfs_start_data_ship_map(int handle, int partition_size, int agent_count,
+                         int *agent_node_num)
+{
+    int i;
+    struct {
+        gpfsFcntlHeader_t hdr;
+        gpfsDataShipMap_t map;
+    } ds_map;
+
+    ds_map.hdr.totalLength = sizeof(ds_map);
+    ds_map.hdr.fcntlVersion = GPFS_FCNTL_CURRENT_VERSION;
+    ds_map.hdr.fcntlReserved = 0;
+    ds_map.map.structLen = sizeof(gpfsDataShipMap_t);
+    ds_map.map.structType = GPFS_DATA_SHIP_MAP;
+    ds_map.map.partitionSize = partition_size;
+    ds_map.map.agentCount = agent_count;
+
+    for (i = 0; i < agent_count; ++i)
+        ds_map.map.agentNodeNumber[i] = agent_node_num[i];
+
+    if (gpfs_fcntl(handle, &ds_map) != 0) {
+        fprintf(stderr,
+                "gpfs_fcntl DS map directive failed. errno=%d errorOffset=%d\n",
+                errno, ds_map.hdr.errorOffset);
+        exit(EXIT_FAILURE);
+    }
+}
+
+/*
  * Function:    gpfs_stop_data_shipping
- * Purpose:     Shut down data shipping. Must be called for every handle
- *              for which gpfs_start_data_shipping was called.
+ * Purpose:     Takes a file out of the data shipping mode.
+ *
+ *              - GPFS waits for all threads that issued the
+ *                GPFS_DATA_SHIP_START directive to issue this directive,
+ *                then flushes the dirty file data to disk.
+ *
+ *              - While a gpfs_cntl() call is blocked for other threads,
+ *                the call can be interrupted by any signal. If a signal
+ *                is delivered to any of the waiting calls, all waiting
+ *                calls on every node will be interrupted and will return
+ *                EINTR. GPFS will not cancel data shipping mode if such
+ *                a signal occurs. It is the responsibility of the
+ *                application to mask off any signals that might normally
+ *                occur while waiting for another node in the data
+ *                shipping collective. Several libraries use SIGALRM; the
+ *                thread that makes the gpfs_fcntl() call should use
+ *                sigthreadmask to mask off delivery of this signal while
+ *                inside the call.
  * Return:      Nothing
  * Programmer:  Bill Wendling, 28. May 2002
  * Modifications:
@@ -1983,12 +2029,70 @@ gpfs_invalidate_file_cache(const char *filename)
     /* Close the file */
     if (close(handle) == -1) {
         fprintf(stderr,
-                "could not close file '%s' after flushing file cache,",
+                "could not close file '%s' after flushing file cache, ",
                 filename);
         fprintf(stderr, "errno=%d\n", errno);
         exit(1);
     }
 }
+
+#else
+
+/* turn the stubs off since some compilers are warning they are not used */
+#if 0
+/* H5_HAVE_GPFS isn't defined...stub functions */
+
+static void
+gpfs_access_range(int UNUSED handle, off_t UNUSED start, off_t UNUSED length,
+                  int UNUSED is_write)
+{
+    return;
+}
+
+static void
+gpfs_free_range(int UNUSED handle, off_t UNUSED start, off_t UNUSED length)
+{
+    return;
+}
+
+static void
+gpfs_clear_file_cache(int UNUSED handle)
+{
+    return;
+}
+
+static void
+gpfs_cancel_hints(int UNUSED handle)
+{
+    return;
+}
+
+static void
+gpfs_start_data_shipping(int UNUSED handle, int UNUSED num_insts)
+{
+    return;
+}
+
+static void
+gpfs_stop_data_shipping(int UNUSED handle)
+{
+    return;
+}
+
+static void
+gpfs_start_data_ship_map(int UNUSED handle, int UNUSED partition_size,
+                         int UNUSED agent_count, int UNUSED *agent_node_num)
+{
+    return;
+}
+
+static void
+gpfs_invalidate_file_cache(const char UNUSED *filename)
+{
+    return;
+}
+
+#endif  /* 0 */
 
 #endif  /* H5_HAVE_GPFS */
 

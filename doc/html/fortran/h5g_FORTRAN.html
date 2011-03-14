@@ -1,4 +1,9 @@
 <html>
+<head><title>
+FORTRAN Group API -- h5g
+</title>
+
+<!-- #BeginLibraryItem "/ed_libs/styles_RM.lbi" -->
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -16,9 +21,8 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
-<head><title>
-FORTRAN Group API -- h5g
-</title></head>
+<link href="../ed_styles/RMelect.css" rel="stylesheet" type="text/css">
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 
@@ -42,9 +46,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gclose_f</code></strong>
-<dt><strong>Purpose:</strong> 
-   Close specified group. 
-
 <pre>    
          SUBROUTINE h5gclose_f( gr_id, hdferr)
            IMPLICIT NONE
@@ -65,9 +66,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gcreate_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Create a new empty group and give it a name.
-
 <pre>    
          SUBROUTINE h5gcreate_f(loc_id, name, gr_id, hdferr, size_hint)
 
@@ -95,9 +93,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gget_comment_f</code></strong>
-<dt><strong>Purpose:</strong> 
-   Retrieve comment for specified object. 
-
 <pre>    
          SUBROUTINE h5gget_comment_f(loc_id, name, size, buffer, hdferr)
            IMPLICIT NONE
@@ -121,9 +116,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gget_linkval_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Return the name of the object that the symbolic link points to. 
-
 <pre>    
          SUBROUTINE h5gget_linkval_f(loc_id, name, size, buffer, hdferr)
            IMPLICIT NONE
@@ -149,9 +141,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gget_obj_info_idx_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Get name of an object in a group.
-
 <pre>    
           SUBROUTINE h5gget_obj_info_idx_f(loc_id, name, idx, &
                                            obj_name, obj_type, hdferr)
@@ -183,9 +172,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gmove_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Rename an object within an HDF5 file
-
 <pre>    
          SUBROUTINE h5gmove_f(loc_id, name, new_name, hdferr)
            IMPLICIT NONE
@@ -198,6 +184,30 @@ FORTRAN Group API -- h5g
 </pre>
 
 
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5gmove2_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface: &nbsp; <code>h5gmove_f</code></strong>
+<pre>    
+         SUBROUTINE h5gmove2_f(src_loc_id, src_name, dst_loc_id, dst_name, hdferr)
+           IMPLICIT NONE
+           INTEGER(HID_T), INTENT(IN) :: src_loc_id   ! File or group identifier
+           CHARACTER(LEN=*), INTENT(IN) :: src_name   ! Original name of an object 
+                                                      ! relative to src_loc_id 
+           INTEGER(HID_T), INTENT(IN) :: dst_loc_id   ! File or group identifier
+           CHARACTER(LEN=*), INTENT(IN) :: dst_name   ! New name of an object
+                                                      ! relative to dst_loc_id 
+           INTEGER, INTENT(OUT) :: hdferr        ! Error code 
+                                                 ! 0 on success and -1 on failure
+         END SUBROUTINE h5gmove2_f           
+</pre>
+
 
 <p>&nbsp;
 <p>&nbsp;
@@ -209,9 +219,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gn_members_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Get number of objects in a group.
-
 <pre>    
           SUBROUTINE h5gn_members_f(loc_id, name, nmembers, hdferr)
            
@@ -237,9 +244,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gopen_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Open an existing group for modification and return a group identifier for that group.
-
 <pre>    
          SUBROUTINE h5gopen_f(loc_id, name, gr_id, hdferr)
            IMPLICIT NONE
@@ -262,9 +266,6 @@ FORTRAN Group API -- h5g
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gset_comment_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Set comment for an object.
-
 <pre>    
          SUBROUTINE h5gset_comment_f(loc_id, name, comment, hdferr)
            IMPLICIT NONE
@@ -286,10 +287,10 @@ FORTRAN Group API -- h5g
 </a>
 
 
-<dt><strong>FORTRAN interface:  &nbsp <code>h5glink_f</code></strong>
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5glink_f</strong>
 
 <dt><strong>Purpose:</strong> 
-    Create a link of the specified type from <code> new_name</code> to <code>current_name</code>. 
+    Creates a link of the specified type from <code> new_name</code> to <code>current_name</code>. 
 
 <pre>
           SUBROUTINE h5glink_f(loc_id, link_type, current_name, new_name, hdferr) 
@@ -311,15 +312,46 @@ FORTRAN Group API -- h5g
 <p>&nbsp;
 <hr>
 <p>&nbsp;
+<a name="h5glink2_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong>  &nbsp <strong>h5glink2_f</strong>
+
+<dt><strong>Purpose:</strong> 
+    Creates a link of the specified type from <code> new_name</code> at location
+<code> new_loc_id,/code> to <code>cur_name</code> at location
+<code>cur_loc_id</code>. 
+
+<pre>
+          SUBROUTINE h5glink2_f(cur_loc_id, cur_name, link_type, new_loc_id, new_name, hdferr) 
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN)   :: cur_loc_id ! File or group location identifier
+            CHARACTER(LEN=*), INTENT(IN) :: cur_name
+                                           ! Name of the existing object
+                                           ! is relative to cur_loc_id. Can be
+                                           ! anything for the soft link.
+            INTEGER, INTENT(IN) :: link_type ! Link type, possible values are:
+                                             !  H5G_LINK_HARD_F
+                                             !  H5G_LINK_SOFT_F
+            INTEGER(HID_T), INTENT(IN) :: new_loc_id ! New location identifier
+            CHARACTER(LEN=*), INTENT(IN) :: new_name ! New object name 
+            INTEGER, INTENT(OUT) :: hdferr          ! Error code
+
+          END SUBROUTINE h5glink2_f
+</pre>
+
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
 <a name="h5gunlink_f">
 <p>&nbsp;
 </a>
 
 
 <dt><strong>FORTRAN interface: &nbsp; <code>h5gunlink_f</code></strong>
-<dt><strong>Purpose:</strong> 
-    Remove the link to an object from a group. 
-
 <pre>    
          SUBROUTINE h5gunlink_f(loc_id, name, hdferr)
            IMPLICIT NONE
@@ -340,14 +372,13 @@ FORTRAN Group API -- h5g
 <hr>
 
 
-
-<address>
+<!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
-</address>
-
-Last modified: 11 November 2002 
 <br>
-Describes HDF5 Release 1.4.5, February 2003
+Describes HDF5 Release 1.6.0, July 2003
+</address><!-- #EndLibraryItem -->
+
+Last modified:  5 March 2003
 
 </body>
 </html>

@@ -12,8 +12,6 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tattr.c,v 1.16.2.5 2003/01/10 05:03:51 koziol Exp $ */
-
 /***********************************************************
 *
 * Test program:	 tattr
@@ -23,12 +21,12 @@
 *************************************************************/
 
 #include "testhdf5.h"
-
 #include "hdf5.h"
 
 #define FILENAME   "tattr.h5"
 #define ATTR_NAME_LEN   16
 #define ATTR_MAX_DIMS   7
+#define ATTR_TMP_NAME   "temp_name"
 
 /* 3-D dataset with fixed dimensions */
 #define SPACE1_NAME  "Space1"
@@ -36,6 +34,10 @@
 #define SPACE1_DIM1	3
 #define SPACE1_DIM2	15
 #define SPACE1_DIM3	13
+
+/* Dataset Information */
+#define DSET1_NAME "Dataset1"
+#define DSET2_NAME "Dataset2"
 
 /* Group Information */
 #define GROUP1_NAME "/Group1"
@@ -45,6 +47,10 @@
 #define ATTR1_RANK	1
 #define ATTR1_DIM1	3
 int attr_data1[ATTR1_DIM1]={512,-234,98123}; /* Test data for 1st attribute */
+
+/* rank & dimensions for another attribute */
+#define ATTR1A_NAME  "Attr1_a"
+int attr_data1a[ATTR1_DIM1]={256,11945,-22107}; 
 
 #define ATTR2_NAME  "Attr2"
 #define ATTR2_RANK	2
@@ -95,7 +101,10 @@ test_attr_basic_write(void)
     hid_t		dataset;	/* Dataset ID			*/
     hid_t		group;	    /* Group ID			    */
     hid_t		sid1,sid2;	/* Dataspace ID			*/
-    hid_t		attr;	    /* Attribute ID			*/
+    hid_t		attr, attr2;	    /* Attribute ID		*/
+    hsize_t             attr_size;  /* storage size for attribute       */
+    ssize_t             attr_name_size; /* size of attribute name       */
+    char                *attr_name=NULL;    /* name of attribute        */
     hsize_t		dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
     hsize_t		dims2[] = {ATTR1_DIM1};
     hsize_t		dims3[] = {ATTR2_DIM1,ATTR2_DIM2};
@@ -115,7 +124,8 @@ test_attr_basic_write(void)
     CHECK(sid1, FAIL, "H5Screate_simple");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    dataset=H5Dcreate(fid1,DSET1_NAME,H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
 
     /* Create dataspace for attribute */
     sid2 = H5Screate_simple(ATTR1_RANK, dims2, NULL);
@@ -137,6 +147,18 @@ test_attr_basic_write(void)
     ret=H5Awrite(attr,H5T_NATIVE_INT,attr_data1);
     CHECK(ret, FAIL, "H5Awrite");
 
+    /* Create an another attribute for the dataset */
+    attr2=H5Acreate(dataset,ATTR1A_NAME,H5T_NATIVE_INT,sid2,H5P_DEFAULT);
+    CHECK(attr, FAIL, "H5Acreate");
+    
+    /* Write attribute information */
+    ret=H5Awrite(attr2,H5T_NATIVE_INT,attr_data1a);
+    CHECK(ret, FAIL, "H5Awrite");
+    
+    /* Check storage size for attribute */
+    attr_size=H5Aget_storage_size(attr);
+    VERIFY(attr_size, (ATTR1_DIM1*sizeof(int)), "H5A_get_storage_size");
+
     /* Read attribute information immediately, without closing attribute */
     ret=H5Aread(attr,H5T_NATIVE_INT,read_data1);
     CHECK(ret, FAIL, "H5Aread");
@@ -144,13 +166,94 @@ test_attr_basic_write(void)
     /* Verify values read in */
     for(i=0; i<ATTR1_DIM1; i++)
         if(attr_data1[i]!=read_data1[i]) {
-            printf("attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",i,attr_data1[i],i,read_data1[i]);
+            printf("%d: attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",__LINE__,i,attr_data1[i],i,read_data1[i]);
             num_errs++;
          } /* end if */
 
     /* Close attribute */
     ret=H5Aclose(attr);
     CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close attribute */
+    ret=H5Aclose(attr2);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* change attribute name */
+    ret=H5Arename(dataset, ATTR1_NAME, ATTR_TMP_NAME);
+    CHECK(ret, FAIL, "H5Arename");
+
+    /* Open attribute again */
+    attr=H5Aopen_name(dataset, ATTR_TMP_NAME);
+    CHECK(attr, FAIL, "H5Aopen_name");
+
+    /* Verify new attribute name */
+    attr_name_size = H5Aget_name(attr, 0, NULL);
+    CHECK(attr_name_size, FAIL, "H5Aget_name");
+    
+    if(attr_name_size>0)
+        attr_name = (char*)HDcalloc((size_t)(attr_name_size+1), sizeof(char));
+    
+    ret=(herr_t)H5Aget_name(attr, (size_t)(attr_name_size+1), attr_name);
+    CHECK(ret, FAIL, "H5Aget_name");
+    ret=HDstrcmp(attr_name, ATTR_TMP_NAME);
+    VERIFY(ret, 0, "HDstrcmp");
+
+    if(attr_name)
+        HDfree(attr_name);
+
+    /* Read attribute information immediately, without closing attribute */
+    ret=H5Aread(attr,H5T_NATIVE_INT,read_data1);
+    CHECK(ret, FAIL, "H5Aread");
+
+    /* Verify values read in */
+    for(i=0; i<ATTR1_DIM1; i++)
+        if(attr_data1[i]!=read_data1[i]) {
+            printf("%d: attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",__LINE__,i,attr_data1[i],i,read_data1[i]);
+            num_errs++;
+        } /* end if */
+
+    /* Close attribute */
+    ret=H5Aclose(attr);
+    CHECK(ret, FAIL, "H5Aclose");
+
+
+    /* Open the second attribute again */
+    attr2=H5Aopen_name(dataset, ATTR1A_NAME); 
+    CHECK(attr, FAIL, "H5Aopen_name");
+
+    /* Verify new attribute name */
+    attr_name_size = H5Aget_name(attr2, 0, NULL);
+    CHECK(attr_name_size, FAIL, "H5Aget_name");
+    
+    if(attr_name_size>0)
+        attr_name = (char*)HDcalloc((size_t)(attr_name_size+1), sizeof(char));
+    
+    ret=(herr_t)H5Aget_name(attr2, (size_t)(attr_name_size+1), attr_name);
+    CHECK(ret, FAIL, "H5Aget_name");
+    ret=HDstrcmp(attr_name, ATTR1A_NAME);
+    VERIFY(ret, 0, "HDstrcmp");
+
+    if(attr_name)
+        HDfree(attr_name);
+
+    /* Read attribute information immediately, without closing attribute */
+    ret=H5Aread(attr2,H5T_NATIVE_INT,read_data1);
+    CHECK(ret, FAIL, "H5Aread");
+
+    /* Verify values read in */
+    for(i=0; i<ATTR1_DIM1; i++)
+        if(attr_data1a[i]!=read_data1[i]) {
+            printf("%d: attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",__LINE__,i,attr_data1[i],i,read_data1[i]);
+            num_errs++;
+        } /* end if */
+
+    /* Close attribute */
+    ret=H5Aclose(attr2);
+    CHECK(ret, FAIL, "H5Aclose");
+    
+    /* change first attribute back to the original name */
+    ret=H5Arename(dataset, ATTR_TMP_NAME, ATTR1_NAME);
+    CHECK(ret, FAIL, "H5Arename");
 
     ret = H5Sclose(sid1);
     CHECK(ret, FAIL, "H5Sclose");
@@ -173,6 +276,10 @@ test_attr_basic_write(void)
     attr=H5Acreate(group,ATTR2_NAME,H5T_NATIVE_INT,sid2,H5P_DEFAULT);
     CHECK(attr, FAIL, "H5Acreate");
 
+    /* Check storage size for attribute */
+    attr_size=H5Aget_storage_size(attr);
+    VERIFY(attr_size, (ATTR2_DIM1*ATTR2_DIM2*sizeof(int)), "H5Aget_storage_size");
+    
     /* Try to create the same attribute again (should fail) */
     ret=H5Acreate(group,ATTR2_NAME,H5T_NATIVE_INT,sid2,H5P_DEFAULT);
     VERIFY(ret, FAIL, "H5Acreate");
@@ -181,6 +288,10 @@ test_attr_basic_write(void)
     ret=H5Awrite(attr,H5T_NATIVE_INT,attr_data2);
     CHECK(ret, FAIL, "H5Awrite");
 
+    /* Check storage size for attribute */
+    attr_size=H5Aget_storage_size(attr);
+    VERIFY(attr_size, (ATTR2_DIM1*ATTR2_DIM2*sizeof(int)), "H5A_get_storage_size");
+    
     /* Close attribute */
     ret=H5Aclose(attr);
     CHECK(ret, FAIL, "H5Aclose");
@@ -223,12 +334,12 @@ test_attr_basic_read(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Open the dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
+    dataset=H5Dopen(fid1,DSET1_NAME);
     CHECK(dataset, FAIL, "H5Dopen");
 
     /* Verify the correct number of attributes */
     ret=H5Aget_num_attrs(dataset);
-    VERIFY(ret, 1, "H5Aget_num_attrs");
+    VERIFY(ret, 2, "H5Aget_num_attrs");
 
     /* Open an attribute for the dataset */
     attr=H5Aopen_name(dataset,ATTR1_NAME);
@@ -241,7 +352,7 @@ test_attr_basic_read(void)
     /* Verify values read in */
     for(i=0; i<ATTR1_DIM1; i++)
         if(attr_data1[i]!=read_data1[i]) {
-            printf("attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",i,attr_data1[i],i,read_data1[i]);
+            printf("%d: attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",__LINE__,i,attr_data1[i],i,read_data1[i]);
             num_errs++;
          } /* end if */
 
@@ -271,7 +382,7 @@ test_attr_basic_read(void)
     for(i=0; i<ATTR2_DIM1; i++)
         for(j=0; j<ATTR2_DIM2; j++)
         if(attr_data2[i][j]!=read_data2[i][j]) {
-            printf("attribute data different: attr_data2[%d][%d]=%d, read_data2[%d][%d]=%d\n",i,j,attr_data2[i][j],i,j,read_data1[i]);
+            printf("%d: attribute data different: attr_data2[%d][%d]=%d, read_data2[%d][%d]=%d\n",__LINE__, i,j,attr_data2[i][j],i,j,read_data1[i]);
             num_errs++;
          } /* end if */
 
@@ -318,7 +429,8 @@ test_attr_compound_write(void)
     CHECK(sid1, FAIL, "H5Screate_simple");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    dataset=H5Dcreate(fid1,DSET1_NAME,H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
 
     /* Close dataset's dataspace */
     ret = H5Sclose(sid1);
@@ -411,7 +523,8 @@ test_attr_compound_read(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Open the dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
+    dataset=H5Dopen(fid1,DSET1_NAME);
+    CHECK(dataset, FAIL, "H5Dopen");
 
     /* Verify the correct number of attributes */
     ret=H5Aget_num_attrs(dataset);
@@ -499,9 +612,9 @@ test_attr_compound_read(void)
     for(i=0; i<ATTR4_DIM1; i++)
         for(j=0; j<ATTR4_DIM2; j++)
             if(HDmemcmp(&attr_data4[i][j],&read_data4[i][j],sizeof(struct attr4_struct))) {
-                printf("attribute data different: attr_data4[%d][%d].i=%d, read_data4[%d][%d].i=%d\n",i,j,attr_data4[i][j].i,i,j,read_data4[i][j].i);
-                printf("attribute data different: attr_data4[%d][%d].d=%f, read_data4[%d][%d].d=%f\n",i,j,attr_data4[i][j].d,i,j,read_data4[i][j].d);
-                printf("attribute data different: attr_data4[%d][%d].c=%c, read_data4[%d][%d].c=%c\n",i,j,attr_data4[i][j].c,i,j,read_data4[i][j].c);
+                printf("%d: attribute data different: attr_data4[%d][%d].i=%d, read_data4[%d][%d].i=%d\n",__LINE__,i,j,attr_data4[i][j].i,i,j,read_data4[i][j].i);
+                printf("%d: attribute data different: attr_data4[%d][%d].d=%f, read_data4[%d][%d].d=%f\n",__LINE__,i,j,attr_data4[i][j].d,i,j,read_data4[i][j].d);
+                printf("%d: attribute data different: attr_data4[%d][%d].c=%c, read_data4[%d][%d].c=%c\n",__LINE__,i,j,attr_data4[i][j].c,i,j,read_data4[i][j].c);
                 num_errs++;
              } /* end if */
 
@@ -557,7 +670,8 @@ test_attr_scalar_write(void)
     CHECK(sid1, FAIL, "H5Screate_simple");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    dataset=H5Dcreate(fid1,DSET1_NAME,H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
 
     /* Create dataspace for attribute */
     sid2 = H5Screate_simple(ATTR5_RANK, NULL, NULL);
@@ -615,7 +729,7 @@ test_attr_scalar_read(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Open the dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
+    dataset=H5Dopen(fid1,DSET1_NAME);
     CHECK(dataset, FAIL, "H5Dopen");
 
     /* Verify the correct number of attributes */
@@ -674,7 +788,8 @@ test_attr_mult_write(void)
     CHECK(sid1, FAIL, "H5Screate_simple");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    dataset=H5Dcreate(fid1,DSET1_NAME,H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
 
     /* Close dataset's dataspace */
     ret = H5Sclose(sid1);
@@ -796,7 +911,8 @@ test_attr_mult_read(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Open the dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
+    dataset=H5Dopen(fid1,DSET1_NAME);
+    CHECK(dataset, FAIL, "H5Dopen");
 
     /* Verify the correct number of attributes */
     ret=H5Aget_num_attrs(dataset);
@@ -837,7 +953,7 @@ test_attr_mult_read(void)
     /* Verify values read in */
     for(i=0; i<ATTR1_DIM1; i++)
         if(attr_data1[i]!=read_data1[i]) {
-            printf("attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",i,attr_data1[i],i,read_data1[i]);
+            printf("%d: attribute data different: attr_data1[%d]=%d, read_data1[%d]=%d\n",__LINE__,i,attr_data1[i],i,read_data1[i]);
             num_errs++;
          } /* end if */
 
@@ -903,7 +1019,7 @@ test_attr_mult_read(void)
     for(i=0; i<ATTR2_DIM1; i++)
         for(j=0; j<ATTR2_DIM2; j++)
         if(attr_data2[i][j]!=read_data2[i][j]) {
-            printf("attribute data different: attr_data2[%d][%d]=%d, read_data2[%d][%d]=%d\n",i,j,attr_data2[i][j],i,j,read_data2[i][j]);
+            printf("%d: attribute data different: attr_data2[%d][%d]=%d, read_data2[%d][%d]=%d\n",__LINE__,i,j,attr_data2[i][j],i,j,read_data2[i][j]);
             num_errs++;
          } /* end if */
 
@@ -974,7 +1090,7 @@ test_attr_mult_read(void)
         for(j=0; j<ATTR3_DIM2; j++)
             for(k=0; k<ATTR3_DIM3; k++)
                 if(attr_data3[i][j][k]!=read_data3[i][j][k]) {
-                    printf("attribute data different: attr_data3[%d][%d][%d]=%f, read_data3[%d][%d][%d]=%f\n",i,j,k,attr_data3[i][j][k],i,j,k,read_data3[i][j][k]);
+                    printf("%d: attribute data different: attr_data3[%d][%d][%d]=%f, read_data3[%d][%d][%d]=%f\n",__LINE__,i,j,k,attr_data3[i][j][k],i,j,k,read_data3[i][j][k]);
                     num_errs++;
                  } /* end if */
 
@@ -1062,6 +1178,7 @@ test_attr_iterate(void)
 {
     hid_t   file;		/* HDF5 File ID 		*/
     hid_t   dataset;	/* Dataset ID			*/
+    hid_t   sid;	/* Dataspace ID			*/
     unsigned start;     /* Starting attribute to look up */
     int     count;      /* operator data for the iterator */
     herr_t  ret;		/* Generic return value		*/
@@ -1073,14 +1190,41 @@ test_attr_iterate(void)
     file = H5Fopen(FILENAME, H5F_ACC_RDWR, H5P_DEFAULT);
     CHECK(file, FAIL, "H5Fopen");
 
-    /* Open the dataset */
-    dataset=H5Dopen(file,"Dataset1");
+    /* Create a dataspace */
+    sid=H5Screate(H5S_SCALAR);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Create a new dataset */
+    dataset=H5Dcreate(file,DSET2_NAME,H5T_NATIVE_INT,sid,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Verify the correct number of attributes */
+    ret=H5Aget_num_attrs(dataset);
+    VERIFY(ret, 0, "H5Aget_num_attrs");
+
+    /* Iterate over attributes on dataset */
+    start=0;
+    count=0;
+    ret = H5Aiterate(dataset,&start,attr_op1,&count);
+    VERIFY(ret, 0, "H5Aiterate");
+
+    /* Close dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Open existing dataset w/attributes */
+    dataset=H5Dopen(file,DSET1_NAME);
+    CHECK(dataset, FAIL, "H5Dopen");
 
     /* Verify the correct number of attributes */
     ret=H5Aget_num_attrs(dataset);
     VERIFY(ret, 3, "H5Aget_num_attrs");
 
-    /* Close dataset */
+    /* Iterate over attributes on dataset */
     start=0;
     count=0;
     ret = H5Aiterate(dataset,&start,attr_op1,&count);
@@ -1118,7 +1262,8 @@ test_attr_delete(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Open the dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
+    dataset=H5Dopen(fid1,DSET1_NAME);
+    CHECK(dataset, FAIL, "H5Dopen");
 
     /* Verify the correct number of attributes */
     ret=H5Aget_num_attrs(dataset);

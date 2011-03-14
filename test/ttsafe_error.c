@@ -23,11 +23,13 @@
  * entry.
  *
  * Temporary files generated:
- *   ttsafe_error.h5
+ *
+ *     ttsafe_error.h5
  *
  * HDF5 APIs exercised in thread:
- * H5Screate_simple, H5Tcopy, H5Tset_order, H5Dcreate, H5Dclose,
- * H5Tclose, H5Sclose.
+ *
+ *     H5Screate_simple, H5Tcopy, H5Tset_order, H5Dcreate, H5Dclose,
+ *     H5Tclose, H5Sclose.
  *
  * Created: Apr 28 2000
  * Programmer: Chee Wai LEE
@@ -43,25 +45,21 @@
  ********************************************************************/
 #include "ttsafe.h"
 
-#ifndef H5_HAVE_THREADSAFE
-static int dummy;	/* just to create a non-empty object file */
-#else
+#ifdef H5_HAVE_THREADSAFE
 
-#define NUM_THREAD	16
-#define FILENAME	"ttsafe_error.h5"
+#define NUM_THREAD              16
+#define FILENAME                "ttsafe_error.h5"
 
 /* Having a common dataset name is an error */
 #define DATASETNAME		"commonname"
-#define EXPECTED_ERROR_DEPTH	3
+#define EXPECTED_ERROR_DEPTH	8
 #define WRITE_NUMBER		37
 
-/* Global variables */
-extern int num_errs;
-extern int Verbosity;
+static herr_t error_callback(void *);
+static herr_t walk_error_callback(int, H5E_error_t *, void *);
+static void *tts_error_thread(void *);
 
-herr_t error_callback(void *);
-herr_t walk_error_callback(int, H5E_error_t *, void *);
-void *tts_error_thread(void *);
+/* Global variables */
 hid_t error_file;
 
 typedef struct err_num_struct {
@@ -72,7 +70,12 @@ typedef struct err_num_struct {
 err_num_t expected[] = {
 	{H5E_DATASET, H5E_CANTINIT},
 	{H5E_DATASET, H5E_CANTINIT},
-	{H5E_SYM, H5E_EXISTS}
+	{H5E_SYM, H5E_EXISTS},
+	{H5E_SYM, H5E_CANTINSERT},
+	{H5E_SYM, H5E_CANTINSERT},
+	{H5E_BTREE, H5E_CANTINIT},
+	{H5E_BTREE, H5E_CANTINSERT},
+	{H5E_SYM, H5E_CANTINSERT},
 };
 
 int error_flag = 0;
@@ -99,7 +102,9 @@ void tts_error(void)
 
 	/* make thread scheduling global */
 	pthread_attr_init(&attribute);
+#ifdef H5_HAVE_SYSTEM_SCOPE_THREADS
 	pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM);
+#endif /* H5_HAVE_SYSTEM_SCOPE_THREADS */
 
 	/*
 	 * Create a hdf5 file using H5F_ACC_TRUNC access, default file
@@ -139,8 +144,12 @@ void tts_error(void)
 
 	/* turn our error stack handler off */
 	H5Eset_auto(old_error_cb, old_error_client_data);
+
+        /* Destroy the thread attribute */
+        pthread_attr_destroy(&attribute);
 }
 
+static
 void *tts_error_thread(void *arg)
 {
 	hid_t dataspace, datatype, dataset;
@@ -167,17 +176,21 @@ void *tts_error_thread(void *arg)
 
 	H5Tclose(datatype);
 	H5Sclose(dataspace);
-	return (NULL);
+        arg = arg; /* gets rid of annoying warning message */
+	return NULL;
 }
 
+static
 herr_t error_callback(void *client_data)
 {
 	pthread_mutex_lock(&error_mutex);
 	error_count++;
 	pthread_mutex_unlock(&error_mutex);
+        client_data = client_data; /* gets rid of annoying warning message */
 	return H5Ewalk(H5E_WALK_DOWNWARD, walk_error_callback, NULL);
 }
 
+static
 herr_t walk_error_callback(int n, H5E_error_t *err_desc, void *client_data)
 {
 	int maj_num, min_num;
@@ -192,6 +205,7 @@ herr_t walk_error_callback(int n, H5E_error_t *err_desc, void *client_data)
 	}
 
 	error_flag = -1;
+        client_data = client_data; /* gets rid of annoying warning message */
 	return SUCCEED;
 }
 

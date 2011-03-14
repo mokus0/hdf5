@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.c,v 1.32.2.11 2003/02/19 18:57:35 slu Exp $ */
+/* $Id: testphdf5.c,v 1.53 2003/06/10 19:05:06 koziol Exp $ */
 
 /*
  * Main driver of the Parallel HDF5 tests
@@ -42,18 +42,20 @@ void *old_client_data;			/* previous error handler arg.*/
 /* other option flags */
 int doread=1;				/* read test */
 int dowrite=1;				/* write test */
+int docompact=1;                        /* compact dataset test */
 int doindependent=1;			/* independent test */
 
 /* FILENAME and filenames must have the same number of names */
-const char *FILENAME[7]={
+const char *FILENAME[8]={
 	    "ParaEg1",
 	    "ParaEg2",
 	    "ParaEg3",
 	    "ParaMdset",
             "ParaMgroup",
+            "ParaCompact",
             "ParaIndividual",
 	    NULL};
-char	filenames[7][PATH_MAX];
+char	filenames[8][PATH_MAX];
 hid_t	fapl;				/* file access property list */
 
 #ifdef USE_PAUSE
@@ -114,13 +116,14 @@ static void
 usage(void)
 {
     printf("Usage: testphdf5 [-r] [-w] [-v] [-m<n_datasets>] [-n<n_groups>] "
-	"[-f <prefix>] [-d <dim0> <dim1>]\n");
+	"[-o] [-f <prefix>] [-d <dim0> <dim1>]\n");
     printf("\t-r\t\tno read test\n");
     printf("\t-w\t\tno write test\n");
     printf("\t-m<n_datasets>"
 	"\tset number of datasets for the multiple dataset test\n");
     printf("\t-n<n_groups>"
         "\tset number of groups for the multiple group test\n");  
+    printf("\t-o\t\tno compact dataset test\n");
     printf("\t-i\t\tno independent read test\n");
     printf("\t-v\t\tverbose on\n");
     printf("\t-f <prefix>\tfilename prefix\n");
@@ -169,6 +172,8 @@ parse_options(int argc, char **argv)
                                 nerrors++;
                                 return(1);
 			    }
+                            break;
+                case 'o':   docompact = 0;
                             break;
                 case 'i':   doindependent = 0;
                             break;
@@ -268,7 +273,8 @@ parse_options(int argc, char **argv)
  * Create the appropriate File access property list
  */
 hid_t
-create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type )
+create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type,
+                     hbool_t use_gpfs)
 {
     hid_t ret_pl = -1;
     herr_t ret;                 /* generic return value */
@@ -311,8 +317,12 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type )
 
     if (l_facc_type == FACC_MPIPOSIX) {
 	/* set Parallel access with communicator */
+#ifdef H5_WANT_H5_V1_4_COMPAT
 	ret = H5Pset_fapl_mpiposix(ret_pl, comm);
-	VRFY((ret >= 0), "");
+#else /* H5_WANT_H5_V1_4_COMPAT */
+	ret = H5Pset_fapl_mpiposix(ret_pl, comm, use_gpfs);
+#endif /* H5_WANT_H5_V1_4_COMPAT */
+	VRFY((ret >= 0), "H5Pset_fapl_mpiposix succeeded");
 	return(ret_pl);
     }
 
@@ -350,8 +360,17 @@ int main(int argc, char **argv)
 	goto finish;
     }
 
-    MPI_BANNER("test_comm_info_delete...");
-    test_comm_info_delete();
+    if (facc_type == FACC_MPIPOSIX && MAINPROCESS){
+	printf("===================================\n"
+	       "   Using MPIPOSIX driver\n"
+	       "===================================\n");
+    }
+
+    MPI_BANNER("test_fapl_mpio_dup...");
+    test_fapl_mpio_dup();
+
+    MPI_BANNER("test_fapl_mpiposix_dup...");
+    test_fapl_mpiposix_dup();
 
     if (ndatasets){
 	MPI_BANNER("multiple datasets write ...");
@@ -385,6 +404,9 @@ int main(int argc, char **argv)
 
 	MPI_BANNER("extendible dataset independent write...");
 	extend_writeInd(filenames[2]);
+
+	MPI_BANNER("extendible dataset collective write...");
+	extend_writeAll(filenames[2]);
     }
     else{
 	MPI_BANNER("write tests skipped");
@@ -399,24 +421,35 @@ int main(int argc, char **argv)
 
 	MPI_BANNER("extendible dataset independent read...");
 	extend_readInd(filenames[2]);
+
+	MPI_BANNER("extendible dataset collective read...");
+	extend_readAll(filenames[2]);
     }
     else{
 	MPI_BANNER("read tests skipped");
     }
 
+    if (docompact){
+        MPI_BANNER("compact dataset test...");
+        compact_dataset(filenames[5]); 
+    }
+    else {
+        MPI_BANNER("compact dataset test skipped");
+    }
+    
     if (doindependent){
 	MPI_BANNER("collective group and dataset write ...");
-        collective_group_write(filenames[5], ngroups);
+        collective_group_write(filenames[6], ngroups);
         if (doread) {
-       	    MPI_BANNER("indepenent group and dataset read ...");
-            independent_group_read(filenames[5], ngroups);
+       	    MPI_BANNER("independent group and dataset read ...");
+            independent_group_read(filenames[6], ngroups);
         }
     }
     else{
         MPI_BANNER("Independent test skipped");
     }
         
-    if (!(dowrite || doread || ndatasets || ngroups)){
+    if (!(dowrite || doread || ndatasets || ngroups || docompact)){
 	usage();
 	nerrors++;
     }
@@ -442,7 +475,7 @@ finish:
 	/* h5_cleanup would have closed fapl.  Now must do it explicitedly */
 	H5Pclose(fapl);
     }
-    
+
     /* close HDF5 library */
     H5close();
 

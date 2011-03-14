@@ -34,7 +34,7 @@ RUNTEST=$(RUNSERIAL)
 TRACE=:
 
 ## Installation points
-prefix=@prefix@
+prefix?=@prefix@
 exec_prefix=@exec_prefix@
 bindir=@bindir@
 libdir=@libdir@
@@ -58,18 +58,24 @@ LT_UNINSTALL=$(LT) --mode=uninstall $(RM)
 ## complains if it sees a reference to a variable which has never been
 ## defined. The main makefile is free to redefine these to something else.
 DOCDIR=$(docdir)
+SUBDOCDIR=
+EXAMPLEDIR=$(docdir)/hdf5/examples/c
 LIB=
 LIB_SRC=
 LIB_OBJ=
 PUB_HDR=
 PUB_PROGS=
 PUB_DOCS=
+PUB_SUBDOCS=
 PROGS=
 TEST_PROGS=
 TEST_PROGS_PARA=
 TEST_FLAGS=
 TEST_SCRIPTS=
 AUX_LIB=
+EXAMPLE_PROGS=
+SUBDIRS=
+LIBHDF5=
 
 ## The default is to build the library and/or programs.  We must build
 ## them sequentially.

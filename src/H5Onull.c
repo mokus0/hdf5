@@ -24,8 +24,11 @@
  *
  *-------------------------------------------------------------------------
  */
+
+#define H5O_PACKAGE	/*suppress error about including H5Opkg	  */
+
 #include "H5private.h"
-#include "H5Oprivate.h"
+#include "H5Opkg.h"             /* Object header functions                  */
 
 #define PABLO_MASK      H5O_null_mask
 
@@ -40,6 +43,7 @@ const H5O_class_t H5O_NULL[1] = {{
     NULL,                   /*no size method                */
     NULL,                   /*no reset method               */
     NULL,                   /*no free method                */
+    NULL,		    /*no file delete method         */
     NULL,		    /*no get share method	    */
     NULL,	            /*no set share method	    */
     NULL,                   /*no debug method               */

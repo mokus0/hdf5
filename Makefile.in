@@ -1,5 +1,6 @@
 ## Top-level HDF5 Makefile(.in)
 ##
+##
 ## Copyright by the Board of Trustees of the University of Illinois.
 ## All rights reserved.
 ##
@@ -11,7 +12,6 @@
 ## is linked from the top-level documents page.  It can also be found at
 ## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
 ## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
-##
 ## 
 ## This makefile mostly just reinvokes make in the various subdirectories
 ## but does so in the correct order.  You can alternatively invoke make from
@@ -23,72 +23,113 @@ srcdir=@srcdir@
 @COMMENCE@
 
 # Subdirectories in build-order (not including `examples')
-SUBDIRS=src test tools doc @TESTPARALLEL@ @subdirs@
+# TESTPARALLEL must be after test since it uses libtest.a.  Putting it
+# before tools allows parallel tests to run sooner.
+SUBDIRS=src test @TESTPARALLEL@ tools @PABLO@ @subdirs@
 
 ##############################################################################
 ##		    T A R G E T S
 ##
 ## all:		Build libraries, header files, tests, and programs in the
-##          various subdirectories but does not run tests or install the
-##          library, header files, or programs.  The components can be
-##          built individually with the targets lib, progs, and tests.
+##	 	various subdirectories but does not run tests or install the
+##		library, header files, or programs.  The components can be
+##		built individually with the targets lib, progs, and tests.
 ## check:	Test the uninstalled library to make sure it works. You may
-##          also say `test' or `_test' (`test' doesn't work from the top
-##          level directory for some versions of make because `test' is
-##          also a directory).
+##		also say `test' or `_test' (`test' doesn't work from the top
+##		level directory for some versions of make because `test' is
+##		also a directory).
 ## install:	Installs libraries, header files, programs, and documentation
-##          in the various directories under the prefix directory (lib,
-##          include, bin, man, info).  Use the `--prefix=PATH' option
-##          to `configure' (or `config.status') or say `--help' for
-##          other alternatives.  The default prefix is `/usr/local'.
+##		in the various directories under the prefix directory (lib,
+##		include, bin, man, info).  Use the `--prefix=PATH' option
+##		to `configure' (or `config.status') or say `--help' for
+##		other alternatives.  The default prefix is `/usr/local'.
 ## uninstall:	Delete all the installed files that the `install' target
-##          created (but not the noninstalled files such as `make all'
-##          created).
+##		created (but not the noninstalled files such as `make all'
+##		created).
 ## clean:	Removes temporary files except those that record the
-##          configuration and those that are part of the distribution.
+##		configuration and those that are part of the distribution.
 ## mostlyclean:	Like `clean' except it doesn't delete a few files like
-##          libraries, programs, and/or generated header files because
-##          regenerating them is rarely necessary and takes a lot of time.
+##		libraries, programs, and/or generated header files because
+##		regenerating them is rarely necessary and takes a lot of time.
 ## distclean:	Deletes all files that are created by configuring or building
-##          HDF5.  If you have unpacked the source and built HDF5 without
-##          creating any other files, then `make distclean' will leave
-##          only the files that were in the distrubution.
+##		HDF5.  If you have unpacked the source and built HDF5 without
+##		creating any other files, then `make distclean' will leave
+##		only the files that were in the distrubution.
 ## maintainer-clean:
-##          Like `distclean' except it deletes more files.  It deletes
-##          all generated files.  This target is not intended for normal
-##          users; it deletes files that may require special tools to
-##          rebuild.
+##		Like `distclean' except it deletes more files.  It deletes
+##		all generated files.  This target is not intended for normal
+##		users; it deletes files that may require special tools to
+##		rebuild.
 ## TAGS:	Updates the tags table for this program.
 ## dep depend:	Builds dependencies in all subdirectories.  These targets
-##          might not be available on certain combinations of make
-##          programs and C compilers.  At the other extreme, the GNU
-##          make used in combination with gcc will maintain dependency
-##          information automatically.
+##		might not be available on certain combinations of make
+##		programs and C compilers.  At the other extreme, the GNU
+##		make used in combination with gcc will maintain dependency
+##		information automatically.
 lib progs check test _test uninstall:
 	@@SETX@; for d in $(SUBDIRS); do				      \
 	   (cd $$d && $(MAKE) $@) || exit 1;				      \
 	done
 
 tests TAGS dep depend:
-	@@SETX@; for d in $(SUBDIRS) perform; do			      \
+	@@SETX@; for d in $(SUBDIRS) perform; do		      \
 	   (cd $$d && $(MAKE) $@) || exit 1;				      \
 	done
+
+install-all:
+	@@SETX@; for d in dummy @subdirs@; do				      \
+	  if test $$d != "dummy"; then					      \
+	    (cd $$d && $(MAKE) $@) || exit 1;				      \
+	  fi;								      \
+	done
+	@$(MAKE) install
+	@$(MAKE) install-doc
+	@$(LT) --mode=finish $(libdir)
+
+uninstall-all:
+	@$(MAKE) uninstall
+	@$(MAKE) uninstall-doc
 
 install:
-	@@SETX@; for d in $(SUBDIRS) perform; do				      \
+	@@SETX@; for d in $(SUBDIRS); do				      \
 	   (cd $$d && $(MAKE) $@) || exit 1;				      \
 	done
-	@$(LT) --mode=finish $(libdir);
+	@$(MAKE) install-examples
+	@$(LT) --mode=finish $(libdir)
+
+install-examples:
+	@@SETX@; for d in dummy @subdirs@; do				      \
+	  if test $$d != "dummy"; then					      \
+	    (cd $$d && $(MAKE) $@) || exit 1;				      \
+	  fi;								      \
+	done
+	(cd examples && $(MAKE) $@) || exit 1;
+
+uninstall-examples:
+	@@SETX@; for d in dummy @subdirs@; do				      \
+	  if test $$d != "dummy"; then					      \
+	    (cd $$d && $(MAKE) $@) || exit 1;				      \
+	  fi;								      \
+	done
+	(cd examples && $(MAKE) $@) || exit 1;
 
 install-doc:
+	@$(MAKE) install-examples
 	(cd doc && $(MAKE) $@) || exit 1;
 
 uninstall-doc:
+	@$(MAKE) uninstall-examples
 	(cd doc && $(MAKE) $@) || exit 1;
 
-## need to require a proper "make install" has been done.
+## Check if installation is correct by checking if examples can be built.
+## This requires a proper "make install" has been done.
 check-install:
-	(cd examples && $(MAKE) check) || exit 1;
+	(cd examples && $(MAKE) check) || exit 1
+	@@SETX@; for d in dummy @subdirs@; do				      \
+	  if test $$d != "dummy"; then					      \
+	    (cd $$d && $(MAKE) $@) || exit 1;				      \
+	  fi;								      \
+	done
 
 ## Number format detection
 H5detect: 
@@ -101,13 +142,13 @@ H5Tinit.c:
 	mostlyclean distclean maintainer-clean
 
 clean mostlyclean:
-	@@SETX@; for d in $(SUBDIRS) perform examples pablo; do			      \
+	@@SETX@; for d in $(SUBDIRS) doc perform examples; do	      \
 	   (cd $$d && $(MAKE) $@);					      \
 	done
 	-$(RM) conftest conftest.c
 
 distclean:
-	@@SETX@; for d in $(SUBDIRS) perform examples pablo; do			      \
+	@@SETX@; for d in $(SUBDIRS) doc perform examples; do	      \
 	   (cd $$d && $(MAKE) $@);					      \
 	done
 	-$(RM) config/commence config/conclude
@@ -119,7 +160,7 @@ distclean:
 maintainer-clean:
 	@echo "This target is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
-	@@SETX@; for d in $(SUBDIRS) perform examples pablo; do			      \
+	@@SETX@; for d in $(SUBDIRS) doc perform examples; do	      \
 	   (cd $$d && $(MAKE) $@);					      \
 	done
 	-$(RM) config.cache config.log config.status src/H5config.h

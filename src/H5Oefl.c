@@ -16,14 +16,16 @@
  * Programmer: Robb Matzke <matzke@llnl.gov>
  *	       Tuesday, November 25, 1997
  */
+
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
+#define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
 
 #include "H5private.h"
 #include "H5Eprivate.h"
 #include "H5Fpkg.h"
 #include "H5HLprivate.h"
 #include "H5MMprivate.h"
-#include "H5Oprivate.h"
+#include "H5Opkg.h"             /* Object header functions                 */
 
 #define PABLO_MASK	H5O_efl_mask
 
@@ -35,6 +37,10 @@ static size_t H5O_efl_size(H5F_t *f, const void *_mesg);
 static herr_t H5O_efl_reset(void *_mesg);
 static herr_t H5O_efl_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			    int indent, int fwidth);
+static herr_t H5O_efl_read (const H5O_efl_t *efl, haddr_t addr, size_t size,
+    uint8_t *buf);
+static herr_t H5O_efl_write(const H5O_efl_t *efl, haddr_t addr, size_t size,
+    const uint8_t *buf);
 
 /* This message derives from H5O */
 const H5O_class_t H5O_EFL[1] = {{
@@ -47,6 +53,7 @@ const H5O_class_t H5O_EFL[1] = {{
     H5O_efl_size,	    	/*size of message on disk	*/
     H5O_efl_reset,	    	/*reset method		    	*/
     NULL,		            /* free method			*/
+    NULL,		        /* file delete method		*/
     NULL,	  	    	/*get share method		*/
     NULL,			/*set share method		*/
     H5O_efl_debug,	    	/*debug the message		*/
@@ -84,25 +91,22 @@ H5O_efl_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *s
     H5O_efl_t		*mesg = NULL;
     int		i, version;
     const char		*s = NULL;
+    void *ret_value;            /* Return value */
 
-    FUNC_ENTER(H5O_efl_decode, NULL);
+    FUNC_ENTER_NOAPI(H5O_efl_decode, NULL);
 
     /* Check args */
     assert(f);
     assert(p);
     assert (!sh);
 
-    if (NULL==(mesg = H5MM_calloc(sizeof(H5O_efl_t)))) {
-	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		       "memory allocation failed");
-    }
+    if (NULL==(mesg = H5MM_calloc(sizeof(H5O_efl_t))))
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* Version */
     version = *p++;
-    if (version!=H5O_EFL_VERSION) {
-	HRETURN_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL,
-		      "bad version number for external file list message");
-    }
+    if (version!=H5O_EFL_VERSION)
+	HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "bad version number for external file list message");
 
     /* Reserved */
     p += 3;
@@ -123,11 +127,8 @@ H5O_efl_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *s
 
     /* Decode the file list */
     mesg->slot = H5MM_calloc(mesg->nalloc*sizeof(H5O_efl_entry_t));
-    if (NULL==mesg->slot) {
-	H5MM_xfree (mesg);
-	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		       "memory allocation failed");
-    }
+    if (NULL==mesg->slot)
+	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     for (i=0; i<mesg->nused; i++) {
 	/* Name */
 	H5F_DECODE_LENGTH (f, p, mesg->slot[i].name_offset);
@@ -143,8 +144,17 @@ H5O_efl_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *s
 	assert (mesg->slot[i].size>0);
     }
 
-    FUNC_LEAVE(mesg);
+    /* Set return value */
+    ret_value=mesg;
+
+done:
+    if(ret_value==NULL) {
+        if(mesg!=NULL)
+            H5MM_xfree (mesg);
+    } /* end if */
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5O_efl_encode
@@ -172,8 +182,9 @@ H5O_efl_encode(H5F_t *f, uint8_t *p, const void *_mesg)
 {
     const H5O_efl_t	*mesg = (const H5O_efl_t *)_mesg;
     int			i;
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5O_efl_encode, FAIL);
+    FUNC_ENTER_NOAPI(H5O_efl_encode, FAIL);
 
     /* check args */
     assert(f);
@@ -210,7 +221,8 @@ H5O_efl_encode(H5F_t *f, uint8_t *p, const void *_mesg)
 	H5F_ENCODE_LENGTH (f, p, mesg->slot[i].size);
     }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -237,26 +249,22 @@ H5O_efl_copy(const void *_mesg, void *_dest)
     const H5O_efl_t	*mesg = (const H5O_efl_t *) _mesg;
     H5O_efl_t		*dest = (H5O_efl_t *) _dest;
     int			i;
+    void                *ret_value;     /* Return value */
 
-    FUNC_ENTER(H5O_efl_copy, NULL);
+    FUNC_ENTER_NOAPI(H5O_efl_copy, NULL);
 
     /* check args */
     assert(mesg);
     if (!dest) {
 	if (NULL==(dest = H5MM_calloc(sizeof(H5O_efl_t))) ||
-	    NULL==(dest->slot=H5MM_malloc(mesg->nalloc*
-					  sizeof(H5O_efl_entry_t)))) {
-	    HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-			   "memory allocation failed");
-	}
+                NULL==(dest->slot=H5MM_malloc(mesg->nalloc* sizeof(H5O_efl_entry_t))))
+	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 	
     } else if (dest->nalloc<mesg->nalloc) {
 	H5MM_xfree(dest->slot);
 	if (NULL==(dest->slot = H5MM_malloc(mesg->nalloc*
-					    sizeof(H5O_efl_entry_t)))) {
-	    HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-			   "memory allocation failed");
-	}
+					    sizeof(H5O_efl_entry_t))))
+	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     }
     dest->heap_addr = mesg->heap_addr;
     dest->nalloc = mesg->nalloc;
@@ -267,7 +275,11 @@ H5O_efl_copy(const void *_mesg, void *_dest)
 	dest->slot[i].name = H5MM_xstrdup (mesg->slot[i].name);
     }
 
-    FUNC_LEAVE((void *)dest);
+    /* Set return value */
+    ret_value=dest;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -296,7 +308,7 @@ H5O_efl_size(H5F_t *f, const void *_mesg)
     const H5O_efl_t	*mesg = (const H5O_efl_t *) _mesg;
     size_t		ret_value = 0;
 
-    FUNC_ENTER(H5O_efl_size, 0);
+    FUNC_ENTER_NOAPI(H5O_efl_size, 0);
 
     /* check args */
     assert(f);
@@ -310,7 +322,8 @@ H5O_efl_size(H5F_t *f, const void *_mesg)
 			       H5F_SIZEOF_SIZE(f) +	/*file offset	*/
 			       H5F_SIZEOF_SIZE(f));	/*file size	*/
 
-    FUNC_LEAVE(ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -334,22 +347,23 @@ H5O_efl_reset(void *_mesg)
 {
     H5O_efl_t	*mesg = (H5O_efl_t *) _mesg;
     int		i;
+    herr_t ret_value=SUCCEED;   /* Return value */
     
-
-    FUNC_ENTER(H5O_efl_reset, FAIL);
+    FUNC_ENTER_NOAPI(H5O_efl_reset, FAIL);
 
     /* check args */
     assert(mesg);
 
     /* reset */
-    for (i=0; i<mesg->nused; i++) {
+    for (i=0; i<mesg->nused; i++)
 	mesg->slot[i].name = H5MM_xfree (mesg->slot[i].name);
-    }
     mesg->heap_addr = HADDR_UNDEF;
     mesg->nused = mesg->nalloc = 0;
-    mesg->slot = H5MM_xfree(mesg->slot);
+    if(mesg->slot)
+        mesg->slot = H5MM_xfree(mesg->slot);
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -376,7 +390,7 @@ H5O_efl_total_size (H5O_efl_t *efl)
     int		i;
     hsize_t	ret_value = 0, tmp;
     
-    FUNC_ENTER (H5O_efl_total_size, 0);
+    FUNC_ENTER_NOAPI(H5O_efl_total_size, 0);
 
     if (efl->nused>0 &&
 	H5O_EFL_UNLIMITED==efl->slot[efl->nused-1].size) {
@@ -384,14 +398,13 @@ H5O_efl_total_size (H5O_efl_t *efl)
     } else {
 	for (i=0; i<efl->nused; i++, ret_value=tmp) {
 	    tmp = ret_value + efl->slot[i].size;
-	    if (tmp<=ret_value) {
-		HRETURN_ERROR (H5E_EFL, H5E_OVERFLOW, 0,
-			       "total external storage size overflowed");
-	    }
+	    if (tmp<=ret_value)
+		HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, 0, "total external storage size overflowed");
 	}
     }
 
-    FUNC_LEAVE (ret_value);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 
 
@@ -413,21 +426,20 @@ H5O_efl_total_size (H5O_efl_t *efl)
  *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
-herr_t
-H5O_efl_read (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
-	      hsize_t size, uint8_t *buf)
+static herr_t
+H5O_efl_read (const H5O_efl_t *efl, haddr_t addr, size_t size, uint8_t *buf)
 {
     int		i, fd=-1;
     size_t	to_read;
 #ifndef NDEBUG
-    hsize_t tempto_read;
-#endif
+    hsize_t     tempto_read;
+#endif /* NDEBUG */
     hsize_t     skip=0;
     haddr_t     cur;
     ssize_t	n;
-    herr_t	ret_value = FAIL;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER (H5O_efl_read, FAIL);
+    FUNC_ENTER_NOAPI(H5O_efl_read, FAIL);
 
     /* Check args */
     assert (efl && efl->nused>0);
@@ -438,31 +450,23 @@ H5O_efl_read (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
     /* Find the first efl member from which to read */
     for (i=0, cur=0; i<efl->nused; i++) {
 	if (H5O_EFL_UNLIMITED==efl->slot[i].size ||
-	    addr < cur+efl->slot[i].size) {
+                addr < cur+efl->slot[i].size) {
 	    skip = addr - cur;
 	    break;
 	}
-	cur += efl->slot[i].size;
+  	cur += efl->slot[i].size;
     }
     
     /* Read the data */
     while (size) {
-	if (i>=efl->nused) {
-	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL,
-			 "read past logical end of file");
-	}
-	if (H5F_OVERFLOW_SIZET2OFFT (efl->slot[i].offset+skip)) {
-	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL,
-			 "external file address overflowed");
-	}
-	if ((fd=HDopen (efl->slot[i].name, O_RDONLY, 0))<0) {
-	    HGOTO_ERROR (H5E_EFL, H5E_CANTOPENFILE, FAIL,
-			 "unable to open external raw data file");
-	}
-	if (HDlseek (fd, (off_t)(efl->slot[i].offset+skip), SEEK_SET)<0) {
-	    HGOTO_ERROR (H5E_EFL, H5E_SEEKERROR, FAIL,
-			 "unable to seek in external raw data file");
-	}
+	if (i>=efl->nused)
+	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL, "read past logical end of file");
+	if (H5F_OVERFLOW_HSIZET2OFFT (efl->slot[i].offset+skip))
+	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL, "external file address overflowed");
+	if ((fd=HDopen (efl->slot[i].name, O_RDONLY, 0))<0)
+	    HGOTO_ERROR (H5E_EFL, H5E_CANTOPENFILE, FAIL, "unable to open external raw data file");
+	if (HDlseek (fd, (off_t)(efl->slot[i].offset+skip), SEEK_SET)<0)
+	    HGOTO_ERROR (H5E_EFL, H5E_SEEKERROR, FAIL, "unable to seek in external raw data file");
 #ifndef NDEBUG
 	tempto_read = MIN(efl->slot[i].size-skip,(hsize_t)size);
         H5_CHECK_OVERFLOW(tempto_read,hsize_t,size_t);
@@ -470,10 +474,8 @@ H5O_efl_read (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
 #else /* NDEBUG */
 	to_read = MIN((size_t)(efl->slot[i].size-skip), size);
 #endif /* NDEBUG */
-
 	if ((n=HDread (fd, buf, to_read))<0) {
-	    HGOTO_ERROR (H5E_EFL, H5E_READERROR, FAIL,
-			 "read error in external raw data file");
+	    HGOTO_ERROR (H5E_EFL, H5E_READERROR, FAIL, "read error in external raw data file");
 	} else if ((size_t)n<to_read) {
 	    HDmemset (buf+n, 0, to_read-n);
 	}
@@ -484,11 +486,12 @@ H5O_efl_read (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
 	skip = 0;
 	i++;
     }
-    ret_value = SUCCEED;
     
- done:
-    if (fd>=0) HDclose (fd);
-    FUNC_LEAVE (ret_value);
+done:
+    if (fd>=0)
+        HDclose (fd);
+
+    FUNC_LEAVE_NOAPI(ret_value);
 }
 	
 
@@ -510,9 +513,8 @@ H5O_efl_read (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
  *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
-herr_t
-H5O_efl_write (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
-	       hsize_t size, const uint8_t *buf)
+static herr_t
+H5O_efl_write (const H5O_efl_t *efl, haddr_t addr, size_t size, const uint8_t *buf)
 {
     int		i, fd=-1;
     size_t	to_write;
@@ -521,9 +523,9 @@ H5O_efl_write (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
 #endif /* NDEBUG */
     haddr_t     cur;
     hsize_t     skip=0;
-    herr_t	ret_value = FAIL;
+    herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER (H5O_efl_write, FAIL);
+    FUNC_ENTER_NOAPI(H5O_efl_write, FAIL);
 
     /* Check args */
     assert (efl && efl->nused>0);
@@ -534,7 +536,7 @@ H5O_efl_write (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
     /* Find the first efl member in which to write */
     for (i=0, cur=0; i<efl->nused; i++) {
 	if (H5O_EFL_UNLIMITED==efl->slot[i].size ||
-	    addr < cur+efl->slot[i].size) {
+                addr < cur+efl->slot[i].size) {
 	    skip = addr - cur;
 	    break;
 	}
@@ -543,38 +545,28 @@ H5O_efl_write (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
     
     /* Write the data */
     while (size) {
-	if (i>=efl->nused) {
-	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL,
-			 "write past logical end of file");
-	}
-	if (H5F_OVERFLOW_SIZET2OFFT (efl->slot[i].offset+skip)) {
-	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL,
-			 "external file address overflowed");
-	}
-	if ((fd=HDopen (efl->slot[i].name, O_RDWR, 0))<0) {
+	if (i>=efl->nused)
+	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL, "write past logical end of file");
+	if (H5F_OVERFLOW_HSIZET2OFFT (efl->slot[i].offset+skip))
+	    HGOTO_ERROR (H5E_EFL, H5E_OVERFLOW, FAIL, "external file address overflowed");
+	if ((fd=HDopen (efl->slot[i].name, O_CREAT|O_RDWR, 0666))<0) {
 	    if (HDaccess (efl->slot[i].name, F_OK)<0) {
-		HGOTO_ERROR (H5E_EFL, H5E_CANTOPENFILE, FAIL,
-			     "external raw data file does not exist");
+		HGOTO_ERROR (H5E_EFL, H5E_CANTOPENFILE, FAIL, "external raw data file does not exist");
 	    } else {
-		HGOTO_ERROR (H5E_EFL, H5E_CANTOPENFILE, FAIL,
-			     "unable to open external raw data file");
+		HGOTO_ERROR (H5E_EFL, H5E_CANTOPENFILE, FAIL, "unable to open external raw data file");
 	    }
 	}
-	if (HDlseek (fd, (off_t)(efl->slot[i].offset+skip), SEEK_SET)<0) {
-	    HGOTO_ERROR (H5E_EFL, H5E_SEEKERROR, FAIL,
-			 "unable to seek in external raw data file");
-	}
-	#ifndef NDEBUG
+	if (HDlseek (fd, (off_t)(efl->slot[i].offset+skip), SEEK_SET)<0)
+	    HGOTO_ERROR (H5E_EFL, H5E_SEEKERROR, FAIL, "unable to seek in external raw data file");
+#ifndef NDEBUG
 	tempto_write = MIN(efl->slot[i].size-skip,(hsize_t)size);
         H5_CHECK_OVERFLOW(tempto_write,hsize_t,size_t);
         to_write = (size_t)tempto_write;
 #else /* NDEBUG */
 	to_write = MIN((size_t)(efl->slot[i].size-skip), size);
 #endif /* NDEBUG */
-	if ((size_t)HDwrite (fd, buf, to_write)!=to_write) {
-	    HGOTO_ERROR (H5E_EFL, H5E_READERROR, FAIL,
-			 "write error in external raw data file");
-	} 
+	if ((size_t)HDwrite (fd, buf, to_write)!=to_write)
+	    HGOTO_ERROR (H5E_EFL, H5E_READERROR, FAIL, "write error in external raw data file");
 	HDclose (fd);
 	fd = -1;
 	size -= to_write;
@@ -582,12 +574,171 @@ H5O_efl_write (H5F_t UNUSED *f, const H5O_efl_t *efl, haddr_t addr,
 	skip = 0;
 	i++;
     }
-    ret_value = SUCCEED;
     
- done:
-    if (fd>=0) HDclose (fd);
-    FUNC_LEAVE (ret_value);
+done:
+    if (fd>=0)
+        HDclose (fd);
+
+    FUNC_LEAVE_NOAPI(ret_value);
 }
+	
+
+/*-------------------------------------------------------------------------
+ * Function:	H5O_efl_readvv
+ *
+ * Purpose:	Reads data from an external file list.  It is an error to
+ *		read past the logical end of file, but reading past the end
+ *		of any particular member of the external file list results in
+ *		zeros.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Wednesday, May  7, 2003
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+ssize_t
+H5O_efl_readvv(const H5O_efl_t *efl,
+    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    void *_buf)
+{
+    unsigned char *buf;         /* Pointer to buffer to write */
+    haddr_t addr;               /* Actual address to read */
+    size_t size;                /* Size of sequence in bytes */
+    size_t u;                   /* Counting variable */
+    size_t v;                   /* Counting variable */
+    ssize_t ret_value=0;        /* Return value */
+    
+    FUNC_ENTER_NOAPI(H5O_efl_readvv, FAIL);
+
+    /* Check args */
+    assert (efl && efl->nused>0);
+    assert (_buf);
+
+    /* Work through all the sequences */
+    for(u=*dset_curr_seq, v=*mem_curr_seq; u<dset_max_nseq && v<mem_max_nseq; ) {
+        /* Choose smallest buffer to write */
+        if(mem_len_arr[v]<dset_len_arr[u])
+            size=mem_len_arr[v];
+        else
+            size=dset_len_arr[u];
+
+        /* Compute offset on disk */
+        addr=dset_offset_arr[u];
+
+        /* Compute offset in memory */
+        buf = (unsigned char *)_buf + mem_offset_arr[v];
+
+        /* Read data */
+        if (H5O_efl_read(efl, addr, size, buf)<0)
+            HGOTO_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "block write failed");
+
+        /* Update memory information */
+        mem_len_arr[v]-=size;
+        mem_offset_arr[v]+=size;
+        if(mem_len_arr[v]==0)
+            v++;
+
+        /* Update file information */
+        dset_len_arr[u]-=size;
+        dset_offset_arr[u]+=size;
+        if(dset_len_arr[u]==0)
+            u++;
+
+        /* Increment number of bytes copied */
+        ret_value+=size;
+    } /* end for */
+
+    /* Update current sequence vectors */
+    *dset_curr_seq=u;
+    *mem_curr_seq=v;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+} /* end H5O_efl_readvv() */
+	
+
+/*-------------------------------------------------------------------------
+ * Function:	H5O_efl_writevv
+ *
+ * Purpose:	Writes data to an external file list.  It is an error to
+ *		write past the logical end of file, but writing past the end
+ *		of any particular member of the external file list just
+ *		extends that file.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Friday, May  2, 2003
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+ssize_t
+H5O_efl_writevv(const H5O_efl_t *efl,
+    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
+    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
+    const void *_buf)
+{
+    const unsigned char *buf;   /* Pointer to buffer to write */
+    haddr_t addr;               /* Actual address to read */
+    size_t size;                /* Size of sequence in bytes */
+    size_t u;                   /* Counting variable */
+    size_t v;                   /* Counting variable */
+    ssize_t ret_value=0;        /* Return value */
+    
+    FUNC_ENTER_NOAPI(H5O_efl_writevv, FAIL);
+
+    /* Check args */
+    assert (efl && efl->nused>0);
+    assert (_buf);
+
+    /* Work through all the sequences */
+    for(u=*dset_curr_seq, v=*mem_curr_seq; u<dset_max_nseq && v<mem_max_nseq; ) {
+        /* Choose smallest buffer to write */
+        if(mem_len_arr[v]<dset_len_arr[u])
+            size=mem_len_arr[v];
+        else
+            size=dset_len_arr[u];
+
+        /* Compute offset on disk */
+        addr=dset_offset_arr[u];
+
+        /* Compute offset in memory */
+        buf = (const unsigned char *)_buf + mem_offset_arr[v];
+
+        /* Write data */
+        if (H5O_efl_write(efl, addr, size, buf)<0)
+            HGOTO_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "block write failed");
+
+        /* Update memory information */
+        mem_len_arr[v]-=size;
+        mem_offset_arr[v]+=size;
+        if(mem_len_arr[v]==0)
+            v++;
+
+        /* Update file information */
+        dset_len_arr[u]-=size;
+        dset_offset_arr[u]+=size;
+        if(dset_len_arr[u]==0)
+            u++;
+
+        /* Increment number of bytes copied */
+        ret_value+=size;
+    } /* end for */
+
+    /* Update current sequence vectors */
+    *dset_curr_seq=u;
+    *mem_curr_seq=v;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+} /* end H5O_efl_writevv() */
 	
 
 /*-------------------------------------------------------------------------
@@ -611,8 +762,9 @@ H5O_efl_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE * s
     const H5O_efl_t	   *mesg = (const H5O_efl_t *) _mesg;
     char		    buf[64];
     int		    i;
+    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER(H5O_efl_debug, FAIL);
+    FUNC_ENTER_NOAPI(H5O_efl_debug, FAIL);
 
     /* check args */
     assert(f);
@@ -649,5 +801,6 @@ H5O_efl_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE * s
 		   (unsigned long)(mesg->slot[i].size));
     }
 
-    FUNC_LEAVE(SUCCEED);
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
 }

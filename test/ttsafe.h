@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: ttsafe.h,v 1.1.2.2 2002/06/10 19:48:51 wendling Exp $ */
+/* $Id: ttsafe.h,v 1.3 2003/03/31 18:59:03 wendling Exp $ */
 
 /*
  * This header file contains information required for testing the HDF5 library.
@@ -21,13 +21,13 @@
 #ifndef HDF5TEST_H
 #define HDF5TEST_H
 
-#include "hdf5.h"
 #include <string.h>
 
 /*
  * Include required headers.  This file tests internal library functions,
  * so we include the private headers here.
  */
+#include "hdf5.h"
 #include "H5private.h"
 #include "H5Eprivate.h"
 

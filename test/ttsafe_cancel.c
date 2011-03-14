@@ -39,22 +39,16 @@
  * --------------------
  *
  *	19 May 2000, Bill Wendling
- *	Changed so that it creates its own HDF5 file and removes it at
- *	cleanup time. Added num_errs flag.
+ *	Changed so that it creates its own HDF5 file and removes it at cleanup
+ *	time. Added num_errs flag.
  *
  ********************************************************************/
 #include "ttsafe.h"
 
-#ifndef H5_HAVE_THREADSAFE
-static int dummy;	/* just to create a non-empty object file */
-#else
+#ifdef H5_HAVE_THREADSAFE
 
 #define FILENAME	"ttsafe_cancel.h5"
 #define DATASETNAME	"commonname"
-
-/* Global variables */
-extern int num_errs;
-extern int Verbosity;
 
 void *tts_cancel_thread(void *);
 void tts_cancel_barrier(void);
@@ -80,7 +74,9 @@ void tts_cancel(void)
 
 	/* make thread scheduling global */
 	pthread_attr_init(&attribute);
+#ifdef H5_HAVE_SYSTEM_SCOPE_THREADS
 	pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM);
+#endif /* H5_HAVE_SYSTEM_SCOPE_THREADS */
 
 	/*
 	 * Create a hdf5 file using H5F_ACC_TRUNC access, default file
@@ -104,9 +100,12 @@ void tts_cancel(void)
 
 	H5Dclose(dataset);
 	H5Fclose(cancel_file);
+
+        /* Destroy the thread attribute */
+        pthread_attr_destroy(&attribute);
 }
 
-void *tts_cancel_thread(void *arg)
+void *tts_cancel_thread(void UNUSED *arg)
 {
 	int datavalue;
 	int *buffer;
@@ -160,8 +159,8 @@ void *tts_cancel_thread(void *arg)
 	return NULL;
 }
 
-herr_t tts_cancel_callback(void *elem, hid_t type_id, hsize_t ndim,
-			   hssize_t *point, void *operator_data)
+herr_t tts_cancel_callback(void *elem, hid_t UNUSED type_id, hsize_t UNUSED ndim,
+			   hssize_t UNUSED *point, void *operator_data)
 {
 	int value = *(int *)elem;
 	hid_t dataset = *(hid_t *)operator_data;
@@ -219,7 +218,6 @@ void tts_cancel_barrier(void)
 
 void cleanup_cancel(void)
 {
-	H5close();
 	HDunlink(FILENAME);
 }
 

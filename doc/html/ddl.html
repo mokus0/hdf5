@@ -1,6 +1,9 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 <html>
+<head>
+    <title>DDL for HDF5</title>
 
+<!-- #BeginLibraryItem "/ed_libs/styles_UG.lbi" -->
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
   * Copyright by the Board of Trustees of the University of Illinois.         *
@@ -17,54 +20,53 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
-<head>
-    <title>DDL for HDF5</title>
-</head>
+<link href="ed_styles/UGelect.css" rel="stylesheet" type="text/css">
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 
-<hr>
+
+<!-- #BeginLibraryItem "/ed_libs/NavBar_UG.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-   <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
-   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
-   <!--
-   <a href="Glossary.html">Glossary</a><br>
-   -->
+    <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>   
+    <a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User's Guide for Release 1.6</a>&nbsp;<br>
+    <!--
+    <a href="Glossary.html">Glossary</a><br>
+    -->
 </td>
 <td valign=top align=right>
-   And in this document, the 
-   <a href="H5.user.html"><strong>HDF5 User's Guide:</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;
-      <br>
-      <a href="Files.html">Files</a>&nbsp;&nbsp;
-      <a href="Datasets.html">Datasets</a>&nbsp;&nbsp;
-      <a href="Datatypes.html">Datatypes</a>&nbsp;&nbsp;
-      <a href="Dataspaces.html">Dataspaces</a>&nbsp;&nbsp;
-      <a href="Groups.html">Groups</a>&nbsp;&nbsp;
-      <br>
-      <a href="References.html">References</a>&nbsp;&nbsp;
-      <a href="Attributes.html">Attributes</a>&nbsp;&nbsp;
-      <a href="Properties.html">Property Lists</a>&nbsp;&nbsp;
-      <a href="Errors.html">Error Handling</a>&nbsp;&nbsp;
-      <br>
-      <a href="Filters.html">Filters</a>&nbsp;&nbsp;
-      <a href="Caching.html">Caching</a>&nbsp;&nbsp;
-      <a href="Chunking.html">Chunking</a>&nbsp;&nbsp;
-      <a href="MountingFiles.html">Mounting Files</a>&nbsp;&nbsp;
-      <br>
-      <a href="Performance.html">Performance</a>&nbsp;&nbsp;
-      <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
-      <a href="Environment.html">Environment</a>&nbsp;&nbsp;
-      DDL&nbsp;&nbsp;
+    And in this document, the 
+    <a href="H5.user.html"><strong>HDF5 User's Guide from Release 1.4.5:</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;
+        <br>
+        <a href="Files.html">Files</a>&nbsp;&nbsp;
+        <a href="Datasets.html">Datasets</a>&nbsp;&nbsp;
+        <a href="Datatypes.html">Datatypes</a>&nbsp;&nbsp;
+        <a href="Dataspaces.html">Dataspaces</a>&nbsp;&nbsp;
+        <a href="Groups.html">Groups</a>&nbsp;&nbsp;
+        <br>
+        <a href="References.html">References</a>&nbsp;&nbsp;
+        <a href="Attributes.html">Attributes</a>&nbsp;&nbsp;
+        <a href="Properties.html">Property Lists</a>&nbsp;&nbsp;
+        <a href="Errors.html">Error Handling</a>&nbsp;&nbsp;
+        <br>
+        <a href="Filters.html">Filters</a>&nbsp;&nbsp;
+        <a href="Caching.html">Caching</a>&nbsp;&nbsp;
+        <a href="Chunking.html">Chunking</a>&nbsp;&nbsp;
+        <a href="MountingFiles.html">Mounting Files</a>&nbsp;&nbsp;
+        <br>
+        <a href="Performance.html">Performance</a>&nbsp;&nbsp;
+        <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
+        <a href="Environment.html">Environment</a>&nbsp;&nbsp;
+        <a href="ddl.html">DDL</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
 <hr>
-
-
-<h1>DDL in BNF for HDF5</h1>
+<!-- #EndLibraryItem --><h1>DDL in BNF for HDF5</h1>
 
 
 <h2>1. Introduction</h2>
@@ -211,12 +213,16 @@ This section contains a brief explanation of the symbols used in the DDL.
 
 &lt;current_dims&gt; ::= &lt;dims&gt;
 
-&lt;max_dims&gt; ::= (<i>i<FONT SIZE=1.0>1</i></FONT>, <i>i<FONT SIZE=1.0>2</i></FONT>, ... ) where <i>i<FONT SIZE=1.0>k</i></FONT> is an integer or H5S_UNLIMITED
+&lt;max_dims&gt; ::= `(' &lt;max_dim_list&gt; `)'
+
+&lt;max_dim_list&gt; ::= &lt;max_dim&gt; | &lt;max_dim&gt;, &lt;max_dim_list&gt;
+
+&lt;max_dim&gt; ::= &lt;int_value&gt; | H5S_UNLIMITED
 
 &lt;complex_space_definition&gt; ::= TBD
 
-&lt;data&gt; ::= DATA { &lt;scalar_space_data&gt; | &lt;simple_space_data&gt; | &lt;complex_space_data&gt; }
-                  
+&lt;data&gt; ::= DATA { &lt;scalar_space_data&gt; | &lt;simple_space_data&gt; | &lt;complex_space_data&gt; } | &lt;subset&gt;
+
 &lt;scalar_space_data&gt; ::= &lt;any_element&gt;
 
 &lt;any_element&gt; ::= &lt;atomic_element&gt; | &lt;compound_element&gt; | 
@@ -227,6 +233,23 @@ This section contains a brief explanation of the symbols used in the DDL.
 &lt;atomic_element&gt; :: = &lt;integer_data&gt; | &lt;float_data&gt;    | &lt;time_data&gt;   |
                       &lt;string_data&gt;  | &lt;bitfield_data&gt; | &lt;opaque_data&gt; |
                       &lt;enum_data&gt;    | &lt;reference_data&gt;
+
+&lt;subset&gt; ::= SUBSET { &lt;start&gt;;
+                      &lt;stride&gt;;
+                      &lt;count&gt;;
+                      &lt;block&gt;;
+                 DATA { &lt;simple_space_data&gt; }
+             }
+
+&lt;start&gt; ::= START (&lt;coor_list&gt;)
+
+&lt;stride&gt; ::= STRIDE (&lt;pos_list&gt;)
+
+&lt;count&gt; ::= COUNT (&lt;coor_list&gt;)
+
+&lt;block&gt; ::= BLOCK (&lt;coor_list&gt;)
+
+&lt;coor_list&gt; ::= &lt;int_value&gt;, &lt;coor_list&gt; | &lt;int_value&gt;
 
 &lt;integer_data&gt; ::= &lt;int_value&gt;
 
@@ -255,14 +278,15 @@ This section contains a brief explanation of the symbols used in the DDL.
 
 &lt;object_num&gt; ::= &lt;int_value&gt;:&lt;int_value&gt; | &lt;int_value&gt;
 
-&lt;data_region_data&gt; ::= H5T_STD_REF_DSETREG &lt;object_num&gt;
-        { &lt;data_region_data_info&gt;, &lt;data_region_data_info&gt;, ...}
+&lt;data_region_data&gt; ::= H5T_STD_REF_DSETREG &lt;object_num&gt; { &lt;data_region_data_list&gt; }
+
+&lt;data_region_data_list&gt; ::= &lt;data_region_data_info&gt;, &lt;data_region_data_list&gt; | &lt;data_region_data_info&gt;
 
 &lt;data_region_data_info&gt; ::= &lt;region_info&gt; | &lt;point_info&gt;
 
 &lt;region_info&gt; ::= (&lt;region_vals&gt;)
 
-&lt;region_vals&gt; ::= &lt;lower_bound&gt;:&lt;upper_bound&gt; | &lt;lower_bound&gt;:&lt;upper_bound&gt;, &lt;region_vals&gt;
+&lt;region_vals&gt; ::= &lt;lower_bound&gt;:&lt;upper_bound&gt;, &lt;region_vals&gt; | &lt;lower_bound&gt;:&lt;upper_bound&gt;
 
 &lt;lower_bound&gt; ::= &lt;int_value&gt;
 
@@ -351,7 +375,11 @@ This section contains a brief explanation of the symbols used in the DDL.
 &lt;identifier&gt; ::= a string
 // character '/' should be used with care. 
 
-&lt;int_value&gt; ::= 0 | [1-9][0-9]*
+&lt;pos_list&gt;  ::= &lt;pos_int&gt;, &lt;pos_list&gt; | &lt;pos_int&gt;
+
+&lt;int_value&gt; ::= 0 | &lt;pos_int&gt;
+
+&lt;pos_int&gt;   ::= [1-9][0-9]*
 
 </PRE>
 </DIR>
@@ -498,56 +526,55 @@ GROUP "/" {
 </dir>
 
 
-<hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_UG.lbi" --><hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-   <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
-   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
-   <!--
-   <a href="Glossary.html">Glossary</a><br>
-   -->
+    <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>   
+    <a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User's Guide for Release 1.6</a>&nbsp;<br>
+    <!--
+    <a href="Glossary.html">Glossary</a><br>
+    -->
 </td>
 <td valign=top align=right>
-   And in this document, the 
-   <a href="H5.user.html"><strong>HDF5 User's Guide:</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;
-      <br>
-      <a href="Files.html">Files</a>&nbsp;&nbsp;
-      <a href="Datasets.html">Datasets</a>&nbsp;&nbsp;
-      <a href="Datatypes.html">Datatypes</a>&nbsp;&nbsp;
-      <a href="Dataspaces.html">Dataspaces</a>&nbsp;&nbsp;
-      <a href="Groups.html">Groups</a>&nbsp;&nbsp;
-      <br>
-      <a href="References.html">References</a>&nbsp;&nbsp;
-      <a href="Attributes.html">Attributes</a>&nbsp;&nbsp;
-      <a href="Properties.html">Property Lists</a>&nbsp;&nbsp;
-      <a href="Errors.html">Error Handling</a>&nbsp;&nbsp;
-      <br>
-      <a href="Filters.html">Filters</a>&nbsp;&nbsp;
-      <a href="Caching.html">Caching</a>&nbsp;&nbsp;
-      <a href="Chunking.html">Chunking</a>&nbsp;&nbsp;
-      <a href="MountingFiles.html">Mounting Files</a>&nbsp;&nbsp;
-      <br>
-      <a href="Performance.html">Performance</a>&nbsp;&nbsp;
-      <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
-      <a href="Environment.html">Environment</a>&nbsp;&nbsp;
-      DDL&nbsp;&nbsp;
+    And in this document, the 
+    <a href="H5.user.html"><strong>HDF5 User's Guide from Release 1.4.5:</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;
+        <br>
+        <a href="Files.html">Files</a>&nbsp;&nbsp;
+        <a href="Datasets.html">Datasets</a>&nbsp;&nbsp;
+        <a href="Datatypes.html">Datatypes</a>&nbsp;&nbsp;
+        <a href="Dataspaces.html">Dataspaces</a>&nbsp;&nbsp;
+        <a href="Groups.html">Groups</a>&nbsp;&nbsp;
+        <br>
+        <a href="References.html">References</a>&nbsp;&nbsp;
+        <a href="Attributes.html">Attributes</a>&nbsp;&nbsp;
+        <a href="Properties.html">Property Lists</a>&nbsp;&nbsp;
+        <a href="Errors.html">Error Handling</a>&nbsp;&nbsp;
+        <br>
+        <a href="Filters.html">Filters</a>&nbsp;&nbsp;
+        <a href="Caching.html">Caching</a>&nbsp;&nbsp;
+        <a href="Chunking.html">Chunking</a>&nbsp;&nbsp;
+        <a href="MountingFiles.html">Mounting Files</a>&nbsp;&nbsp;
+        <br>
+        <a href="Performance.html">Performance</a>&nbsp;&nbsp;
+        <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
+        <a href="Environment.html">Environment</a>&nbsp;&nbsp;
+        <a href="ddl.html">DDL</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
-
-
 <hr>
-<address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
-</address>
-
-Last modified:  05 January 2002
-
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
+<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.4.5, February 2003
+Describes HDF5 Release 1.6.0, July 2003
+</address><!-- #EndLibraryItem --> 
 
 
+Last modified: 17 November 2000
+
+ 
 </body>
 </html>

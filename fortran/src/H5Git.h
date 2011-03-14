@@ -12,6 +12,7 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+
 #ifndef _H5Git_H
 #define _H5Git_H
 

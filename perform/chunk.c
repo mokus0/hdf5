@@ -33,7 +33,7 @@
 #endif
 
 
-#if !defined(H5_HAVE_ATTRIBUTE) || defined(__cplusplus)
+#if !defined(H5_HAVE_ATTRIBUTE) || defined __cplusplus
 #   undef __attribute__
 #   define __attribute__(X) /*void*/
 #   define UNUSED /*void*/
@@ -74,6 +74,21 @@
 
 static size_t	nio_g;
 static hid_t	fapl_g = -1;
+
+/* Local function prototypes */
+static size_t
+counter (unsigned UNUSED flags, size_t cd_nelmts,
+	 const unsigned *cd_values, size_t nbytes,
+	 size_t *buf_size, void **buf);
+
+/* This message derives from H5Z */
+const H5Z_class_t H5Z_COUNTER[1] = {{
+    FILTER_COUNTER,		/* Filter id number		*/
+    "counter",			/* Filter name for debugging	*/
+    NULL,                       /* The "can apply" callback     */
+    NULL,                       /* The "set local" callback     */
+    counter,			/* The actual filter function	*/
+}};
 
 
 /*-------------------------------------------------------------------------
@@ -137,7 +152,11 @@ create_dataset (void)
     dcpl = H5Pcreate (H5P_DATASET_CREATE);
     size[0] = size[1] = CH_SIZE;
     H5Pset_chunk (dcpl, 2, size);
+#ifdef H5_WANT_H5_V1_4_COMPAT
     H5Zregister (FILTER_COUNTER, "counter", counter);
+#else /* H5_WANT_H5_V1_4_COMPAT */
+    H5Zregister (H5Z_COUNTER);
+#endif /* H5_WANT_H5_V1_4_COMPAT */
     H5Pset_filter (dcpl, FILTER_COUNTER, 0, 0, NULL);
         
     /* The dataset */
@@ -179,7 +198,12 @@ test_rowmaj (int op, size_t cache_size, size_t io_size)
     signed char	*buf = calloc (1, (size_t)(SQUARE(io_size)));
     hsize_t	i, j, hs_size[2];
     hssize_t	hs_offset[2];
+#ifdef H5_WANT_H5_V1_4_COMPAT
     int		mdc_nelmts, rdcc_nelmts;
+#else /* H5_WANT_H5_V1_4_COMPAT */
+    int		mdc_nelmts;
+    size_t	rdcc_nelmts;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
     double	w0;
 
     H5Pget_cache (fapl_g, &mdc_nelmts, &rdcc_nelmts, NULL, &w0);
@@ -255,7 +279,12 @@ test_diag (int op, size_t cache_size, size_t io_size, size_t offset)
     hsize_t	nio = 0;
     hssize_t	hs_offset[2];
     signed char	*buf = calloc (1, (size_t)(SQUARE (io_size)));
+#ifdef H5_WANT_H5_V1_4_COMPAT
     int		mdc_nelmts, rdcc_nelmts;
+#else /* H5_WANT_H5_V1_4_COMPAT */
+    int		mdc_nelmts;
+    size_t	rdcc_nelmts;
+#endif /* H5_WANT_H5_V1_4_COMPAT */
     double	w0;
 
     H5Pget_cache (fapl_g, &mdc_nelmts, &rdcc_nelmts, NULL, &w0);

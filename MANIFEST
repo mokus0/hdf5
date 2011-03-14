@@ -39,12 +39,11 @@
 ./bin/trace
 
 ./config/BlankForm
-./config/alphaev67-linux-gnu
 ./config/commence.in
 ./config/conclude.in
 ./config/dec-flags
 ./config/dec-osf4.x
-./config/dec-osf5.1
+./config/dec-osf5.x
 ./config/depend1.in
 ./config/depend2.in
 ./config/depend3.in
@@ -99,6 +98,7 @@
 ./doc/html/Datasets.html
 ./doc/html/Dataspaces.html
 ./doc/html/Datatypes.html
+./doc/html/DatatypesEnum.html
 ./doc/html/Dependencies
 ./doc/html/ddl.html
 ./doc/html/Debugging.html
@@ -188,6 +188,7 @@
 ./doc/html/PSandPDF/Makefile.in
 
 ./doc/html/TechNotes.html
+./doc/html/TechNotes/shuffling-algorithm-report.pdf
 ./doc/html/TechNotes/BigDataSmMach.html
 ./doc/html/TechNotes/ChStudy_1000x1000.gif
 ./doc/html/TechNotes/ChStudy_250x250.gif
@@ -214,6 +215,9 @@
 ./doc/html/TechNotes/RawDStorage.html
 ./doc/html/TechNotes/SWControls.html
 ./doc/html/TechNotes/SymbolTables.html
+./doc/html/TechNotes/TestReview.html
+./doc/html/TechNotes/TestReview/H5Dget_offset.html
+./doc/html/TechNotes/TestReview/H5Tget_native_type.html
 ./doc/html/TechNotes/ThreadSafeLibrary.html
 ./doc/html/TechNotes/VFL.html
 ./doc/html/TechNotes/VFLfunc.html
@@ -233,173 +237,199 @@
 ./doc/html/TechNotes/version.gif
 ./doc/html/TechNotes/version.obj        _DO_NOT_DISTRIBUTE_
 
-./doc/html/Tutor/Contents.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/ContentsAdd.html       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/ContentsAdv.html       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/ContentsFull.html      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/ContentsIntro.html     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Copyright.html         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Dependencies           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Makefile.in            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/answers.html           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/api.html               _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/bighdf2sp.JPG          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/compound.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/crtatt.html            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/crtdat.html            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/crtfile.html           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/crtgrp.html            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/crtgrpar.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/crtgrpd.html           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/extend.html            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/fileorg.html           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/footer-ncsalogo.gif    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/glossary.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/img001.gif             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/img002.gif             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/img003.gif             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/img004.gif             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/img005.gif             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/index.html             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/intro.html             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/iterate.html           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/mount.html             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/property.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/questions.html         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/rdwt.html              _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/references.html        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/reftoobj.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/reftoreg.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/select.html            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/selectc.html           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/software.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/title.html             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/util.html              _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/property.html          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/software.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Contents.html
+./doc/html/Tutor/ContentsAdd.html
+./doc/html/Tutor/ContentsAdv.html
+./doc/html/Tutor/ContentsFull.html
+./doc/html/Tutor/ContentsIntro.html
+./doc/html/Tutor/Copyright.html
+./doc/html/Tutor/Dependencies
+./doc/html/Tutor/Makefile.in
+./doc/html/Tutor/answers.html
+./doc/html/Tutor/api.html
+./doc/html/Tutor/bighdf2sp.JPG
+./doc/html/Tutor/compound.html
+./doc/html/Tutor/crtatt.html
+./doc/html/Tutor/crtdat.html
+./doc/html/Tutor/crtfile.html
+./doc/html/Tutor/crtgrp.html
+./doc/html/Tutor/crtgrpar.html
+./doc/html/Tutor/crtgrpd.html
+./doc/html/Tutor/extend.html
+./doc/html/Tutor/fileorg.html
+./doc/html/Tutor/footer-ncsalogo.gif
+./doc/html/Tutor/glossary.html
+./doc/html/Tutor/img001.gif
+./doc/html/Tutor/img002.gif
+./doc/html/Tutor/img003.gif
+./doc/html/Tutor/img004.gif
+./doc/html/Tutor/img005.gif
+./doc/html/Tutor/index.html
+./doc/html/Tutor/intro.html
+./doc/html/Tutor/iterate.html
+./doc/html/Tutor/mount.html
+./doc/html/Tutor/property.html
+./doc/html/Tutor/questions.html
+./doc/html/Tutor/rdwt.html
+./doc/html/Tutor/references.html
+./doc/html/Tutor/reftoobj.html
+./doc/html/Tutor/reftoreg.html
+./doc/html/Tutor/select.html
+./doc/html/Tutor/selectc.html
+./doc/html/Tutor/software.html
+./doc/html/Tutor/title.html
+./doc/html/Tutor/util.html
 
-./doc/html/Tutor/Graphics/AddInfo.gif      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/AdvTopics.gif    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/BLANK.gif        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/ChunkExt.gif     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CompDTypes.gif   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Copy.gif         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CreateAttr.gif   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CreateDset1.gif  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CreateDset2.gif  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CreateFile.gif   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CreateGrp1.gif   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/CreateGrp2.gif   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Dependencies     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Examples.gif     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/FileOrg.gif      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/FullTOC1.gif     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/FullTOC2.gif     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Glossary.gif     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/H5API.gif        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Intro.gif        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/IntroTopics.gif  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Iterate.gif      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Makefile.in      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/MountFile.gif    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Quiz.gif         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/QuizAns.gif      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/RdWrDataset.gif  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/RefObject.gif    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/RefRegion.gif    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/References.gif   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/SelectElemCp.gif _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/SelectHyp.gif    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/TOC.gif          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/TOCFull.gif      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/TOCShort.gif     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/TitlePg.gif      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/Graphics/Utilities.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/AddInfo.gif
+./doc/html/Tutor/Graphics/AdvTopics.gif
+./doc/html/Tutor/Graphics/BLANK.gif
+./doc/html/Tutor/Graphics/ChunkExt.gif
+./doc/html/Tutor/Graphics/CompDTypes.gif
+./doc/html/Tutor/Graphics/Copy.gif
+./doc/html/Tutor/Graphics/CreateAttr.gif
+./doc/html/Tutor/Graphics/CreateDset1.gif
+./doc/html/Tutor/Graphics/CreateDset2.gif
+./doc/html/Tutor/Graphics/CreateFile.gif
+./doc/html/Tutor/Graphics/CreateGrp1.gif
+./doc/html/Tutor/Graphics/CreateGrp2.gif
+./doc/html/Tutor/Graphics/Dependencies
+./doc/html/Tutor/Graphics/Examples.gif
+./doc/html/Tutor/Graphics/FileOrg.gif
+./doc/html/Tutor/Graphics/FullTOC1.gif
+./doc/html/Tutor/Graphics/FullTOC2.gif
+./doc/html/Tutor/Graphics/Glossary.gif
+./doc/html/Tutor/Graphics/H5API.gif
+./doc/html/Tutor/Graphics/Intro.gif
+./doc/html/Tutor/Graphics/IntroTopics.gif
+./doc/html/Tutor/Graphics/Iterate.gif
+./doc/html/Tutor/Graphics/Makefile.in
+./doc/html/Tutor/Graphics/MountFile.gif
+./doc/html/Tutor/Graphics/Quiz.gif
+./doc/html/Tutor/Graphics/QuizAns.gif
+./doc/html/Tutor/Graphics/RdWrDataset.gif
+./doc/html/Tutor/Graphics/RefObject.gif
+./doc/html/Tutor/Graphics/RefRegion.gif
+./doc/html/Tutor/Graphics/References.gif
+./doc/html/Tutor/Graphics/SelectElemCp.gif
+./doc/html/Tutor/Graphics/SelectHyp.gif
+./doc/html/Tutor/Graphics/TOC.gif
+./doc/html/Tutor/Graphics/TOCFull.gif
+./doc/html/Tutor/Graphics/TOCShort.gif
+./doc/html/Tutor/Graphics/TitlePg.gif
+./doc/html/Tutor/Graphics/Utilities.gif
 
-./doc/html/Tutor/examples/Dependencies       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/Makefile.in        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/attrexample.f90    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/chunk.f90          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/compound.f90       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/dsetexample.f90    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/fileexample.f90    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/groupexample.f90   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/grpdsetexample.f90 _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/grpit.f90          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/grpsexample.f90    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_compound.c      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_copy.c          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_crtatt.c        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_crtdat.c        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_crtfile.c       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_crtgrp.c        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_crtgrpar.c      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_crtgrpd.c       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_extend.c        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_hyperslab.c     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_iterate.c       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_mount.c         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_rdwt.c          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_read.c          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_ref2obj.c       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_ref2objr.c      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_ref2objw.c      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_ref2reg.c       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_ref2regr.c      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_ref2regw.c      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/h5_reference.c     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/hyperslab.f90      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/mountexample.f90   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/refobjexample.f90  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/refregexample.f90  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/rwdsetexample.f90  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/selectele.f90      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/Dependencies
+./doc/html/Tutor/examples/Makefile.in
+./doc/html/Tutor/examples/attrexample.f90
+./doc/html/Tutor/examples/chunk.f90
+./doc/html/Tutor/examples/compound.f90
+./doc/html/Tutor/examples/dsetexample.f90
+./doc/html/Tutor/examples/fileexample.f90
+./doc/html/Tutor/examples/groupexample.f90
+./doc/html/Tutor/examples/grpdsetexample.f90
+./doc/html/Tutor/examples/grpit.f90
+./doc/html/Tutor/examples/grpsexample.f90
+./doc/html/Tutor/examples/h5_compound.c
+./doc/html/Tutor/examples/h5_copy.c
+./doc/html/Tutor/examples/h5_crtatt.c
+./doc/html/Tutor/examples/h5_crtdat.c
+./doc/html/Tutor/examples/h5_crtfile.c
+./doc/html/Tutor/examples/h5_crtgrp.c
+./doc/html/Tutor/examples/h5_crtgrpar.c
+./doc/html/Tutor/examples/h5_crtgrpd.c
+./doc/html/Tutor/examples/h5_extend.c
+./doc/html/Tutor/examples/h5_hyperslab.c
+./doc/html/Tutor/examples/h5_iterate.c
+./doc/html/Tutor/examples/h5_mount.c
+./doc/html/Tutor/examples/h5_rdwt.c
+./doc/html/Tutor/examples/h5_read.c
+./doc/html/Tutor/examples/h5_ref2objr.c
+./doc/html/Tutor/examples/h5_ref2objw.c
+./doc/html/Tutor/examples/h5_ref2regr.c
+./doc/html/Tutor/examples/h5_ref2regw.c
+./doc/html/Tutor/examples/h5_reference.c
+./doc/html/Tutor/examples/hyperslab.f90
+./doc/html/Tutor/examples/mountexample.f90
+./doc/html/Tutor/examples/refobjexample.f90
+./doc/html/Tutor/examples/refregexample.f90
+./doc/html/Tutor/examples/rwdsetexample.f90
+./doc/html/Tutor/examples/selectele.f90
 
-./doc/html/Tutor/examples/java/Dependencies             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/Makefile.in              _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/Makefile.in.txt          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/Makefile.txt             _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/Compound.java            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/Copy.java                _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateAttribute.java     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateDataset.java       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateFile.java          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateFileInput.java     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateGroup.java         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateGroupAR.java       _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/CreateGroupDataset.java  _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/DatasetRdWt.java         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/HyperSlab.java           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/README                   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/readme.html              _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCompound.sh           _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCompound.sh.in        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCopy.sh               _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCopy.sh.in            _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateAttribute.sh    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateAttribute.sh.in _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateDataset.sh      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateDataset.sh.in   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateFile.sh         _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateFile.sh.in      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateFileInput.sh    _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateFileInput.sh.in _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateGroup.sh        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateGroup.sh.in     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateGroupAR.sh      _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateGroupAR.sh.in   _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateGroupDataset.sh _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runCreateGroupDataset.sh.in _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runDatasetRdWt.sh        _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runDatasetRdWt.sh.in     _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runHyperSlab.sh          _DO_NOT_DISTRIBUTE_
-./doc/html/Tutor/examples/java/runHyperSlab.sh.in       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/Compound.java
+./doc/html/Tutor/examples/java/Copy.java
+./doc/html/Tutor/examples/java/CreateAttribute.java
+./doc/html/Tutor/examples/java/CreateDataset.java
+./doc/html/Tutor/examples/java/CreateFile.java
+./doc/html/Tutor/examples/java/CreateFileInput.java
+./doc/html/Tutor/examples/java/CreateGroup.java
+./doc/html/Tutor/examples/java/CreateGroupAR.java
+./doc/html/Tutor/examples/java/CreateGroupDataset.java
+./doc/html/Tutor/examples/java/DatasetRdWt.java
+./doc/html/Tutor/examples/java/Dependencies
+./doc/html/Tutor/examples/java/HyperSlab.java
+./doc/html/Tutor/examples/java/Makefile.in
+./doc/html/Tutor/examples/java/Makefile
+./doc/html/Tutor/examples/java/README
+./doc/html/Tutor/examples/java/readme.html
+./doc/html/Tutor/examples/java/runCompound.sh
+./doc/html/Tutor/examples/java/runCompound.sh.in
+./doc/html/Tutor/examples/java/runCopy.sh
+./doc/html/Tutor/examples/java/runCopy.sh.in
+./doc/html/Tutor/examples/java/runCreateAttribute.sh
+./doc/html/Tutor/examples/java/runCreateAttribute.sh.in
+./doc/html/Tutor/examples/java/runCreateDataset.sh
+./doc/html/Tutor/examples/java/runCreateDataset.sh.in
+./doc/html/Tutor/examples/java/runCreateFile.sh
+./doc/html/Tutor/examples/java/runCreateFile.sh.in
+./doc/html/Tutor/examples/java/runCreateFileInput.sh
+./doc/html/Tutor/examples/java/runCreateFileInput.sh.in
+./doc/html/Tutor/examples/java/runCreateGroup.sh
+./doc/html/Tutor/examples/java/runCreateGroup.sh.in
+./doc/html/Tutor/examples/java/runCreateGroupAR.sh
+./doc/html/Tutor/examples/java/runCreateGroupAR.sh.in
+./doc/html/Tutor/examples/java/runCreateGroupDataset.sh
+./doc/html/Tutor/examples/java/runCreateGroupDataset.sh.in
+./doc/html/Tutor/examples/java/runDatasetRdWt.sh
+./doc/html/Tutor/examples/java/runDatasetRdWt.sh.in
+./doc/html/Tutor/examples/java/runHyperSlab.sh
+./doc/html/Tutor/examples/java/runHyperSlab.sh.in
 
 ./doc/html/cpplus/CppInterfaces.html
 ./doc/html/cpplus/CppUserNotes.doc
 ./doc/html/cpplus/CppUserNotes.pdf
 ./doc/html/cpplus/Dependencies
 ./doc/html/cpplus/Makefile.in
+
+./doc/html/ed_libs/Dependencies
+./doc/html/ed_libs/Footer.lbi
+./doc/html/ed_libs/Makefile.in
+./doc/html/ed_libs/NavBar_ADevG.lbi
+./doc/html/ed_libs/NavBar_Common.lbi
+./doc/html/ed_libs/NavBar_Intro.lbi
+./doc/html/ed_libs/NavBar_RM.lbi
+./doc/html/ed_libs/NavBar_TechN.lbi
+./doc/html/ed_libs/NavBar_UG.lbi
+./doc/html/ed_libs/styles_Format.lbi
+./doc/html/ed_libs/styles_Gen.lbi
+./doc/html/ed_libs/styles_Index.lbi
+./doc/html/ed_libs/styles_Intro.lbi
+./doc/html/ed_libs/styles_RM.lbi
+./doc/html/ed_libs/styles_UG.lbi
+
+./doc/html/ed_styles/Dependencies
+./doc/html/ed_styles/FormatElect.css
+./doc/html/ed_styles/FormatPrint.css
+./doc/html/ed_styles/GenElect.css
+./doc/html/ed_styles/GenPrint.css
+./doc/html/ed_styles/IndexElect.css
+./doc/html/ed_styles/IndexPrint.css
+./doc/html/ed_styles/IntroElect.css
+./doc/html/ed_styles/IntroPrint.css
+./doc/html/ed_styles/Makefile.in
+./doc/html/ed_styles/RMelect.css
+./doc/html/ed_styles/RMprint.css
+./doc/html/ed_styles/UGelect.css
+./doc/html/ed_styles/UGprint.css
 
 ./doc/html/fortran/Dependencies
 ./doc/html/fortran/F90Flags.html
@@ -416,6 +446,7 @@
 ./doc/html/fortran/h5r_FORTRAN.html
 ./doc/html/fortran/h5s_FORTRAN.html
 ./doc/html/fortran/h5t_FORTRAN.html
+./doc/html/fortran/h5z_FORTRAN.html
 
 ./doc/html/group_p1.gif
 ./doc/html/group_p1.obj			_DO_NOT_DISTRIBUTE_
@@ -485,6 +516,7 @@
 ./examples/h5_reference.c
 ./examples/ph5example.c
 
+
 #------------------------------------------------------------------------------
 #
 # Begin Fortran interface
@@ -499,12 +531,11 @@
 ./fortran/configure.in
 
 ./fortran/config/BlankForm
-./fortran/config/alphaev67-linux-gnu
 ./fortran/config/commence.in
 ./fortran/config/conclude.in
 ./fortran/config/dec-flags
 ./fortran/config/dec-osf4.x
-./fortran/config/dec-osf5.1
+./fortran/config/dec-osf5.x
 ./fortran/config/depend
 ./fortran/config/depend1.in
 ./fortran/config/depend2.in
@@ -560,6 +591,7 @@
 ./fortran/src/H5_ff.f90
 ./fortran/src/H5Af.c
 ./fortran/src/H5Aff.f90
+./fortran/src/H5config_fortran.h.in
 ./fortran/src/H5Df.c
 ./fortran/src/H5Dff.f90
 ./fortran/src/H5Ef.c
@@ -582,7 +614,8 @@
 ./fortran/src/H5Sff.f90
 ./fortran/src/H5Tf.c
 ./fortran/src/H5Tff.f90
-./fortran/src/H5config_fortran.h.in
+./fortran/src/H5Zf.c
+./fortran/src/H5Zff.f90
 ./fortran/src/H5f90.h
 ./fortran/src/H5f90global.f90
 ./fortran/src/H5f90i.h
@@ -594,6 +627,8 @@
 ./fortran/src/HDF5mpio.f90
 ./fortran/src/Makefile.in
 ./fortran/src/README
+./fortran/src/h5fc.in
+./fortran/src/libhdf5_fortran.settings.in
 
 ./fortran/test/Dependencies
 ./fortran/test/Makefile.in
@@ -615,6 +650,7 @@
 ./fortran/test/tH5Sselect.f90
 ./fortran/test/tH5T.f90
 ./fortran/test/tH5VL.f90
+./fortran/test/tH5Z.f90
 
 ./fortran/testpar/Dependencies
 ./fortran/testpar/Makefile.in
@@ -648,13 +684,16 @@
 ./c++/config/depend4.in
 ./c++/config/dependN.in
 ./c++/config/hpux11.00
-./c++/config/irix6.x
 ./c++/config/linux-gnu
-./c++/config/linux-gnuaout
 ./c++/config/linux-gnulibc1
 ./c++/config/linux-gnulibc2
+./c++/config/powerpc-ibm-aix
 ./c++/config/rs6000-ibm-aix4.x
 ./c++/config/solaris2.x
+./c++/config/irix6.x
+./c++/config/sv1-cray
+./c++/config/unicos10.0.X
+./c++/config/unicosmk2.0.6.X
 
 ./c++/examples/Dependencies
 ./c++/examples/Attributes.h5
@@ -731,11 +770,14 @@
 ./c++/src/H5StrType.cpp
 ./c++/src/H5StrType.h
 ./c++/src/Makefile.in
+./c++/src/h5c++.in
 
 ./c++/test/Dependencies
 ./c++/test/Makefile.in
-./c++/test/testhdf5.cpp
 ./c++/test/dsets.cpp
+./c++/test/h5cpputil.cpp
+./c++/test/h5cpputil.h
+./c++/test/testhdf5.cpp
 ./c++/test/tfile.cpp
 ./c++/test/th5s.cpp
 ./c++/test/th5s.h5
@@ -752,6 +794,7 @@
 ./pablo/HDFrecord_RT.h
 ./pablo/Makefile.in
 ./pablo/PabloHDF.c
+./pablo/PabloHDF_MPIO.c
 ./pablo/PabloHDF_RT.c
 ./pablo/PabloHDF_SDDF.c
 ./pablo/PabloHDFff.f
@@ -762,6 +805,7 @@
 
 ./perform/Dependencies
 ./perform/Makefile.in
+./perform/benchpar.c
 ./perform/chunk.c
 ./perform/gen_report.pl
 ./perform/iopipe.c
@@ -773,14 +817,15 @@
 ./perform/pio_perf.h
 ./perform/pio_timer.c
 ./perform/pio_timer.h
+./perform/zip_perf.c
 
 ./release_docs/INSTALL
 ./release_docs/INSTALL_TFLOPS
 ./release_docs/INSTALL_VFL
 ./release_docs/INSTALL_parallel
 ./release_docs/INSTALL_Windows.txt
-./release_docs/INSTALL_Windows_withcpp.txt
 ./release_docs/INSTALL_Windows_withF90.txt
+./release_docs/INSTALL_Windows_withcpp.txt
 ./release_docs/INSTALL_codewarrior.txt
 ./release_docs/HISTORY.txt
 ./release_docs/RELEASE.txt
@@ -797,17 +842,20 @@
 ./src/H5ACprivate.h
 ./src/H5ACpublic.h
 ./src/H5B.c
+./src/H5Bpkg.h
 ./src/H5Bprivate.h
 ./src/H5Bpublic.h
 ./src/H5D.c
+./src/H5Dio.c
 ./src/H5Dprivate.h
 ./src/H5Dpublic.h
+./src/H5Dpkg.h
 ./src/H5E.c
 ./src/H5Eprivate.h
 ./src/H5Epublic.h
 ./src/H5F.c
-./src/H5Farray.c
 ./src/H5Fcontig.c
+./src/H5Fcompact.c
 ./src/H5Fistore.c
 ./src/H5Fpkg.h
 ./src/H5Fprivate.h
@@ -818,6 +866,8 @@
 ./src/H5FDcore.h
 ./src/H5FDfamily.c
 ./src/H5FDfamily.h
+./src/H5FDfphdf5.c
+./src/H5FDfphdf5.h
 ./src/H5FDgass.c
 ./src/H5FDgass.h
 ./src/H5FDlog.c
@@ -840,6 +890,15 @@
 ./src/H5FDstream.h
 ./src/H5FL.c
 ./src/H5FLprivate.h
+./src/H5FO.c
+./src/H5FOprivate.h
+./src/H5FP.c
+./src/H5FPclient.c
+./src/H5FPprivate.h
+./src/H5FPpublic.h
+./src/H5FPserver.c
+./src/H5FS.c
+./src/H5FSprivate.h
 ./src/H5G.c
 ./src/H5Gent.c
 ./src/H5Gnode.c
@@ -853,7 +912,10 @@
 ./src/H5HL.c
 ./src/H5HLprivate.h
 ./src/H5HLpublic.h
+./src/H5HP.c
+./src/H5HPprivate.h
 ./src/H5I.c
+./src/H5Ipkg.h
 ./src/H5Iprivate.h
 ./src/H5Ipublic.h
 ./src/H5MF.c
@@ -861,10 +923,10 @@
 ./src/H5MM.c
 ./src/H5MMprivate.h
 ./src/H5MMpublic.h
+./src/H5MPprivate.h
 ./src/H5O.c
 ./src/H5Oattr.c
 ./src/H5Obogus.c
-./src/H5Ocomp.c
 ./src/H5Ocont.c
 ./src/H5Odtype.c
 ./src/H5Oefl.c
@@ -873,6 +935,8 @@
 ./src/H5Omtime.c
 ./src/H5Oname.c
 ./src/H5Onull.c
+./src/H5Opkg.h
+./src/H5Opline.c
 ./src/H5Oprivate.h
 ./src/H5Opublic.h
 ./src/H5Osdspace.c
@@ -883,27 +947,49 @@
 ./src/H5Pdxpl.c
 ./src/H5Pfapl.c
 ./src/H5Pfcpl.c
+./src/H5Ppkg.h
 ./src/H5Pprivate.h
 ./src/H5Ppublic.h
+./src/H5Ptest.c
 ./src/H5R.c
 ./src/H5Rprivate.h
 ./src/H5Rpublic.h
+./src/H5RS.c
+./src/H5RSprivate.h
 ./src/H5S.c
 ./src/H5Sall.c
 ./src/H5Shyper.c
 ./src/H5Smpio.c
 ./src/H5Snone.c
-./src/H5Spoint.c
 ./src/H5Spkg.h
+./src/H5Spoint.c
 ./src/H5Sprivate.h
 ./src/H5Spublic.h
 ./src/H5Sselect.c
+./src/H5Stest.c
+./src/H5ST.c
+./src/H5STprivate.h
 ./src/H5T.c
+./src/H5Tarray.c
 ./src/H5Tbit.c
+./src/H5Tcommit.c
+./src/H5Tcompound.c
 ./src/H5Tconv.c
+./src/H5Tcset.c
+./src/H5Tenum.c
+./src/H5Tfields.c
+./src/H5Tfixed.c
+./src/H5Tfloat.c
+./src/H5Tnative.c
+./src/H5Toffset.c
+./src/H5Topaque.c
+./src/H5Torder.c
+./src/H5Tpad.c
 ./src/H5Tpkg.h
+./src/H5Tprecis.c
 ./src/H5Tprivate.h
 ./src/H5Tpublic.h
+./src/H5Tstrpad.c
 ./src/H5Tvlen.c
 ./src/H5TB.c
 ./src/H5TBprivate.h
@@ -912,9 +998,13 @@
 ./src/H5V.c
 ./src/H5Vprivate.h
 ./src/H5Z.c
+./src/H5Zfletcher32.c
 ./src/H5Zdeflate.c
+./src/H5Zpkg.h
 ./src/H5Zprivate.h
 ./src/H5Zpublic.h
+./src/H5Zszip.c
+./src/H5Zshuffle.c
 ./src/H5config.h.in
 ./src/H5detect.c
 ./src/H5private.h
@@ -928,18 +1018,22 @@
 ./test/big.c
 ./test/bittests.c
 ./test/cmpd_dset.c
+./test/dangle.c
+./test/deflate.h5
 ./test/dsets.c
 ./test/dtypes.c
 ./test/enum.c
 ./test/extend.c
 ./test/external.c
+./test/file_handle.c
+./test/fill_old.h5
 ./test/fillval.c
-./test/fill_new.h5
 ./test/flush1.c
 ./test/flush2.c
 ./test/gass_append.c
 ./test/gass_read.c
 ./test/gass_write.c
+./test/getname.c
 ./test/gheap.c
 ./test/h5test.c
 ./test/h5test.h
@@ -949,11 +1043,16 @@
 ./test/links.c
 ./test/mount.c
 ./test/mtime.c
+./test/ntypes.c
 ./test/ohdr.c
 ./test/space_overflow.c			_DO_NOT_DISTRIBUTE_
+./test/gen_deflate.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_old_array.c			_DO_NOT_DISTRIBUTE_
-./test/gen_old_fill.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_new_array.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_fill.c			_DO_NOT_DISTRIBUTE_
+./test/gen_old_mtime.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_mtime.c			_DO_NOT_DISTRIBUTE_
+./test/set_extent.c
 ./test/srb_append.c
 ./test/srb_read.c
 ./test/srb_write.c
@@ -971,13 +1070,18 @@
 ./test/tgenprop.c
 ./test/th5s.c
 ./test/th5s.h5
+./test/theap.c
 ./test/titerate.c
 ./test/tmeta.c
 ./test/tmisc.c
+./test/tmtimen.h5
+./test/tmtimeo.h5
 ./test/ttime.c
 ./test/trefer.c
+./test/trefstr.c
 ./test/tselect.c
 ./test/ttbbt.c
+./test/ttst.c
 ./test/ttsafe.c
 ./test/ttsafe.h
 ./test/ttsafe_acreate.c
@@ -992,6 +1096,7 @@
 ./testpar/Makefile.in
 ./testpar/t_dset.c
 ./testpar/t_file.c
+./testpar/t_fphdf5.c
 ./testpar/t_mdset.c
 ./testpar/t_mpi.c
 ./testpar/t_ph5basic.c
@@ -1021,6 +1126,51 @@
 ./tools/h5dump/h5dumpgentest.c
 ./tools/h5dump/testh5dump.sh
 
+./tools/h5import/Dependencies
+./tools/h5import/Makefile.in
+./tools/h5import/h5import.h
+./tools/h5import/h5import.c
+./tools/h5import/h5importtest.c
+./tools/h5import/h5importtestutil.sh
+./tools/h5import/testfiles/conbfp32
+./tools/h5import/testfiles/conbfp64
+./tools/h5import/testfiles/conbin16
+./tools/h5import/testfiles/conbin32
+./tools/h5import/testfiles/conbin8
+./tools/h5import/testfiles/conbuin16
+./tools/h5import/testfiles/conbuin32
+./tools/h5import/testfiles/fp1
+./tools/h5import/testfiles/fp2
+./tools/h5import/testfiles/in1
+./tools/h5import/testfiles/textfp32
+./tools/h5import/testfiles/textfp64
+./tools/h5import/testfiles/textin16
+./tools/h5import/testfiles/textin32
+./tools/h5import/testfiles/textin8
+./tools/h5import/testfiles/textuin16
+./tools/h5import/testfiles/textuin32
+./tools/h5import/testfiles/test1.h5
+./tools/h5import/testfiles/test2.h5
+./tools/h5import/testfiles/test3.h5
+./tools/h5import/testfiles/test4.h5
+./tools/h5import/testfiles/test5.h5
+./tools/h5import/testfiles/test6.h5
+./tools/h5import/testfiles/test7.h5
+./tools/h5import/testfiles/test8.h5
+./tools/h5import/testfiles/test9.h5
+./tools/h5import/testfiles/test10.h5
+./tools/h5import/testfiles/test11.h5
+./tools/h5import/testfiles/test12.h5
+./tools/h5import/testfiles/test13.h5
+
+./tools/h5diff/Dependencies
+./tools/h5diff/Makefile.in
+./tools/h5diff/h5diff.c
+./tools/h5diff/h5trav.c
+./tools/h5diff/h5trav.h
+./tools/h5diff/h5difftst.c
+./tools/h5diff/testh5diff.sh
+
 ./tools/h5ls/Dependencies
 ./tools/h5ls/Makefile.in
 ./tools/h5ls/h5ls.c
@@ -1039,6 +1189,7 @@
 ./tools/misc/Dependencies
 ./tools/misc/Makefile.in
 ./tools/misc/h5cc.in
+./tools/misc/h5createU8.c
 ./tools/misc/h5debug.c
 ./tools/misc/h5import.c
 ./tools/misc/h5redeploy.in
@@ -1072,6 +1223,8 @@
 ./tools/testfiles/tattr.h5
 ./tools/testfiles/tbitfields-1.ddl
 ./tools/testfiles/tbitfields.h5
+./tools/testfiles/tchar.h5
+./tools/testfiles/tchar1.ddl
 ./tools/testfiles/tcomp-1.ddl
 ./tools/testfiles/tcomp-2.ddl
 ./tools/testfiles/tcomp-3.ddl
@@ -1154,8 +1307,9 @@
 ./tools/testfiles/tvldtypes3.h5
 ./tools/testfiles/tvldtypes4.ddl
 ./tools/testfiles/tvldtypes4.h5
-./tools/testfiles/tvlstr.ddl
 ./tools/testfiles/tvlstr.h5
+./tools/testfiles/tvlstr.ddl
+./tools/testfiles/tattr2.h5
 
 # Expected output from h5ls tests
 ./tools/testfiles/help-1.ls
@@ -1173,6 +1327,7 @@
 ./tools/testfiles/tsaf.ls
 ./tools/testfiles/tslink-1.ls
 ./tools/testfiles/tstr-1.ls
+./tools/testfiles/tattr2.ls
 
 #additional test input and output for h5dump XML
 ./tools/testfiles/tall.h5.xml
@@ -1230,6 +1385,78 @@
 ./tools/testfiles/tvldtypes2.h5.xml
 ./tools/testfiles/tvldtypes3.h5.xml
 ./tools/testfiles/tvlstr.h5.xml
+
+#test files for h5diff
+./tools/testfiles/file1.h5
+./tools/testfiles/file2.h5
+./tools/testfiles/file3.h5
+./tools/testfiles/file4.h5
+./tools/testfiles/file5.h5
+./tools/testfiles/file6.h5
+./tools/testfiles/h5diff_10.txt
+./tools/testfiles/h5diff_11.txt
+./tools/testfiles/h5diff_12.txt
+./tools/testfiles/h5diff_13.txt
+./tools/testfiles/h5diff_14.txt
+./tools/testfiles/h5diff_15.txt
+./tools/testfiles/h5diff_16.txt
+./tools/testfiles/h5diff_20.txt
+./tools/testfiles/h5diff_21.txt
+./tools/testfiles/h5diff_22.txt
+./tools/testfiles/h5diff_23.txt
+./tools/testfiles/h5diff_24.txt
+./tools/testfiles/h5diff_25.txt
+./tools/testfiles/h5diff_30.txt
+./tools/testfiles/h5diff_31.txt
+./tools/testfiles/h5diff_32.txt
+./tools/testfiles/h5diff_33.txt
+./tools/testfiles/h5diff_34.txt
+./tools/testfiles/h5diff_35.txt
+./tools/testfiles/h5diff_36.txt
+./tools/testfiles/h5diff_37.txt
+./tools/testfiles/h5diff_38.txt
+./tools/testfiles/h5diff_40.txt
+./tools/testfiles/h5diff_41.txt
+./tools/testfiles/h5diff_42.txt
+./tools/testfiles/h5diff_50.txt
+./tools/testfiles/h5diff_51.txt
+./tools/testfiles/h5diff_52.txt
+./tools/testfiles/h5diff_53.txt
+./tools/testfiles/h5diff_54.txt
+./tools/testfiles/h5diff_55.txt
+./tools/testfiles/h5diff_56.txt
+./tools/testfiles/h5diff_57.txt
+./tools/testfiles/h5diff_600.txt
+./tools/testfiles/h5diff_601.txt
+./tools/testfiles/h5diff_602.txt
+./tools/testfiles/h5diff_603.txt
+./tools/testfiles/h5diff_604.txt
+./tools/testfiles/h5diff_605.txt
+./tools/testfiles/h5diff_606.txt
+./tools/testfiles/h5diff_607.txt
+./tools/testfiles/h5diff_608.txt
+./tools/testfiles/h5diff_609.txt
+./tools/testfiles/h5diff_610.txt
+./tools/testfiles/h5diff_611.txt
+./tools/testfiles/h5diff_612.txt
+./tools/testfiles/h5diff_613.txt
+./tools/testfiles/h5diff_614.txt
+./tools/testfiles/h5diff_615.txt
+./tools/testfiles/h5diff_616.txt
+./tools/testfiles/h5diff_617.txt
+./tools/testfiles/h5diff_618.txt
+./tools/testfiles/h5diff_619.txt
+./tools/testfiles/h5diff_620.txt
+./tools/testfiles/h5diff_621.txt
+./tools/testfiles/h5diff_622.txt
+./tools/testfiles/h5diff_623.txt
+./tools/testfiles/h5diff_624.txt
+./tools/testfiles/h5diff_625.txt
+./tools/testfiles/h5diff_626.txt
+./tools/testfiles/h5diff_627.txt
+./tools/testfiles/h5diff_628.txt
+./tools/testfiles/h5diff_629.txt
+
 
 ./windows/all.zip
 ./windows/all_withf90.zip

@@ -1,4 +1,3 @@
-## HDF5 Library Test Makefile(.in)
 ##
 ## Copyright by the Board of Trustees of the University of Illinois.
 ## All rights reserved.
@@ -12,6 +11,8 @@
 ## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
 ## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 ##
+## HDF5 Library Test Makefile(.in)
+##
 top_srcdir=@top_srcdir@
 top_builddir=..
 srcdir=@srcdir@
@@ -23,19 +24,19 @@ CPPFLAGS=-I. -I$(srcdir) -I../src -I$(top_srcdir)/src @CPPFLAGS@
 
 ## These are our main targets. They should be listed in the order to be
 ## executed, generally most specific tests to least specific tests.
-TEST_PROGS=testhdf5 lheap ohdr stab gheap hyperslab istore bittests dtypes \
-      dsets cmpd_dset extend external links unlink big mtime fillval mount \
-      flush1 flush2 enum gass_write gass_read gass_append \
-      srb_write srb_append srb_read ttsafe stream_test
+TEST_PROGS=testhdf5 lheap ohdr stab gheap hyperslab istore bittests dtypes      \
+           dsets cmpd_dset extend external links unlink big mtime fillval mount \
+           flush1 flush2 enum gass_write gass_read gass_append set_extent       \
+           srb_write srb_append srb_read ttsafe stream_test getname file_handle \
+           ntypes dangle
 
 TIMINGS=testmeta
 
 ## The libh5test.a library provides common support code for the tests. We link
 ## this library statically because some systems can only link executables to
 ## a single shared library and libhdf5 is much bigger than libh5test.
-LT_LINK_LIB=$(LT) --mode=link $(CC) -static -rpath $(libdir)
+LIBHDF5=../src/libhdf5.la
 LIB=libh5test.la
-LIBHDF5=$(top_builddir)/src/libhdf5.la
 LIB_SRC=h5test.c
 LIB_OBJ=$(LIB_SRC:.c=.lo)
 PUB_LIB=
@@ -45,19 +46,22 @@ PUB_LIB=
 ## specifying a file prefix or low-level driver.  Changing the file
 ## prefix or low-level driver with environment variables will influence 
 ## the temporary file name in ways that the makefile is not aware of.
-MOSTLYCLEAN=cmpd_dset.h5 dataset.h5 extend.h5 istore.h5 tfile1.h5 tfile2.h5  \
-	    tfile3.h5 th5s1.h5 lheap.h5 ohdr.h5 stab1.h5 stab2.h5            \
-	    extern_1.h5 extern_2.h5 extern_3.h5 extern_1a.raw extern_1b.raw  \
-	    extern_2a.raw extern_2b.raw extern_3a.raw extern_3b.raw          \
-	    extern_4a.raw extern_4b.raw gheap0.h5       \
-	    gheap1.h5 gheap2.h5 gheap3.h5 gheap4.h5 links.h5        \
-	    big.data big[0-9][0-9][0-9][0-9][0-9].h5 dtypes1.h5 dtypes2.h5   \
-            tattr.h5 tselect.h5 mtime.h5 unlink.h5 \
-            fillval_[0-9].h5 fillval.raw mount_[0-9].h5 testmeta.h5 \
-            ttime.h5 trefer[12].h5 tvltypes.h5 tvlstr.h5 flush.h5 enum1.h5 \
-            titerate.h5 ttsafe.h5 tarray1.h5 tgenprop.h5 tmisc.h5 tmisc2a.h5 \
-            tmisc2b.h5 tmisc3.h5 tmisc4a.h5 tmisc4b.h5 tmisc5.h5 tmisc6.h5 \
-            tmisc7.h5 tmisc8.h5
+MOSTLYCLEAN=cmpd_dset.h5 compact_dataset.h5 dataset.h5 extend.h5 istore.h5   \
+            tfile1.h5 tfile2.h5 tfile3.h5 th5s1.h5 lheap.h5 ohdr.h5 stab1.h5 \
+            stab2.h5 extern_1.h5 extern_2.h5 extern_3.h5 extern_1a.raw       \
+            extern_1b.raw extern_2a.raw extern_2b.raw extern_3a.raw          \
+            extern_3b.raw extern_4a.raw extern_4b.raw gheap0.h5 gheap1.h5    \
+            gheap2.h5 gheap3.h5 gheap4.h5 links.h5 links[1-3].h5 big.data    \
+            big[0-9][0-9][0-9][0-9][0-9].h5 dtypes[1-3].h5 tattr.h5          \
+            tselect.h5 mtime.h5 unlink.h5 fillval_[0-9].h5 fillval.raw       \
+            mount_[0-9].h5 testmeta.h5 ttime.h5 trefer[1-3].h5 tvltypes.h5   \
+            tvlstr.h5 flush.h5 enum1.h5 titerate.h5 ttsafe.h5 tarray1.h5     \
+            tgenprop.h5 tmisc.h5 tmisc2a.h5 tmisc2b.h5 tmisc3.h5 tmisc4a.h5  \
+            tmisc4b.h5 tmisc5.h5 tmisc6.h5 tmisc7.h5 tmisc8.h5 tmisc9.h5     \
+            set_extent_read.h5 set_extent_create.h5 getname.h5 getname1.h5   \
+            getname2.h5 getname3.h5 sec2_file.h5 family_file000[0-3][0-9].h5 \
+            multi_file-[rs].h5 core_file new_move_[ab].h5 ntypes.h5 dangle.h5
+
 CLEAN=$(TIMINGS)
 
 ## Source and object files for programs...  The TEST_SRC list contains all the
@@ -65,16 +69,20 @@ CLEAN=$(TIMINGS)
 ## other source lists are for the individual tests, the files of which may
 ## overlap with other tests.
 
-TEST_SRC=big.c bittests.c cmpd_dset.c dsets.c dtypes.c extend.c      \
-     external.c fillval.c flush1.c flush2.c gheap.c h5test.c \
-     hyperslab.c istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c \
-     tarray.c tattr.c tconfig.c testhdf5.c testmeta.c tfile.c tgenprop.c \
-     th5s.c titerate.c tmeta.c trefer.c tselect.c ttime.c ttbbt.c tvltypes.c \
-     tvlstr.c tmisc.c unlink.c enum.c ttsafe.c ttsafe_dcreate.c ttsafe_error.c \
-     ttsafe_cancel.c ttsafe_acreate.c gass_write.c gass_read.c gass_append.c \
-     srb_read.c srb_write.c srb_append.c stream_test.c
+TEST_SRC=big.c bittests.c cmpd_dset.c dsets.c dtypes.c extend.c              \
+         external.c fillval.c flush1.c flush2.c gheap.c h5test.c hyperslab.c \
+         istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c tarray.c     \
+         tattr.c tconfig.c testhdf5.c testmeta.c tfile.c tgenprop.c th5s.c   \
+         theap.c titerate.c tmeta.c trefer.c trefstr.c tselect.c ttime.c     \
+         ttbbt.c ttst.c tvltypes.c tvlstr.c tmisc.c unlink.c enum.c ttsafe.c \
+         ttsafe_dcreate.c ttsafe_error.c ttsafe_cancel.c ttsafe_acreate.c    \
+         gass_write.c gass_read.c gass_append.c srb_read.c srb_write.c       \
+         srb_append.c stream_test.c set_extent.c getname.c file_handle.c     \
+         ntypes.c dangle.c
 
 TEST_OBJ=$(TEST_SRC:.c=.lo)
+
+VFD_LIST=sec2 stdio core split multi family
 
 ## Private header files (not to be installed)...
 PRIVATE_HDR=testhdf5.h ttsafe.h
@@ -92,11 +100,11 @@ timings _timings: $(TIMINGS)
 ## How to build the tests...  They all depend on the test and hdf5 libraries.
 $(TEST_PROGS): $(LIB) $(LIBHDF5)
 
-TESTHDF5_OBJ=testhdf5.lo tarray.lo tattr.lo tconfig.lo tfile.lo tgenprop.lo \
-    th5s.lo titerate.lo tmeta.lo ttime.lo trefer.lo tselect.lo ttbbt.lo     \
-    tvltypes.lo tvlstr.lo tmisc.lo
+TESTHDF5_OBJ=testhdf5.lo tarray.lo tattr.lo tconfig.lo tfile.lo tgenprop.lo   \
+    th5s.lo theap.lo titerate.lo tmeta.lo ttime.lo trefer.lo trefstr.lo       \
+    tselect.lo ttbbt.lo ttst.lo tvltypes.lo tvlstr.lo tmisc.lo
 
-TTS_OBJ=ttsafe.lo ttsafe_dcreate.lo ttsafe_error.lo ttsafe_cancel.lo \
+TTS_OBJ=ttsafe.lo ttsafe_dcreate.lo ttsafe_error.lo ttsafe_cancel.lo          \
         ttsafe_acreate.lo
 
 testhdf5: $(TESTHDF5_OBJ)
@@ -177,6 +185,9 @@ gass_read: gass_read.lo
 gass_append: gass_append.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ gass_append.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
+set_extent: set_extent.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ set_extent.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
 srb_read: srb_read.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ srb_read.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
@@ -192,5 +203,16 @@ stream_test: stream_test.lo
 testmeta: testmeta.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ testmeta.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
-@CONCLUDE@
+getname: getname.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ getname.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
+file_handle: file_handle.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ file_handle.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+ntypes: ntypes.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ ntypes.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+dangle: dangle.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ dangle.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+@CONCLUDE@

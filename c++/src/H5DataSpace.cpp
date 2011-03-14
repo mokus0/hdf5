@@ -57,7 +57,11 @@ DataSpace::DataSpace( int rank, const hsize_t * dims, const hsize_t * maxdims) :
 
 /* Constructor that takes an existing dataspace id
 Description:
-	Uses an HDF5 id to create a DataSpace identifier instance.  This id can be either an existing dataspace id or a default dataspace id.  Design note: in the case of default dataspace, the identifier still has reference counter; the p_close function will take care of not to call H5Sclose on the default id.
+	Uses an HDF5 id to create a DataSpace identifier instance.
+	This id can be either an existing dataspace id or a default
+	dataspace id.  Design note: in the case of default dataspace,
+	the identifier still has reference counter; the p_close function
+	will take care of not to call H5Sclose on the default id.
 */
 DataSpace::DataSpace( const hid_t space_id ) : IdComponent( space_id ) {}
 
@@ -266,7 +270,7 @@ void DataSpace::getSelectElemPointlist ( hsize_t startpoint, hsize_t numpoints, 
 }
 
 // Gets the bounding box containing the current selection
-void DataSpace::getSelectBounds ( hsize_t* start, hsize_t* end ) const
+void DataSpace::getSelectBounds ( hssize_t* start, hssize_t* end ) const
 {
    herr_t ret_value = H5Sget_select_bounds( id, start, end );
    if( ret_value < 0 )
@@ -345,7 +349,7 @@ void DataSpace::p_close() const
       herr_t ret_value = H5Sclose( space_id );
       if( ret_value < 0 )
       {
-         throw DataSpaceIException(NULL, "H5Sclose failed");
+         throw DataSpaceIException(0, "H5Sclose failed");
       }
    }
 }
@@ -361,7 +365,7 @@ DataSpace::~DataSpace()
     try {
         resetIdComponent( this ); }
     catch (Exception close_error) { // thrown by p_close
-        cerr << "DataSpace::~DataSpace" << close_error.getDetailMsg() << endl;
+        cerr << "DataSpace::~DataSpace - " << close_error.getDetailMsg() << endl;
     }
 }  
 

@@ -741,13 +741,12 @@
      !
      !start block for getting the selected hyperslab 
      !
-     INTEGER(HSIZE_T), DIMENSION(2) :: startblock = (/0,0/)
+     INTEGER(HSIZE_T) :: startblock = 0
 
      !
      !start point for getting the selected elements 
      !
-     INTEGER(HSIZE_T), DIMENSION(2) :: startpoint = (/0,0/)
-!     INTEGER(HSIZE_T), DIMENSION(2) :: startpoint = (/1,1/)
+     INTEGER(HSIZE_T)  :: startpoint = 0
 
      !
      !Stride of the hyperslab in the file 
@@ -793,9 +792,9 @@
      INTEGER(HSIZE_T), ALLOCATABLE, DIMENSION(:) :: pointlist
 
      !
-     !start and end bounds in the current dataspac selection 
+     !start and end bounds in the current dataspace selection 
      !
-     INTEGER(HSIZE_T), DIMENSION(RANK) :: startout, endout
+     INTEGER(HSSIZE_T), DIMENSION(RANK) :: startout, endout
 
      !
      !data to write 

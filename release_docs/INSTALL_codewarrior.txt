@@ -3,49 +3,47 @@ Instructions for Building the HDF5 Library, Tests, and Tools
 with the Metrowerks Code Warrior Compiler
 ---------------------------------------------------------------------------
 
-
-As of Release 1.4.2, the HDF5 library is supported under the Metrowerks 
-Code Warrior 6.0 compiler.
-
+The HDF5 library is supported under the Metrowerks Code Warrior version 8.0 compiler.
 The Code Warrior port of the HDF5 library has been tested only on the
 Windows NT platform.
+The following instructions assume we will be using the path D:\hdf5 for installing the library.
 
-These instructions assume a basic knowledge of the Code Warrior compiler.
+------------------------------------------------------------------------
+Pre conditions: 
+-------------------------------------------------------------------------
+Both the ZLIB and SZIP libraries are needed to link with HDF5.
+The Code Warrior project file settings assumes ZLIB is intalled in D:\zlib\zlib.lib  and SZIP is installed in 
+D:\szip\codewarrior\szip.lib
+These precompiled libraries can be obtained from the HDF web site, please see hdf.ncsa.uiuc.edu for
+downloading instructions.
 
-zlib library
+-------------------------------------------------------------------------
+Setup
+--------------------------------------------------------------------------
 
-The zlib library is needed to build the HDF5 library. You can obtain it at
-  ftp://hdf.ncsa.uiuc.edu/gzip/windows/zlib114/
-The Code Warrior project file assumes that this library is installed into
-D:\zlib
-the files zconf.h, zlib.h and zlib.lib should be copied to this directory
+1. Unpack the file all.zip located in d:\hdf5\windows to d:\. This file contains
+the Windows specific files of HDF5.
 
-
-To install the HDF5 library:
-1. Open the project file hdf5.mcp (located in hdf5\proj\codewarrior\).
-2. Build the library:
+To build the HDF5 library with Code Warrior:
+1. Open the project file hdf5.mcp (located in d:\hdf5\proj\codewarrior\).
+2. To build the library:
 	Select the 'hdf5' target and build (menu Projects-> Make or F7 key).
-3. Build all the targets (HDF5 library, test, and tools):
+3. To build all the targets (HDF5 library, test, and tools):
 	Select the 'all' target and build.
-4. Run the tests in a command line window:
-
-	In the command line window, change directory to hdf5\test\
+4. To run the tests in a command line window:
+	In the command line window, change directory to d:\hdf5\test\. 
 	Type 
 	    Hdf5test debug
 	or, to redirect the output to a file called myfile.txt,
 	    Hdf5test debug > myfile.txt
-        Type 
-            hdf5timingtest debug
-        Change directory to hdf5\tools\
-        Type
-            dumptest debug
-
    The test and tools files are generated in the same directory as 
    the those compiled with the Microsoft Visual Studio compiler.
+5. Enjoy.
 
 
 ---------------------------------------------------------------------------
-
+The HDF Group would like to thank Ron Liechty of Metrowerks technical 
+support for all the help provided during the development of this project.
 
 
 

@@ -1,8 +1,8 @@
-HDF5 Build and Install Instructions for Windows 2000/NT.
+HDF5 Build and Install Instructions for Windows 2000/XP.
 ----------------------------------------------------------
 
 The instructions which follow assume that you will be using the 
-source code release 'zip' file (hdf5-1_4_5.zip).
+source code release 'zip' file (hdf5-1_6_???.zip).
 
 ***************************WARNINGS****************************
 Please read CAREFULLY about Preconditions before you go to the 
@@ -19,23 +19,24 @@ Preconditions
 	    c:\					(any drive)
 	   MyHDFstuff\				(any folder name)
 
-   3. Run WinZip on hdf5-1_4_5.zip (the entire source tree) and
-      extract hdf5 package into c:\MyHDFstuff(or whatever drive 
-      and folder name you would like to choose). This creates a 
-      directory called 'hdf5xxx'under MyHDFstuff which contains 
-      several files and directories. Rename directory "hdf5xxx"
-      into "hdf5".
-
    4. HDF5 uses zlib for compression and zlib is NOT distributed 
-      with hdf5 lib in 1.4.5 release. You have to install your own
-      zlib library or you may go to HDF web site(ftp://ftp.ncsa.uiuc.edu/HDF/gzip/) 
-      to download
-      the correponding zlib library by yourself. If you want to build
-      HDF5 library without using zlib, please read section V.
+      with hdf5 lib in 1.6.??? release. You have to install your own
+      zlib library or you may go to HDF web site
+	(ftp://ftp.ncsa.uiuc.edu/HDF/gzip/) 
+      to download the correponding zlib library by yourself. If you 
+      want to build HDF5 library without using zlib, please read section V.
 
    5. HDF4-related tools are not built and released with HDF5 library
       packages any more. To obtain HDF4-related tools, please check
       http://hdf.ncsa.uiuc.edu/h4toh5/ and ftp://hdf.ncsa.uiuc.edu/HDF5/h4toh5/
+
+   6. For .NET users, please go to section VI.
+
+   7. For DLL users, please do read and follow "DLL hints" at Section IV.
+
+   8. For users who would like to build, test and use HDF5 snapshot release, please
+      read Section VII.
+
 
 ---------------------------------------------------------------
 
@@ -48,8 +49,11 @@ The following sections discuss installation procedures in detail:
   Section III: Building an application using the HDF5 library or 
               DLL
   Section IV: Some more helpful pointers
-  Section V: Disable gzip compression  
-  Section VI: How to build in HDF5 in VS 7.0(.NET)
+  Section V:  Disable gzip compression  
+  Section VI: How to build in HDF5 in VS 7.0(.NET) 
+  Section VII: Build and test HDF5 snapshot release
+  Section VIII: Misc. 
+
 
 ***************************************************************
 
@@ -82,9 +86,9 @@ What do we build and install?
  HDF5 examples:
       simple HDF5 examples
 
-NOTE: ** In our binary release, we use zlib 1.1.3 to make it compatiable
-         with HDF4 library and HDF4-related tools. In source release,
-	by default, the path of zlib 1.1.4 is set.
+NOTE: ** We use zlib 1.1.4 for both binary and source
+	release.
+      **
 
 **************************************************************
 
@@ -97,15 +101,13 @@ Section II:
 STEP 1: Building hdf5 libraries and non-hdf4 related tools
 
 
+    1. Unpack all.zip in 'hdf5' and move the zlib.dll from
+       c:\myHDFstuff\hdf5\src\zlib\dll to the Windows system 
+       directory.
+
+	 The system directory can usually be found under the path 
+		C:\WINNT\system or C:\WINDOWS\system
       
-    1. Make sure you have your own zlib library(both dll and static)
-       stored at your machine. In this document we will use
-       c:\zlib114 to represent the top directory of your zlib library.
-
-       Make sure that zlib.dll has been moved to the system directory
-       C:\WINNT\system
- 
-
     2. Invoke Microsoft Visual C++, go to "File" and select 
        the "Open Workspace" option. 
 
@@ -120,13 +122,16 @@ STEP 1: Building hdf5 libraries and non-hdf4 related tools
        If not, replace the old zlib dll library path with the correct path.
 
        You should do this for both Debug and release version.
+
     4. Go to "Tools" and select "Options", find "Directories";
         4.1 Find the box "Show directories for", choose "Include files",
-            If you cannot find C:\zlib114\include at the directory listed,
-            add C:\zlib114\include to the included directories.
+            If you cannot find your zlib header path(for example, C:\zlib114\include)
+	    from the directory list,
+            add the header path(C:\zlib114\include) to the included directories.
         4.2 Find the box "Show directories for", choose "Library files",
-            If you cannot find C:\zlib114\lib at the directory listed,
-            add C:\zlib114\lib to the included directories.
+            If you cannot find your zlib library path(for example, C:\zlib114\lib)
+	    from the directory list,
+            add the library path(C:\zlib114\lib) to the included directories.
 
     5. Select "Build", then Select "Set Active Configuration".
 
@@ -141,6 +146,8 @@ STEP 1: Building hdf5 libraries and non-hdf4 related tools
           single-threaded static libraries, multithreaded DLLs
           and tests.
 
+      
+       Warning messages can be ignored. 
 
        When the debug or release build is done the directories 
        listed below will contain the following files:
@@ -236,6 +243,8 @@ STEP 1: Building hdf5 libraries and non-hdf4 related tools
                   h5import(dll)
                     
                   h5repart(dll)	            
+
+                  gifconv(dll)
 		
 
            Test and tool directory contains debug and release 
@@ -255,12 +264,21 @@ You can possibily test four versions of hdf5 library and tools. They are:
 	debug version
 	debug dll version
 
-NOTE: The hdf5ddll.dll and hdf5dll.dll should be placed into
+NOTE: 
+
+1) hdf5ddll.dll and hdf5dll.dll should be placed into some place that
+the application can find, one suggestion is to use
 the C:\WINNT\system or C:\WINDOWS\system directory before using the dlls.
+
+2) If you want to test HDF5 DLL using HDF5 test projects inside HDF5 workspace,
+libtestD.dll should also be placed into some place that the application 
+can find, one suggestion is to use the C:\WINNT\system or C:\WINDOWS\system
+directory before testing HDF5 DLL using HDF5 test projects inside HDF5
+workspace.
 
 We strongly suggest you to redirect your testing results into
 an output file and you can easily check the testing results. 
-You may use either NotePad or NoteTab Light or whatever other
+You may use either NotePad or WordPad or whatever other
 windows tools to check the results. For the purpose of printing, 
 please choose font less than 14 for better alignment of the text.
 
@@ -309,11 +327,13 @@ please choose font less than 14 for better alignment of the text.
                hdf5timingtest debug dll >"Your output filename"
 
 
-     Use notepad or notetab light to check results. You should 
+     Use notepad or wordpad to check results. You should 
 not find any FAILED marks in your output files.
 
-  Note: big test is currently not working for windows, we are 
-still investigating this.
+  Note: big test is currently not working for windows because it needs
+to allocate more space, however, HDF5 can support more than 4GB
+file if you are using NTFS. We still investigate the possibility to support 
+this test.
  
  2. hdf5 tools testing
  
@@ -480,7 +500,7 @@ To use the DLL:
        debug version.
 
     3. Place the DLL in a location that Windows will be able to locate 
-       it. The search path and order for DLL's is
+       it. The searched path and order for DLL's is
 
        a) The directory where the executable module for the current
           process is located.
@@ -490,6 +510,8 @@ To use the DLL:
        d) The Windows directory. The GetWindowsDirectory function
           retrieves the path of this directory.
        e) The directories listed in the PATH environment variable. 
+    4. To modify your own application settings, please DO FOLLOW th "DLL Hints" 
+	at section IV "MORE HELPFUL POINTERS".
 
 
 Section IV:
@@ -503,7 +525,7 @@ using the Visual C++ Development Environment.
 Project name and location issues: 
        
     The files in all.zip must end up in the hdf5\ directory installed by
-    hdf5-1_4_5.zip
+    hdf5-1_4_0.zip
 
     If you must install all.dsw and all.dsp in another directory,
     relative to hdf5\ , you will be asked to locate the sub-project
@@ -556,6 +578,7 @@ DLL... hints:
 
 
 Section V:
+
 Disable gzip compression 
 ============================================
 
@@ -576,6 +599,7 @@ follow the steps below.
     2) run-compile HDF5 library according to the previous steps.
 
 Section VI:
+
 How to build HDF5 in VS 7.0(.NET)    
 ============================================
 We just briefly introduce you how to build HDF5 in VS 7.0(.NET);
@@ -590,4 +614,46 @@ click the button to choose Properties; find the similar menu there as in 6.0.
 Tools->Options->Projects->VC++ Directories and choose Include and libraries under
 the category of "show directories for" to add the corresponding path.
 
+Note: Currently we only build and test .NET on windows XP.
+
+Section VII:
+
+Build and test HDF5 snapshot release
+
+Note: This section is only for users who would like to build and test HDF5 snapshot release.
+
+If you want to test and build HDF5 snapshot release, you need extra steps to automatically
+generate H5Tinit.c before going to section II step 1(2).
+
+Previous step: section II, step 1(1).
+Extra steps:
+1) After extracting all.zip to the correct path, open the 
+	c:\myHDFstuff\hdf5\misc\typegen\typegen.dsw.
+2) Build the project file.
+3) Invoke command prompt and go to c:\myHDFstuff\hdf5\src.
+4) type H5Tinit.exe >H5Tinit.c
+5) Go back to section II, continue with step 1(2).
+
+Section VIII:
+
+Misc.
+
+1) drivers we support
+The default driver on windows we support is sec2 driver. However, stdio driver
+is also supported. If you want to use stdio driver in your application, you
+may set environment variable HDF5_DRIVER to "stdio".
+
+On windows 2000, the following steps should be followed to set environment
+variable,
+
+ a) Go to Control panel and find "system",
+ b) Click "system" and choose "advanced",
+ c) Choose Environment Variables
+ d) Add new variable "HDF5_DRIVER"
+ e) set the "HDF5_DRIVER" to "stdio"
+
+Reminder: if you don't want to use stdio driver, please remember to delete
+the environment variable "HDF5_DRIVER" or change the variable value to "sec2".
+
+Please send email to hdfhelp@ncsa.uiuc.edu for further assistance.
 

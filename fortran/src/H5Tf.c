@@ -12,8 +12,7 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* This file contains C stubs for H5T Fortran APIs */
-
+/* This files contains C stubs for H5T Fortran APIs */
 
 #include "H5f90.h"
 
@@ -780,7 +779,6 @@ nh5tget_inpad_c ( hid_t_f *type_id , int_f * padtype)
 {
   int ret_value = -1;
   hid_t c_type_id;
-  herr_t status;
   H5T_pad_t c_padtype; 
 
   c_type_id = *type_id;
@@ -842,7 +840,6 @@ nh5tget_cset_c ( hid_t_f *type_id , int_f * cset)
 {
   int ret_value = -1;
   hid_t c_type_id;
-  herr_t status;
   H5T_cset_t  c_cset; 
 
   c_type_id = *type_id;
@@ -902,7 +899,6 @@ nh5tget_strpad_c ( hid_t_f *type_id , int_f * strpad)
 {
   int ret_value = -1;
   hid_t c_type_id;
-  herr_t status;
   H5T_str_t  c_strpad; 
 
   c_type_id = *type_id;
@@ -962,7 +958,6 @@ nh5tget_nmembers_c ( hid_t_f *type_id , int_f * num_members)
 {
   int ret_value = -1;
   hid_t c_type_id;
-  herr_t status;
 
   c_type_id = *type_id;
   *num_members = (int_f)H5Tget_nmembers(c_type_id);
@@ -1004,6 +999,49 @@ nh5tget_member_name_c ( hid_t_f *type_id ,int_f* index, _fcd member_name, int_f 
   ret_value = 0; 
   return ret_value;
 }
+/*----------------------------------------------------------------------------
+ * Name:        h5tget_member_index_c
+ * Purpose:     Call H5Tget_member_index to get an index of
+ *              the specified datatype filed or member.
+ * Inputs:      type_id - datatype identifier  
+ *              name - name of the datatype within file or  group     
+ *              namelen - name length
+ * Outputs:     index - 0-based index
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Thursday, September 26, 2002
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+int_f
+nh5tget_member_index_c (hid_t_f *type_id, _fcd name, int_f *namelen, int_f *index)
+{
+     int ret_value = -1;
+     char *c_name;
+     int c_namelen;
+     hid_t c_type_id;
+     int c_index;
+
+     /*
+      * Convert FORTRAN name to C name
+      */
+     c_namelen = *namelen;
+     c_name = (char *)HD5f2cstring(name, c_namelen); 
+     if (c_name == NULL) return ret_value;
+
+     /*
+      * Call H5Tget_member_index function.
+      */
+     c_type_id = (hid_t)*type_id;
+     c_index = H5Tget_member_index(c_type_id, c_name);
+
+     if (c_index < 0) goto DONE;
+     *index = (int_f)c_index;
+DONE:
+     HDfree(c_name);
+     ret_value = 0;
+     return ret_value;
+}      
+
 
 /*----------------------------------------------------------------------------
  * Name:        h5tget_member_offset_c
@@ -1033,62 +1071,6 @@ nh5tget_member_offset_c ( hid_t_f *type_id ,int_f* member_no, size_t_f * offset)
   c_offset = H5Tget_member_offset(c_type_id, c_member_no);
   *offset = (size_t_f)c_offset;
   ret_value = 0; 
-  return ret_value;
-}
-
-/*----------------------------------------------------------------------------
- * Name:        h5tget_member_dims_c
- * Purpose:     Call H5Tget_member_dims to get number 
- *              of dimensions of the field
- * Inputs:      type_id - identifier of the dataspace 
- *              field_idx - Field index (0-based) of the field 
- *                          dims to retrieve
- * Outputs:     dims -  number of dimensions of the field
- *              field_dims - buffer to store the dimensions of the field
- *              perm - buffer to store the permutation vector of the field
- * Returns:     0 on success, -1 on failure
- * Programmer:  XIANGYANG SU
- *              Thursday, February 3, 2000
- * Modifications: WANT_H5_V1_2_COMPAT added for backward compatibility
- *                November 16, 2000 EP
- *---------------------------------------------------------------------------*/
-
-int_f 
-nh5tget_member_dims_c ( hid_t_f *type_id ,int_f* field_idx, int_f * dims, size_t_f * field_dims, int_f * perm )
-{
-  int ret_value = -1;
-  hid_t c_type_id;
-  int c_dims, i;
-  int* c_perm;
-  size_t * c_field_dims;
-  int c_field_idx;
-
-#ifdef WANT_H5_V1_2_COMPAT
-
-  c_field_dims = (size_t*)malloc(sizeof(size_t)*4);
-  if(!c_field_dims) return ret_value;
-
-  c_perm = (int*)malloc(sizeof(int)*4);
-  if(!c_perm) return ret_value;
-
-  c_type_id = *type_id;
-  c_field_idx = *field_idx;
-  c_dims = H5Tget_member_dims(c_type_id, c_field_idx, c_field_dims, c_perm);
-  if (c_dims < 0) return ret_value;
-
-  *dims = (int_f)c_dims;
-  for(i =0; i < c_dims; i++)
-  {
-      field_dims[c_dims-i-1] = (size_t_f)c_field_dims[i];
-      perm[c_dims-i-1] = (int_f)c_perm[i];
-  }
-
-  ret_value = 0; 
-  HDfree(c_field_dims);
-  HDfree(c_perm);
-
-#endif /* WANT_H5_V1_2_COMPAT */
-
   return ret_value;
 }
 
@@ -1319,137 +1301,6 @@ nh5tpack_c(hid_t_f * type_id)
 } 
 
 /*----------------------------------------------------------------------------
- * Name:        h5tinsert_array_c
- * Purpose:     Call H5Tinsert_array to add a new member to the 
- *              compound datatype parent_id.
- * Inputs:      parent_id - identifier of the parent compound datatype
- *              name - name of the new member
- *              namelen - length of the name
- *              offset - Offset to start of new member within compound datatype
- *              ndims - Dimensionality of new member. Valid values 
- *                      are 0 (zero) through 4 (four).
- *              dims - Size of new member array
- *              member_id - identifier of the datatype of the new member
- *              perm - Pointer to buffer to store the permutation 
- *                     vector of the field
- * Returns:     0 on success, -1 on failure
- * Programmer:  XIANGYANG SU
- *              Thursday, February 3, 2000
- * Modifications: WANT_H5_V1_2_COMPAT added for backward compatibility
- *                November 16, 2000 EP
- *---------------------------------------------------------------------------*/
-int_f
-nh5tinsert_array_c(hid_t_f * parent_id, _fcd name, int_f* namelen, size_t_f* offset, int_f* ndims, size_t_f* dims, hid_t_f* member_id, int_f* perm )
-{
-  int ret_value = -1;
-  hid_t c_parent_id;
-  hid_t c_member_id;
-  int c_ndims;
-  herr_t status;
-  size_t c_offset;
-  size_t * c_dims;
-  char* c_name;
-  int c_namelen;
-  int * c_perm, i;
-
-#ifdef WANT_H5_V1_2_COMPAT
-  c_offset = *offset;   
-  c_dims = (size_t*)malloc(sizeof(size_t)*(*ndims));
-  if(!c_dims) return ret_value;
-
-  c_perm = (int*)malloc(sizeof(int)*(*ndims));
-  if(!c_perm) return ret_value;
-
-  /*
-   * Transpose dimension arrays because of C-FORTRAN storage order
-   */
-  for (i = 0; i < *ndims ; i++) {
-     c_dims[i] =  (size_t)dims[*ndims - i - 1];
-     c_perm[i] = (int)perm[*ndims - i - 1]; 
-  }
-  c_namelen = *namelen;
-  c_name = (char *)HD5f2cstring(name, c_namelen); 
-  if (c_name == NULL) return ret_value;
-  
-  c_parent_id = *parent_id;
-  c_member_id = *member_id;
-  c_ndims = *ndims;
-  status = H5Tinsert_array(c_parent_id, c_name, c_offset,c_ndims, c_dims, c_perm, c_member_id);
-
-  HDfree(c_name);
-  if(status < 0) return ret_value;
-  ret_value = 0;
-
-#endif /* WANT_H5_V1_2_COMPAT */
-  return ret_value;
-
-}
-
-
-/*----------------------------------------------------------------------------
- * Name:        h5tinsert_array_c2
- * Purpose:     Call H5Tinsert_array to add a new member to the 
- *              compound datatype parent_id.
- *              the difference between this function and h5tinsert_array_c
- *              is that this one doesn't take perm array as input 
- * Inputs:      parent_id - identifier of the parent compound datatype
- *              name - name of the new member
- *              namelen - length of the name
- *              offset - Offset to start of new member within compound datatype
- *              ndims - Dimensionality of new member. Valid values 
- *                      are 0 (zero) through 4 (four).
- *              dims - Size of new member array
- *              member_id - identifier of the datatype of the new member
- * Returns:     0 on success, -1 on failure
- * Programmer:  XIANGYANG SU
- *              Thursday, February 3, 2000
- * Modifications: WANT_H5_V1_2_COMPAT added for backward compatibility
- *                November 16, 2000 EP
- *---------------------------------------------------------------------------*/
-int_f
-nh5tinsert_array_c2(hid_t_f * parent_id, _fcd name, int_f* namelen, size_t_f* offset, int_f* ndims, size_t_f* dims, hid_t_f* member_id )
-{
-  int ret_value = -1;
-  hid_t c_parent_id;
-  hid_t c_member_id;
-  int c_ndims;
-  herr_t status;
-  size_t c_offset;
-  size_t * c_dims;
-  char* c_name;
-  int c_namelen;
-  int i;
-
-#ifdef WANT_H5_V1_2_COMPAT
-
-  c_offset = *offset;   
-  c_dims = (size_t*)malloc(sizeof(size_t)*(*ndims));
-  if(!c_dims) return ret_value;
-
-  /*
-   * Transpose dimension arrays because of C-FORTRAN storage order
-   */
-  for (i = 0; i < *ndims ; i++) {
-     c_dims[i] =  (size_t)dims[*ndims - i - 1];
-  }
-  c_namelen = *namelen;
-  c_name = (char *)HD5f2cstring(name, c_namelen); 
-  if (c_name == NULL) return ret_value;
-  
-  c_parent_id = *parent_id;
-  c_member_id = *member_id;
-  c_ndims = *ndims;
-  status = H5Tinsert_array(c_parent_id, c_name, c_offset, c_ndims, c_dims, NULL, c_member_id);
-  HDfree(c_name);
-  if(status < 0) return ret_value;
-  ret_value = 0;
-
-#endif /* WANT_H5_V1_2_COMPAT */
-
-  return ret_value;
-
-}
-/*----------------------------------------------------------------------------
  * Name:        h5tarray_create_c
  * Purpose:     Call H5Tarray_create to create array datatype
  * Inputs:      base_id - identifier of array base datatype
@@ -1468,7 +1319,6 @@ nh5tarray_create_c(hid_t_f * base_id, int_f *rank, hsize_t_f* dims, hid_t_f* typ
   hid_t c_base_id;
   hid_t c_type_id;
   int c_rank;
-  herr_t status;
   hsize_t *c_dims;
   int i;
 
@@ -1554,8 +1404,8 @@ nh5tenum_insert_c(hid_t_f *type_id, _fcd name, int_f* namelen, int_f* value)
   c_name = (char *)HD5f2cstring(name, c_namelen); 
   if (c_name == NULL) return ret_value;
  
-  c_type_id = *type_id;
-  c_value = *value;
+  c_type_id = (hid_t)*type_id;
+  c_value = (int)*value;
   error = H5Tenum_insert(c_type_id, c_name, &c_value);
   HDfree(c_name);
   if(error < 0) return ret_value;
@@ -1589,7 +1439,7 @@ nh5tenum_nameof_c(hid_t_f *type_id, int_f* value, _fcd name, size_t_f* namelen)
   herr_t error;
   int c_value;
   c_value = *value;
-  c_namelen = ((size_t)*namelen) + 1;
+  c_namelen = ((size_t)*namelen) +1;
   c_name = (char *)malloc(sizeof(char)*c_namelen);
   c_type_id = *type_id;
   error = H5Tenum_nameof(c_type_id, &c_value, c_name, c_namelen);
@@ -1706,9 +1556,8 @@ nh5tset_tag_c(hid_t_f* type_id, _fcd tag, int_f* namelen)
 
 /*----------------------------------------------------------------------------
  * Name:        h5tget_tag_c
- * Inputs:      type_id - identifier of the dataspace 
  * Purpose:     Call H5Tset_tag to set an opaque datatype tag
- * Inputs:      type_id - identifier of the dataspace 
+ * Inputs:      type_id - identifier of the datatype
  * Outputs:     tag -  Unique ASCII string with which the opaque 
  *                     datatype is to be tagged
  *              taglen - length of tag
@@ -1735,49 +1584,6 @@ nh5tget_tag_c(hid_t_f* type_id, _fcd tag, int_f* taglen)
   return ret_value;
 }
 /*----------------------------------------------------------------------------
- * Name:        h5tget_member_index_c
- * Purpose:     Call H5Tget_member_index to get an index of
- *              the specified datatype filed or member.
- * Inputs:      type_id - datatype identifier  
- *              name - name of the datatype within file or  group     
- *              namelen - name length
- * Outputs:     index - 0-based index
- * Returns:     0 on success, -1 on failure
- * Programmer:  Elena Pourmal
- *              Thursday, September 26, 2002
- * Modifications:
- *---------------------------------------------------------------------------*/
-int_f
-nh5tget_member_index_c (hid_t_f *type_id, _fcd name, int_f *namelen, int_f *index)
-{
-     int ret_value = -1;
-     char *c_name;
-     int c_namelen;
-     hid_t c_type_id;
-     int c_index;
-
-     /*
-      * Convert FORTRAN name to C name
-      */
-     c_namelen = *namelen;
-     c_name = (char *)HD5f2cstring(name, c_namelen); 
-     if (c_name == NULL) return ret_value;
-
-     /*
-      * Call H5Tget_member_index function.
-      */
-     c_type_id = (hid_t)*type_id;
-     c_index = H5Tget_member_index(c_type_id, c_name);
-
-     if (c_index < 0) goto DONE;
-     *index = (int_f)c_index;
-DONE:
-     HDfree(c_name);
-     ret_value = 0;
-     return ret_value;
-}      
-
-/*----------------------------------------------------------------------------
  * Name:        h5tvlen_create_c
  * Purpose:     Call H5Tvlen_create to create VL dtatype
  * Inputs:      type_id - identifier of the base datatype
@@ -1799,5 +1605,31 @@ nh5tvlen_create_c(hid_t_f* type_id, hid_t_f *vltype_id)
   if (c_vltype_id < 0 ) return ret_value;
   *vltype_id = (hid_t_f)c_vltype_id;
   ret_value = 0; 
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5tis_variable_str_c
+ * Purpose:     Call H5Tis_variable_str to detrmine if the datatype
+ *              is a variable string.
+ * Inputs:      type_id - identifier of the dataspace 
+ * Outputs:     flag - 0 if not VL str, 1 if is not
+ *              and negative on failure.
+ * Returns:     0 on success, -1 on failure
+ * Programmer:  Elena Pourmal
+ *              Wednesday, March 12 , 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5tis_variable_str_c ( hid_t_f *type_id , int_f *flag )
+{
+  int ret_value = 0;
+  hid_t c_type_id;
+  htri_t status;
+
+  c_type_id = (hid_t)*type_id;
+  status = H5Tis_variable_str(c_type_id);
+  *flag = (int_f)status;
+  if ( status < 0  ) ret_value = -1;
   return ret_value;
 }

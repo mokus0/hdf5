@@ -133,7 +133,7 @@ void EnumType::valueOf( const char* name, void *value ) const
  * Return:      Success:	index of the member if exists.
  *              Failure:	DataTypeIException
  *
- * BMR - June 10, 2002
+ * BMR - May 16, 2002
  *-------------------------------------------------------------------------
  */
 int EnumType::getMemberIndex(const char *name) const

@@ -12,12 +12,20 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.h,v 1.15.2.12 2003/02/18 22:46:32 slu Exp $ */
+/* $Id: testphdf5.h,v 1.31 2003/06/05 20:05:52 koziol Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
 
 #include "h5test.h"
+
+#ifndef TRUE
+#define TRUE    1
+#endif  /* !TRUE */
+
+#ifndef FALSE
+#define FALSE   (!TRUE)
+#endif  /* !FALSE */
 
 /* Define some handy debugging shorthands, routines, ... */
 /* debugging tools */
@@ -114,20 +122,24 @@ extern void *old_client_data;			/*previous error handler arg.*/
 extern int facc_type;				/*Test file access type */
 
 /* prototypes */
-hid_t create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type );
+hid_t create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type, hbool_t use_gpfs);
 void multiple_dset_write(char *filename, int ndatasets);
 void multiple_group_write(char *filename, int ngroups);
 void multiple_group_read(char *filename, int ngroups);
 void collective_group_write(char *filename, int ngroups);
 void independent_group_read(char *filename, int ngroups);
+void test_fapl_mpio_dup(void);
+void test_fapl_mpiposix_dup(void);
 void test_split_comm_access(char *filename);
-void test_comm_info_delete(void);
 void dataset_writeInd(char *filename);
 void dataset_writeAll(char *filename);
 void extend_writeInd(char *filename);
+void extend_writeAll(char *filename);
 void dataset_readInd(char *filename);
 void dataset_readAll(char *filename);
 void extend_readInd(char *filename);
+void extend_readAll(char *filename);
+void compact_dataset(char *filename);
 int dataset_vrfy(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[], DATATYPE *dataset, DATATYPE *original);
 
 #endif /* PHDF5TEST_H */

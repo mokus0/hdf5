@@ -32,6 +32,7 @@
      INTEGER :: comm, info
      INTEGER :: mpi_size, mpi_rank
      LOGICAL :: cleanup = .TRUE.
+!     LOGICAL :: cleanup = .FALSE.
      comm = MPI_COMM_WORLD
      info = MPI_INFO_NULL
      CALL MPI_INIT(mpierror)

@@ -33,7 +33,7 @@ class H5_DLLCPP DataSet : public AbstractDs {
 	// Gets the storage size of this dataset.
 	hsize_t getStorageSize() const;
 
-	// - C version not yet implemented??
+	// not yet implemented??
 	hsize_t getVlenBufSize( DataType& type, DataSpace& space ) const;
 	void vlenReclaim( DataType& type, DataSpace& space, DSetMemXferPropList& xfer_plist, void* buf ) const;
 
@@ -41,11 +41,13 @@ class H5_DLLCPP DataSet : public AbstractDs {
 	// The memory and file dataspaces and the transferring property list
 	// can be defaults.
 	void read( void* buf, const DataType& mem_type, const DataSpace& mem_space = DataSpace::ALL, const DataSpace& file_space = DataSpace::ALL, const DSetMemXferPropList& xfer_plist = DSetMemXferPropList::DEFAULT ) const;
+        void read( string& buf, const DataType& mem_type, const DataSpace& mem_space = DataSpace::ALL, const DataSpace& file_space = DataSpace::ALL, const DSetMemXferPropList& xfer_plist = DSetMemXferPropList::DEFAULT ) const;
 
 	// Writes the buffered data to this dataset.
 	// The memory and file dataspaces and the transferring property list
 	// can be defaults.
 	void write( const void* buf, const DataType& mem_type, const DataSpace& mem_space = DataSpace::ALL, const DataSpace& file_space = DataSpace::ALL, const DSetMemXferPropList& xfer_plist = DSetMemXferPropList::DEFAULT ) const;
+        void write( const string& buf, const DataType& mem_type, const DataSpace& mem_space = DataSpace::ALL, const DataSpace& file_space = DataSpace::ALL, const DSetMemXferPropList& xfer_plist = DSetMemXferPropList::DEFAULT ) const;
 
 	// Iterates the selected elements in the specified dataspace - not implemented in C++ style yet
         int iterateElems( void* buf, const DataType& type, const DataSpace& space, H5D_operator_t op, void* op_data = NULL );
@@ -53,10 +55,14 @@ class H5_DLLCPP DataSet : public AbstractDs {
 	// Extends the dataset with unlimited dimension.
 	void extend( const hsize_t* size ) const;
 
+	// Fills a selection in memory with a value
+	void fillMemBuf(const void *fill, DataType& fill_type, void *buf, DataType& buf_type, DataSpace& space);
+	// Fills a selection in memory with zero 
+	void fillMemBuf(void *buf, DataType& buf_type, DataSpace& space);
+
 	// Creates a copy of an existing DataSet using its id
-	// (used only by template functions in FGtemplates.h
-	// to return a DataSet, will not be published; Note: should use
-	// friend template function)
+	// Note: used by CommonFG to return a DataSet; should be modified
+	// to use friend template function instead)
 	DataSet( const hid_t dataset_id );
 
 	// Used by the API to appropriately close a dataset

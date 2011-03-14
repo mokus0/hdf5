@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -11,11 +12,9 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
-
+!
    MODULE H5LIB
-    CONTAINS
-
+     CONTAINS
 !----------------------------------------------------------------------
 ! Name:		h5open_f 
 !
@@ -49,9 +48,10 @@
 
         IMPLICIT NONE
         INTEGER, INTENT(OUT) :: error
-        INTEGER :: error_0, error_1, error_2
+        INTEGER :: error_0, error_1, error_2, error_3
 !        INTEGER, EXTERNAL :: h5init_types_c
 !        INTEGER, EXTERNAL :: h5init_flags_c
+!        INTEGER, EXTERNAL :: h5init1_flags_c
 !        INTEGER, EXTERNAL :: h5open_c
         
 !
@@ -85,7 +85,8 @@
                                 i_H5P_flags, &
                                 i_H5R_flags, &
                                 i_H5S_flags, &
-                                i_H5T_flags  )
+                                i_H5T_flags, &               
+                                i_H5Z_flags)
           USE H5GLOBAL
           INTEGER i_H5F_flags(H5F_FLAGS_LEN)
           INTEGER i_H5G_flags(H5G_FLAGS_LEN)
@@ -97,11 +98,20 @@
           INTEGER i_H5R_flags(H5R_FLAGS_LEN)
           INTEGER i_H5S_flags(H5S_FLAGS_LEN)
           INTEGER i_H5T_flags(H5T_FLAGS_LEN)
-
+          INTEGER i_H5Z_flags(H5Z_FLAGS_LEN)
           !DEC$ IF DEFINED(HDF5F90_WINDOWS)
           !MS$ATTRIBUTES C,reference,alias:'_H5INIT_FLAGS_C'::h5init_flags_c
           !DEC$ ENDIF
           END FUNCTION h5init_flags_c
+        END INTERFACE
+        INTERFACE
+          INTEGER FUNCTION h5init1_flags_c( i_H5LIB_flags )
+          USE H5GLOBAL
+          INTEGER i_H5LIB_flags(H5LIB_FLAGS_LEN)
+          !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+          !MS$ATTRIBUTES C,reference,alias:'_H5INIT1_FLAGS_C'::h5init1_flags_c
+          !DEC$ ENDIF
+          END FUNCTION h5init1_flags_c
         END INTERFACE
         error_0 = h5open_c()
         error_1 = h5init_types_c(predef_types, floating_types, integer_types)
@@ -114,9 +124,10 @@
                                 H5P_flags, &
                                 H5R_flags, &
                                 H5S_flags, &
-                                H5T_flags  )
-        error = error_0 + error_1 + error_2
-
+                                H5T_flags, &
+                                H5Z_flags)
+        error_3 = h5init1_flags_c(H5LIB_flags )
+        error = error_0 + error_1 + error_2 + error_3
       END SUBROUTINE h5open_f
 
 !----------------------------------------------------------------------

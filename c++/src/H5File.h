@@ -25,7 +25,7 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	// Default constructor
 	H5File();
 
-	// Copy constructor
+	// copy constructor: makes a copy of the original H5File object.
 	H5File(const H5File& original );
 
 	// Creates or opens an HDF5 file.

@@ -12,7 +12,8 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* This file contains C stubs for H5R Fortran APIs */
+/* This files contains C stubs for H5R Fortran APIs */
+
 #include "H5f90.h"
 
 /*----------------------------------------------------------------------------
@@ -36,7 +37,6 @@ nh5rcreate_object_c (int_f *ref, hid_t_f *loc_id, _fcd name, int_f *namelen)
      char *c_name;
      int c_namelen;
      hobj_ref_t ref_c;
-     int i;
 
      /*
       * Convert FORTRAN name to C name
@@ -85,7 +85,6 @@ nh5rcreate_region_c (int_f *ref, hid_t_f *loc_id, _fcd name, int_f *namelen, hid
      char *c_name;
      int c_namelen;
      hdset_reg_ref_t ref_c;
-     int i;
 
      /*
       * Convert FORTRAN name to C name
@@ -127,7 +126,6 @@ nh5rdereference_region_c (hid_t_f *dset_id, int_f *ref, hid_t_f *obj_id)
      hid_t c_dset_id;
      hdset_reg_ref_t ref_c;
      hid_t c_obj_id;
-     int i;
 
      HDmemcpy (ref_c.heapid, ref, H5R_DSET_REG_REF_BUF_SIZE);
 
@@ -161,7 +159,6 @@ nh5rdereference_object_c (hid_t_f *dset_id, int_f *ref, hid_t_f *obj_id)
      hid_t c_dset_id;
      hid_t c_obj_id;
      hobj_ref_t ref_c;
-     int i;
 
      HDmemcpy (ref_c.oid, ref, H5R_OBJ_REF_BUF_SIZE);
 
@@ -194,7 +191,6 @@ nh5rget_region_region_c (hid_t_f *dset_id, int_f *ref, hid_t_f *space_id)
      hid_t c_dset_id;
      hid_t c_space_id;
      hdset_reg_ref_t ref_c;
-     int i;
 
      HDmemcpy (ref_c.heapid, ref, H5R_DSET_REG_REF_BUF_SIZE);
 
@@ -228,7 +224,6 @@ nh5rget_object_type_obj_c (hid_t_f *dset_id, int_f *ref, int_f *obj_type)
      hid_t c_dset_id;
      int c_obj_type;
      hobj_ref_t ref_c;
-     int i;
 
      HDmemcpy (ref_c.oid, ref, H5R_OBJ_REF_BUF_SIZE);
 
@@ -236,7 +231,7 @@ nh5rget_object_type_obj_c (hid_t_f *dset_id, int_f *ref, int_f *obj_type)
       * Call H5Rget_object_type function.
       */
      c_dset_id = *dset_id;
-     c_obj_type = H5Rget_object_type(c_dset_id, &ref_c);
+     c_obj_type = H5Rget_obj_type(c_dset_id, H5R_OBJECT, &ref_c);
      if(c_obj_type < 0) return ret_value;
      *obj_type = (int_f)c_obj_type;
      ret_value = 0;     

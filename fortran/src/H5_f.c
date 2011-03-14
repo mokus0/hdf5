@@ -12,8 +12,7 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* This file contains C stubs to the Fortran Library initialization APIs */
-
+/* This files contains C stubs for H5 Fortran APIs */
 
 #include "H5f90.h"
 
@@ -94,7 +93,6 @@ nh5init_types_c( hid_t_f * types, hid_t_f * floatingtypes, hid_t_f * integertype
     if ((integertypes[13] = (hid_t_f)H5Tcopy(H5T_STD_U32LE)) < 0) return ret_value;
     if ((integertypes[14] = (hid_t_f)H5Tcopy(H5T_STD_U64BE)) < 0) return ret_value;
     if ((integertypes[15] = (hid_t_f)H5Tcopy(H5T_STD_U64LE)) < 0) return ret_value;
-
 /* 
  *  Define Fortran H5T_STRING type to store non-fixed size strings 
  */
@@ -144,19 +142,19 @@ nh5close_types_c( hid_t_f * types, int_f *lentypes,
 
     int ret_value = -1;
     hid_t c_type_id;
-    herr_t err;
     int i;
+
     for (i = 0; i < *lentypes; i++) {
-    c_type_id = types[i];
-    if ( (err = H5Tclose(c_type_id)) < 0) return ret_value;
+        c_type_id = types[i];
+        if ( H5Tclose(c_type_id) < 0) return ret_value;
     }
     for (i = 0; i < *floatinglen; i++) {
-    c_type_id = floatingtypes[i];
-    if ( (err = H5Tclose(c_type_id)) < 0) return ret_value;
+        c_type_id = floatingtypes[i];
+        if ( H5Tclose(c_type_id) < 0) return ret_value;
     }
     for (i = 0; i < *integerlen; i++) {
-    c_type_id = integertypes[i];
-    if ( (err = H5Tclose(c_type_id)) < 0) return ret_value;
+        c_type_id = integertypes[i];
+        if ( H5Tclose(c_type_id) < 0) return ret_value;
     }
     ret_value = 0; 
     return ret_value;
@@ -174,17 +172,19 @@ nh5close_types_c( hid_t_f * types, int_f *lentypes,
  *                    h5r_flags    - H5R interface flags
  *                    h5s_flags    - H5S interface flags
  *                    h5t_flags    - H5T interface flags
+ *                    h5z_flags    - H5Z interface flags
  * Outputs:           None 
  * Returns:           0 on success, -1 on failure
  * Programmer:        Elena Pourmal  
  *                    Tuesday, August 3, 1999
- * Modifications:
+ * Modifications:     Added Z flags. EIP,  March 12, 2003
+ *                    Added more FD flags and new H5LIB flags
  *---------------------------------------------------------------------------*/
 int_f
 nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
                  int_f *h5fd_flags, int_f *h5g_flags, int_f *h5i_flags,
                  int_f *h5p_flags, int_f *h5r_flags, int_f *h5s_flags,
-                 int_f *h5t_flags)
+                 int_f *h5t_flags, int_f *h5z_flags)
 {
     int ret_value = -1;
 /*
@@ -193,6 +193,22 @@ nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
     h5d_flags[0] = H5D_COMPACT;
     h5d_flags[1] = H5D_CONTIGUOUS;
     h5d_flags[2] = H5D_CHUNKED;
+    h5d_flags[3] = H5D_ALLOC_TIME_ERROR;
+    h5d_flags[4] = H5D_ALLOC_TIME_DEFAULT;
+    h5d_flags[5] = H5D_ALLOC_TIME_EARLY;
+    h5d_flags[6] = H5D_ALLOC_TIME_LATE;
+    h5d_flags[7] = H5D_ALLOC_TIME_INCR;
+    h5d_flags[8] = H5D_SPACE_STATUS_ERROR;
+    h5d_flags[9] = H5D_SPACE_STATUS_NOT_ALLOCATED;
+    h5d_flags[10] = H5D_SPACE_STATUS_PART_ALLOCATED;
+    h5d_flags[11] = H5D_SPACE_STATUS_ALLOCATED;
+    h5d_flags[12] = H5D_FILL_TIME_ERROR;
+    h5d_flags[13] = H5D_FILL_TIME_ALLOC;
+    h5d_flags[14] = H5D_FILL_TIME_NEVER;
+    h5d_flags[15] = H5D_FILL_VALUE_ERROR;
+    h5d_flags[16] = H5D_FILL_VALUE_UNDEFINED;
+    h5d_flags[17] = H5D_FILL_VALUE_DEFAULT;
+    h5d_flags[18] = H5D_FILL_VALUE_USER_DEFINED;
 
 /*
  *  H5E flags
@@ -233,12 +249,30 @@ nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
       h5f_flags[4] = (int_f)H5F_ACC_DEBUG;
       h5f_flags[5] = (int_f)H5F_SCOPE_LOCAL;
       h5f_flags[6] = (int_f)H5F_SCOPE_GLOBAL;
+      h5f_flags[7] = (int_f)H5F_CLOSE_DEFAULT;
+      h5f_flags[8] = (int_f)H5F_CLOSE_WEAK;
+      h5f_flags[9] = (int_f)H5F_CLOSE_SEMI;
+      h5f_flags[10] = (int_f)H5F_CLOSE_STRONG;
+      h5f_flags[11] = (int_f)H5F_OBJ_FILE;
+      h5f_flags[12] = (int_f)H5F_OBJ_DATASET;
+      h5f_flags[13] = (int_f)H5F_OBJ_GROUP;
+      h5f_flags[14] = (int_f)H5F_OBJ_DATATYPE;
+      h5f_flags[15] = (int_f)H5F_OBJ_ALL;
 
 /*
  *  H5FD flags
  */
       h5fd_flags[0] = H5FD_MPIO_INDEPENDENT;
       h5fd_flags[1] = H5FD_MPIO_COLLECTIVE;
+      h5fd_flags[2] = H5FD_MEM_NOLIST;
+      h5fd_flags[3] = H5FD_MEM_DEFAULT;
+      h5fd_flags[4] = H5FD_MEM_SUPER;
+      h5fd_flags[5] = H5FD_MEM_BTREE;
+      h5fd_flags[6] = H5FD_MEM_DRAW;
+      h5fd_flags[7] = H5FD_MEM_GHEAP;
+      h5fd_flags[8] = H5FD_MEM_LHEAP;
+      h5fd_flags[9] = H5FD_MEM_OHDR; 
+      h5fd_flags[10] = H5FD_MEM_NTYPES;
 
 /*
  *  H5G flags
@@ -275,6 +309,7 @@ nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
       h5p_flags[3] = H5P_DATASET_XFER;
       h5p_flags[4] = H5P_MOUNT;
       h5p_flags[5] = H5P_DEFAULT;
+      h5p_flags[6] = H5P_NO_CLASS;
 
 /*
  *  H5R flags
@@ -294,6 +329,22 @@ nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
       h5s_flags[3] = H5S_SELECT_OR;
       h5s_flags[4] = (int_f)H5S_UNLIMITED;
       h5s_flags[5] = H5S_ALL;
+
+      h5s_flags[6] = H5S_SELECT_NOOP;
+      h5s_flags[7] = H5S_SELECT_AND;
+      h5s_flags[8] = H5S_SELECT_XOR;
+      h5s_flags[9] = H5S_SELECT_NOTB;
+      h5s_flags[10] = H5S_SELECT_NOTA;
+      h5s_flags[11] = H5S_SELECT_APPEND;
+      h5s_flags[12] = H5S_SELECT_PREPEND;
+      h5s_flags[13] = H5S_SELECT_INVALID;
+
+
+      h5s_flags[14] = H5S_SEL_ERROR;
+      h5s_flags[15] = H5S_SEL_NONE;
+      h5s_flags[16] = H5S_SEL_POINTS;
+      h5s_flags[17] = H5S_SEL_HYPERSLABS;
+      h5s_flags[18] = H5S_SEL_ALL;
 
 /*
  *  H5T flags
@@ -328,10 +379,44 @@ nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
       h5t_flags[25] = H5T_STR_NULLPAD;
       h5t_flags[26] = H5T_STR_SPACEPAD;
       h5t_flags[27] = H5T_STR_ERROR;
+      h5t_flags[28] = H5T_VLEN;
+      h5t_flags[29] = H5T_ARRAY;
+/*
+ *  H5Z flags
+ */
+
+      h5z_flags[0] = H5Z_FILTER_ERROR;
+      h5z_flags[1] = H5Z_FILTER_NONE;
+      h5z_flags[2] = H5Z_FILTER_DEFLATE;
+      h5z_flags[3] = H5Z_FILTER_SHUFFLE;
+      h5z_flags[4] = H5Z_FILTER_FLETCHER32;
+      h5z_flags[5] = H5Z_ERROR_EDC;
+      h5z_flags[6] = H5Z_DISABLE_EDC;
+      h5z_flags[7] = H5Z_ENABLE_EDC;
+      h5z_flags[8] = H5Z_NO_EDC;
+      h5z_flags[9] = H5Z_FILTER_SZIP;
+      h5z_flags[10] = H5Z_FLAG_OPTIONAL;
 
     ret_value = 0; 
     return ret_value;
 }
+
+int_f
+nh5init1_flags_c(int_f *h5lib_flags)
+{
+    int ret_value = -1;
+    unsigned prm_1 = H5_SZIP_ALLOW_K13_OPTION_MASK;
+    unsigned prm_2 = H5_SZIP_CHIP_OPTION_MASK;
+    unsigned prm_3 = H5_SZIP_EC_OPTION_MASK;
+    unsigned prm_4 = H5_SZIP_NN_OPTION_MASK;
+    h5lib_flags[0] = (int_f)prm_1;
+    h5lib_flags[1] = (int_f)prm_2; 
+    h5lib_flags[2] = (int_f)prm_3;
+    h5lib_flags[3] = (int_f)prm_4;
+    ret_value = 0; 
+    return ret_value;
+}
+
 /*---------------------------------------------------------------------------
  * Name:              h5open_c
  * Purpose:           Calls H5open call to initialize C HDF5 library
@@ -366,6 +451,8 @@ nh5close_c()
     ret_value = 0; 
     return ret_value;
 }    
+
+
 /*---------------------------------------------------------------------------
  * Name:              h5get_libversion_c
  * Purpose:           Calls H5get_libversion function

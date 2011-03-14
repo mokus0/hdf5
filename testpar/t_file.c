@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: t_file.c,v 1.7.2.3 2002/06/10 19:49:00 wendling Exp $ */
+/* $Id: t_file.c,v 1.11 2003/05/05 20:48:32 wendling Exp $ */
 
 /*
  * Parallel tests for file operations
@@ -41,6 +41,7 @@ test_split_comm_access(char *filename)
     int newrank, newprocs;
     hid_t fid;			/* file IDs */
     hid_t acc_tpl;		/* File access properties */
+    hbool_t use_gpfs = FALSE;   /* Use GPFS hints */
     herr_t ret;			/* generic return value */
 
     if (verbose)
@@ -66,7 +67,7 @@ test_split_comm_access(char *filename)
 	MPI_Comm_rank(comm,&sub_mpi_rank);
 
 	/* setup file access template */
-	acc_tpl = create_faccess_plist(comm, info, facc_type);
+	acc_tpl = create_faccess_plist(comm, info, facc_type, use_gpfs);
 	VRFY((acc_tpl >= 0), "");
 
 	/* create the file collectively */

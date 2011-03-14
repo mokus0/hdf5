@@ -175,14 +175,13 @@ h5tools_fopen(const char *fname, const char *driver, char *drivername,
         hid_t		fapl;
     } drivers_list[] = {
         { "sec2", FAIL }
-       ,{ "family", FAIL }
-       ,{ "split", FAIL }
-       ,{ "multi", FAIL }
+        ,{ "family", FAIL }
+        ,{ "split", FAIL }
+        ,{ "multi", FAIL }
 #ifdef H5_HAVE_STREAM
-       ,{ "stream", FAIL }
+        ,{ "stream", FAIL }
 #endif	/* H5_HAVE_STREAM */
     };
-
     /* This enum should match the entries in the above drivers_list since they
      * are indexes into the drivers_list array. */
     enum {
@@ -194,11 +193,10 @@ h5tools_fopen(const char *fname, const char *driver, char *drivername,
        ,STREAM_IDX
 #endif	/* H5_HAVE_STREAM */
     };
-
 #define NUM_DRIVERS     (sizeof(drivers_list) / sizeof(struct d_list))
 
     static int          initialized = 0;
-    size_t        drivernum;
+    register unsigned   drivernum;
     hid_t               fid = FAIL;
 #ifndef VERSION12
     hid_t               fapl = H5P_DEFAULT;
@@ -212,7 +210,7 @@ h5tools_fopen(const char *fname, const char *driver, char *drivername,
 
         /* SEC2 Driver */
         drivers_list[SEC2_IDX].fapl = H5P_DEFAULT;
-
+        
 #ifndef VERSION12
         /* FAMILY Driver */
         drivers_list[FAMILY_IDX].fapl = fapl = H5Pcreate(H5P_FILE_ACCESS);
@@ -447,6 +445,11 @@ h5tools_simple_prefix(FILE *stream, const h5dump_t *info,
  * 	Robb Matzke, 1999-09-29
  *	Understands the `per_line' property which indicates that every Nth
  *	element should begin a new line.
+ *
+ *      Robb Matzke, LLNL, 2003-06-05
+ *      Do not dereference the memory for a variable-length string here.
+ *      Deref in h5tools_str_sprint() instead so recursive types are
+ *      handled correctly.
  *-------------------------------------------------------------------------
  */
 static void
@@ -455,7 +458,6 @@ h5tools_dump_simple_data(FILE *stream, const h5dump_t *info, hid_t container,
                          hsize_t nelmts, hid_t type, void *_mem)
 {
     unsigned char	*mem = (unsigned char*)_mem;
-    unsigned char       *tmp = NULL;
     hsize_t		i;		/*element counter		*/
     char		*s, *section;	/*a section of output		*/
     int			secnum;		/*section sequence number	*/
@@ -483,11 +485,6 @@ h5tools_dump_simple_data(FILE *stream, const h5dump_t *info, hid_t container,
     for (i = 0; i < nelmts; i++, ctx->cur_elmt++, elmt_counter++) {
         /* Render the element */
         h5tools_str_reset(&buffer);
-
-        if(H5Tis_variable_str(type)) {
-            tmp = ((unsigned char**)mem)[i];
-            h5tools_str_sprint(&buffer, info, container, type, tmp, ctx);
-        } else          
             h5tools_str_sprint(&buffer, info, container, type, mem + i * size, ctx);
 
         if (i + 1 < nelmts || (flags & END_OF_DATA) == 0)
@@ -530,7 +527,7 @@ h5tools_dump_simple_data(FILE *stream, const h5dump_t *info, hid_t container,
             if (ctx->size_last_dim && (ctx->cur_elmt % ctx->size_last_dim) == 0)
                 ctx->need_prefix = TRUE;
 
-            if (elmt_counter == ctx->size_last_dim) {
+            if ((hsize_t)elmt_counter == ctx->size_last_dim) {
                 ctx->need_prefix = TRUE;
                 elmt_counter = 0;
             }
@@ -624,7 +621,7 @@ h5tools_dump_simple_subset(FILE *stream, const h5dump_t *info, hid_t dset,
 {
     herr_t              ret;                    /*the value to return   */
     hid_t		f_space;		/*file data space	*/
-    hsize_t		i;		/*counters		*/
+    hsize_t		i;                      /*counters		*/
     hssize_t		zero = 0;               /*vector of zeros	*/
     unsigned int	flags;			/*buffer extent flags	*/
     hsize_t		total_size[H5S_MAX_RANK];/*total size of dataset*/
@@ -667,7 +664,8 @@ h5tools_dump_simple_subset(FILE *stream, const h5dump_t *info, hid_t dset,
             ctx.p_min_idx[i] = 0;
 
     H5Sget_simple_extent_dims(f_space, total_size, NULL);
-    ctx.size_last_dim = (int)total_size[ctx.ndims - 1];
+	assert(total_size[ctx.ndims - 1]==(hsize_t)((int)(total_size[ctx.ndims - 1])));
+    ctx.size_last_dim = (int)(total_size[ctx.ndims - 1]);
 
     count = sset->count[ctx.ndims - 1];
     sset->count[ctx.ndims - 1] = 1;
@@ -802,7 +800,7 @@ h5tools_dump_simple_dset(FILE *stream, const h5dump_t *info, hid_t dset,
     hsize_t		sm_nelmts;		/*elements per stripmine*/
     unsigned char      *sm_buf = NULL;		/*buffer for raw data	*/
     hid_t		sm_space;		/*stripmine data space	*/
-
+    
     /* Hyperslab info */
     hssize_t		hs_offset[H5S_MAX_RANK];/*starting offset	*/
     hsize_t		hs_size[H5S_MAX_RANK];	/*size this pass	*/
@@ -837,7 +835,7 @@ h5tools_dump_simple_dset(FILE *stream, const h5dump_t *info, hid_t dset,
             ctx.p_min_idx[i] = 0;
 
     H5Sget_simple_extent_dims(f_space, total_size, NULL);
-    ctx.size_last_dim = (int)total_size[ctx.ndims - 1];
+    ctx.size_last_dim = (total_size[ctx.ndims - 1]);
 
     /* calculate the number of elements we're going to print */
     p_nelmts = 1;
@@ -872,6 +870,7 @@ h5tools_dump_simple_dset(FILE *stream, const h5dump_t *info, hid_t dset,
 
     assert(sm_nbytes == (hsize_t)((size_t)sm_nbytes)); /*check for overflow*/
     sm_buf = malloc((size_t)sm_nbytes);
+            
     sm_nelmts = sm_nbytes / p_type_nbytes;
     sm_space = H5Screate_simple(1, &sm_nelmts, NULL);
 
@@ -910,10 +909,10 @@ h5tools_dump_simple_dset(FILE *stream, const h5dump_t *info, hid_t dset,
         flags = (elmtno == 0) ? START_OF_DATA : 0;
         flags |= ((elmtno + hs_nelmts) >= p_nelmts) ? END_OF_DATA : 0;
         h5tools_dump_simple_data(stream, info, dset, &ctx, flags, hs_nelmts,
-                                 p_type, sm_buf);
+                             p_type, sm_buf);
 
         /* Reclaim any VL memory, if necessary */
-        if (vl_data)
+        if(vl_data)
             H5Dvlen_reclaim(p_type, sm_space, H5P_DEFAULT, sm_buf);
 
         /* Calculate the next hyperslab offset */
@@ -939,7 +938,9 @@ h5tools_dump_simple_dset(FILE *stream, const h5dump_t *info, hid_t dset,
 
     H5Sclose(sm_space);
     H5Sclose(f_space);
+    
     free(sm_buf);
+
     return SUCCEED;
 }
 
@@ -981,7 +982,7 @@ h5tools_dump_simple_mem(FILE *stream, const h5dump_t *info, hid_t obj_id,
 
     ctx.indent_level = indentlevel;
     ctx.need_prefix = 1;
-
+    
     /* Assume entire data space to be printed */
     for (i = 0; i < (hsize_t)ctx.ndims; i++)
         ctx.p_min_idx[i] = 0;
@@ -990,10 +991,10 @@ h5tools_dump_simple_mem(FILE *stream, const h5dump_t *info, hid_t obj_id,
 
     for (i = 0, nelmts = 1; ctx.ndims != 0 && i < (hsize_t)ctx.ndims; i++)
         nelmts *= ctx.p_max_idx[i] - ctx.p_min_idx[i];
- 
+    
     if (nelmts == 0)
         return SUCCEED; /*nothing to print*/
-
+    assert(ctx.p_max_idx[ctx.ndims - 1]==(hsize_t)((int)ctx.p_max_idx[ctx.ndims - 1]));
     ctx.size_last_dim = (int)(ctx.p_max_idx[ctx.ndims - 1]);
 
     /* Print it */
@@ -1089,12 +1090,12 @@ h5tools_fixtype(hid_t f_type)
 	 * strDUAction == TRUE. if it is false we will do the original action
 	 * here.
 	 */
-        if(H5Tis_variable_str(f_type)) {                    
-            m_type = H5Tcopy(H5T_C_S1);                        
-            H5Tset_size(m_type, H5T_VARIABLE);                 
-        } else {                                      
-            m_type = H5Tcopy(f_type);
-            H5Tset_cset(m_type, H5T_CSET_ASCII);
+        if(H5Tis_variable_str(f_type)) {
+	   m_type = H5Tcopy(H5T_C_S1);
+	   H5Tset_size(m_type, H5T_VARIABLE);
+        } else {
+	   m_type = H5Tcopy(f_type);
+	   H5Tset_cset(m_type, H5T_CSET_ASCII);
         }
 	break;
 
@@ -1114,28 +1115,6 @@ h5tools_fixtype(hid_t f_type)
 	for (i = 0, size = 0; i < nmembs; i++) {
 	    /* Get the member type and fix it */
 	    f_memb = H5Tget_member_type(f_type, i);
-#ifdef WANT_H5_V1_2_COMPAT
-            /* v1.2 returns the base type of an array field, work around this */
-            {
-                hid_t new_f_memb;   /* datatype for array, if necessary */
-                int     arrndims;      /* Array rank for reading */
-                size_t	dims[H5S_MAX_RANK];    /* Array dimensions for reading */
-                hsize_t	arrdims[H5S_MAX_RANK];    /* Array dimensions for reading */
-                int j;              /* Local index variable */
-
-                /* Get the array dimensions */
-                arrndims=H5Tget_member_dims(f_type,i,dims,NULL);
-
-                /* Patch up array information */
-                if(arrndims>0) {
-                    for(j=0; j<arrndims; j++)
-                        arrdims[j]=dims[j];
-                    new_f_memb=H5Tarray_create(f_memb,arrndims,arrdims,NULL);
-                    H5Tclose(f_memb);
-                    f_memb=new_f_memb;
-                } /* end if */
-            }
-#endif /* WANT_H5_V1_2_COMPAT */
 	    memb[i] = h5tools_fixtype(f_memb);
 	    H5Tclose(f_memb);
 

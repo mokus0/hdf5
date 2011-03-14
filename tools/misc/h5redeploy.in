@@ -1,8 +1,16 @@
 #! /bin/sh
 ##
-## Copyright (C) 2002, 2003
-##     National Center for Supercomputing Applications
-##     All rights reserved.
+## Copyright by the Board of Trustees of the University of Illinois.
+## All rights reserved.
+##
+## This file is part of HDF5.  The full HDF5 copyright notice, including
+## terms governing use, modification, and redistribution, is contained in
+## the files COPYING and Copyright.html.  COPYING can be found at the root
+## of the source code distribution tree; Copyright.html can be found at the
+## root level of an installed copy of the electronic HDF5 document set and
+## is linked from the top-level documents page.  It can also be found at
+## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 ##
 
 ## Update HDF5 compiler tools after the HDF5 software has been installed
@@ -40,11 +48,10 @@ dump_vars(){
 show_action()
 {
     echo "Update the following tools because they are now installed at a new directory"
-    for t in $h5tools; do
+    for t in $foundtools; do
 	echo "${t}:"
-	echo -n "   current setting="
-	sed -e "/^prefix=/s/prefix=//p" -e d $t
-	echo    "   new     setting="\""$prefix"\"
+	echo "   current setting=`sed -e '/^prefix=/s/prefix=//p' -e d $t`"
+	echo "   new     setting="\""$prefix"\"
     done
 }
 
@@ -59,8 +66,9 @@ ERROR()
 # Main
 #
 # Initialization
-h5tools=h5cc
-fmode=			# default off
+h5tools="h5cc h5fc h5c++"	# possible hdf5 tools
+foundtools=		# tools found and will be modified
+fmode=			# force mode, default is off
 prefix=`(cd ..;pwd)`
 
 # Parse options
@@ -99,18 +107,25 @@ if [ ! -d $prefix ]; then
 fi
 
 for x in $h5tools; do
-    if [ ! -w $x ]; then
-	ERROR "h5tool($h5tools) is not found in the current directory or is not writable"
-	exit 1
+    if [ -f $x ]; then
+	foundtools="$foundtools $x"
+	if [ ! -w $x ]; then
+	    ERROR "h5tool($x) is not writable"
+	    exit 1
+	fi
     fi
 done
-	
+
+if [ -z $foundtools ]; then
+    ERROR "found no tools to modify"
+    exit 1
+fi
 
 # Show actions to be taken and get consent
 show_action
 # Ask confirmation unless fmode is on
 if [ x-$fmode = x- ]; then
-    echo -n "Continue? (yes/no)"
+    echo "Continue? (yes/no)"
     read ansx
     ans=`echo $ansx | tr "[A-Z]" "[a-z]"`
     if [ x-$ans != x-yes ]; then
@@ -137,7 +152,7 @@ if [ "$SHOW" = "echo" ]; then
     echo "===End Update commands====="
 fi
 
-for t in $h5tools; do
+for t in $foundtools; do
     echo Update $t ...
     COMMAND="ed - $t"
     if [ "$SHOW" = "echo" ]; then

@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 18921 2010-05-28 14:00:26Z mamcgree $)
+AC_REVISION($Id: configure.in 19299 2010-08-25 21:18:57Z koziol $)
 AC_PREREQ([2.53])
 
 dnl AC_INIT takes the name of the package, the version number, and an
@@ -26,7 +26,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.8.5], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.5-patch1], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AM_CONFIG_HEADER([src/H5config.h])
 

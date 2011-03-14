@@ -1,0 +1,137 @@
+<HTML><HEAD>
+<TITLE>HDF5 Tutorial
+</TITLE> 
+</HEAD>
+
+<body bgcolor="#ffffff">
+
+<!-- BEGIN MAIN BODY -->
+
+<A HREF="http://www.ncsa.uiuc.edu/"><img border=0 
+src="http://www.ncsa.uiuc.edu/Images/NCSAhome/footerlogo.gif"
+width=78 height=27 alt="NCSA"><P></A>
+
+<h1> <A HREF="http://hdf.ncsa.uiuc.edu/whatishdf5.html">
+<img  align=left border=0 src="bighdf2sp.JPG" alt="What is HDF5?"></A>
+<BIG><BIG><BIG>&nbsp;<FONT COLOR="#c101cd">HDF5 Tutorial</FONT>
+</BIG></BIG></BIG></H1>
+
+
+
+<hr noshade size=1>
+<CENTER>
+<FONT SIZE="3" FACE="arial,helvetica" COLOR="#c80028">
+    <B>[</B> <A HREF="http://hdf.ncsa.uiuc.edu/index.html">Home</A> <B>]</B>
+    <B>[</B> <A HREF="http://hdf.ncsa.uiuc.edu/hdfindex.html">Index</A> <B>]</B>
+    <B>[</B> <A HREF="http://hdf.ncsa.uiuc.edu/products.html">Products</A> <B>]</B>
+    <B>[</B> <A HREF="http://hdf.ncsa.uiuc.edu/newsletters.html">Newsletters</A> <B>]</B>
+    <B>[</B> <A HREF="http://hdf.ncsa.uiuc.edu/docs.html">Documentation</A> <B>]</B>
+</FONT>
+<BR>
+</CENTER>
+
+<BR CLEAR=ALL><BR>
+<BODY>
+<HR>
+<BIG><B>NOTE:</B></BIG> &nbsp;  
+This tutorial does NOT include the software needed to compile the
+examples. You will need to obtain this first:<P>
+<UL>
+    <B>C:</B>
+<UL>Obtain the HDF5 library.  We provide pre-compiled binaries for the
+platforms on which we tested at
+<A HREF="ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/current/bin">ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/current/bin</A>.
+If using the pre-compiled binaries you must
+also obtain the GZIP library, as they were compiled with GZIP included, but do 
+not include this library.  We provide the GZIP library for the platforms on
+which we 
+tested at: &nbsp; 
+<A HREF="ftp://ftp.ncsa.uiuc.edu/HDF/gzip/">ftp://ftp.ncsa.uiuc.edu/HDF/gzip/</A>
+</UL>
+<P>
+
+    <B>FORTRAN90</B>:
+<UL>
+Obtain the 
+<A HREF="ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/current/bin">HDF5 libraries</A>,
+<A HREF="ftp://ftp.ncsa.uiuc.edu/HDF/gzip/">GZIP library</A>, and
+the HDF5 Fortran90 library. Currently we only provide the source code
+for the HDF5 Fortran90 library at: &nbsp; 
+
+<A HREF="ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/fortran/">ftp://ftp.ncsa.uiuc.edu/HDF/HDF5/fortran/</A>
+<P>
+The HDF5 Fortran90 library  was tested on Solaris, IRIX64, and Digital Unix.
+</UL>
+ <BR>   
+   <B>Java</B>:  &nbsp; &nbsp;You will need the JHI5 code.  Go to the 
+<A HREF="/java-hdf5-html">Java HDF5 web page</A>
+for more details.
+
+</UL>
+<HR>
+ 
+<H2>Contents:</H2>
+<H3>Introductory Topics</H3>
+<OL>
+<LI><A HREF="intro.html">Introduction</A>  
+<LI><A HREF="fileorg.html">HDF5 File Organization</A> 
+<LI><A HREF="api.html">The HDF5 API</A> 
+<LI><A HREF="crtfile.html">Creating an HDF5 File</A>
+<LI><A HREF="crtdat.html">Creating a Dataset</A>
+<LI><A HREF="rdwt.html">Reading from or Writing to a Dataset</A>
+<LI><A HREF="crtatt.html">Creating an Attribute</A>
+<LI><A HREF="crtgrp.html">Creating a Group</A>
+<LI><A HREF="crtgrpar.html">Creating Groups Using Absolute and 
+    Relative Names</A> 
+<LI><A HREF="crtgrpd.html">Creating Datasets in Groups</A>
+</OL>
+<UL>
+<A HREF="questions.html">Questions</A><BR>
+<A HREF="answers.html">Answers</A><BR>
+</UL>
+<H3>Advanced Topics</H3>
+<UL>
+<LI><A HREF="compound.html">Compound Datatypes</A> 
+<LI><A HREF="select.html">Dataspace Selection - Hyperslab</A>
+<LI><A HREF="selectc.html">Dataspace Selection - Individual Points</A>
+<LI><A HREF="reftoobj.html">References to Objects</A>
+<LI><A HREF="reftoreg.html">References to Dataset Regions</A>
+<LI><A HREF="extend.html">Chunking and Extendible Datasets</A>
+<LI><A HREF="mount.html">Mounting Files</A>
+<LI><A HREF="iterate.html">Group Iteration</A>
+</UL>
+<P>
+<A HREF="util.html">HDF5 Utilities - h5ls/h5dump</A><BR>
+<A HREF="glossary.html">Glossary</A><BR> 
+<A HREF="references.html">References</A><BR>
+<A HREF="examples/">Example Programs from this Tutorial</A> <BR>
+</OL>
+
+
+<!-- BEGIN FOOTER INFO -->
+
+<P><hr noshade size=1>
+<font face="arial,helvetica" size="-1">
+  <a href="http://www.ncsa.uiuc.edu/"><img border=0
+     src="http://www.ncsa.uiuc.edu/Images/NCSAhome/footerlogo.gif"
+     width=78 height=27 alt="NCSA"><br>
+  The National Center for Supercomputing Applications</A><br>
+  <a href="http://www.uiuc.edu/">University of Illinois
+    at Urbana-Champaign</a><br>
+  <br>
+<!-- <A HREF="helpdesk.mail.html"> -->
+<A HREF="mailto:hdfhelp@ncsa.uiuc.edu">
+hdfhelp@ncsa.uiuc.edu</A>
+<br>
+Describes HDF5 Release 1.2.2, June 2000
+<BR> <H6>Last Modified: June 5, 2000</H6><BR>
+<!-- modified by Barbara Jones - bljones@ncsa.uiuc.edu -->
+</FONT>
+<BR>
+<!-- <A HREF="mailto:hdfhelp@ncsa.uiuc.edu"> -->
+
+</BODY>
+</HTML>
+
+
+

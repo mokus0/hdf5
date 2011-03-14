@@ -1,0 +1,40 @@
+# HDF5 Library Makefile(.in)
+#
+# Copyright (C) 1997 National Center for Supercomputing Applications.
+#                    All rights reserved.
+#
+# 
+top_srcdir=@top_srcdir@
+top_builddir=../../..
+srcdir=@srcdir@
+VPATH=.:@srcdir@
+@COMMENCE@
+
+# Subdirectories in build-order (not including `examples')
+SUBDIRS=
+DOCDIR=$(docdir)/hdf5/Tutor
+
+TRACE=perl $(top_srcdir)/bin/trace
+
+# Add `-I.' to the C preprocessor flags.
+CPPFLAGS=-I. -I@srcdir@ @CPPFLAGS@
+
+# Temporary files
+MOSTLYCLEAN=
+
+# Public doc files (to be installed)...
+PUB_DOCS= Contents.html ContentsAdd.html ContentsAdv.html \
+    ContentsFull.html ContentsIntro.html Copyright.html \
+    answers.html api.html bighdf2sp.JPG compound.html \
+    crtatt.html crtdat.html crtfile.html crtgrp.html \
+    crtgrpar.html crtgrpd.html extend.html \
+    fileorg.html glossary.html img001.gif img002.gif \
+    img003.gif img004.gif img005.gif index.html intro.html \
+    iterate.html iterator.txt mount.html questions.html \
+    rdwt.html references.html reftoobj.html reftoreg.html \
+    select.html selectc.html title.html util.html
+
+# Other doc files (not to be installed)...
+PRIVATE_DOCS=
+
+@CONCLUDE@

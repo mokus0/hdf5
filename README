@@ -1,0 +1,46 @@
+This is hdf5-1.2.2 released on Fri Jun 23 10:49:46 CDT 2000
+Please refer to the INSTALL file for installation instructions.
+------------------------------------------------------------------------------
+
+This release is fully functional for the entire API defined in the
+documentation.  See the RELEASE file in this directory for information
+specific to this release of the library.  The INSTALL file contains
+instructions on compiling and installing the library.  The INSTALL_parallel
+file contains instructions on installing the parallel version of the
+library. The INSTALL_Windows.txt contains instructions on installing the HDF5 
+library on Windows/NT platforms. The HISTORY file contains complete 
+information about changes since the first release of the HDF5 library.
+
+Documentation for this release is in the doc/html directory.  Start with the
+"index.html" in that directory.
+
+Four mailing lists are currently set up for use with the HDF5
+library.
+
+   hdf5         - For general discussion of the HDF5 library with
+                  other users.
+
+   hdf5dev      - For discussion of the HDF5 library development
+                  with developers and other interested parties.
+
+   hdf5announce - For announcements of HDF5 related developments -
+                  not a discussion list.
+
+   hdf5cvs      - For checking notices of code development in the library -
+                  not a discussion list.
+
+To subscribe to a list, send mail to "majordomo@ncsa.uiuc.edu",
+with "subscribe <list>" in the _body_, not the Subject, of the message.
+E.g., subscribe hdf5 
+
+Messages to be sent to the list should be sent to "<list>@ncsa.uiuc.edu".
+
+Nearly daily code snapshots are now being provided at the following URL:
+    ftp://hdf.ncsa.uiuc.edu/pub/outgoing/hdf5/snapshots
+Please read the readme file in that directory before working with a library
+snapshot.
+
+The HDF5 website is located at http://hdf.ncsa.uiuc.edu/HDF5/
+
+Bugs should be reported to hdfhelp@ncsa.uiuc.edu.
+

@@ -1,0 +1,157 @@
+# HDF5 Library Test Makefile(.in)
+#
+# Copyright (C) 1997 National Center for Supercomputing Applications.
+#                    All rights reserved.
+#
+# 
+top_srcdir=@top_srcdir@
+top_builddir=..
+srcdir=@srcdir@
+VPATH=.:@srcdir@
+@COMMENCE@
+
+# Add include directory to the C preprocessor flags and the h5test and hdf5
+# libraries to the library list.
+CPPFLAGS=-I. -I$(srcdir) -I../src -I$(top_srcdir)/src @CPPFLAGS@
+
+# These are our main targets. They should be listed in the order to be
+# executed, generally most specific tests to least specific tests.
+RUNTEST=$(LT_RUN)
+TEST_PROGS=testhdf5 lheap ohdr stab gheap hyperslab istore bittests dtypes   \
+      dsets cmpd_dset extend external links unlink big mtime fillval mount   \
+      flush1 flush2 enum
+TIMINGS=iopipe chunk ragged overhead
+
+# The libh5test.a library provides common support code for the tests. We link
+# this library statically because some systems can only link executables to
+# a single shared library and libhdf5 is much bigger than libh5test.
+LT_LINK_LIB=$(LT) --mode=link $(CC) -static -rpath $(libdir)
+LIBHDF5=../src/libhdf5.la
+LIB=libh5test.la
+LIB_SRC=h5test.c
+LIB_OBJ=$(LIB_SRC:.c=.lo)
+PUB_LIB=
+
+# Temporary files.  These files are the ones created by setting the
+# HDF5_NOCLEANUP environment variable and running `make test' without
+# specifying a file prefix or low-level driver.  Changing the file
+# prefix or low-level driver with environment variables will influence 
+# the temporary file name in ways that the makefile is not aware of.
+MOSTLYCLEAN=cmpd_dset.h5 dataset.h5 extend.h5 istore.h5 tfile1.h5 tfile2.h5  \
+	    tfile3.h5 th5s1.h5 lheap.h5 ohdr.h5 stab1.h5 stab2.h5            \
+	    extern_1.h5 extern_2.h5 extern_3.h5 extern_1a.raw extern_1b.raw  \
+	    extern_2a.raw extern_2b.raw extern_3a.raw extern_3b.raw          \
+	    extern_4a.raw extern_4b.raw iopipe.raw iopipe.h5 gheap0.h5       \
+	    gheap1.h5 gheap2.h5 gheap3.h5 gheap4.h5 links.h5 chunk.h5        \
+	    big.data big[0-9][0-9][0-9][0-9][0-9].h5 dtypes1.h5 dtypes2.h5   \
+        tattr.h5 tselect.h5 mtime.h5 ragged.h5 unlink.h5 overhead.h5     \
+        fillval_[0-9].h5 fillval.raw mount_[0-9].h5 trefer[12].h5 tvltypes.h5 \
+	    flush.h5 enum1.h5 titerate.h5
+CLEAN=$(TIMINGS)
+
+# Source and object files for programs...  The TEST_SRC list contains all the
+# source files and is used for things like dependencies, archiving, etc.  The
+# other source lists are for the individual tests, the files of which may
+# overlap with other tests.
+TEST_SRC=big.c bittests.c chunk.c cmpd_dset.c dsets.c dtypes.c extend.c  \
+     external.c fillval.c flush1.c flush2.c gheap.c h5test.c hyperslab.c \
+     iopipe.c istore.c lheap.c links.c mount.c mtime.c ohdr.c overhead.c \
+	 ragged.c stab.c tattr.c testhdf5.c tfile.c th5s.c titerate.c tmeta.c \
+     trefer.c tselect.c tvltypes.c unlink.c enum.c
+TEST_OBJ=$(TEST_SRC:.c=.lo)
+
+# Private header files (not to be installed)...
+PRIVATE_HDR=testhdf5.h
+
+# Additional targets
+.PHONY: timings _timings
+timings _timings: $(TIMINGS)
+	@for timing in $(TIMINGS) dummy; do				      \
+	   if test $$timing != dummy; then				      \
+	      echo "Running $$timing $(TEST_FLAGS)"; 			      \
+	      $(RUNTEST) ./$$timing $(TEST_FLAGS) || exit 1; 		      \
+	   fi;								      \
+	done;
+
+# How to build the tests...  They all depend on the test and hdf5 libraries.
+$(TEST_PROGS): $(LIB) $(LIBHDF5)
+TESTHDF5_OBJ=testhdf5.lo tattr.lo tfile.lo titerate.lo tmeta.lo trefer.lo tselect.lo tvltypes.lo th5s.lo
+testhdf5: $(TESTHDF5_OBJ)
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ $(TESTHDF5_OBJ) $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+lheap: lheap.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ lheap.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+ohdr: ohdr.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ ohdr.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+stab: stab.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ stab.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+gheap: gheap.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ gheap.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+dsets: dsets.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ dsets.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+bittests: bittests.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ bittests.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+dtypes: dtypes.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ dtypes.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+hyperslab: hyperslab.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ hyperslab.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+istore: istore.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ istore.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+cmpd_dset: cmpd_dset.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ cmpd_dset.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+extend: extend.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ extend.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+external: external.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ external.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+iopipe: iopipe.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ iopipe.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+big: big.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ big.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+links: links.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ links.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+chunk: chunk.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ chunk.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+mtime: mtime.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ mtime.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+ragged: ragged.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ ragged.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+unlink: unlink.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ unlink.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+overhead: overhead.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ overhead.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+fillval: fillval.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ fillval.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+mount: mount.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ mount.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+flush1: flush1.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ flush1.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+flush2: flush2.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ flush2.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+enum: enum.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ enum.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+@CONCLUDE@

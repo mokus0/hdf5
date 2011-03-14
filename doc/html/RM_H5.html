@@ -1,0 +1,293 @@
+<html>
+<head><title>
+HDF5/H5 API Specification
+</title></head>
+
+<body bgcolor="#FFFFFF">
+
+
+<hr>
+<center>
+<table border=0 width=98%>
+<tr><td valign=top align=left>
+<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+<a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<!--
+<a href="Glossary.html">Glossary</a><br>
+-->
+</td>
+<td valign=top align=right>
+And in this document, the 
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
+<br>
+H5&nbsp;&nbsp;
+<a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
+<a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
+<a href="RM_H5E.html">H5E</a>&nbsp;&nbsp;
+<a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
+<a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
+<a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
+<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
+<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
+<a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
+<a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
+<a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
+<a href="Tools.html">Tools</a>&nbsp;&nbsp;
+</td></tr>
+</table>
+</center>
+<hr>
+
+
+<center>
+<h1>H5: General Library Functions</h1>
+</center>
+
+These functions serve general-purpose needs of the HDF5 library
+and it users.
+
+<table border=0>
+<tr><td valign=top>
+<ul>
+    <li><a href="#Library-Open">H5open</a>
+    <li><a href="#Library-Close">H5close</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#Library-Version">H5get_libversion</a>
+    <li><a href="#Library-VersCheck">H5check_version</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#Library-GarbageCollect">H5garbage_collect</a>
+    <li><a href="#Library-DontAtExit">H5dont_atexit</a>
+</ul>
+</td></tr>
+</table>
+
+
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Library-Open">H5open</a>
+<dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5open</code>(<em>void</em>)
+<dt><strong>Purpose:</strong>
+    <dd>Initializes the HDF5 library.
+<dt><strong>Description:</strong>
+    <dd><code>H5open</code> initialize the library.  This function is 
+        normally called automatically, but if you find that an 
+        HDF5 library function is failing inexplicably, try calling 
+        this function first.
+<dt><strong>Parameters:</strong>
+    <dl>
+        <dt>None.
+    </dl>
+<dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+</dl>
+
+
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Library-Close">H5close</a>
+<dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5close</code>(<em>void</em>)
+<dt><strong>Purpose:</strong>
+    <dd>Flushes all data to disk, closes file identifiers, and cleans up memory.
+<dt><strong>Description:</strong>
+    <dd><code>H5close</code> flushes all data to disk, 
+        closes all file identifiers, and cleans up all memory used by
+        the library.  This function is generall called when the 
+        application calls <code>exit</code>, but may be called earlier 
+        in event of an emergency shutdown or out of desire to free all 
+        resources used by the HDF5 library.
+<dt><strong>Parameters:</strong>
+    <dl>
+        <dt>None.
+    </dl>
+<dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+</dl>
+
+
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Library-GarbageCollect">H5garbage_collect</a>
+<dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5garbage_collect</code>(<em>void</em>)
+<dt><strong>Purpose:</strong>
+    <dd>Garbage collects on all free-lists of all types.
+<dt><strong>Description:</strong>
+    <dd><code>H5garbage_collect</code> walks through all the garbage 
+        collection routines of the library, freeing any unused memory. 
+        <p>
+        It is not required that <code>H5garbage_collect</code> be called 
+        at any particular time; it is only necessary in certain situations 
+        where the application has performed actions that cause the library 
+        to allocate many objects.  The application should call
+        <code>H5garbage_collect</code> if it eventually releases those 
+        objects and wants to reduce the memory used by the library from
+        the peak usage required.  
+        <p>
+        The library automatically garbage collects all the free lists 
+        when the application ends.
+<dt><strong>Parameters:</strong>
+    <dl>
+        <dt>None.
+    </dl>
+<dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+</dl>
+
+
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Library-DontAtExit">H5dont_atexit</a>
+<dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5dont_atexit</code>(<em>void</em>)
+<dt><strong>Purpose:</strong>
+    <dd>Instructs library not to install <code>atexit</code> cleanup routine.
+<dt><strong>Description:</strong>
+    <dd><code>H5dont_atexit</code> indicates to the library that an 
+        <code>atexit()</code> cleanup routine should not be installed.  
+        The major purpose for this is in situations where the 
+        library is dynamically linked into an application and is 
+        un-linked from the application before <code>exit()</code> gets 
+        called.  In those situations, a routine installed with 
+        <code>atexit()</code> would jump to a routine which was 
+        no longer in memory, causing errors.
+        <p>
+        In order to be effective, this routine <em>must</em> be called 
+        before any other HDF function calls, and must be called each 
+        time the library is loaded/linked into the application 
+        (the first time and after it's been un-loaded).
+<dt><strong>Parameters:</strong>
+    <dl>
+        <dt>None.
+    </dl>
+<dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+</dl>
+
+
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Library-Version">H5get_libversion</a>
+<dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5get_libversion</code>(<em>unsigned *</em><code>majnum</code>,
+            <em>unsigned *</em><code>minnum</code>,
+            <em>unsigned *</em><code>relnum</code>
+        )
+<dt><strong>Purpose:</strong>
+    <dd>Returns the HDF library release number.
+<dt><strong>Description:</strong>
+    <dd><code>H5get_libversion</code> retrieves the major, minor, and release
+        numbers of the version of the HDF library which is linked to 
+        the application.
+<dt><strong>Parameters:</strong>
+    <dl>
+        <dt><em>unsigned *</em><code>majnum</code>
+            <dd>OUT: The major version of the library.
+        <dt><em>unsigned *</em><code>minnum</code>
+            <dd>OUT: The minor version of the library.
+        <dt><em>unsigned *</em><code>relnum</code>
+            <dd>OUT: The release number of the library.
+    </dl>
+<dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful;
+        otherwise returns a negative value.
+</dl>
+
+
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Library-VersCheck">H5check_version</a>
+<dt><strong>Signature:</strong>
+    <dd><em>herr_t</em> <code>H5check_version</code>(<em>unsigned</em> <code>majnum</code>,
+            <em>unsigned</em> <code>minnum</code>,
+            <em>unsigned</em> <code>relnum</code>
+        )
+<dt><strong>Purpose:</strong>
+    <dd>
+<dt><strong>Description:</strong>
+    <dd><code>H5check_version</code> verifies that the arguments match the 
+        version numbers compiled into the library.  This function is intended 
+        to be called by the user to verify that the version of the header files 
+        compiled into the application matches the version of the HDF5 library 
+        being used.
+        <p>
+        Due to the risks of data corruption or segmentation faults, 
+        <code>H5check_version</code> causes the application to abort if the
+        version numbers do not match.
+        <p>
+        If the version numbers of the library do not match 
+	the version numbers in the header files being checked, the library calls the
+        standard C function <code>abort()</code>.
+<dt><strong>Parameters:</strong>
+    <dl>
+        <dt><em>unsigned </em><code>majnum</code>
+            <dd>IN: The major version of the library.
+        <dt><em>unsigned </em><code>minnum</code>
+            <dd>IN: The minor version of the library.
+        <dt><em>unsigned </em><code>relnum</code>
+            <dd>IN: The release number of the library.
+    </dl>
+<dt><strong>Returns:</strong>
+    <dd>Returns a non-negative value if successful.
+        Upon failure, this function causes the application to abort.
+</dl>
+
+
+<hr>
+<center>
+<table border=0 width=98%>
+<tr><td valign=top align=left>
+<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+<a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<!--
+<a href="Glossary.html">Glossary</a><br>
+-->
+</td>
+<td valign=top align=right>
+And in this document, the 
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
+<br>
+H5&nbsp;&nbsp;
+<a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
+<a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
+<a href="RM_H5E.html">H5E</a>&nbsp;&nbsp;
+<a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
+<a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
+<a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
+<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
+<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
+<a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
+<a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
+<a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
+<a href="Tools.html">Tools</a>&nbsp;&nbsp;
+</td></tr>
+</table>
+</center>
+<hr>
+
+
+<address>
+<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+</address>
+
+Last modified:  2 June 2000
+<br>
+Describes HDF5 Release 1.2.2, June 2000
+
+</body>
+</html>

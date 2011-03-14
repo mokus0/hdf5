@@ -1,0 +1,494 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+<head>
+    <title>DDL for HDF5</title>
+</head>
+
+<body bgcolor="#FFFFFF">
+
+
+<hr>
+<center>
+<table border=0 width=98%>
+<tr><td valign=top align=left>
+   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+   <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+   <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <!--
+   <a href="Glossary.html">Glossary</a><br>
+   -->
+</td>
+<td valign=top align=right>
+   And in this document, the 
+   <a href="H5.user.html"><strong>HDF5 User's Guide:</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;
+      <br>
+      <a href="Files.html">Files</a>&nbsp;&nbsp;
+      <a href="Datasets.html">Datasets</a>&nbsp;&nbsp;
+      <a href="Datatypes.html">Datatypes</a>&nbsp;&nbsp;
+      <a href="Dataspaces.html">Dataspaces</a>&nbsp;&nbsp;
+      <a href="Groups.html">Groups</a>&nbsp;&nbsp;
+      <br>
+      <a href="References.html">References</a>&nbsp;&nbsp;
+      <a href="Attributes.html">Attributes</a>&nbsp;&nbsp;
+      <a href="Properties.html">Property Lists</a>&nbsp;&nbsp;
+      <a href="Errors.html">Error Handling</a>&nbsp;&nbsp;
+      <br>
+      <a href="Filters.html">Filters</a>&nbsp;&nbsp;
+      <a href="Caching.html">Caching</a>&nbsp;&nbsp;
+      <a href="Chunking.html">Chunking</a>&nbsp;&nbsp;
+      <a href="MountingFiles.html">Mounting Files</a>&nbsp;&nbsp;
+      <br>
+      <a href="Performance.html">Performance</a>&nbsp;&nbsp;
+      <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
+      <a href="Environment.html">Environment</a>&nbsp;&nbsp;
+      DDL&nbsp;&nbsp;
+      <br>
+      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
+</td></tr>
+</table>
+</center>
+<hr>
+
+
+<h1>DDL in BNF for HDF5</h1>
+
+
+<h2>1. Introduction</h2>
+
+This document contains the data description language (DDL) for an HDF5 file. 
+The description is in Backus-Naur Form.  
+
+<h2>2. Explanation of Symbols</h2>
+
+This section contains a brief explanation of the symbols used in the DDL.
+
+<PRE>
+    ::=                      defined as
+    &lt;tname&gt;                  a token with the name tname
+    &lt;a&gt; | &lt;b&gt;                one of &lt;a&gt; or &lt;b&gt;
+    &lt;a&gt;<FONT SIZE=1.7>opt</FONT>                    zero or one occurrence of &lt;a&gt;
+    &lt;a&gt;*                     zero or more occurrence of &lt;a&gt;
+    &lt;a&gt;+                     one or more occurrence of &lt;a&gt;
+    TBD                      To Be Decided
+</pre>
+
+<h2>3. The DDL</h2>
+
+<dir>
+<pre>
+&lt;file&gt; ::= HDF5 &lt;file_name&gt; { &lt;file_boot_block&gt;<FONT SIZE=1.7>opt</FONT> &lt;root_group&gt; }
+
+&lt;file_name&gt; ::= &lt;identifier&gt;
+
+&lt;file_boot_block&gt; ::= BOOT_BLOCK { &lt;boot_block_content&gt; }
+
+&lt;boot_block_content&gt; ::= TBD
+
+&lt;root_group&gt; ::= GROUP "/" { &lt;unamed_datatype&gt;* &lt;group_attribute&gt;* &lt;group_member&gt;* }  
+
+&lt;unamed_datatype&gt ::= DATATYPE &lt;unamed_type_name&gt; { &lt;compound_type&gt; }
+
+&lt;unamed_type_name&gt; ::= the assigned name for unamed type is in the form of 
+                      #oid1:oid2, where oid1 and oid2 are the object ids of the type
+
+&lt;compound_type&gt; ::= &lt;member_type_def&gt;+ 
+
+&lt;member_type_def&gt; ::= &lt;scalar_type_def&gt; | &lt;array_type_def&gt;
+
+&lt;scalar_type_def&gt; ::= &lt;atomic_type&gt; &lt;field_name&gt; ;
+
+&lt;atomic_type&gt; ::= &lt;integer&gt; | &lt;float&gt; | &lt;time&gt; | &lt;string&gt; | &lt;bitfield&gt; | &lt;opaque&gt; |
+                 &lt;reference&gt; | &lt;enum&gt;
+
+&lt;integer&gt; ::=  H5T_STD_I8BE | H5T_STD_I8LE | H5T_STD_I16BE | H5T_STD_I16LE | H5T_STD_I32BE |
+              H5T_STD_I32LE | H5T_STD_I64BE | H5T_STD_I64LE |  H5T_STD_U8BE |
+              H5T_STD_U8LE | H5T_STD_U16BE | H5T_STD_U16LE | H5T_STD_U32BE |
+              H5T_STD_U32LE | H5T_STD_U64BE | H5T_STD_U64LE | H5T_NATIVE_CHAR |
+              H5T_NATIVE_UCHAR | H5T_NATIVE_SHORT | H5T_NATIVE_USHORT | 
+              H5T_NATIVE_INT | H5T_NATIVE_UINT | H5T_NATIVE_LONG | H5T_NATIVE_ULONG |
+              H5T_NATIVE_LLONG | H5T_NATIVE_ULLONG
+
+&lt;float&gt; ::= H5T_IEEE_F32BE | H5T_IEEE_F32LE | H5T_IEEE_F64BE |  H5T_IEEE_F64LE |
+            H5T_NATIVE_FLOAT |  H5T_NATIVE_DOUBLE | H5T_NATIVE_LDOUBLE
+
+&lt;time&gt; ::= TBD
+
+&lt;string&gt; ::= { STRSIZE &lt;strsize&gt; ;
+               STRPAD &lt;strpad&gt; ;
+               CSET &lt;cset&gt; ;
+               CTYPE &lt;ctype&gt; ; }  
+
+&lt;strsize&gt; ::= an integer
+
+&lt;strpad&gt; ::= H5T_STR_NULLTERM | H5T_STR_NULLPAD | H5T_STR_SPACEPAD
+
+&lt;cset&gt; ::= H5T_CSET_ASCII
+
+&lt;ctype&gt; ::= H5T_C_S1 | H5T_FORTRAN_S1
+
+&lt;bitfield&gt; ::= TBD
+
+&lt;opaque&gt; ::= TBD
+
+&lt;reference&gt; ::= H5T_REFERENCE
+
+&lt;field_name&gt; ::= &lt;identifier&gt;
+
+&lt;array_type_def&gt; ::= &lt;atomic_type&gt; &lt;field_name&gt; &lt;dim_sizes&gt; ;
+
+&lt;dim_sizes&gt; ::= [dimsize1][dimsize2]..., where dimsize1, dimsize2 are integers
+
+&lt;group_attribute&gt; ::= &lt;attribute&gt; 
+
+&lt;attribute&gt; ::= ATTRIBUTE &lt;attr_name&gt { &lt;datatype&gt;    
+                                          &lt;dataspace&gt;   
+                                          &lt;data&gt;<FONT SIZE=1.7>opt</FONT>  } 
+// &lt;datatype&gt; and &lt;dataspace&gt; must appear before &lt;data&gt;.
+
+&lt;attr_name&gt; ::= &lt;identifier&gt
+
+&lt;datatype&gt; ::= DATATYPE { &lt;atomic_type&gt; }  |         
+               DATATYPE { &lt;compound_type&gt; } |
+               DATATYPE { &lt;named_type&gt; } 
+
+&lt;enum&gt; ::= H5T_ENUM { &lt;integer&gt;; &lt;enum_def&gt;+  }
+
+&lt;enum_def&gt; ::= &lt;enum_symbol&gt; &lt;enum_val&gt;;
+
+&lt;enum_symbol&gt; ::= &lt;identifier&gt;
+
+&lt;enum_val&gt; ::= an integer;
+
+&lt;named_type&gt; ::= &lt;path_name&gt;
+
+&lt;path_name&gt; ::= &lt;identifier&gt
+
+&lt;dataspace&gt; ::= DATASPACE { SCALAR } |
+                DATASPACE { SIMPLE &lt;current_dims&gt; / &lt;max_dims&gt; } | 
+                DATASPACE { COMPLEX &lt;ds_definition&gt;+ } 
+                DATASPACE { &lt;dataspace_name&gt; } |
+
+&lt;current_dims&gt; ::= (<i>i<FONT SIZE=1.0>1</i></FONT>, <i>i<FONT SIZE=1.0>2</i></FONT>, ... ), where <i>i<FONT SIZE=1.0>k</i></FONT> is an integer, <i>k</i> = 1,2,...
+
+&lt;max_dims&gt; ::= (<i>i<FONT SIZE=1.0>1</i></FONT>, <i>i<FONT SIZE=1.0>2</i></FONT>, ... ) where <i>i<FONT SIZE=1.0>k</i></FONT> is an integer or H5S_UNLIMITED
+
+&lt;ds_definition&gt; ::= TBD
+
+&lt;dataspace_name&gt; ::= &lt;identifier&gt;
+
+&lt;data&gt; ::= DATA { &lt;scalar_space_data&gt; | &lt;simple_space_data&gt; | &lt;complex_space_data&gt; }
+                  
+&lt;scalar_space_data&gt; ::= &lt;atomic_scalar_data&gt; | &lt;compound_scalar_data&gt;
+
+&lt;atomic_scalar_data&gt; :: = &lt;integer_data&gt; | &lt;float_data&gt; | &lt;time_data&gt; | &lt;string_data&gt; | 
+                          &lt;bitfield_data&gt; | &lt;opaque_data&gt; | &lt;enum_data&gt; | &lt;reference_data&gt;
+
+&lt;integer_data&gt; ::= an integer
+
+&lt;float_data&gt; ::= a floating point number
+
+&lt;time_data&gt; ::= TBD
+
+&lt;string_data&gt; ::= a string
+// A string is enclosed in double quotes. 
+// If a string is displayed on more than one line, string concatenate operator '//'is used.
+
+&lt;bitfield_data&gt; ::= TBD
+
+&lt;opaque_data&gt; ::= TBD
+
+&lt;enum_data&gt; ::= &lt;enum_symbol&gt;
+//maybe will be &lt;enum_symbol&gt; in the future
+
+&lt;reference_data&gt; ::= &lt;object_ref_data&gt; | &lt;data_region_data&gt; | NULL
+
+&lt;object_ref_data&gt; ::= &lt;object_type&gt; &lt;object_id&gt;
+
+&lt;object_type&gt; ::= DATASET | GROUP | DATATYPE
+
+&lt;object_id&gt; ::= an integer:an integer 
+
+&lt;data_region_data&gt; ::= H5T_STD_REF_DSETREG &lt;object_id&gt; {&lt;data_region_data_info&gt;, 
+                     &lt;data_region_data_info&gt;, ...}
+
+&lt;data_region_data_info&gt; ::= &lt;region_info&gt; | &lt;point_info&gt;
+
+&lt;region_info&gt; ::= (&lt;lower_bound&gt;:&lt;upper_bound&gt;, &lt;lower_bound&gt;:&lt;upper_bound&gt;, ...)
+
+&lt;lower_bound&gt; ::= an integer
+
+&lt;upper_bound&gt; ::= an integer
+
+&lt;point_info&gt; ::= (an integer, an integer, ...)
+
+&lt;compound_scalar_data&gt; ::= { [ &lt;member_data&gt; ], [ &lt;member_data&gt; ], ... }
+
+&lt;member_data&gt; ::= &lt;atomic_scalar_data&gt; | &lt;atomic_simple_data&gt; 
+
+&lt;atomic_simple_data&gt; :: = &lt;atomic_element&gt;, &lt;atomic_element&gt;, ... 
+
+&lt;atomic_element&gt; ::= &lt;atomic_scalar_data&gt;
+
+&lt;simple_space_data&gt; :: = &lt;atomic_simple_data&gt; | &lt;compound_simple_data&gt;
+
+&lt;compound_simple_data&gt; ::= &lt;compoud_element&gt;, &lt;compound_element&gt;, ...
+
+&lt;compound_element&gt; ::= &lt;compound_scalar_data&gt;
+
+&lt;complex_space_data&gt; ::= TBD
+
+&lt;group_member&gt; ::= &lt;named_datatype&gt; | &lt;named_dataspace&gt; | &lt;group&gt; | &lt;dataset&gt; | 
+                   &lt;softlink&gt;
+
+&lt;named_datatype&gt; ::= DATATYPE &lt;type_name&gt; { &lt;compound_type&gt; }
+
+&lt;type_name&gt; ::= &lt;identifier&gt;
+
+&lt;named_dataspace&gt; ::= TBD
+
+&lt;group&gt; ::= GROUP &lt;group_name&gt; { &lt;hardlink&gt; } |
+            GROUP &lt;group_name&gt; { &lt;group_attribute&gt;* &lt;group_member&gt;* } 
+            
+&lt;group_name&gt; ::= &lt;identifier&gt;
+
+&lt;hardlink&gt; ::= HARDLINK &lt;path_name&gt; 
+
+&lt;dataset&gt; ::= DATASET &lt;dataset_name&gt; { &lt;hardlink&gt; } |
+              DATASET &lt;dataset_name&gt; { &lt;datatype&gt;  
+                                         &lt;dataspace&gt; 
+                                         &lt;storagelayout&gt;<FONT SIZE=1.7>opt</FONT>
+                                         &lt;compression&gt;<FONT SIZE=1.7>opt</FONT>
+                                         &lt;dataset_attribute&gt;*
+                                         &lt;data&gt;<FONT SIZE=1.7>opt</FONT>  } 
+// Tokens within {} can be in any order  as long as &lt;data&gt; and &lt;dataset_attribute&gt;
+// are after &lt;datatype&gt; and &lt;dataspace&gt;.
+
+&lt;dataset_name&gt; ::= &lt;identifier&gt;
+
+&lt;storagelayout&gt; :: = STORAGELAYOUT &lt;contiguous_layout&gt;  |  
+                     STORAGELAYOUT &lt;chunked_layout&gt;  | 
+                     STORAGELAYOUT &lt;compact_layout&gt;  | 
+                     STORAGELAYOUT &lt;external_layout&gt; 
+
+&lt;contiguous_layout&gt; ::= {CONTIGUOUS}    // default
+
+&lt;chunked_layout&gt; ::=  {CHUNKED &lt;dims&gt; }
+
+&lt;dims&gt; ::= (<i>i<FONT SIZE=1.0>1</i></FONT>, <i>i<FONT SIZE=1.0>2</i></FONT>, ... ), <i>i<FONT SIZE=1.0>k</i></FONT> is an integer, <i>k</i> = 1,2,... 
+
+&lt;compact_layout&gt; ::= TBD           
+
+&lt;external_layout&gt; ::= {EXTERNAL &lt;external_file&gt;+ }
+
+&lt;external_file&gt; ::= (&lt;file_name&gt; &lt;offset&gt; &lt;size&gt;) 
+
+&lt;offset&gt; ::= an integer
+
+&lt;size&gt; ::= an integer
+
+&lt;compression&gt; :: = COMPRESSION { TBD }  
+
+&lt;dataset_attribute&gt; ::= &lt;attribute&gt; 
+
+&lt;softlink&gt; ::= SOFTLINK &lt;softlink_name&gt; { LINKTARGET &lt;target&gt; }
+
+&lt;softlink_name&gt; ::= &lt;identifier&gt;
+
+&lt;target&gt; ::= &lt;identifier&gt;
+
+&lt;identifier&gt; ::= string   
+// character '/' should be used with care. 
+
+</PRE>
+</dir>
+
+
+<h2>4. An Example of an HDF5 File in DDL</h2>
+
+<dir>
+<PRE>
+HDF5 "example.h5" {
+GROUP "/" {
+   ATTRIBUTE "attr1" {
+      DATATYPE {
+         { STRSIZE 17;
+           STRPAD H5T_STR_NULLTERM;
+           CSET H5T_CSET_ASCII;
+           CTYPE H5T_C_S1;
+         }
+      }
+      DATASPACE { SCALAR }
+      DATA {
+         "string attribute"
+      }
+   }
+   DATASET "dset1" {
+      DATATYPE { H5T_STD_I32BE }
+      DATASPACE { SIMPLE ( 10, 10 ) / ( 10, 10 ) }
+      DATA {
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+      }
+   }
+   DATASET "dset2" {
+      DATATYPE {
+         H5T_STD_I32BE "a";
+         H5T_IEEE_F32BE "b";
+         H5T_IEEE_F64BE "c";
+      }
+      DATASPACE { SIMPLE ( 5 ) / ( 5 ) }
+      DATA {
+         {
+            [ 1 ],
+            [ 0.1 ],
+            [ 0.01 ]
+         },
+         {
+            [ 2 ],
+            [ 0.2 ],
+            [ 0.02 ]
+         },
+         {
+            [ 3 ],
+            [ 0.3 ],
+            [ 0.03 ]
+         },
+         {
+            [ 4 ],
+            [ 0.4 ],
+            [ 0.04 ]
+         },
+         {
+            [ 5 ],
+            [ 0.5 ],
+            [ 0.05 ]
+         }
+      }
+   }
+   GROUP "group1" {
+      DATASET "dset3" {
+         DATATYPE {
+            "/type1"
+         }
+         DATASPACE { SIMPLE ( 5 ) / ( 5 ) }
+         DATA {
+            {
+               [ 0, 1, 2, 3 ],
+               [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+                 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+                 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+            },
+            {
+               [ 0, 1, 2, 3 ],
+               [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+                 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+                 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+            },
+            {
+               [ 0, 1, 2, 3 ],
+               [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+                 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+                 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+            },
+            {
+               [ 0, 1, 2, 3 ],
+               [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+                 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+                 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+            },
+            {
+               [ 0, 1, 2, 3 ],
+               [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+                 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+                 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+                 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+            }
+         }
+      }
+   }
+   GROUP "group2" {
+      HARDLINK "/group1"
+   }
+   SOFTLINK "slink1" {
+      LINKTARGET "somevalue"
+   }
+   DATATYPE "type1" {
+      H5T_STD_I32BE "a"[4];
+      H5T_IEEE_F32BE "b"[5][6];
+   }
+}
+}
+</pre>
+</dir>
+
+
+<hr>
+<center>
+<table border=0 width=98%>
+<tr><td valign=top align=left>
+   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+   <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
+   <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <!--
+   <a href="Glossary.html">Glossary</a><br>
+   -->
+</td>
+<td valign=top align=right>
+   And in this document, the 
+   <a href="H5.user.html"><strong>HDF5 User's Guide:</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;
+      <br>
+      <a href="Files.html">Files</a>&nbsp;&nbsp;
+      <a href="Datasets.html">Datasets</a>&nbsp;&nbsp;
+      <a href="Datatypes.html">Datatypes</a>&nbsp;&nbsp;
+      <a href="Dataspaces.html">Dataspaces</a>&nbsp;&nbsp;
+      <a href="Groups.html">Groups</a>&nbsp;&nbsp;
+      <br>
+      <a href="References.html">References</a>&nbsp;&nbsp;
+      <a href="Attributes.html">Attributes</a>&nbsp;&nbsp;
+      <a href="Properties.html">Property Lists</a>&nbsp;&nbsp;
+      <a href="Errors.html">Error Handling</a>&nbsp;&nbsp;
+      <br>
+      <a href="Filters.html">Filters</a>&nbsp;&nbsp;
+      <a href="Caching.html">Caching</a>&nbsp;&nbsp;
+      <a href="Chunking.html">Chunking</a>&nbsp;&nbsp;
+      <a href="MountingFiles.html">Mounting Files</a>&nbsp;&nbsp;
+      <br>
+      <a href="Performance.html">Performance</a>&nbsp;&nbsp;
+      <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
+      <a href="Environment.html">Environment</a>&nbsp;&nbsp;
+      DDL&nbsp;&nbsp;
+      <br>
+      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
+</td></tr>
+</table>
+</center>
+
+
+<hr>
+<address>
+<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
+</address>
+
+Last modified:  14 October 1999
+<br>
+Describes HDF5 Release 1.2.2, June 2000
+
+</body>
+</html>

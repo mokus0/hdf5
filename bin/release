@@ -1,0 +1,136 @@
+#!/bin/sh
+
+# Make a release of hdf5.  The command-line switches are:
+#
+#  -d DIR	The name of the directory where the releas(es) should be
+#               placed.  By default, the directory is ./releases
+#
+#  --nocheck	Ignore errors in MANIFEST file.
+#          
+# The other command-line options are the names of the programs to use
+# for compressing the resulting tar archive (if none are given then
+# `tar' is assumed):
+#
+#   tar		-- use tar and don't do any compressing.
+#   compress	-- use compress and append `.Z' to the output name.
+#   gzip	-- use gzip with `-9' and append `.gz' to the output name.
+#   bzip2       -- use bzip2 with `-9' and append `.bz2' to the output name.
+#
+# Examples:
+#
+#   $ release
+#   releases/hdf5-1.0.38.tar
+#
+#   $ release gzip
+#   releases/hdf5-1.0.38.tar.gz
+#
+#   $ release -d /tmp tar compress gzip bzip2
+#   /tmp/hdf5-1.0.38.tar
+#   /tmp/hdf5-1.0.38.tar.Z
+#   /tmp/hdf5-1.0.38.tar.gz
+#   /tmp/hdf5-1.0.38.tar.bz2
+#
+# Modifications
+#   Robb Matzke, 1999-07-16
+#   The SunOS 5.6 sed *must* have slashes as delimiters. I changed things like
+#   `sed s+/CVS++' to `sed 's/\/CVS//'
+#
+#   Albert Cheng, 1999-10-26
+#   Moved the MANIFEST checking to a separate command file so that
+#   it can be invoked individually.
+
+# Defaults
+DEST=releases
+VERS=`perl bin/h5vers`
+test "$VERS" || exit 1
+verbose=yes
+check=yes
+
+# Command-line arguments
+while [ -n "$1" ]; do
+    arg=$1
+    shift
+    case "$arg" in
+	-d)
+	    DEST=$1
+	    shift
+	    ;;
+	--nocheck)
+	    check=no
+	    ;;
+	-*)
+	    echo "Unknown switch: $arg" 1>&2
+	    exit 1
+	    ;;
+	*)
+	    methods="$methods $arg"
+	    ;;
+    esac
+done
+
+# Default method is tar
+if [ "X$methods" = "X" ]; then
+    methods=tar
+fi
+
+
+test "$verbose" && echo "Releasing hdf5-$VERS to $DEST" 1>&2
+if [ ! -d $DEST ]; then
+    echo "   Destination directory $DEST does not exist" 1>&2
+    exit 1
+fi
+
+# Check the validity of the MANIFEST file.
+bin/chkmanifest || fail=yes
+if [ "X$fail" = "Xyes" ]; then
+    if [ $check = yes ]; then
+        exit 1
+    else
+	echo "Continuing anyway..."
+    fi
+fi
+
+# Create a manifest that contains only files for distribution.
+MANIFEST=/tmp/H5_MANIFEST.$$
+grep '^\.' MANIFEST | grep -v _DO_NOT_DISTRIBUTE_ >$MANIFEST
+
+# Prepare the source tree for a release.
+test -h ../hdf5-$VERS && rm ../hdf5-$VERS
+ln -s `pwd` ../hdf5-$VERS || exit 1
+mv Makefile ../Makefile.x 2>/dev/null #might fail
+cp -p Makefile.dist Makefile
+echo "This is hdf5-$VERS released on `date`" >README.x
+tail +2l README >>README.x
+mv README.x README
+test "$verbose" && echo "   Running tar..." 1>&2
+( \
+    cd ..; \
+    tar cf x.tar hdf5-$VERS/Makefile \
+	`sed 's/^\.\//hdf5-'$VERS'\//' $MANIFEST` || exit 1 \
+)
+
+# Compress
+# Make sure new files are of the right access mode
+umask 0133
+for comp in $methods; do
+    case $comp in
+	tar)
+	    cp -p ../x.tar $DEST/hdf5-$VERS.tar;;
+	compress)
+	    test "$verbose" && echo "   Running compress..." 1>&2
+	    compress -c <../x.tar >$DEST/hdf5-$VERS.tar.Z;;
+	gzip)
+	    test "$verbose" && echo "   Running gzip..." 1>&2
+	    gzip -9 <../x.tar >$DEST/hdf5-$VERS.tar.gz;;
+	bzip2)
+	    test "$verbose" && echo "   Running bzip2..." 1>&2
+	    bzip2 -9 <../x.tar >$DEST/hdf5-$VERS.tar.bz2;;
+    esac
+done
+
+# Remove temporary things
+test -f ../Makefile.x && mv ../Makefile.x Makefile
+rm -f $MANIFEST
+rm -f ../hdf5-$VERS
+rm -f ../x.tar
+exit 0

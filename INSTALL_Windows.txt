@@ -1,0 +1,337 @@
+HDF5 Install Instructions for Windows NT/95/98.
+-------------------------------------------------------------------------
+
+The instructions which follow assume that you will be using the the source
+code release 'zip' file (hdf5-1_2_2.zip).
+
+The following sections discuss in detail installation procedures. 
+
+Building from Source Code Release (hdf5-1_2_2.zip)
+===============================================
+
+STEP I:  Preconditions
+
+To build the HDF5 and tests, it is assumed that you have done the following:
+
+      1. Installed MicroSoft Developer Studio, and Visual C++ 6.0.         
+
+      2. Set up a directory structure to unpack the library. For 
+      example: 
+	    c:\					(any drive)
+           MyHDFstuff\				(any folder name)
+
+      3. Copied the source distribution archive to that directory 
+      and unpacked it using the appropriate archiver options to
+      create a directory hierarchy.
+        
+      Run WinZip on hdf5-1_2_2.zip (the entire source tree).
+      This creates a directory called 'hdf5' which 
+      contains several files and directories.
+
+      4. You do not have a version of the zlib library and you would like to 
+      use it.  If you do not want to use the zlib library or have your own
+      version read the section about the zlib library.
+
+
+STEP II: Building the Libraries and tests.
+        1. Rename the directory under C:\myHDFstuff\ from hdf5xxx to hdf5.  
+
+        2. Unpack the c:\myHDFstuff\hdf5\all.zip into the 'myHDFstuff' directory 
+           and move the zlib.dll from c:\myHDFstuff\hdf5\src\zlib\dll to the Windows
+           system directory. 
+
+           NOTE TO ALPHA USERS- the version of zlib that is packaged in all.zip 
+           is for Intel platforms.  The Alpha versions of the libraries can be
+           obtained from ftp://hdf.ncsa.uiuc.edu/HDF5/.  The file to download
+           is Alphazlib.zip.  After the file is downloaded replace the src\zlib
+           directory with the files from Alphazlib.zip.
+
+        3. Invoke Microsoft Visual C++, go to "File" and select
+           the "Open Workspace" option. 
+
+           Then open the c:\myHDFstuff\hdf5\proj\all\all.dsw workspace. 
+
+        4. Select "Build", then Select "Set Active Configuration".
+
+           On Windows platform select as the active configuration
+
+           "all -- Win32 Debug" to build debug versions of single-threaded
+                                static libraries, and tests. 
+            or
+
+           "all -- Win32 Release" to build release versions of single-threaded
+                                static libraries, and tests.
+
+           On the Alpha platform select as the active configuration
+
+           "all -- Win32 AlphaDbg" to build debug versions of single-threaded
+                                static libraries, and tests. 
+            or
+
+           "all -- Win32 AlphaRel" to build release versions of single-threaded
+                                static libraries, and tests.
+
+           Select "Build" and "Build all.exe" to
+           build the corresponding version of the HDF5 library.
+
+           NOTE: "all" is a dummy target. You will get a link error when   
+           "all.exe." is built : 
+                 LINK: error LNK2001: unresolved external symbol
+			_mainCRTStartup.....
+                 all.exe - 2 error(s), ....
+
+           Warning messages can be ignored. The "all.exe" is never created, 
+           so it is OK.
+
+           When the debug or release build is done the directories listed 
+           below will contain the following files :
+
+            c:\MyHDFstuff\hdf5\proj\hdf5\debug - 
+            c:\MyHDFstuff\hdf5\proj\hdf5\release - 
+
+			hdf5.lib- the hdf5 library
+
+            c:\MyHDFstuff\hdf5\proj\hdf5dll\debug - 
+            c:\MyHDFstuff\hdf5\proj\hdf5dll\release - 
+
+			hdf5.dll- the hdf5 library
+                  hdf5.lib- the dll export library
+
+           	c:\MyHDFstuff\hdf5\test\"test directory"-
+            where test directory is one of the following:
+
+
+			big
+
+			bittests
+
+			chunk
+
+			cmpd_dset
+
+			dsets
+
+			dtypes
+			
+			enum
+
+			extend
+
+			external
+
+			fillval
+
+			flush1
+
+			flush2
+
+			gheap
+
+			hyperslab
+
+			iopipe
+
+			istore
+
+			links
+
+			mount 
+
+			mtime
+
+			ohdr
+
+			overhead
+
+			ragged 
+
+			stab
+
+			testhdf5 
+
+			unlink 
+
+Each test directory contains debug and release subdirectories with the 
+corresponding tests.
+		
+
+STEP III:   TESTING THE BUILD
+
+In a command prompt window run the test batch file which 
+resides in the hdf5\test directory to make sure that the library
+was built correctly.
+
+To test, cd into the hdf5\test directory.  Then type:
+"hdf5test [debug or release] [dll]" depending on which version you would 
+like to test.
+
+To use the timing tests use the hdf5timingtest.bat file found in the hdf5\test 
+directory.  Type: "hdf5timingtest [debug or release] [dll]" depending on which
+version you would like to test.
+
+To test the h5dump utility, cd into hdf5\tools.  Then type:
+"dumptest [debug or release] [dll]" depending on which version you would like
+to test. Some differences are expected in the output of these 4 tests. 
+
+
+NOTE: the appropriate dll should be placed in the Windows\system directory
+before using the dlls.
+
+NOTE: The debug dll tests on the Alpha platform currently are not completely
+      working.  The release dll is fine though.
+
+NOTE: The dll versions of h5dump are currently not working correctly.
+
+NOTE: There is an error in the external test.  The external file feature
+      is working correctly but there is an error in logic for the test which
+      only appears under certain operating systems.  The external test fails
+      for the last case "Testing write external dataset"
+        
+STEP IV: BUILDING THE EXAMPLES
+
+     1. Invoke Microsoft Visual C++, go to "File" and select
+        the "Open Workspace" option. 
+        Then open the c:\myHDFstuff\hdf5\examples\allexamples\allexamples.dsw
+        workspace. 
+
+      2. Select "Build", then Select "Set Active Configuration".
+
+         On Windows platform select as the active configuration
+           "allexamples -- Win32 Debug" to build debug versions of the         					examples. 
+            
+		or
+	
+           "allexamples -- Win32 Release" to build release versions the            		examples.
+
+         On Alpha platform select as the active configuration
+           "allexamples -- Win32 AlphaDbg" to build debug versions of the         					examples. 
+            
+		or
+	
+           "allexamples -- Win32 AlphaRel" to build release versions the           
+                              examples.
+
+           Select "Build" and "Build allexamples.exe" to
+           build the corresponding version of the examples.
+
+           When the debug build or release build is done there should be the 
+           following subdirectories in C:\myHDFstuff\hdf5\examples\
+
+			attributetest
+ 
+			chunkread
+
+			compoundtest 
+
+			extendwritetest 
+
+			grouptest 
+
+			readtest 
+
+			selecttest 
+
+			writetest 
+
+
+
+	3. Run the batch file "InstallExamples.bat" which resides in the top
+ 	   level directory.  This file creates 2 new directories, examplesREL and
+	   examplesDBG, in the examples directory and places all the executables 
+	   in it.  Both the release and debug versions of the examples should be
+	   built before this step is done.  The examples should be tested in these
+	   2 new directories due to some dependencies between the examples.
+
+			
+
+STEP V:  
+
+BUILDING AN APPLICATION USING THE HDF5 LIBRARY - SOME HELPFUL POINTERS
+=====================================================================
+
+If you are building an application that uses the HDF5 library 
+the following locations will need to be specified for locating
+header files and linking in the HDF libraries:
+
+            <top-level HDF5 directory>\src
+
+where <top-level HDF5 directory> may be 
+    C:\MyHDFstuff\hdf5\
+
+
+
+MORE HELPFUL POINTERS
+=====================
+
+
+Here are some notes that may be of help if you are not familiar
+with using the Visual C++ Development Environment.
+
+Project name and location issues: 
+       
+    The files in all.zip must end up in the hdf5\ directory
+    installed by hdf5-1_2_1.zip
+
+    If you must install all.dsw and all.dsp in another directory, relative 
+    to hdf5\ , you will be asked to locate the sub-project files, 
+    when you open the project all.dsw.
+
+    If you want to rename all (the entire project), you will need to modify 
+    two files all.dsw and all.dsp as text (contrary to the explicit warnings 
+    in the files).
+
+    You can also modify all.dsw and all.dsp as text, to allow these 2 files 
+    to be installed in another directory.
+
+  
+Settings... details:
+
+  	If you create your own project, the necessary settings can be
+	read from the all.dsp file(as text), or from the Project Settings in 
+	the Developer Studio project settings dialog.
+
+    Project
+	  Settings
+	      C/C++
+		  Category
+		     PreProcessor
+			 Code Generation
+			    Use run-time Library
+				   These are all set to use 
+                                      Single-Threaded
+
+
+
+ZLIB LIBRARY- REMOVING OR CHANGING THE PATH
+============================================
+
+If you would like to remove the zlib library from the hdf5 library or
+use your own version of the zlib library then follow the steps below.
+
+Removing the zlib library completely:
+
+	Open the all.dsw workspace file in Microsoft Visual C++.  Go to the hdf5 
+	project.  Select the zlib.lib file from this project and delete(press the
+	'delete' key) it.  Next open the H5config.h file from the src directory.
+	Remove the the following two lines:
+		#define HAVE_LIBZ 1
+		#define HAVE_COMPRESS2
+	then save the file.
+	
+	Next go to the hdf5dll project. Remove the zlib.lib from this project too.
+	Open the project settings for the hdf5dll project.  Go to the C/C++
+	settings tab and under the preprocessor definitions remove the ZLIB_DLL
+	in both the debug and the release settings. Recompile the all project and
+	then save the workspace.  
+
+
+Replacing the zlib library:
+
+	Open the all.dsw workspace and go to the hdf5 project.  Delete the 
+	zlib.lib file from the file listing.  Then select the hdf5 project and 
+	richt click to get a menu.  Pick the "add files to project..." option
+	and find the version of the zlib that you would like to use.  Then click OK
+	in the file chooser dialog.  Repeat the steps for the hdf5dll project.
+	You may also want to replace the zlib.h and zconf.h files which are in
+	the src directory with your own versions of these files.  Then recompile
+	the all project.

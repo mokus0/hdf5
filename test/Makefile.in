@@ -31,7 +31,11 @@ TEST_PROGS=testhdf5 lheap ohdr stab gheap cache hyperslab istore bittests    \
     ttsafe getname file_handle     \
     ntypes dangle reserved err_vers
 
+# Test scripts.
+TEST_SCRIPTS = testlibinfo.sh testcheck_version.sh
+
 TIMINGS=testmeta
+PROGS=$(TEST_PROGS) tcheck_version
 
 ## The libh5test.a library provides common support code for the tests. We link
 ## this library statically because some systems can only link executables to
@@ -60,11 +64,13 @@ MOSTLYCLEAN=cmpd_dset.h5 compact_dataset.h5 dataset.h5 extend.h5 istore.h5   \
             tmisc9.h5 tmisc10.h5 tmisc11.h5 tmisc12.h5 tmisc13a.h5           \
             tmisc13b.h5 tmisc14.h5 set_extent_read.h5 set_extent_create.h5   \
             getname.h5 getname1.h5 getname2.h5 getname3.h5 sec2_file.h5      \
-            family_file000[0-3][0-9].h5 multi_file-[rs].h5 core_file         \
-            new_move_[ab].h5 ntypes.h5 dangle.h5 test_filters.h5 	     \
-	    tstint[1-2].h5 unlink_chunked.h5 err_vers.h5
+            family_file000[0-3][0-9].h5 new_family_v18_000[0-3][0-9].h5      \
+            multi_file-[rs].h5 core_file new_move_[ab].h5 ntypes.h5          \
+            dangle.h5 test_filters.h5 tstint[1-2].h5 unlink_chunked.h5       \
+            err_vers.h5
 
 CLEAN=$(TIMINGS)
+DISTCLEAN=testerror.sh testlibinfo.sh testcheck_version.sh
 
 ## Source and object files for programs...  The TEST_SRC list contains all the
 ## source files and is used for things like dependencies, archiving, etc.  The
@@ -73,8 +79,8 @@ CLEAN=$(TIMINGS)
 
 TEST_SRC=big.c bittests.c cache.c cmpd_dset.c dsets.c dtypes.c extend.c      \
     external.c fillval.c flush1.c flush2.c gheap.c h5test.c hyperslab.c      \
-    istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c tarray.c          \
-    tattr.c tconfig.c tcoords.c testhdf5.c testmeta.c tfile.c                \
+    istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c tarray.c tattr.c  \
+    tcheck_version.c tconfig.c tcoords.c testhdf5.c testmeta.c tfile.c       \
     tgenprop.c th5s.c theap.c titerate.c tmeta.c tmisc.c trefer.c trefstr.c  \
     tselect.c tskiplist.c ttime.c ttst.c tvltypes.c tvlstr.c                 \
     unlink.c enum.c ttsafe.c ttsafe_dcreate.c ttsafe_error.c                 \
@@ -103,10 +109,10 @@ flush2.chkexe_: flush1.chkexe_
 
 ## Programs have to be built before they can be tested!
 ##
-check test _test: $(TEST_PROGS)
+check test _test: $(PROGS)
 
 ## How to build the tests...  They all depend on the test and hdf5 libraries.
-$(TEST_PROGS): $(LIB) $(LIBHDF5)
+$(PROGS): $(LIB) $(LIBHDF5)
 
 TESTHDF5_OBJ=testhdf5.lo tarray.lo tattr.lo tconfig.lo tfile.lo               \
     tgenprop.lo th5s.lo tcoords.lo theap.lo titerate.lo tmeta.lo tmisc.lo     \
@@ -184,6 +190,9 @@ flush2: flush2.lo
 
 enum: enum.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ enum.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
+
+tcheck_version: tcheck_version.lo
+	@$(LT_LINK_EXE) $(CFLAGS) -o $@ tcheck_version.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
 ttsafe: $(TTS_OBJ)
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ $(TTS_OBJ) $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)

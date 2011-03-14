@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 16900 2009-04-30 22:04:36Z acheng $)
+AC_REVISION($Id: configure.in 17844 2009-11-05 22:39:48Z acheng $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -25,7 +25,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 Fortran], [1.6.9], [help@hdfgroup.org])
+AC_INIT([HDF5 Fortran], [1.6.10], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/HDF5.f90])
 AC_CONFIG_HEADER([src/H5config_fortran.h])
 

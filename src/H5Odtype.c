@@ -10,11 +10,7 @@
 *									   *
 ****************************************************************************/
 
-#ifdef RCSID
-static char		RcsId[] = "@(#)$Revision: 1.51 $";
-#endif
-
-/* $Id: H5Odtype.c,v 1.51 2000/12/28 19:54:34 koziol Exp $ */
+/* $Id: H5Odtype.c,v 1.51.2.1 2001/03/20 22:08:57 acheng Exp $ */
 
 #define H5T_PACKAGE		/*prevent warning from including H5Tpkg.h */
 

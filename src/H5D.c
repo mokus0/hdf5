@@ -10,11 +10,7 @@
 *                                                                           *
 ****************************************************************************/
 
-#ifdef RCSID
-static char		RcsId[] = "@(#)$Revision: 1.208 $";
-#endif
-
-/* $Id: H5D.c,v 1.208 2001/01/18 23:01:13 koziol Exp $ */
+/* $Id: H5D.c,v 1.208.2.1 2001/03/20 22:08:53 acheng Exp $ */
 
 #include <H5private.h>		/* Generic Functions			*/
 #include <H5Iprivate.h>		/* IDs			  		*/

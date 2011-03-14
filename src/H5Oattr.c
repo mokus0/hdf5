@@ -10,11 +10,7 @@
 *                                                                          *
 ****************************************************************************/
 
-#ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.20 $";
-#endif
-
-/* $Id: H5Oattr.c,v 1.20 2000/10/10 07:43:25 koziol Exp $ */
+/* $Id: H5Oattr.c,v 1.20.2.1 2001/03/20 22:08:57 acheng Exp $ */
 
 #define H5A_PACKAGE         /*prevent warning from including H5Tpkg.h */
 #define H5S_PACKAGE		    /*suppress error about including H5Spkg	  */

@@ -10,11 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-#ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.6 $";
-#endif
-
-/* $Id: ttsafe.c,v 1.6 2000/09/11 18:44:36 wendling Exp $ */
+/* $Id: ttsafe.c,v 1.6.2.1 2001/03/20 22:09:43 acheng Exp $ */
 
 /*
  * FILE

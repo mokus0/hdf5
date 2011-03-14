@@ -1,4 +1,4 @@
-/* $Id: testphdf5.h,v 1.15 2000/12/13 00:12:57 acheng Exp $ */
+/* $Id: testphdf5.h,v 1.15.2.1 2001/03/27 17:32:08 acheng Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
@@ -48,7 +48,7 @@
 
 /* Constants definitions */
 #define DIM0		600 	/* Default dataset sizes. */
-#define DIM1		800	/* Values are from a monitor pixel sizes */
+#define DIM1		1200	/* Values are from a monitor pixel sizes */
 #define RANK		2
 #define DATASETNAME1	"Data1"
 #define DATASETNAME2	"Data2"

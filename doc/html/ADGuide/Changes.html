@@ -34,17 +34,25 @@
 This document is intended to assist application developers who must keep 
 an application synchroniaed with the HDF5 library or related software.
 
+<!-- Document API CHANGES ONLY in this file. -->
 
-<h2>Release 1.4 (current release) Versus Release 1.2.2</h2> 
+<h2>Release 1.4.1 (current release) Versus Release 1.4.0</h2> 
+<dir>
+    Release 1.4.1 is a "Tools Release"; there are no API changes in the 
+    underlying HDF5 library.
+</dir>
+
+
+<h2>Release 1.4.0 Versus Release 1.2.2</h2> 
 
 <dir>
 
     Several functions were added to or removed from the HDF5 library
-    in the development of Release 1.4.
+    in the development of Release 1.4.0.
     A few functions have been modified in minor ways.
 
     <h3>New Functions</h3>
-        The following functions are new for Release 1.4 and are included in the
+        The following functions are new for Release 1.4.0 and are included in the
         <a href="../RM_H5Front.html"><cite>HDF5 Reference Manual</cite></a>.
 
 <dir>
@@ -112,7 +120,7 @@ int <font color=red>H5Tget_array_ndims</font> (hid_t adtype_id)
 
 
         <p>
-        The following functions are new for Release 1.4, but 
+        The following functions are new for Release 1.4.0, but 
         are intended only for use in specialized environments.
         These are also included in the
         <a href="../RM_H5Front.html"><cite>HDF5 Reference Manual</cite></a>.
@@ -130,7 +138,7 @@ herr_t <font color=red>H5Pset_fapl_srb</font> (hid_t fapl_id, SRB_Info info);
 
 
         <p>
-        The following functions are new for Release 1.4 but are intended 
+        The following functions are new for Release 1.4.0 but are intended 
         only for driver development work, not for general use.  
         They are listed in the
         <a href="../TechNotes/VFLfunc.html"><cite>List of VFL Functions</cite></a>
@@ -239,7 +247,7 @@ H5Tinsert_array
 </dir>
 <p>&nbsp;
 
-<h2>Migration from Release 1.2.2 to Release 1.4 (current release) </h2> 
+<h2>Migration from Release 1.2.2 to Release 1.4.0 (current release) </h2> 
 
 <dir>
     <h3>H5Tinsert_array</h3>
@@ -350,11 +358,11 @@ V1.4.0
 
 <!-- Created: Spring 1999 -->
 <!-- hhmts start -->
-Last modified:  21 February 2001 
+Last modified:  3 April 2001 
 <!-- hhmts end -->
 
 <br>
-Describes HDF5 Release 1.4, February 2001
+Describes HDF5 Release 1.4.1, April 2001
 
 
   </body>

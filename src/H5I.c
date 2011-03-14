@@ -10,11 +10,7 @@
  *									    *
  ****************************************************************************/
 
-#ifdef RCSID
-static char		RcsId[] = "@(#)$Revision: 1.36 $";
-#endif
-
-/* $Id: H5I.c,v 1.36 2001/01/09 22:19:40 koziol Exp $ */
+/* $Id: H5I.c,v 1.36.2.1 2001/03/20 22:08:57 acheng Exp $ */
 
 /*
  * FILE:	H5I.c - Internal storage routines for handling "IDs"

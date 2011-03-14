@@ -10,11 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-#ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.40 $";
-#endif
-
-/* $Id: testhdf5.c,v 1.40 2000/11/12 01:10:06 koziol Exp $ */
+/* $Id: testhdf5.c,v 1.40.2.1 2001/03/20 22:09:41 acheng Exp $ */
 
 /*
    FILE

@@ -14,11 +14,7 @@
 *
 ****************************************************************************/
 
-#ifdef RCSID
-static char		RcsId[] = "@(#)$Revision: 1.154 $";
-#endif
-
-/* $Id: H5F.c,v 1.154 2001/01/04 02:31:25 koziol Exp $ */
+/* $Id: H5F.c,v 1.154.2.1 2001/03/20 22:08:55 acheng Exp $ */
 
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 

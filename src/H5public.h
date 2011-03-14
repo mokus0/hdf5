@@ -10,11 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-#ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.262.2.1 $";
-#endif
-
-/* $Id: H5public.h,v 1.262.2.1 2001/02/10 02:21:53 koziol Exp $ */
+/* $Id: H5public.h,v 1.262.2.8 2001/04/06 18:23:21 epourmal Exp $ */
 
 
 /*
@@ -56,7 +52,7 @@ static char             RcsId[] = "@(#)$Revision: 1.262.2.1 $";
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	0	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	1	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
 

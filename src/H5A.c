@@ -10,11 +10,7 @@
 *									    *
 ****************************************************************************/
 
-#ifdef RCSID
-static char		RcsId[] = "$Revision: 1.65 $";
-#endif
-
-/* $Id: H5A.c,v 1.65 2001/01/09 22:18:35 koziol Exp $ */
+/* $Id: H5A.c,v 1.65.2.1 2001/03/20 22:08:52 acheng Exp $ */
 
 #define H5A_PACKAGE		/*suppress error about including H5Apkg	*/
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	*/

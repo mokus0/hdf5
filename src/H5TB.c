@@ -56,11 +56,7 @@
  * void H5TB_free( ITM ***root, void (*df)(ITM *), void (*kf)(void *) );
  */
 
-#ifdef RCSID
-static char RcsId[] = "@(#)$Revision: 1.22 $";
-#endif
-
-/* $Id: H5TB.c,v 1.22 2001/01/09 22:20:34 koziol Exp $ */
+/* $Id: H5TB.c,v 1.22.2.1 2001/03/20 22:09:05 acheng Exp $ */
 
 #include <H5private.h>		/*library		  */
 #include <H5Eprivate.h>		/*error handling	  */

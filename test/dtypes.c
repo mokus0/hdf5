@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *                    All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Tuesday, December  9, 1997
  *
@@ -43,6 +54,7 @@
 const char *FILENAME[] = {
     "dtypes1",
     "dtypes2",
+    "dtypes3",
     NULL
 };
 
@@ -263,19 +275,19 @@ reset_hdf5(void)
 #endif
     if (without_hardware_g) h5_no_hwconv();
 #ifdef TEST_ALIGNMENT
-    SET_ALIGNMENT(SCHAR,   SIZEOF_CHAR);
-    SET_ALIGNMENT(UCHAR,   SIZEOF_CHAR);
-    SET_ALIGNMENT(SHORT,   SIZEOF_SHORT);
-    SET_ALIGNMENT(USHORT,  SIZEOF_SHORT);
-    SET_ALIGNMENT(INT,     SIZEOF_INT);
-    SET_ALIGNMENT(UINT,    SIZEOF_INT);
-    SET_ALIGNMENT(LONG,    SIZEOF_LONG);
-    SET_ALIGNMENT(ULONG,   SIZEOF_LONG);
-    SET_ALIGNMENT(LLONG,   SIZEOF_LONG_LONG);
-    SET_ALIGNMENT(ULLONG,  SIZEOF_LONG_LONG);
-    SET_ALIGNMENT(FLOAT,   SIZEOF_FLOAT);
-    SET_ALIGNMENT(DOUBLE,  SIZEOF_DOUBLE);
-    SET_ALIGNMENT(LDOUBLE, SIZEOF_LONG_DOUBLE);
+    SET_ALIGNMENT(SCHAR,   H5_SIZEOF_CHAR);
+    SET_ALIGNMENT(UCHAR,   H5_SIZEOF_CHAR);
+    SET_ALIGNMENT(SHORT,   H5_SIZEOF_SHORT);
+    SET_ALIGNMENT(USHORT,  H5_SIZEOF_SHORT);
+    SET_ALIGNMENT(INT,     H5_SIZEOF_INT);
+    SET_ALIGNMENT(UINT,    H5_SIZEOF_INT);
+    SET_ALIGNMENT(LONG,    H5_SIZEOF_LONG);
+    SET_ALIGNMENT(ULONG,   H5_SIZEOF_LONG);
+    SET_ALIGNMENT(LLONG,   H5_SIZEOF_LONG_LONG);
+    SET_ALIGNMENT(ULLONG,  H5_SIZEOF_LONG_LONG);
+    SET_ALIGNMENT(FLOAT,   H5_SIZEOF_FLOAT);
+    SET_ALIGNMENT(DOUBLE,  H5_SIZEOF_DOUBLE);
+    SET_ALIGNMENT(LDOUBLE, H5_SIZEOF_LONG_DOUBLE);
 #endif
 
 }
@@ -390,11 +402,22 @@ test_compound_1(void)
 {
     complex_t               tmp;
     hid_t                   complex_id;
+    herr_t ret;
 
     TESTING("compound data types");
 
     /* Create the empty type */
     if ((complex_id = H5Tcreate(H5T_COMPOUND, sizeof tmp))<0) goto error;
+
+    /* Attempt to add the new compound datatype as a field within itself */
+    H5E_BEGIN_TRY {
+        ret=H5Tinsert(complex_id, "compound", 0, complex_id);
+    } H5E_END_TRY;
+    if (ret>=0) {
+        H5_FAILED();
+        printf("Inserted compound type into itself?\n");
+        goto error;
+    } /* end if */
 
     /* Add a couple fields */
     if (H5Tinsert(complex_id, "real", HOFFSET(complex_t, re),
@@ -1075,6 +1098,217 @@ test_compound_7(void)
 
 
 /*-------------------------------------------------------------------------
+ * Function:	test_query
+ *
+ * Purpose:	Tests query functions of compound and enumeration types.
+ *
+ * Return:	Success: 	0
+ * 	
+ *		Failure:	number of errors
+ *
+ * Programmer:	Raymond Lu
+ *		Thursday, April 4, 2002
+ *  
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int 
+test_query(void)
+{
+    struct s1 {
+	int    a;
+	float  b;
+	long   c;
+	double d;
+    };
+    hid_t	file=-1, tid1=-1, tid2=-1;
+    char	filename[1024];
+    char	compnd_type[]="Compound_type", enum_type[]="Enum_type";
+    short	enum_val;
+
+    TESTING("query functions of compound and enumeration types");
+
+    /* Create File */
+    h5_fixname(FILENAME[2], H5P_DEFAULT, filename, sizeof filename);
+    if((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT))<0)
+	goto error;
+
+    /* Create a compound datatype */
+    if((tid1=H5Tcreate(H5T_COMPOUND, sizeof(struct s1)))<0) { 
+	H5_FAILED();
+	printf("Can't create datatype!\n");
+	goto error;
+    } /* end if */
+    if(H5Tinsert(tid1, "a", HOFFSET(struct s1, a), H5T_NATIVE_INT)<0) {
+	H5_FAILED();
+	printf("Can't insert field 'a'\n");
+	goto error;
+    } /* end if */
+    if(H5Tinsert(tid1, "b", HOFFSET(struct s1, b), H5T_NATIVE_FLOAT)<0) {
+	H5_FAILED();
+	printf("Can't insert field 'b'\n");
+	goto error;
+    } /* end if */
+    if(H5Tinsert(tid1, "c", HOFFSET(struct s1, c), H5T_NATIVE_LONG)<0) {
+	H5_FAILED();
+	printf("Can't insert field 'c'\n");
+	goto error;
+    } /* end if */
+    if(H5Tinsert(tid1, "d", HOFFSET(struct s1, d), H5T_NATIVE_DOUBLE)<0) {
+        H5_FAILED();
+        printf("Can't insert field 'd'\n");
+        goto error;
+    } /* end if */
+
+    /* Create a enumerate datatype */
+    if((tid2=H5Tcreate(H5T_ENUM, sizeof(short)))<0) {
+        H5_FAILED();
+        printf("Can't create enumerate type\n");
+        goto error;
+    } /* end if */
+    if(H5Tenum_insert(tid2, "RED", (enum_val=0,&enum_val))<0) {
+        H5_FAILED();
+        printf("Can't insert field into enumeration type\n");
+        goto error;
+    } /* end if */
+    if(H5Tenum_insert(tid2, "GREEN", (enum_val=1,&enum_val))<0) {
+        H5_FAILED();
+        printf("Can't insert field into enumeration type\n");
+        goto error;
+    } /* end if */
+    if(H5Tenum_insert(tid2, "BLUE", (enum_val=2,&enum_val))<0) {
+        H5_FAILED();
+        printf("Can't insert field into enumeration type\n");
+        goto error;
+    } /* end if */
+    if(H5Tenum_insert(tid2, "ORANGE", (enum_val=3,&enum_val))<0) {
+        H5_FAILED();
+        printf("Can't insert field into enumeration type\n");
+        goto error;
+    } /* end if */
+    if(H5Tenum_insert(tid2, "YELLOW", (enum_val=4,&enum_val))<0) {
+        H5_FAILED();
+        printf("Can't insert field into enumeration type\n");
+        goto error;
+    } /* end if */
+
+    /* Query member number and member index by name, for compound type. */
+    if(H5Tget_nmembers(tid1)!=4) {
+        H5_FAILED();
+        printf("Can't get member number\n");
+        goto error;
+    } /* end if */
+    if(H5Tget_member_index(tid1, "c")!=2) {
+        H5_FAILED();
+        printf("Can't get correct index number\n");
+        goto error;
+    } /* end if */
+
+    /* Query member number and member index by name, for enumeration type. */
+    if(H5Tget_nmembers(tid2)!=5) {
+        H5_FAILED();
+        printf("Can't get member number\n");
+        goto error;
+    } /* end if */
+    if(H5Tget_member_index(tid2, "ORANGE")!=3) {
+        H5_FAILED();
+        printf("Can't get correct index number\n");
+        goto error;
+    } /* end if */
+
+    /* Commit compound datatype and close it */
+    if(H5Tcommit(file, compnd_type, tid1)<0) {
+        H5_FAILED();
+        printf("Can't commit compound datatype\n");
+        goto error;
+    } /* end if */
+    if(H5Tclose(tid1)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+
+    /* Commit enumeration datatype and close it */
+    if(H5Tcommit(file, enum_type, tid2)<0) {
+        H5_FAILED();
+        printf("Can't commit compound datatype\n");
+        goto error;
+    } /* end if */
+    if(H5Tclose(tid2)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+
+    /* Open the dataytpe for query */
+    if((tid1=H5Topen(file, compnd_type))<0) {
+        H5_FAILED();
+        printf("Can't open datatype\n");
+        goto error;
+    } /* end if */
+    if((tid2=H5Topen(file, enum_type))<0) {
+        H5_FAILED();
+        printf("Can't open datatype\n");
+        goto error;
+    } /* end if */
+
+    /* Query member number and member index by name, for compound type */
+    if(H5Tget_nmembers(tid1)!=4) {
+        H5_FAILED();
+        printf("Can't get member number\n");
+        goto error;
+    } /* end if */
+    if(H5Tget_member_index(tid1, "c")!=2) {
+        H5_FAILED();
+        printf("Can't get correct index number\n");
+        goto error;
+    } /* end if */
+
+    /* Query member number and member index by name, for enumeration type */
+    if(H5Tget_nmembers(tid2)!=5) {
+        H5_FAILED();
+        printf("Can't get member number\n");
+        goto error;
+    } /* end if */
+    if(H5Tget_member_index(tid2, "ORANGE")!=3) {
+        H5_FAILED();
+        printf("Can't get correct index number\n");
+        goto error;
+    } /* end if */
+
+    /* Close data type and file */
+    if(H5Tclose(tid1)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+    if(H5Tclose(tid2)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+
+    if(H5Fclose(file)<0) {
+        H5_FAILED();
+        printf("Can't close file\n");
+        goto error;
+    } /* end if */
+
+    PASSED();
+    return 0;
+
+ error:
+    H5E_BEGIN_TRY {
+        H5Tclose (tid1);
+	H5Tclose (tid2);
+        H5Fclose (file);
+    } H5E_END_TRY;
+    return 1;
+}
+ 
+
+/*-------------------------------------------------------------------------
  * Function:	test_transient
  *
  * Purpose:	Tests transient data types.
@@ -1279,7 +1513,7 @@ test_named (hid_t fapl)
     /* It should be possible to define an attribute for the named type */
     if ((attr1=H5Acreate (type, "attr1", H5T_NATIVE_UCHAR, space,
 			  H5P_DEFAULT))<0) goto error;
-    for (i=0; i<ds_size[0]*ds_size[1]; i++) attr_data[0][i] = i;/*tricky*/
+    for (i=0; i<ds_size[0]*ds_size[1]; i++) attr_data[0][i] = (int)i;/*tricky*/
     if (H5Awrite(attr1, H5T_NATIVE_UINT, attr_data)<0) goto error;
     if (H5Aclose (attr1)<0) goto error;
 
@@ -3001,12 +3235,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		break;
 	    case INT_LLONG:
 		memcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-		printf(" %29"PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
 		break;
 	    case INT_ULLONG:
 		memcpy(aligned, saved+j*sizeof(long_long),
 		       sizeof(unsigned long_long));
-		printf(" %29"PRINTF_LL_WIDTH"u\n",
+		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n",
 		       *((unsigned long_long*)aligned));
 		break;
 	    case INT_OTHER:
@@ -3054,12 +3288,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		break;
 	    case INT_LLONG:
 		memcpy(aligned, buf+j*sizeof(long_long), sizeof(long_long));
-		printf(" %29"PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
 		break;
 	    case INT_ULLONG:
 		memcpy(aligned, buf+j*sizeof(long_long),
 		       sizeof(unsigned long_long));
-		printf(" %29"PRINTF_LL_WIDTH"u\n",
+		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n",
 		       *((unsigned long_long*)aligned));
 		break;
 	    case INT_OTHER:
@@ -3098,10 +3332,10 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		printf(" %29lu\n", *((unsigned long*)hw));
 		break;
 	    case INT_LLONG:
-		printf(" %29"PRINTF_LL_WIDTH"d\n", *((long_long*)hw));
+		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)hw));
 		break;
 	    case INT_ULLONG:
-		printf(" %29"PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)hw));
+		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)hw));
 		break;
 	    case INT_OTHER:
 		break;
@@ -3220,7 +3454,7 @@ my_isnan(flt_t type, void *val)
 	double x;
 	memcpy(&x, val, sizeof(double));
 	retval = (x!=x);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
     } else if (FLT_LDOUBLE==type) {
 	long double x;
 	memcpy(&x, val, sizeof(long double));
@@ -3243,7 +3477,7 @@ my_isnan(flt_t type, void *val)
 	    double x;
 	    memcpy(&x, val, sizeof(double));
 	    sprintf(s, "%g", x);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	} else if (FLT_LDOUBLE==type) {
 	    long double x;
 	    memcpy(&x, val, sizeof(long double));
@@ -3297,7 +3531,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
     float		hw_f;			/*hardware-converted 	*/
     double		hw_d;			/*hardware-converted	*/
     void		*aligned=NULL;		/*aligned buffer	*/
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
     long double		hw_ld;			/*hardware-converted	*/
 #endif
     unsigned char	*hw=NULL;		/*ptr to hardware-conv'd*/
@@ -3345,7 +3579,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
     } else if (H5Tequal(src, H5T_NATIVE_DOUBLE)) {
 	src_type_name = "double";
 	src_type = FLT_DOUBLE;
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
     } else if (H5Tequal(src, H5T_NATIVE_LDOUBLE)) {
 	src_type_name = "long double";
 	src_type = FLT_LDOUBLE;
@@ -3361,7 +3595,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
     } else if (H5Tequal(dst, H5T_NATIVE_DOUBLE)) {
 	dst_type_name = "double";
 	dst_type = FLT_DOUBLE;
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
     } else if (H5Tequal(dst, H5T_NATIVE_LDOUBLE)) {
 	dst_type_name = "long double";
 	dst_type = FLT_LDOUBLE;
@@ -3421,7 +3655,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 	} else {
 	    for (j=0; j<nelmts; j++) {
 		/* Do it this way for alignment reasons */
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 		long double temp[1];
 #else
 		double temp[1];
@@ -3435,7 +3669,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		    if (FLT_DOUBLE==src_type && FLT_FLOAT==dst_type) {
 			hw_d = *((float*)temp);
 			memcpy(buf+j*src_size, &hw_d, src_size);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 		    } else if (FLT_LDOUBLE==src_type && FLT_FLOAT==dst_type) {
 			hw_ld = *((float*)temp);
 			memcpy(buf+j*src_size, &hw_ld, src_size);
@@ -3456,7 +3690,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 	for (j=0; j<nelmts; j++) {
 	    hw_f = 911.0;
 	    hw_d = 911.0;
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    hw_ld = 911.0;
 #endif
 
@@ -3469,7 +3703,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		} else if (FLT_DOUBLE==dst_type) {
 		    hw_d = *((float*)aligned);
 		    hw = (unsigned char*)&hw_d;
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 		} else {
 		    hw_ld = *((float*)aligned);
 		    hw = (unsigned char*)&hw_ld;
@@ -3478,18 +3712,18 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 	    } else if (FLT_DOUBLE==src_type) {
 		memcpy(aligned, saved+j*sizeof(double), sizeof(double));
 		if (FLT_FLOAT==dst_type) {
-		    hw_f = *((double*)aligned);
+		    hw_f = (float)(*((double*)aligned));
 		    hw = (unsigned char*)&hw_f;
 		} else if (FLT_DOUBLE==dst_type) {
 		    hw_d = *((double*)aligned);
 		    hw = (unsigned char*)&hw_d;
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 		} else {
 		    hw_ld = *((double*)aligned);
 		    hw = (unsigned char*)&hw_ld;
 #endif
 		}
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    } else {
 		memcpy(aligned, saved+j*sizeof(long double),
 		       sizeof(long double)); 
@@ -3527,7 +3761,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		       my_isnan(dst_type, (double*)buf+j) &&
 		       my_isnan(dst_type, hw)) {
 		continue;
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    } else if (FLT_LDOUBLE==dst_type &&
 		       my_isnan(dst_type, (long double*)buf+j) &&
 		       my_isnan(dst_type, hw)) {
@@ -3566,7 +3800,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		    memcpy(&x, (double*)buf+j, sizeof(double));
 		    check_mant[0] = frexp(x, check_expo+0);
 		    check_mant[1] = frexp(((double*)hw)[0], check_expo+1);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 		} else {
 		    long double x;
 		    memcpy(&x, (long double*)buf+j, sizeof(long double));
@@ -3598,11 +3832,11 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		double x;
 		memcpy(&x, (double*)saved+j, sizeof(double));
 		printf(" %29.20e\n", x);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    } else {
 		long double x;
 		memcpy(&x, (long double*)saved+j, sizeof(long double));
-		printf(" %29.20Le\n", x);
+		HDfprintf(stdout," %29.20Le\n", x);
 #endif
 	    }
 
@@ -3620,11 +3854,11 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		double x;
 		memcpy(&x, (double*)buf+j, sizeof(double));
 		printf(" %29.20e\n", x);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    } else {
 		long double x;
 		memcpy(&x, (long double*)buf+j, sizeof(long double));
-		printf(" %29.20Le\n", x);
+		HDfprintf(stdout," %29.20Le\n", x);
 #endif
 	    }
 
@@ -3638,9 +3872,9 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		printf(" %29.20e\n", hw_f);
 	    } else if (FLT_DOUBLE==dst_type) {
 		printf(" %29.20e\n", hw_d);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    } else {
-		printf(" %29.20Le\n", hw_ld);
+		HDfprintf(stdout," %29.20Le\n", hw_ld);
 #endif
 	    }
 
@@ -3708,11 +3942,11 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_ULONG);
 #endif
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SCHAR, H5T_NATIVE_ULLONG);
 #endif
@@ -3722,11 +3956,11 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_ULONG);
 #endif
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UCHAR, H5T_NATIVE_ULLONG);
 #endif
@@ -3736,11 +3970,11 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_ULONG);
 #endif
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_SHORT, H5T_NATIVE_ULLONG);
 #endif
@@ -3750,11 +3984,11 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_SHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_ULONG);
 #endif
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_USHORT, H5T_NATIVE_ULLONG);
 #endif
@@ -3764,11 +3998,11 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_SHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_ULONG);
 #endif
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_INT, H5T_NATIVE_ULLONG);
 #endif
@@ -3778,16 +4012,16 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_SHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_INT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_ULONG);
 #endif
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_UINT, H5T_NATIVE_ULLONG);
 #endif
 
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_SCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_UCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_SHORT);
@@ -3795,13 +4029,13 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_UINT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_ULONG);
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LONG, H5T_NATIVE_ULLONG);
 #endif
 #endif
 
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_SCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_UCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_SHORT);
@@ -3809,34 +4043,34 @@ run_integer_tests(const char *name)
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_UINT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_LONG);
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_LLONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULONG, H5T_NATIVE_ULLONG);
 #endif
 #endif
 
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_SCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_UCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_SHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_ULONG);
 #endif
     nerrors += test_conv_int_1(name, H5T_NATIVE_LLONG, H5T_NATIVE_ULLONG);
 #endif
 
-#if SIZEOF_LONG_LONG!=SIZEOF_LONG
+#if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_SCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_UCHAR);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_SHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_USHORT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_INT);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_UINT);
-#if SIZEOF_LONG!=SIZEOF_INT
+#if H5_SIZEOF_LONG!=H5_SIZEOF_INT
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_LONG);
     nerrors += test_conv_int_1(name, H5T_NATIVE_ULLONG, H5T_NATIVE_ULONG);
 #endif
@@ -3881,6 +4115,7 @@ main(void)
     nerrors += test_classes();
     nerrors += test_copy();
     nerrors += test_compound_1();
+    nerrors += test_query();
     nerrors += test_transient (fapl);
     nerrors += test_named (fapl);
     h5_cleanup(FILENAME, fapl); /*must happen before first reset*/
@@ -3927,7 +4162,7 @@ main(void)
     /* Test software floating-point conversion functions */
     nerrors += test_conv_flt_1("sw", H5T_NATIVE_FLOAT, H5T_NATIVE_DOUBLE);
     nerrors += test_conv_flt_1("sw", H5T_NATIVE_DOUBLE, H5T_NATIVE_FLOAT);
-#if SIZEOF_LONG_DOUBLE!=SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
     nerrors += test_conv_flt_1("sw", H5T_NATIVE_FLOAT, H5T_NATIVE_LDOUBLE);
     nerrors += test_conv_flt_1("sw", H5T_NATIVE_DOUBLE, H5T_NATIVE_LDOUBLE);
     nerrors += test_conv_flt_1("sw", H5T_NATIVE_LDOUBLE, H5T_NATIVE_FLOAT);

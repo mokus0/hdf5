@@ -1,4 +1,18 @@
-/* $Id: t_dset.c,v 1.18.2.2 2001/11/01 13:53:00 acheng Exp $ */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* $Id: t_dset.c,v 1.18.2.6 2002/06/19 18:27:24 koziol Exp $ */
 
 /*
  * Parallel tests for datasets
@@ -28,7 +42,7 @@
  * ZROW		same as BYROW except process 0 gets 0 rows
  * ZCOL		same as BYCOL except process 0 gets 0 columns
  */
-void
+static void
 slab_set(int mpi_rank, int mpi_size, hssize_t start[], hsize_t count[],
 	 hsize_t stride[], hsize_t block[], int mode)
 {
@@ -97,9 +111,9 @@ if (verbose) printf("slab_set wholeset\n");
     }
 if (verbose){
     printf("start[]=(%ld,%ld), count[]=(%lu,%lu), stride[]=(%lu,%lu), block[]=(%lu,%lu), total datapoints=%lu\n",
-	start[0], start[1], count[0], count[1],
-	stride[0], stride[1], block[0], block[1],
-	block[0]*block[1]*count[0]*count[1]);
+	(long)start[0], (long)start[1], (unsigned long)count[0], (unsigned long)count[1],
+	(unsigned long)stride[0], (unsigned long)stride[1], (unsigned long)block[0], (unsigned long)block[1],
+	(unsigned long)(block[0]*block[1]*count[0]*count[1]));
     }
 }
 
@@ -108,16 +122,16 @@ if (verbose){
  * Fill the dataset with trivial data for testing.
  * Assume dimension rank is 2 and data is stored contiguous.
  */
-void
-dataset_fill(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[], DATATYPE * dataset)
+static void
+dataset_fill(hssize_t start[], hsize_t block[], DATATYPE * dataset)
 {
     DATATYPE *dataptr = dataset;
-    int i, j;
+    hsize_t i, j;
 
     /* put some trivial data in the data_array */
     for (i=0; i < block[0]; i++){
 	for (j=0; j < block[1]; j++){
-	    *dataptr = (i+start[0])*100 + (j+start[1]+1);
+	    *dataptr = (DATATYPE)((i+start[0])*100 + (j+start[1]+1));
 	    dataptr++;
 	}
     }
@@ -127,21 +141,22 @@ dataset_fill(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[
 /*
  * Print the content of the dataset.
  */
-void dataset_print(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[], DATATYPE * dataset)
+static void
+dataset_print(hssize_t start[], hsize_t block[], DATATYPE * dataset)
 {
     DATATYPE *dataptr = dataset;
-    int i, j;
+    hsize_t i, j;
 
     /* print the column heading */
     printf("%-8s", "Cols:");
     for (j=0; j < block[1]; j++){
-	printf("%3ld ", start[1]+j);
+	printf("%3ld ", (long)(start[1]+j));
     }
     printf("\n");
 
     /* print the slab data */
     for (i=0; i < block[0]; i++){
-	printf("Row %2ld: ", i+start[0]);
+	printf("Row %2ld: ", (long)(i+start[0]));
 	for (j=0; j < block[1]; j++){
 	    printf("%03d ", *dataptr++);
 	}
@@ -155,21 +170,19 @@ void dataset_print(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t 
  */
 int dataset_vrfy(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[], DATATYPE *dataset, DATATYPE *original)
 {
-    DATATYPE *dataptr = dataset;
-    DATATYPE *originptr = original;
-
-    int i, j, vrfyerrs;
+    hsize_t i, j;
+    int vrfyerrs;
 
     /* print it if verbose */
     if (verbose) {
 	printf("dataset_vrfy dumping:::\n");
 	printf("start(%ld, %ld), count(%lu, %lu), stride(%lu, %lu), block(%lu, %lu)\n",
-	    start[0], start[1], count[0], count[1],
-	    stride[0], stride[1], block[0], block[1]);
+	    (long)start[0], (long)start[1], (unsigned long)count[0], (unsigned long)count[1],
+	    (unsigned long)stride[0], (unsigned long)stride[1], (unsigned long)block[0], (unsigned long)block[1]);
 	printf("original values:\n");
-	dataset_print(start, count, stride, block, original);
+	dataset_print(start, block, original);
 	printf("compared values:\n");
-	dataset_print(start, count, stride, block, dataset);
+	dataset_print(start, block, dataset);
     }
 
     vrfyerrs = 0;
@@ -177,9 +190,9 @@ int dataset_vrfy(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t bl
 	for (j=0; j < block[1]; j++){
 	    if (*dataset != *original){
 		if (vrfyerrs++ < MAX_ERR_REPORT || verbose){
-		    printf("Dataset Verify failed at [%d][%d](row %d, col %d): expect %d, got %d\n",
-			i, j,
-			(int)(i+start[0]), (int)(j+start[1]),
+		    printf("Dataset Verify failed at [%ld][%ld](row %ld, col %ld): expect %d, got %d\n",
+			(long)i, (long)j,
+			(long)(i+start[0]), (long)(j+start[1]),
 			*(original), *(dataset));
 		}
 		dataset++;
@@ -224,9 +237,7 @@ dataset_writeInd(char *filename)
     hsize_t block[RANK];			/* for hyperslab setting */
 
     herr_t ret;         	/* Generic return value */
-    int   i, j;
     int mpi_size, mpi_rank;
-    char *fname;
     
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
@@ -290,7 +301,7 @@ dataset_writeInd(char *filename)
     slab_set(mpi_rank, mpi_size, start, count, stride, block, BYROW);
 
     /* put some trivial data in the data_array */
-    dataset_fill(start, count, stride, block, data_array1);
+    dataset_fill(start, block, data_array1);
     MESG("data_array initialized");
 
     /* create a file dataspace independently */
@@ -329,7 +340,9 @@ if ((mpi_rank/2)*2 != mpi_rank){
 	    H5P_DEFAULT, data_array1);					    
     VRFY((ret >= 0), "H5Dwrite dataset1 by ZROW succeeded");
 }
+#ifdef BARRIER_CHECKS
 MPI_Barrier(MPI_COMM_WORLD);
+#endif /* BARRIER_CHECKS */
 
     /* release dataspace ID */
     H5Sclose(file_dataspace);
@@ -356,7 +369,6 @@ dataset_readInd(char *filename)
 {
     hid_t fid;                  /* HDF5 file ID */
     hid_t acc_tpl;		/* File access templates */
-    hid_t sid;   		/* Dataspace ID */
     hid_t file_dataspace;	/* File dataspace ID */
     hid_t mem_dataspace;	/* memory dataspace ID */
     hid_t dataset1, dataset2;	/* Dataset ID */
@@ -368,7 +380,6 @@ dataset_readInd(char *filename)
     hsize_t block[RANK];			/* for hyperslab setting */
 
     herr_t ret;         	/* Generic return value */
-    int   i, j;
     int mpi_size, mpi_rank;
 
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -422,7 +433,7 @@ dataset_readInd(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill dataset with test data */
-    dataset_fill(start, count, stride, block, data_origin1);
+    dataset_fill(start, block, data_origin1);
 
     /* read data independently */
     ret = H5Dread(dataset1, H5T_NATIVE_INT, mem_dataspace, file_dataspace,
@@ -565,11 +576,11 @@ dataset_writeAll(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill the local slab with some trivial data */
-    dataset_fill(start, count, stride, block, data_array1);
+    dataset_fill(start, block, data_array1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* set up the collective transfer properties list */
@@ -611,11 +622,11 @@ dataset_writeAll(char *filename)
     slab_set(mpi_rank, mpi_size, start, count, stride, block, BYCOL);
 
     /* put some trivial data in the data_array */
-    dataset_fill(start, count, stride, block, data_array1);
+    dataset_fill(start, block, data_array1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* create a file dataspace independently */
@@ -629,11 +640,11 @@ dataset_writeAll(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill the local slab with some trivial data */
-    dataset_fill(start, count, stride, block, data_array1);
+    dataset_fill(start, block, data_array1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* set up the collective transfer properties list */
@@ -702,7 +713,6 @@ dataset_readAll(char *filename)
     hid_t fid;                  /* HDF5 file ID */
     hid_t acc_tpl;		/* File access templates */
     hid_t xfer_plist;		/* Dataset transfer properties list */
-    hid_t sid;   		/* Dataspace ID */
     hid_t file_dataspace;	/* File dataspace ID */
     hid_t mem_dataspace;	/* memory dataspace ID */
     hid_t dataset1, dataset2;	/* Dataset ID */
@@ -777,11 +787,11 @@ dataset_readAll(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill dataset with test data */
-    dataset_fill(start, count, stride, block, data_origin1);
+    dataset_fill(start, block, data_origin1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_origin1);
+	dataset_print(start, block, data_origin1);
     }
 
     /* set up the collective transfer properties list */
@@ -840,11 +850,11 @@ dataset_readAll(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill dataset with test data */
-    dataset_fill(start, count, stride, block, data_origin1);
+    dataset_fill(start, block, data_origin1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_origin1);
+	dataset_print(start, block, data_origin1);
     }
 
     /* set up the collective transfer properties list */
@@ -939,9 +949,7 @@ extend_writeInd(char *filename)
     hsize_t 	block[RANK];			/* for hyperslab setting */
 
     herr_t ret;         	/* Generic return value */
-    int   i, j;
     int mpi_size, mpi_rank;
-    char *fname;
     
     MPI_Comm comm = MPI_COMM_WORLD;
     MPI_Info info = MPI_INFO_NULL;
@@ -983,7 +991,7 @@ extend_writeInd(char *filename)
 
     /* set up dataset storage chunk sizes and creation property list */
     if (verbose)
-	printf("chunks[]=%lu,%lu\n", chunk_dims[0], chunk_dims[1]);
+	printf("chunks[]=%lu,%lu\n", (unsigned long)chunk_dims[0], (unsigned long)chunk_dims[1]);
     dataset_pl = H5Pcreate(H5P_DATASET_CREATE);
     VRFY((dataset_pl >= 0), "H5Pcreate succeeded");
     ret = H5Pset_chunk(dataset_pl, RANK, chunk_dims);
@@ -1016,11 +1024,11 @@ extend_writeInd(char *filename)
     slab_set(mpi_rank, mpi_size, start, count, stride, block, BYROW);
 
     /* put some trivial data in the data_array */
-    dataset_fill(start, count, stride, block, data_array1);
+    dataset_fill(start, block, data_array1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* create a memory dataspace independently */
@@ -1056,11 +1064,11 @@ extend_writeInd(char *filename)
     slab_set(mpi_rank, mpi_size, start, count, stride, block, BYCOL);
 
     /* put some trivial data in the data_array */
-    dataset_fill(start, count, stride, block, data_array1);
+    dataset_fill(start, block, data_array1);
     MESG("data_array initialized");
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* create a memory dataspace independently */
@@ -1130,7 +1138,6 @@ extend_readInd(char *filename)
 {
     hid_t fid;			/* HDF5 file ID */
     hid_t acc_tpl;		/* File access templates */
-    hid_t sid;   		/* Dataspace ID */
     hid_t file_dataspace;	/* File dataspace ID */
     hid_t mem_dataspace;	/* memory dataspace ID */
     hid_t dataset1, dataset2;	/* Dataset ID */
@@ -1144,7 +1151,6 @@ extend_readInd(char *filename)
     hsize_t block[RANK];			/* for hyperslab setting */
 
     herr_t ret;         	/* Generic return value */
-    int   i, j;
     int mpi_size, mpi_rank;
 
     MPI_Comm comm = MPI_COMM_WORLD;
@@ -1221,10 +1227,10 @@ extend_readInd(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill dataset with test data */
-    dataset_fill(start, count, stride, block, data_origin1);
+    dataset_fill(start, block, data_origin1);
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* read data independently */
@@ -1256,10 +1262,10 @@ extend_readInd(char *filename)
     VRFY((mem_dataspace >= 0), "");
 
     /* fill dataset with test data */
-    dataset_fill(start, count, stride, block, data_origin1);
+    dataset_fill(start, block, data_origin1);
     if (verbose){
 	MESG("data_array created");
-	dataset_print(start, count, stride, block, data_array1);
+	dataset_print(start, block, data_array1);
     }
 
     /* read data independently */

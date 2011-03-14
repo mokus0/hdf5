@@ -1,11 +1,24 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 1999 NCSA
- *		      All rights reserved.
+ * Programmer:	Robb Matzke <matzke@llnl.gov>
+ *	      	Wednesday, October 22, 1997
  *
- * Programmer: Robb Matzke <matzke@llnl.gov>
- *	       Wednesday, October 22, 1997
- *
- * Purpose:    This is the Posix stdio.h I/O subclass of H5Flow.
+ * Purpose:   	This is the Posix stdio.h I/O subclass of H5Flow.
+ *		It also serves as an example of coding a simple file driver,
+ *		therefore, it should not use any non-public definitions.
  *
  * Notes:  Ported to the new H5FD architecture on 10/18/99 - QAK
  *
@@ -14,12 +27,14 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include "hdf5.h"
+
+#ifdef H5_HAVE_STDIO_H
+#include <stdio.h>
+#endif
 #ifdef H5_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-
-
-#include "hdf5.h"
 
 #ifdef WIN32
 #include <windows.h>
@@ -458,6 +473,7 @@ H5FD_stdio_query(const H5FD_t *_f, unsigned long *flags /* out */)
         *flags|=H5FD_FEAT_AGGREGATE_METADATA; /* OK to aggregate metadata allocations */
         *flags|=H5FD_FEAT_ACCUMULATE_METADATA; /* OK to accumulate metadata for faster writes */
         *flags|=H5FD_FEAT_DATA_SIEVE;       /* OK to perform data sieving for faster raw data reads & writes */
+        *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
     return(0);
@@ -644,7 +660,7 @@ H5FD_stdio_read(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsi
      * Read zeros past the logical end of file (physical is handled below)
      */
     if ((size_t) addr + size > file->eof) {
-        size_t nbytes = (size_t) addr + size - file->eof;
+         size_t nbytes = (size_t) addr + size - file->eof; 
         memset((unsigned char *)buf + size - nbytes, 0, nbytes);
         size -= nbytes;
     }
@@ -829,3 +845,13 @@ H5FD_stdio_flush(H5FD_t *_file)
 
     return(0);
 }
+
+
+#ifdef _H5private_H
+/*
+ * This is not related to the functionality of the driver code.
+ * It is added here to trigger warning if HDF5 private definitions are included
+ * by mistake.  The code should use only HDF5 public API and definitions.
+ */
+#error "Do not use HDF5 private definitions"
+#endif

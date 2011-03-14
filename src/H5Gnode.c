@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*-------------------------------------------------------------------------
- * Copyright (C) 1997	National Center for Supercomputing Applications.
- *			All rights reserved.
- *
- *-------------------------------------------------------------------------
  *
  * Created:		snode.c
  *			Jun 26 1997
@@ -33,8 +43,6 @@
 #include "H5MMprivate.h"	/*core memory management		*/
 #include "H5Oprivate.h"		/*header messages			*/
 #include "H5Pprivate.h"		/*property lists			*/
-
-#include "H5FDmpio.h"		/*the MPIO file driver			*/
 
 #define PABLO_MASK	H5G_node_mask
 
@@ -337,7 +345,13 @@ H5G_node_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5G_node_t *sym)
      * Look for dirty entries and set the node dirty flag.
      */
     for (i=0; i<sym->nsyms; i++) {
-	if (sym->entry[i].dirty) sym->dirty = TRUE;
+	if (sym->entry[i].dirty) {
+            /* Set the node's dirty flag */
+            sym->dirty = TRUE;
+
+            /* Reset the entry's dirty flag */
+            sym->entry[i].dirty=FALSE;
+        } /* end if */
     }
 
     /*
@@ -369,17 +383,17 @@ H5G_node_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5G_node_t *sym)
         H5G_ent_encode_vec(f, &p, sym->entry, sym->nsyms);
         HDmemset(p, 0, size - (p - buf));
 
-#ifdef H5_HAVE_PARALLEL
-        if (IS_H5FD_MPIO(f))
-            H5FD_mpio_tas_allsame(f->shared->lf, TRUE); /*only p0 will write*/
-#endif /* H5_HAVE_PARALLEL */
         status = H5F_block_write(f, H5FD_MEM_BTREE, addr, (hsize_t)size, H5P_DEFAULT, buf);
         if (status < 0)
             HRETURN_ERROR(H5E_SYM, H5E_WRITEERROR, FAIL,
                   "unable to write symbol table node to the file");
         if (buf)
             H5FL_BLK_FREE(symbol_node,buf);
+
+        /* Reset the node's dirty flag */
+        sym->dirty = FALSE;
     }
+
     /*
      * Destroy the symbol node?	 This might happen if the node is being
      * preempted from the cache.

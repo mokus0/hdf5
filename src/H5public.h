@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Software Development Group                                               *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING file.                                                        *
- *                                                                          *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5public.h,v 1.262.2.41 2002/02/12 22:54:41 epourmal Exp $ */
+/* $Id: H5public.h,v 1.262.2.58 2002/06/27 18:42:48 hdfadmin Exp $ */
 
 
 /*
@@ -36,6 +38,9 @@
 #ifdef H5_HAVE_STDINT_H
 #   include <stdint.h>		/*for C9x types				     */
 #endif
+#ifdef H5_HAVE_INTTYPES_H
+#   include <inttypes.h>	/* For uint64_t on some platforms 	     */
+#endif
 #ifdef H5_HAVE_STDDEF_H
 #   include <stddef.h>
 #endif
@@ -54,16 +59,15 @@
 #ifdef H5_HAVE_SRB              /*for SRB I/O                                */
 #include <srbClient.h>
 #endif
-
 #include "H5api_adpt.h"
 
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	3	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	4	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.4.3"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.4.4"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -130,13 +134,16 @@ typedef __int64 ssize_t;
 #   if H5_SIZEOF_LONG_LONG>=8
 typedef unsigned long long 	hsize_t;
 typedef signed long long	hssize_t;
+#       define H5_SIZEOF_HSIZE_T H5_SIZEOF_LONG_LONG
 #   elif H5_SIZEOF___INT64>=8
 typedef unsigned __int64	hsize_t;
 typedef signed __int64		hssize_t;
+#       define H5_SIZEOF_HSIZE_T H5_SIZEOF___INT64
 #   endif
 #else
 typedef size_t			hsize_t;
 typedef ssize_t			hssize_t;
+#       define H5_SIZEOF_HSIZE_T H5_SIZEOF_SIZE_T
 #endif
 
 /*

@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 1999 NCSA
- *                  All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Tuesday, August 10, 1999
  *
@@ -365,7 +376,7 @@ H5FD_core_flush(H5FD_t *_file)
         while (size) {
             ssize_t n;
 
-            assert(size==(hsize_t)((size_t)size)); /*check for overflow*/
+	    H5_CHECK_OVERFLOW(size,hsize_t,size_t);/*check for overflow*/
             n = HDwrite(file->fd, ptr, (size_t)size);
             if (n<0 && EINTR==errno) continue;
             if (n<0)
@@ -577,7 +588,7 @@ H5FD_core_get_eof(H5FD_t *_file)
  */
 static herr_t
 H5FD_core_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, haddr_t addr,
-	       hsize_t size, void *buf/*out*/)
+	       hsize_t size, void *buf)
 {
     H5FD_core_t	*file = (H5FD_core_t*)_file;
     
@@ -596,10 +607,19 @@ H5FD_core_read(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, hadd
 
     /* Read the part which is before the EOF marker */
     if (addr < file->eof) {
-		hsize_t nbytes = MIN(size, file->eof-addr);
+      size_t nbytes;
+#ifndef NDEBUG
+      hsize_t temp_nbytes;
+      
+      temp_nbytes = file->eof-addr;
+       H5_CHECK_OVERFLOW(temp_nbytes,hsize_t,size_t);
+        nbytes = MIN(size,(size_t)temp_nbytes);
+#else /* NDEBUG */
+        nbytes = MIN(size,(size_t)(file->eof-addr));
+#endif /* NDEBUG */
 
-        assert(nbytes==(hsize_t)((size_t)nbytes)); /*check for overflow*/
-        HDmemcpy(buf, file->mem + addr, (size_t)nbytes);
+		
+        HDmemcpy(buf, file->mem + addr, nbytes);
         size -= nbytes;
         addr += nbytes;
         buf = (char *)buf + nbytes;
@@ -658,8 +678,10 @@ H5FD_core_write(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, had
      */
     if (addr+size>file->eof) {
         unsigned char *x;
-        size_t new_eof = file->increment * ((addr+size)/file->increment);
+        size_t new_eof;
 
+        H5_ASSIGN_OVERFLOW(new_eof,file->increment*((addr+size)/file->increment),hsize_t,size_t);
+ 
         if ((addr+size) % file->increment) new_eof += file->increment;
         if (NULL==file->mem) x = H5MM_malloc(new_eof);
         else x = H5MM_realloc(file->mem, new_eof);

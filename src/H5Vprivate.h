@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *                    All rights reserved.
- *
  * Programmer: Robb Matzke <matzke@llnl.gov>
  *             Friday, October 10, 1997
  */
@@ -98,7 +109,7 @@ __DLL__ hsize_t H5V_array_offset(unsigned n, const hsize_t *total_size,
 static H5_inline hsize_t UNUSED
 H5V_vector_reduce_product(unsigned n, const hsize_t *v)
 {
-    size_t                  ans = 1;
+    hsize_t                  ans = 1;
 
     if (n && !v) return 0;
     while (n--) ans *= *v++;

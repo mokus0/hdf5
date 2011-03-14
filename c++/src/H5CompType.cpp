@@ -1,3 +1,17 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 #include <string>
 
 #include "H5Include.h"
@@ -68,11 +82,53 @@ string CompType::getMemberName( int member_num ) const
     return( member_name ); // return the member name string
 }
 
-// Retrieves the offset of a member of a compound datatype. 
+/*-------------------------------------------------------------------------
+ * Function:    getMemberIndex
+ *
+ * Purpose:     Returns the index of a member in a compound data type.  
+ *              Members are stored in no particular order with numbers 0 
+ *              through N-1, where N is the value returned by the member 
+ *              function getNmembers.
+ *
+ * Return:      Success:	index of the member if exists.
+ *              Failure:	DataTypeIException
+ *
+ * BMR - June 10, 2002
+ *-------------------------------------------------------------------------
+ */
+int CompType::getMemberIndex(const char* name) const
+{
+   int member_index = H5Tget_member_index(id, name);
+   if( member_index < 0 )
+   {
+      throw DataTypeIException("CompType::getMemberIndex", 
+		"H5Tget_member_index returns negative value");
+   }
+   return( member_index );
+}
+int CompType::getMemberIndex(const string& name) const
+{
+   return(getMemberIndex(name.c_str()));
+}
+
+/*-------------------------------------------------------------------------
+ * Function:    getMemberOffset
+ *
+ * Purpose:     Returns the byte offset of the beginning of a member with
+ *              respect to the beginning of the compound data type datum.
+ *              Members are stored in no particular order with numbers 0 
+ *              through N-1, where N is the value returned by the member 
+ *              function getNmembers.
+ *
+ * Return:      Success:        Byte offset.
+ *              Failure:        Quincey: for now, 0 is not a failure
+ *
+ * BMR - 2000
+ *-------------------------------------------------------------------------
+ */
 size_t CompType::getMemberOffset( int member_num ) const
 {
    size_t offset = H5Tget_member_offset( id, member_num );
-   // Q. said: for now, 0 is not a failure
    //if( offset == 0 )
    //{
       //throw DataTypeIException("CompType::getMemberOffset",

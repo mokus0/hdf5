@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*-------------------------------------------------------------------------
- * Copyright (C) 2000	National Center for Supercomputing Applications.
- *			All rights reserved.
- *
- *-------------------------------------------------------------------------
  *
  * Created:		H5FLprivate.h
  *			Mar 23 2000
@@ -47,7 +57,7 @@ typedef struct H5FL_reg_head_t {
     unsigned onlist;       /* Number of blocks on free list */
     size_t list_mem;    /* Amount of memory on free list */
     const char *name;   /* Name of the type */
-    hsize_t size;       /* Size of the blocks in the list */
+    size_t size;       /* Size of the blocks in the list */
     H5FL_reg_node_t *list;  /* List of free blocks */
 } H5FL_reg_head_t;
 
@@ -75,7 +85,7 @@ typedef struct H5FL_reg_head_t {
 
 /* Data structure to store each block in free list */
 typedef struct H5FL_blk_list_t {
-    hsize_t size;               /* Size of the page */
+    size_t size;               /* Size of the page */
     struct H5FL_blk_list_t *next;   /* Pointer to next block in free list */
     union {
         double unused1;         /* Unused normally, just here for aligment */
@@ -85,7 +95,7 @@ typedef struct H5FL_blk_list_t {
 
 /* Data structure for priority queue node of block free lists */
 typedef struct H5FL_blk_node_t {
-    hsize_t size;            /* Size of the blocks in the list */
+    size_t size;            /* Size of the blocks in the list */
     H5FL_blk_list_t *list;      /* List of free blocks */
     struct H5FL_blk_node_t *next;    /* Pointer to next free list in queue */
     struct H5FL_blk_node_t *prev;    /* Pointer to previous free list in queue */
@@ -96,7 +106,7 @@ typedef struct H5FL_blk_head_t {
     unsigned init;         /* Whether the free list has been initialized */
     unsigned allocated;    /* Number of blocks allocated */
     unsigned onlist;       /* Number of blocks on free list */
-    hsize_t list_mem;   /* Amount of memory in block on free list */
+    size_t list_mem;   /* Amount of memory in block on free list */
     const char *name;   /* Name of the type */
     H5FL_blk_node_t *head;  /* Pointer to first free list in queue */
 } H5FL_blk_head_t;
@@ -151,7 +161,7 @@ typedef struct H5FL_arr_head_t {
  * Macros for defining & using free lists for an array of a type
  */
 /* Declare a free list to manage arrays of type 't' */
-#define H5FL_ARR_DEFINE(t,m)  H5FL_arr_head_t t##_arr_free_list={0,0,NULL,0,#t##"_arr",m+1,sizeof(t),{NULL}}
+#define H5FL_ARR_DEFINE(t,m)  H5FL_arr_head_t t##_arr_free_list={0,0,NULL,0,#t"_arr",m+1,sizeof(t),{NULL}}
 
 /* Reference a free list for arrays of type 't' defined in another file */
 #define H5FL_ARR_EXTERN(t)  extern H5FL_arr_head_t t##_arr_free_list

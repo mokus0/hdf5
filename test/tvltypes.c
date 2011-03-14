@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tvltypes.c,v 1.13.2.4 2001/08/15 14:53:13 koziol Exp $ */
+/* $Id: tvltypes.c,v 1.13.2.6 2002/06/10 19:48:52 wendling Exp $ */
 
 /***********************************************************
 *
@@ -254,7 +256,7 @@ test_vltypes_vlen_compound(void)
         wdata[i].len=i+1;
         for(j=0; j<(i+1); j++) {
             ((s1 *)wdata[i].p)[j].i=i*10+j;
-            ((s1 *)wdata[i].p)[j].f=(i*20+j)/3.0;
+            ((s1 *)wdata[i].p)[j].f=(float)((i*20+j)/3.0);
           } /* end for */
     } /* end for */
 
@@ -401,7 +403,7 @@ test_vltypes_compound_vlen_atomic(void)
     /* Allocate and initialize VL data to write */
     for(i=0; i<SPACE1_DIM1; i++) {
         wdata[i].i=i*10;
-        wdata[i].f=(i*20)/3.0;
+        wdata[i].f=(float)((i*20)/3.0);
         wdata[i].v.p=malloc((i+1)*sizeof(unsigned int));
         wdata[i].v.len=i+1;
         for(j=0; j<(i+1); j++)

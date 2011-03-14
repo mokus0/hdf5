@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 1999-2001 NCSA
- *                       All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Monday, July 26, 1999
  */
@@ -89,8 +100,16 @@ typedef enum H5FD_mem_t {
      * the library will attempt to cache metadata as it is written to the file
      * and build up a larger block of metadata to eventually pass to the VFL
      * 'write' routine.
+     * 
+     * Distinguish between updating the metadata accumulator on writes and
+     * reads.  This is particularly (perhaps only, even) important for MPI-I/O
+     * where we guarantee that writes are collective, but reads may not be.
+     * If we were to allow the metadata accumulator to be written during a
+     * read operation, the application would hang.
      */
-#define H5FD_FEAT_ACCUMULATE_METADATA   0x00000002
+#define H5FD_FEAT_ACCUMULATE_METADATA_WRITE     0x00000002
+#define H5FD_FEAT_ACCUMULATE_METADATA_READ      0x00000004
+#define H5FD_FEAT_ACCUMULATE_METADATA   (H5FD_FEAT_ACCUMULATE_METADATA_WRITE|H5FD_FEAT_ACCUMULATE_METADATA_READ)
     /*
      * Defining the H5FD_FEAT_DATA_SIEVE for a VFL driver means that
      * the library will attempt to cache raw data as it is read from/written to
@@ -98,7 +117,13 @@ typedef enum H5FD_mem_t {
      *  http://www.mcs.anl.gov/~thakur/papers/romio-coll.ps.gz
      *  http://www.mcs.anl.gov/~thakur/papers/mpio-high-perf.ps.gz
      */
-#define H5FD_FEAT_DATA_SIEVE            0x00000004
+#define H5FD_FEAT_DATA_SIEVE            0x00000008
+    /*
+     * Defining the H5FD_FEAT_AGGREGATE_SMALLDATA for a VFL driver means that
+     * the library will attempt to allocate a larger block for "small" raw data
+     * and then sub-allocate "small" raw data requests from that larger block.
+     */
+#define H5FD_FEAT_AGGREGATE_SMALLDATA   0x00000010
 	
 
 /* Forward declaration */
@@ -151,6 +176,7 @@ typedef struct H5FD_free_t {
 struct H5FD_t {
     hid_t		driver_id;	/*driver ID for this file	*/
     const H5FD_class_t	*cls;		/*constant class info		*/
+    unsigned long       fileno[2];      /* File serial number */
 
     unsigned long feature_flags;  /* VFL Driver feature Flags */
     hsize_t     threshold;      /* Threshold for alignment              */
@@ -160,6 +186,11 @@ struct H5FD_t {
     hsize_t def_meta_block_size;  /* Metadata allocation block size (if aggregating metadata) */
     hsize_t cur_meta_block_size;  /* Current size of metadata allocation region left */
     haddr_t eoma;       /* End of metadata allocated region */
+
+    /* "Small data" aggregation fields */
+    hsize_t def_sdata_block_size;   /* "Small data" allocation block size (if aggregating "small data") */
+    hsize_t cur_sdata_block_size;   /* Current size of "small data" allocation region left */
+    haddr_t eosda;          /* End of "small data" allocated region */
 
     /* Metadata accumulator fields */
     unsigned char *meta_accum;  /* Buffer to hold the accumulated metadata */

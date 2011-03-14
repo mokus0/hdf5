@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *                    All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Wednesday, October  8, 1997
  *
@@ -39,7 +50,11 @@ const H5O_class_t H5O_LAYOUT[1] = {{
     H5O_layout_debug,       	/*debug the message             */
 }};
 
+/* A temporary solution for compatibility with v1.5.  Added version 2 for 
+ * layout.  If data space has been allocated by v1.5, version is 2; 
+ * otherwise it's 1. */
 #define H5O_LAYOUT_VERSION	1
+#define H5O_LAYOUT_VERSION_2	2
 
 /* Interface initialization */
 #define PABLO_MASK      H5O_layout_mask
@@ -89,9 +104,12 @@ H5O_layout_decode(H5F_t *f, const uint8_t *p, H5O_shared_t UNUSED *sh)
 		       "memory allocation failed");
     }
 
-    /* Version */
+    /* Version.  Here is a temporary solution for compatibility with v1.5.
+     * Added version 2 for layout.  If data space hasn't been allocated by 
+     * v1.5, version is 2; otherwise it's 1. 
+     */
     version = *p++;
-    if (version!=H5O_LAYOUT_VERSION) {
+    if (version!=H5O_LAYOUT_VERSION && version!=H5O_LAYOUT_VERSION_2) {
         HRETURN_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL,
 		      "bad version number for layout message");
     }

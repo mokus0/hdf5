@@ -1,3 +1,17 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 #include <string>
 
 #include "H5Include.h"
@@ -22,6 +36,9 @@
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
+
+// Default constructor
+H5File::H5File() : IdComponent() {}
 
 // Creates or opens an HDF5 file depending on the parameter flags.
 H5File::H5File( const string& name, unsigned int flags, const FileCreatPropList& create_plist, const FileAccPropList& access_plist ) : IdComponent()
@@ -155,7 +172,7 @@ void H5File::p_close() const
    herr_t ret_value = H5Fclose( id );
    if( ret_value < 0 )
    {
-      throw FileIException(NULL, "H5Fclose failed");
+      throw FileIException(0, "H5Fclose failed");
    }
 }
 

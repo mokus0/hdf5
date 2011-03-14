@@ -1,12 +1,22 @@
-/* $Id: testphdf5.h,v 1.15.2.5 2002/02/15 15:44:32 acheng Exp $ */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* $Id: testphdf5.h,v 1.15.2.8 2002/06/19 16:08:25 koziol Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
 
-#include <assert.h>
-#include <stdlib.h>
-
-#include "hdf5.h"
 #include "h5test.h"
 
 /* Define some handy debugging shorthands, routines, ... */
@@ -102,7 +112,17 @@ extern void *old_client_data;			/*previous error handler arg.*/
 extern int facc_type;				/*Test file access type */
 
 /* prototypes */
-hid_t
-create_faccess_plist(MPI_Comm comm, MPI_Info info, int facc_type );
+hid_t create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type );
+void multiple_dset_write(char *filename, int ndatasets);
+void multiple_group_write(char *filename, int ngroups);
+void multiple_group_read(char *filename, int ngroups);
+void test_split_comm_access(char *filename);
+void dataset_writeInd(char *filename);
+void dataset_writeAll(char *filename);
+void extend_writeInd(char *filename);
+void dataset_readInd(char *filename);
+void dataset_readAll(char *filename);
+void extend_readInd(char *filename);
+int dataset_vrfy(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[], DATATYPE *dataset, DATATYPE *original);
 
 #endif /* PHDF5TEST_H */

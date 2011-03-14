@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tgenprop.c,v 1.7.2.2 2001/05/15 21:26:44 wendling Exp $ */
+/* $Id: tgenprop.c,v 1.7.2.4 2002/06/10 19:48:47 wendling Exp $ */
 
 /***********************************************************
 *
@@ -40,7 +42,7 @@ int         prop1_def=10;   /* Property 1 default value */
 #define PROP1_DEF_VALUE (&prop1_def)
 
 #define PROP2_NAME     "Property 2"
-float         prop2_def=3.14;   /* Property 2 default value */
+float         prop2_def=(float)3.14;   /* Property 2 default value */
 #define PROP2_SIZE      sizeof(prop2_def)
 #define PROP2_DEF_VALUE (&prop2_def)
 

@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998-2002 NCSA
- * For conditions of distribution and use, see the accompanying
- * COPYING file.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Monday, March 23, 1998
  */
@@ -707,12 +717,9 @@ static hbool_t
 display_cmpd_type(hid_t type, int ind)
 {
     char	*name=NULL;	/*member name				*/
-    int		ndims;		/*dimensionality			*/
-    hsize_t	dims[H5S_MAX_RANK];	/*dimensions				*/
     size_t	size;		/*total size of type in bytes		*/
-    int		perm[H5S_MAX_RANK];	/*index permutation			*/
     hid_t	subtype;	/*member data type			*/
-    int		i, j, n;	/*miscellaneous counters		*/
+    int		i,n;	/*miscellaneous counters		*/
     
     
     if (H5T_COMPOUND!=H5Tget_class(type)) return FALSE;
@@ -727,37 +734,8 @@ display_cmpd_type(hid_t type, int ind)
                (unsigned long)H5Tget_member_offset(type, i));
         free(name);
 
-        /* Grab member's type */
+        /* Member's type */
         subtype = H5Tget_member_type(type, i);
-
-        /* Dimensions and permutation */
-        if(H5Tget_class(subtype)==H5T_ARRAY) {
-            ndims = H5Tget_array_ndims(subtype);
-            H5Tget_array_dims(subtype, dims, perm);
-        } /* end if */
-        else
-            ndims=0;
-
-        if (ndims>0) {
-            printf("[");
-            for (j=0; j<ndims; j++)
-                printf("%s%lu", j?",":"", (unsigned long)(dims[j]));
-            printf("]");
-
-            for (j=0; j<ndims; j++)
-                if (perm[j]!=j)
-                    break;
-
-            if (j<ndims) {
-                printf("x[");
-                for (j=0; j<ndims; j++)
-                    printf("%s%d", j?",":"", perm[j]);
-                printf("]");
-            }
-            printf(" ");
-        }
-        
-        /* Data type */
         display_type(subtype, ind+4);
         H5Tclose(subtype);
     }
@@ -849,10 +827,10 @@ display_enum_type(hid_t type, int ind)
 		printf("%02x", value[i*dst_size+j]);
 	    }
 	} else if (H5T_SGN_NONE==H5Tget_sign(native)) {
-	    HDfprintf(stdout,"%"PRINTF_LL_WIDTH"u",
+	    HDfprintf(stdout,"%"H5_PRINTF_LL_WIDTH"u",
 		   *((unsigned long_long*)((void*)(value+i*dst_size))));
 	} else {
-	    HDfprintf(stdout,"%"PRINTF_LL_WIDTH"d",
+	    HDfprintf(stdout,"%"H5_PRINTF_LL_WIDTH"d",
 		   *((long_long*)((void*)(value+i*dst_size))));
 	}
     }

@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (c) 2001 National Center for Supercomputing Applications
- *                    All rights reserved.
- *
  * Programmer:  Bill Wendling <wendling@ncsa.uiuc.edu>
  *              Monday, 19. February 2001
  *
@@ -517,8 +528,8 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
  
     /* Build default formats for long long types */
     if (!fmt_llong[0]) {
-        sprintf(fmt_llong, "%%%sd", PRINTF_LL_WIDTH);
-        sprintf(fmt_ullong, "%%%su", PRINTF_LL_WIDTH);
+        sprintf(fmt_llong, "%%%sd", H5_PRINTF_LL_WIDTH);
+        sprintf(fmt_ullong, "%%%su", H5_PRINTF_LL_WIDTH);
     }
 
     /* Append value depending on data type */
@@ -808,7 +819,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         }
     } else if (H5Tget_class(type) == H5T_ARRAY) {
         int k, ndims;
-        hsize_t	i, dims[H5S_MAX_RANK];
+        hsize_t	i, dims[H5S_MAX_RANK],temp_nelmts;
 
         /* Get the array's base datatype for each element */
         memb = H5Tget_super(type);
@@ -818,9 +829,9 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         assert(ndims >= 1 && ndims <= H5S_MAX_RANK);
 
         /* Calculate the number of array elements */
-        for (k = 0, nelmts = 1; k < ndims; k++)
-            nelmts *= dims[k];
-			
+        for (k = 0, temp_nelmts = 1; k < ndims; k++)
+            temp_nelmts *=dims[k];
+	    H5_ASSIGN_OVERFLOW(nelmts,temp_nelmts,hsize_t,size_t);
         /* Print the opening bracket */
         h5tools_str_append(str, "%s", OPT(info->arr_pre, "["));
 

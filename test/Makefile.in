@@ -1,9 +1,17 @@
 ## HDF5 Library Test Makefile(.in)
 ##
-## Copyright (C) 1997 National Center for Supercomputing Applications.
-##                    All rights reserved.
+## Copyright by the Board of Trustees of the University of Illinois.
+## All rights reserved.
 ##
-## 
+## This file is part of HDF5.  The full HDF5 copyright notice, including
+## terms governing use, modification, and redistribution, is contained in
+## the files COPYING and Copyright.html.  COPYING can be found at the root
+## of the source code distribution tree; Copyright.html can be found at the
+## root level of an installed copy of the electronic HDF5 document set and
+## is linked from the top-level documents page.  It can also be found at
+## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+##
 top_srcdir=@top_srcdir@
 top_builddir=..
 srcdir=@srcdir@
@@ -15,8 +23,6 @@ CPPFLAGS=-I. -I$(srcdir) -I../src -I$(top_srcdir)/src @CPPFLAGS@
 
 ## These are our main targets. They should be listed in the order to be
 ## executed, generally most specific tests to least specific tests.
-RUNTEST=$(LT_RUN)
-
 TEST_PROGS=testhdf5 lheap ohdr stab gheap hyperslab istore bittests dtypes \
       dsets cmpd_dset extend external links unlink big mtime fillval mount \
       flush1 flush2 enum gass_write gass_read gass_append \
@@ -27,8 +33,9 @@ TIMINGS=testmeta
 ## The libh5test.a library provides common support code for the tests. We link
 ## this library statically because some systems can only link executables to
 ## a single shared library and libhdf5 is much bigger than libh5test.
-LIBHDF5=../src/libhdf5.la
+LT_LINK_LIB=$(LT) --mode=link $(CC) -static -rpath $(libdir)
 LIB=libh5test.la
+LIBHDF5=$(top_builddir)/src/libhdf5.la
 LIB_SRC=h5test.c
 LIB_OBJ=$(LIB_SRC:.c=.lo)
 PUB_LIB=
@@ -49,7 +56,8 @@ MOSTLYCLEAN=cmpd_dset.h5 dataset.h5 extend.h5 istore.h5 tfile1.h5 tfile2.h5  \
             fillval_[0-9].h5 fillval.raw mount_[0-9].h5 testmeta.h5 \
             ttime.h5 trefer[12].h5 tvltypes.h5 tvlstr.h5 flush.h5 enum1.h5 \
             titerate.h5 ttsafe.h5 tarray1.h5 tgenprop.h5 tmisc.h5 tmisc2a.h5 \
-            tmisc2b.h5 tmisc3.h5
+            tmisc2b.h5 tmisc3.h5 tmisc4a.h5 tmisc4b.h5 tmisc5.h5 tmisc6.h5 \
+            tmisc7.h5
 CLEAN=$(TIMINGS)
 
 ## Source and object files for programs...  The TEST_SRC list contains all the
@@ -58,11 +66,11 @@ CLEAN=$(TIMINGS)
 ## overlap with other tests.
 
 TEST_SRC=big.c bittests.c cmpd_dset.c dsets.c dtypes.c extend.c      \
-     external.c fillval.c flush1.c flush2.c gheap.c h5test.c hyperslab.c \
-     istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c tarray.c \
-     tattr.c tconfig.c testhdf5.c testmeta.c tfile.c tgenprop.c th5s.c \
-     titerate.c tmeta.c trefer.c tselect.c ttime.c ttbbt.c tvltypes.c tvlstr.c \
-     tmisc.c unlink.c enum.c ttsafe.c ttsafe_dcreate.c ttsafe_error.c \
+     external.c fillval.c flush1.c flush2.c gheap.c h5test.c \
+     hyperslab.c istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c \
+     tarray.c tattr.c tconfig.c testhdf5.c testmeta.c tfile.c tgenprop.c \
+     th5s.c titerate.c tmeta.c trefer.c tselect.c ttime.c ttbbt.c tvltypes.c \
+     tvlstr.c tmisc.c unlink.c enum.c ttsafe.c ttsafe_dcreate.c ttsafe_error.c \
      ttsafe_cancel.c ttsafe_acreate.c gass_write.c gass_read.c gass_append.c \
      srb_read.c srb_write.c srb_append.c stream_test.c
 

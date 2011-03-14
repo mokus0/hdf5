@@ -1,3 +1,17 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
  * hdfgifwr.c  - handles writing of GIF files.  
  * 
@@ -9,8 +23,6 @@
  *       GIF files (in the interests of speed, or something)
  *
  */
-
-
 
 /*****************************************************************
  * Portions of this code Copyright (C) 1989 by Michael Mauldin.
@@ -35,12 +47,8 @@
  *****************************************************************/
  
 
-#include <stdio.h>
 #include "gif.h"
-#include <stdlib.h>
-#include <string.h>
 
-typedef BYTE		byte;
 typedef long int	count_int;
 
 /* indicies into conv24MB */
@@ -61,13 +69,10 @@ typedef long int	count_int;
 /* MONO returns total intensity of r,g,b components */
 #define MONO(rd,gn,bl) (((rd)*11 + (gn)*16 + (bl)*5) >> 5)  /*.33R+ .5G+ .17B*/
 
-static int  Width, Height;
-static int  curx, cury;
-static long CountDown;
-static int  Interlace;
-
 #ifdef __STDC__
+#ifdef UNUSED
 static void putword(int, FILE *);
+#endif /* UNUSED */
 static void compress(int, FILE *, byte *, int);
 static void output(int);
 static void cl_block(void);
@@ -76,57 +81,35 @@ static void char_init(void);
 static void char_out(int);
 static void flush_char(void);
 #else
-static void putword(), compress(), output(), cl_block(), cl_hash();
+#ifdef UNUSED
+static void putword();
+#endif /* UNUSED */
+static void compress(), output(), cl_block(), cl_hash();
 static void char_init(), char_out(), flush_char();
 #endif
 
-static byte pc2nc[256],r1[256],g1[256],b1[256];
+static byte pc2nc[256];
 
-void xvbzero(s, len)
-     char *s;
-     int   len;
+static void xvbzero(char *s, size_t len)
 {
   for ( ; len>0; len--) *s++ = 0;
 }
 
 /*************************************************************/
-int hdfWriteGIF(fp, pic, ptype, w, h, rmap, gmap, bmap, pc2ncmap,  numcols, colorstyle, BitsPerPixel)
-    FILE *fp;
-    byte *pic;
-    int   ptype, w,h;
-    byte *rmap, *gmap, *bmap , *pc2ncmap;
-    int   numcols, colorstyle;
-    int	  BitsPerPixel;
+int
+hdfWriteGIF(FILE *fp, byte *pic, int w, int h, byte *pc2ncmap, int BitsPerPixel)
 {
-  int   RWidth, RHeight;
-  int   LeftOfs, TopOfs;
-  int   ColorMapSize, InitCodeSize, Background;
+  int   InitCodeSize;
   int   i;
   byte *pic8;
   pic8 = pic;
   
-  Interlace = 0;
-  Background = 0;
-  
   for (i=0; i<256; i++) { 
 	  pc2nc[i] = pc2ncmap[i];
-	  r1[i] = rmap[i];
-	  g1[i] = gmap[i];
-	  b1[i] = bmap[i];
   }
-
-  ColorMapSize = 1 << BitsPerPixel;
-	
-  RWidth  = Width  = w;
-  RHeight = Height = h;
-  LeftOfs = TopOfs = 0;
-	
-  CountDown = w * h;    /* # of pixels we'll be doing */
 
   if (BitsPerPixel <= 1) InitCodeSize = 2;
      else InitCodeSize = BitsPerPixel;
-
-  curx = cury = 0;
 
   if (!fp) {
     fprintf(stderr,  "WriteGIF: file not open for writing\n" );
@@ -143,6 +126,7 @@ int hdfWriteGIF(fp, pic, ptype, w, h, rmap, gmap, bmap, pc2ncmap,  numcols, colo
 
 
 
+#ifdef UNUSED
 /******************************/
 static void putword(w, fp)
 int w;
@@ -154,6 +138,7 @@ FILE *fp;
     
   fputc((w>>8)&0xff,fp);
 }
+#endif /* UNUSED */
 
 
 
@@ -163,7 +148,6 @@ static unsigned long cur_accum = 0;
 static int           cur_bits = 0;
 
 #define MAXCODE(n_bits)     ( (1 << (n_bits)) - 1)
-#define min(a,b)        ((a>b) ? b : a)
 #define XV_BITS	12    /* BITS was already defined on some systems */
 #define MSDOS	1
 #define HSIZE  5003            /* 80% occupancy */
@@ -375,7 +359,7 @@ int code;
   cur_bits += n_bits;
 
   while( cur_bits >= 8 ) {
-    char_out( (unsigned int) (cur_accum & 0xff) );
+    char_out( (int) (cur_accum & 0xff) );
     cur_accum >>= 8;
     cur_bits -= 8;
   }
@@ -403,7 +387,7 @@ int code;
   if( code == EOFCode ) {
     /* At EOF, write the rest of the buffer */
     while( cur_bits > 0 ) {
-      char_out( (unsigned int)(cur_accum & 0xff) );
+      char_out( (int)(cur_accum & 0xff) );
       cur_accum >>= 8;
       cur_bits -= 8;
     }
@@ -434,14 +418,14 @@ static void cl_block ()             /* table clear for block compress */
 
 
 /********************************/
-static void cl_hash(hsize)          /* reset code table */
-register count_int hsize;
+static void cl_hash(hashsize)          /* reset code table */
+register count_int hashsize;
 {
-  register count_int *htab_p = htab+hsize;
+  register count_int *htab_p = htab+hashsize;
   register long i;
   register long m1 = -1;
 
-  i = hsize - 16;
+  i = hashsize - 16;
   do {                            /* might use Sys V memset(3) here */
     *(htab_p-16) = m1;
     *(htab_p-15) = m1;
@@ -476,7 +460,7 @@ register count_int hsize;
 /*
  * Number of characters so far in this 'packet'
  */
-static int a_count;
+static size_t a_count;
 
 /*
  * Set up the 'byte output' routine
@@ -509,7 +493,7 @@ int c;
 static void flush_char()
 {
   if( a_count > 0 ) {
-    fputc( a_count, g_outfile );
+    fputc( (int)a_count, g_outfile );
     fwrite( accum, 1, a_count, g_outfile );
     a_count = 0;
   }

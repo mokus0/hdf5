@@ -1,3 +1,20 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* This file contains C stubs for H5T Fortran APIs */
+
+
 #include "H5f90.h"
 
 
@@ -981,7 +998,7 @@ nh5tget_member_name_c ( hid_t_f *type_id ,int_f* index, _fcd member_name, int_f 
   c_name = H5Tget_member_name(c_type_id, c_index);
   if (c_name == NULL ) return ret_value;
 
-  HDpackFstring(c_name, _fcdtocp(member_name), strlen(c_name));  
+  HD5packFstring(c_name, _fcdtocp(member_name), strlen(c_name));  
   *namelen = (int_f)strlen(c_name);
   HDfree(c_name);
   ret_value = 0; 
@@ -1359,6 +1376,7 @@ nh5tinsert_array_c(hid_t_f * parent_id, _fcd name, int_f* namelen, size_t_f* off
   c_ndims = *ndims;
   status = H5Tinsert_array(c_parent_id, c_name, c_offset,c_ndims, c_dims, c_perm, c_member_id);
 
+  HDfree(c_name);
   if(status < 0) return ret_value;
   ret_value = 0;
 
@@ -1422,7 +1440,7 @@ nh5tinsert_array_c2(hid_t_f * parent_id, _fcd name, int_f* namelen, size_t_f* of
   c_member_id = *member_id;
   c_ndims = *ndims;
   status = H5Tinsert_array(c_parent_id, c_name, c_offset, c_ndims, c_dims, NULL, c_member_id);
-
+  HDfree(c_name);
   if(status < 0) return ret_value;
   ret_value = 0;
 
@@ -1575,7 +1593,7 @@ nh5tenum_nameof_c(hid_t_f *type_id, int_f* value, _fcd name, size_t_f* namelen)
   c_name = (char *)malloc(sizeof(char)*c_namelen);
   c_type_id = *type_id;
   error = H5Tenum_nameof(c_type_id, &c_value, c_name, c_namelen);
-  HDpackFstring(c_name, _fcdtocp(name), strlen(c_name));  
+  HD5packFstring(c_name, _fcdtocp(name), strlen(c_name));  
   HDfree(c_name);
 
   if(error < 0) return ret_value;
@@ -1710,7 +1728,7 @@ nh5tget_tag_c(hid_t_f* type_id, _fcd tag, int_f* taglen)
   c_tag = H5Tget_tag(c_type_id);
   if (c_tag == NULL ) return ret_value;
 
-  HDpackFstring(c_tag, _fcdtocp(tag), strlen(c_tag));  
+  HD5packFstring(c_tag, _fcdtocp(tag), strlen(c_tag));  
   *taglen = strlen(c_tag);
   HDfree(c_tag);
   ret_value = 0; 

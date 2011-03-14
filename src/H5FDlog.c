@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 2000 NCSA
- *                  All rights reserved.
- *
  * Programmer:  Quincey Koziol <koziol@ncsa.uiuc.edu>
  *              Monday, April 17, 2000
  *
@@ -413,14 +424,14 @@ H5FD_log_open(const char *name, unsigned flags, hid_t fapl_id,
 {
     int	    o_flags;
     int		fd;
-    struct stat	sb;
     H5FD_log_t	*file=NULL;
     H5FD_log_fapl_t	*fa;     /* File access property list information */
 #ifdef WIN32
-	HFILE filehandle;
-	struct _BY_HANDLE_FILE_INFORMATION fileinfo;
-	int results;   
+    HFILE filehandle;
+    struct _BY_HANDLE_FILE_INFORMATION fileinfo;
+    int results;   
 #endif
+    h5_stat_t sb;
 
     FUNC_ENTER(H5FD_log_open, NULL);
 
@@ -657,6 +668,7 @@ H5FD_log_query(const H5FD_t UNUSED *_f, unsigned long *flags /* out */)
         *flags|=H5FD_FEAT_AGGREGATE_METADATA; /* OK to aggregate metadata allocations */
         *flags|=H5FD_FEAT_ACCUMULATE_METADATA; /* OK to accumulate metadata for faster writes */
         *flags|=H5FD_FEAT_DATA_SIEVE;       /* OK to perform data sieving for faster raw data reads & writes */
+        *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
     FUNC_LEAVE(ret_value);
@@ -696,7 +708,7 @@ printf("%s: flavor=%s, size=%lu\n",FUNC,flavors[type],(unsigned long)size);
     /* Retain the (first) flavor of the information written to the file */
     if(file->fa.verbosity>=0) {
         assert(addr<file->iosize);
-        assert(size==(hsize_t)((size_t)size)); /*check for overflow*/
+	H5_CHECK_OVERFLOW(size,hsize_t,size_t);
         HDmemset(&file->flavor[addr],type,(size_t)size);
 
         if(file->fa.verbosity>1)
@@ -1016,7 +1028,7 @@ H5FD_log_flush(H5FD_t *_file)
 {
     H5FD_log_t	*file = (H5FD_log_t*)_file;
 
-    FUNC_ENTER(H5FD_log_seek, FAIL);
+    FUNC_ENTER(H5FD_log_flush, FAIL);
 
     if (file->eoa>file->eof) {
         if (-1==file_seek(file->fd, (file_offset_t)(file->eoa-1), SEEK_SET))

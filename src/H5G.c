@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*-------------------------------------------------------------------------
- * Copyright (C) 1997	National Center for Supercomputing Applications.
- *			All rights reserved.
- *
- *-------------------------------------------------------------------------
  *
  * Created:	H5G.c
  *		Jul 18 1997
@@ -101,6 +111,8 @@ static herr_t H5G_init_interface(void);
 static H5G_typeinfo_t *H5G_type_g = NULL;	/*object typing info	*/
 static size_t H5G_ntypes_g = 0;			/*entries in type table	*/
 static size_t H5G_atypes_g = 0;			/*entries allocated	*/
+static char *H5G_comp_g = NULL;                 /*component buffer      */
+static size_t H5G_comp_alloc_g = 0;             /*sizeof component buffer */
 
 /* Declare a free list to manage the H5G_t struct */
 H5FL_DEFINE(H5G_t);
@@ -727,7 +739,8 @@ H5G_init_interface(void)
  *		Monday, January	 5, 1998
  *
  * Modifications:
- *
+ *              Robb Matzke, 2002-03-28
+ *              Free the global component buffer.
  *-------------------------------------------------------------------------
  */
 int
@@ -749,6 +762,10 @@ H5G_term_interface(void)
     
 	    /* Destroy the group object id group */
 	    H5I_destroy_group(H5I_GROUP);
+
+            /* Free the global component buffer */
+            H5G_comp_g = H5MM_xfree(H5G_comp_g);
+            H5G_comp_alloc_g = 0;
 
 	    /* Mark closed */
 	    interface_initialize_g = 0;
@@ -985,7 +1002,16 @@ H5G_basename(const char *name, size_t *size_p)
  *		Aug 11 1997
  *
  * Modifications:
- *
+ *              Robb Matzke, 2002-03-28
+ *              The component name buffer on the stack has been replaced by
+ *              a dynamically allocated buffer on the heap in order to
+ *              remove limitations on the length of a name component.
+ *              There are two reasons that the buffer pointer is global:
+ *                (1) We want to be able to reuse the buffer without
+ *                    allocating and freeing it each time this function is
+ *                    called.
+ *                (2) We need to be able to free it from H5G_term_interface()
+ *                    when the library terminates.
  *-------------------------------------------------------------------------
  */
 static herr_t
@@ -996,7 +1022,6 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     H5G_entry_t		_grp_ent;	/*entry for current group	*/
     H5G_entry_t		_obj_ent;	/*entry found			*/
     size_t		nchars;		/*component name length		*/
-    char		comp[1024];	/*component name buffer		*/
     int			_nlinks = H5G_NLINKS;
     const char		*s = NULL;
     
@@ -1032,17 +1057,22 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	 * Copy the component name into a null-terminated buffer so
 	 * we can pass it down to the other symbol table functions.
 	 */
-	if (nchars+1 > sizeof(comp)) {
-	    HRETURN_ERROR (H5E_SYM, H5E_COMPLEN, FAIL,
-			   "component is too long");
-	}
-	HDmemcpy(comp, name, nchars);
-	comp[nchars] = '\0';
+        if (nchars+1 > H5G_comp_alloc_g) {
+            H5G_comp_alloc_g = MAX3(1024, 2*H5G_comp_alloc_g, nchars+1);
+            H5G_comp_g = H5MM_realloc(H5G_comp_g, H5G_comp_alloc_g);
+            if (!H5G_comp_g) {
+                H5G_comp_alloc_g = 0;
+                HRETURN_ERROR(H5E_SYM, H5E_NOSPACE, FAIL,
+                              "unable to allocate component buffer");
+            }
+        }
+	HDmemcpy(H5G_comp_g, name, nchars);
+	H5G_comp_g[nchars] = '\0';
 
 	/*
 	 * The special name `.' is a no-op.
 	 */
-	if ('.' == comp[0] && !comp[1]) {
+	if ('.' == H5G_comp_g[0] && !H5G_comp_g[1]) {
 	    name += nchars;
 	    continue;
 	}
@@ -1054,7 +1084,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	HDmemset(obj_ent, 0, sizeof(H5G_entry_t));
 	obj_ent->header = HADDR_UNDEF;
 
-	if (H5G_stab_find(grp_ent, comp, obj_ent/*out*/)<0) {
+	if (H5G_stab_find(grp_ent, H5G_comp_g, obj_ent/*out*/)<0) {
 	    /*
 	     * Component was not found in the current symbol table, possibly
 	     * because GRP_ENT isn't a symbol table.
@@ -2068,7 +2098,7 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 	} else {
 	    /* Some other type of object */
 	    statbuf->objno[0] = (unsigned long)(obj_ent.header);
-#if SIZEOF_UINT64_T>SIZEOF_LONG
+#if H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG
 	    statbuf->objno[1] = (unsigned long)(obj_ent.header >>
 						8*sizeof(long));
 #else
@@ -2083,6 +2113,10 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 	    statbuf->type = H5G_get_type(&obj_ent);
 	    H5E_clear(); /*clear errors resulting from checking type*/
 	}
+
+        /* Common code to retrieve the file's fileno */
+        if(H5F_get_fileno(obj_ent.file,statbuf->fileno)<0)
+            HRETURN_ERROR (H5E_FILE, H5E_BADVALUE, FAIL, "unable to read fileno");
     }
 
     FUNC_LEAVE (SUCCEED);

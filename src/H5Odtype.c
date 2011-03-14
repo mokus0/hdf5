@@ -1,16 +1,18 @@
-/****************************************************************************
-* NCSA HDF								   *
-* Software Development Group						   *
-* National Center for Supercomputing Applications			   *
-* University of Illinois at Urbana-Champaign				   *
-* 605 E. Springfield, Champaign IL 61820				   *
-*									   *
-* For conditions of distribution and use, see the accompanying		   *
-* hdf/COPYING file.							   *
-*									   *
-****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Odtype.c,v 1.51.2.3 2001/08/15 14:46:19 koziol Exp $ */
+/* $Id: H5Odtype.c,v 1.51.2.6 2002/06/19 13:01:53 koziol Exp $ */
 
 #define H5T_PACKAGE		/*prevent warning from including H5Tpkg.h */
 
@@ -352,6 +354,10 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
         case H5T_VLEN:  /* Variable length datatypes...  */
             /* Set the type of VL information, either sequence or string */
             dt->u.vlen.type = (H5T_vlen_type_t)(flags & 0x0f);
+            if(dt->u.vlen.type == H5T_VLEN_STRING) {
+		dt->u.vlen.pad  = (H5T_str_t)((flags>>4) & 0x0f);
+		dt->u.vlen.cset = (H5T_cset_t)((flags>>8) & 0x0f);
+            } /* end if */
 
             /* Decode base type of VL information */
             if (NULL==(dt->parent = H5FL_ALLOC(H5T_t,1)))
@@ -438,7 +444,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
 {
     unsigned		flags = 0;
     char		*hdr = (char *)*pp;
-    int		i, j;
+    int			i, j;
     size_t		n, z, aligned;
 
     FUNC_ENTER(H5O_dtype_encode_helper, FAIL);
@@ -729,7 +735,11 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
             break;
 
         case H5T_VLEN:  /* Variable length datatypes...  */
-            flags |= (dt->u.vlen.type & 0x0f);
+	    flags |= (dt->u.vlen.type  & 0x0f);
+            if(dt->u.vlen.type == H5T_VLEN_STRING) {
+	        flags |= (dt->u.vlen.pad   & 0x0f) << 4;
+	        flags |= (dt->u.vlen.cset  & 0x0f) << 8;
+            } /* end if */
 
             /* Encode base type of VL information */
             if (H5O_dtype_encode_helper(pp, dt->parent)<0) {
@@ -1288,7 +1298,7 @@ H5O_dtype_debug(H5F_t *f, const void *mesg, FILE *stream,
 		dt->u.array.ndims);
     fprintf(stream, "%*s%-*s {", indent, "", fwidth, "Dim Size:");
 	for (i=0; i<dt->u.array.ndims; i++) {
-        fprintf (stream, "%s%u", i?", ":"", dt->u.array.dim[i]);
+        fprintf (stream, "%s%u", i?", ":"", (unsigned)dt->u.array.dim[i]);
     }
     fprintf (stream, "}\n");
     fprintf(stream, "%*s%-*s {", indent, "", fwidth, "Dim Permutation:");

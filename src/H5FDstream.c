@@ -12,7 +12,7 @@
  *          In addition to that, the memory image of the file is
  *          read from/written to a socket during an open/flush operation.
  *
- * Version: $Id: H5FDstream.c,v 1.15.2.4 2001/08/15 14:42:45 koziol Exp $
+ * Version: $Id: H5FDstream.c,v 1.15.2.6 2002/06/05 15:17:26 koziol Exp $
  *
  * Modifications:
  *          Thomas Radke, Thursday, October 26, 2000
@@ -520,7 +520,7 @@ H5FDstream_open_socket (const char *filename, int o_flags,
   /* Return if opening the socket failed */
   if (*errormsg)
   {
-    if (H5FD_STREAM_ERROR_CHECK (sock))
+    if (! H5FD_STREAM_ERROR_CHECK (sock))
     {
       H5FD_STREAM_CLOSE_SOCKET (sock);
       sock = H5FD_STREAM_INVALID_SOCKET;
@@ -754,7 +754,7 @@ static H5FD_t *H5FD_stream_open (const char *filename,
        the opened socket is not needed anymore */
     if (errormsg == NULL)
     {
-      if (_stream.internal_socket && H5FD_STREAM_ERROR_CHECK (_stream.socket))
+      if (_stream.internal_socket && ! H5FD_STREAM_ERROR_CHECK (_stream.socket))
       {
         H5FD_STREAM_CLOSE_SOCKET (_stream.socket);
       }
@@ -784,7 +784,7 @@ static H5FD_t *H5FD_stream_open (const char *filename,
     {
       H5MM_xfree (_stream.mem);
     }
-    if (_stream.internal_socket && H5FD_STREAM_ERROR_CHECK (_stream.socket))
+    if (_stream.internal_socket && ! H5FD_STREAM_ERROR_CHECK (_stream.socket))
     {
       H5FD_STREAM_CLOSE_SOCKET (_stream.socket);
     }
@@ -902,7 +902,7 @@ static herr_t H5FD_stream_close (H5FD_t *_stream)
   }
 
   /* Release resources */
-  if (H5FD_STREAM_ERROR_CHECK (stream->socket) && stream->internal_socket)
+  if (! H5FD_STREAM_ERROR_CHECK (stream->socket) && stream->internal_socket)
   {
     H5FD_STREAM_CLOSE_SOCKET (stream->socket);
   }
@@ -945,6 +945,7 @@ H5FD_stream_query(const H5FD_t UNUSED *_f,
         *flags = 0;
         /* OK to perform data sieving for faster raw data reads & writes */
         *flags |= H5FD_FEAT_DATA_SIEVE;
+        *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
     FUNC_LEAVE (SUCCEED);

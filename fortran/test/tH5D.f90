@@ -1,13 +1,20 @@
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!   Copyright by the Board of Trustees of the University of Illinois.         *
+!   All rights reserved.                                                      *
+!                                                                             *
+!   This file is part of HDF5.  The full HDF5 copyright notice, including     *
+!   terms governing use, modification, and redistribution, is contained in    *
+!   the files COPYING and Copyright.html.  COPYING can be found at the root   *
+!   of the source code distribution tree; Copyright.html can be found at the  *
+!   root level of an installed copy of the electronic HDF5 document set and   *
+!   is linked from the top-level documents page.  It can also be found at     *
+!   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+!   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
 ! 
 !    Testing Dataset Interface functionality.
 !
-!      MODULE H5DTEST
-
-!        USE HDF5 ! This module contains all necessary modules 
-        
-!      CONTAINS
-      
 !
 !The following subroutine tests the following functionalities:
 !h5dcreate_f, h5dopen_f, h5dclose_f, h5dget_space_f, h5dget_type_f,
@@ -35,6 +42,7 @@
           INTEGER     ::   error ! Error flag
 
           INTEGER     :: i, j    !general purpose integers
+          INTEGER(HSIZE_T), DIMENSION(7) :: data_dims_b
           INTEGER, DIMENSION(7) :: data_dims
 
           !
@@ -76,9 +84,9 @@
           !
           ! Write the dataset.
           !
-          data_dims(1) = 4
-          data_dims(2) = 6 
-          CALL h5dwrite_f(dset_id, H5T_NATIVE_INTEGER, dset_data, data_dims, error)
+          data_dims_b(1) = 4
+          data_dims_b(2) = 6 
+          CALL h5dwrite_f(dset_id, H5T_NATIVE_INTEGER, dset_data, data_dims_b, error)
               CALL check("h5dwrite_f", error, total_error)
 
 
@@ -454,5 +462,3 @@
         END SUBROUTINE extenddsettest 
 
 
-
-!      END MODULE H5DTEST

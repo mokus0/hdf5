@@ -1,10 +1,19 @@
 /*keep this here -RPM*/
 static const char *FileHeader = "\n\
-/*-------------------------------------------------------------------------\n\
- * Copyright (C) 1997	National Center for Supercomputing Applications.   \n\
- *			All rights reserved.				   \n\
- *									   \n\
- *-------------------------------------------------------------------------";
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n\
+ * Copyright by the Board of Trustees of the University of Illinois.         *\n\
+ * All rights reserved.                                                      *\n\
+ *                                                                           *\n\
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *\n\
+ * terms governing use, modification, and redistribution, is contained in    *\n\
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *\n\
+ * of the source code distribution tree; Copyright.html can be found at the  *\n\
+ * root level of an installed copy of the electronic HDF5 document set and   *\n\
+ * is linked from the top-level documents page.  It can also be found at     *\n\
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *\n\
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *\n\
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *";
+
 /*
  *
  * Created:	H5detect.c
@@ -1018,80 +1027,80 @@ main(void)
     /*
      * C9x integer types.
      */
-#if SIZEOF_INT8_T>0
+#if H5_SIZEOF_INT8_T>0
     DETECT_I(int8_t, 		  INT8,         d[nd]); nd++;
 #endif
-#if SIZEOF_UINT8_T>0
+#if H5_SIZEOF_UINT8_T>0
     DETECT_I(uint8_t, 		  UINT8,        d[nd]); nd++;
 #endif
-#if SIZEOF_INT_LEAST8_T>0
+#if H5_SIZEOF_INT_LEAST8_T>0
     DETECT_I(int_least8_t, 	  INT_LEAST8,   d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_LEAST8_T>0
+#if H5_SIZEOF_UINT_LEAST8_T>0
     DETECT_I(uint_least8_t, 	  UINT_LEAST8,  d[nd]); nd++;
 #endif
-#if SIZEOF_INT_FAST8_T>0
+#if H5_SIZEOF_INT_FAST8_T>0
     DETECT_I(int_fast8_t, 	  INT_FAST8,    d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_FAST8_T>0
+#if H5_SIZEOF_UINT_FAST8_T>0
     DETECT_I(uint_fast8_t, 	  UINT_FAST8,   d[nd]); nd++;
 #endif
-#if SIZEOF_INT16_T>0
+#if H5_SIZEOF_INT16_T>0
     DETECT_I(int16_t, 		  INT16,        d[nd]); nd++;
 #endif
-#if SIZEOF_UINT16_T>0
+#if H5_SIZEOF_UINT16_T>0
     DETECT_I(uint16_t, 		  UINT16,       d[nd]); nd++;
 #endif
-#if SIZEOF_INT_LEAST16_T>0
+#if H5_SIZEOF_INT_LEAST16_T>0
     DETECT_I(int_least16_t, 	  INT_LEAST16,  d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_LEAST16_T>0
+#if H5_SIZEOF_UINT_LEAST16_T>0
     DETECT_I(uint_least16_t, 	  UINT_LEAST16, d[nd]); nd++;
 #endif
-#if SIZEOF_INT_FAST16_T>0
+#if H5_SIZEOF_INT_FAST16_T>0
     DETECT_I(int_fast16_t, 	  INT_FAST16,   d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_FAST16_T>0
+#if H5_SIZEOF_UINT_FAST16_T>0
     DETECT_I(uint_fast16_t, 	  UINT_FAST16,  d[nd]); nd++;
 #endif
-#if SIZEOF_INT32_T>0
+#if H5_SIZEOF_INT32_T>0
     DETECT_I(int32_t, 		  INT32,        d[nd]); nd++;
 #endif
-#if SIZEOF_UINT32_T>0
+#if H5_SIZEOF_UINT32_T>0
     DETECT_I(uint32_t, 		  UINT32,       d[nd]); nd++;
 #endif
-#if SIZEOF_INT_LEAST32_T>0
+#if H5_SIZEOF_INT_LEAST32_T>0
     DETECT_I(int_least32_t, 	  INT_LEAST32,  d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_LEAST32_T>0
+#if H5_SIZEOF_UINT_LEAST32_T>0
     DETECT_I(uint_least32_t, 	  UINT_LEAST32, d[nd]); nd++;
 #endif
-#if SIZEOF_INT_FAST32_T>0
+#if H5_SIZEOF_INT_FAST32_T>0
     DETECT_I(int_fast32_t, 	  INT_FAST32,   d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_FAST32_T>0
+#if H5_SIZEOF_UINT_FAST32_T>0
     DETECT_I(uint_fast32_t, 	  UINT_FAST32,  d[nd]); nd++;
 #endif
-#if SIZEOF_INT64_T>0
+#if H5_SIZEOF_INT64_T>0
     DETECT_I(int64_t, 		  INT64,        d[nd]); nd++;
 #endif
-#if SIZEOF_UINT64_T>0
+#if H5_SIZEOF_UINT64_T>0
     DETECT_I(uint64_t, 		  UINT64,       d[nd]); nd++;
 #endif
-#if SIZEOF_INT_LEAST64_T>0
+#if H5_SIZEOF_INT_LEAST64_T>0
     DETECT_I(int_least64_t, 	  INT_LEAST64,  d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_LEAST64_T>0
+#if H5_SIZEOF_UINT_LEAST64_T>0
     DETECT_I(uint_least64_t, 	  UINT_LEAST64, d[nd]); nd++;
 #endif
-#if SIZEOF_INT_FAST64_T>0
+#if H5_SIZEOF_INT_FAST64_T>0
     DETECT_I(int_fast64_t, 	  INT_FAST64,   d[nd]); nd++;
 #endif
-#if SIZEOF_UINT_FAST64_T>0
+#if H5_SIZEOF_UINT_FAST64_T>0
     DETECT_I(uint_fast64_t, 	  UINT_FAST64,  d[nd]); nd++;
 #endif
     
-#if SIZEOF_LONG_LONG>0
+#if H5_SIZEOF_LONG_LONG>0
     DETECT_I(long_long,		  LLONG,        d[nd]); nd++;
     DETECT_I(unsigned long_long,  ULLONG,       d[nd]); nd++;
 #else
@@ -1107,7 +1116,7 @@ main(void)
     DETECT_F(float,		  FLOAT,        d[nd]); nd++;
     DETECT_F(double,		  DOUBLE,       d[nd]); nd++;
 
-#if SIZEOF_DOUBLE == SIZEOF_LONG_DOUBLE
+#if H5_SIZEOF_DOUBLE == H5_SIZEOF_LONG_DOUBLE
     /*
      * If sizeof(double)==sizeof(long double) then assume that `long double'
      * isn't supported and use `double' instead.  This suppresses warnings on

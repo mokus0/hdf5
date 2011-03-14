@@ -1,14 +1,16 @@
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Software Development Group                                               *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING file.                                                        *
- *                                                                          *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * This file contains public declarations for the H5E module.
@@ -116,6 +118,7 @@ typedef enum H5E_minor_t {
     H5E_NOSPACE,                /*no space available for allocation          */
     H5E_CANTCOPY,               /*unable to copy object                      */
     H5E_CANTFREE,               /*unable to free object                      */
+    H5E_ALREADYEXISTS,          /*Object already exists */
 
     /* File accessability errors */
     H5E_FILEEXISTS,             /*file already exists                        */
@@ -142,6 +145,8 @@ typedef enum H5E_minor_t {
     /* Object atom related errors */
     H5E_BADATOM,                /*Can't find atom information                */
     H5E_CANTREGISTER,           /*Can't register new atom                    */
+    H5E_CANTINC,                /*Can't increment reference count            */
+    H5E_CANTDEC,                /*Can't decrement reference count            */
 
     /* Cache related errors */
     H5E_CANTFLUSH,              /*Can't flush object from cache              */
@@ -175,8 +180,17 @@ typedef enum H5E_minor_t {
     /* Datatype conversion errors */
     H5E_CANTCONVERT,            /*Can't convert datatypes */
 
+    /* Dataspace errors */
+    H5E_CANTCLIP,               /*Can't clip hyperslab region */
+    H5E_CANTCOUNT,              /*Can't count elements */
+
+    /* Property list errors */
+    H5E_CANTGET,                /*Can't get value */
+    H5E_CANTSET,                /*Can't set value */
+
     /* Parallel errors */
-    H5E_MPI			/*some MPI function failed		     */
+    H5E_MPI,			/*some MPI function failed		     */
+    H5E_MPIERRSTR		/*MPI Error String 			     */
 } H5E_minor_t;
 
 /* Information about an error */

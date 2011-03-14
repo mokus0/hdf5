@@ -32,13 +32,11 @@ int ReadHDF(BYTE** data ,
 			CHAR *pal_name) 
 {
 	hid_t fHfile;	/* H5 file to open */
-	herr_t status;	/* status variable */
 	hid_t dspace;	/* dataspace identifier for the the dataset */
 	hid_t dset;		/* dataset identifier */
 
 	hid_t pal_set;	/* dataset for palette */
 	hid_t pal_space;/* dataspace for palette */
-	hsize_t pal_size;	/* size of the palette */
 	
 	hsize_t datasize;	/* size of the image */
 
@@ -84,13 +82,13 @@ int ReadHDF(BYTE** data ,
 	datasize = image_size[0] * image_size[1];
 
 	/* allocate memory to store the image */
-	if ((*data = (BYTE*) malloc(datasize)) == NULL) {
+	if ((*data = (BYTE*) malloc((size_t)datasize)) == NULL) {
 		fprintf(stderr , "Out of memory, exiting");
 		return -1;
 	}
 
 	/* get the actual image */
-	if ((status = H5Dread(dset , H5Dget_type(dset) , H5S_ALL , H5S_ALL , H5P_DEFAULT , *data)) < 0) {
+	if (H5Dread(dset , H5Dget_type(dset) , H5S_ALL , H5S_ALL , H5P_DEFAULT , *data) < 0) {
 		fprintf(stderr , "Unable to read data \n");
 		cleanup(*data);
 		return -1;
@@ -99,7 +97,6 @@ int ReadHDF(BYTE** data ,
 	if (pal_exist) {
 		hsize_t pal_size[2];
 		hsize_t pal_datasize;
-		CHAR *pal_path;
 
 		BYTE *temp_buf;
 		hsize_t temp_size;
@@ -131,7 +128,7 @@ int ReadHDF(BYTE** data ,
 		/* copy stuff into a temp buffer and then copy 256*3 elements to palette */
 		temp_size = H5Dget_storage_size(pal_set);
 		
-		temp_buf = (BYTE*) malloc (temp_size * sizeof(BYTE));
+		temp_buf = (BYTE*) malloc ((size_t)temp_size * sizeof(BYTE));
 
 		/* make sure that the palette is actually 256 X 3 so that we don't create overflows */
 		if (pal_datasize > 256 * 3)
@@ -142,7 +139,7 @@ int ReadHDF(BYTE** data ,
 		}		
 
 		/* get the actual palette */
-		if ((status = H5Dread(pal_set , H5Dget_type(pal_set) , H5S_ALL , H5S_ALL , H5P_DEFAULT , temp_buf)) < 0) {
+		if (H5Dread(pal_set , H5Dget_type(pal_set) , H5S_ALL , H5S_ALL , H5P_DEFAULT , temp_buf) < 0) {
 			fprintf(stderr , "Unable to read data \n");
 			cleanup(*data);
 			cleanup(temp_buf);
@@ -150,7 +147,7 @@ int ReadHDF(BYTE** data ,
 		}
 
 		/* copy stuff into the actual palette */
-		memcpy(palette , temp_buf , pal_datasize);
+		memcpy(palette , temp_buf , (size_t)pal_datasize);
 
 		/* get rid of the temp memory */
 		cleanup(temp_buf);
@@ -167,9 +164,9 @@ int ReadHDF(BYTE** data ,
 	}
 
 	/* close everything */
-	status = H5Dclose(dset);
-	status = H5Sclose(dspace);
-	status = H5Fclose(fHfile);
+	H5Dclose(dset);
+	H5Sclose(dspace);
+	H5Fclose(fHfile);
 
 	return 0;
 }

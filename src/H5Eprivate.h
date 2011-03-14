@@ -1,14 +1,16 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  *  Header file for error values, etc.
@@ -113,4 +115,26 @@ __DLL__ herr_t H5E_push (H5E_major_t maj_num, H5E_minor_t min_num,
 __DLL__ herr_t H5E_clear (void);
 __DLL__ herr_t H5E_walk (H5E_direction_t dir, H5E_walk_t func,
 			 void *client_data);
+#endif
+
+#ifdef H5_HAVE_PARALLEL
+/*
+ * MPI error handling macros.
+ */
+
+extern	char	H5E_mpi_error_str[MPI_MAX_ERROR_STRING];
+extern	int	H5E_mpi_error_str_len;
+
+#define	HMPI_ERROR(mpierr){						      \
+    MPI_Error_string(mpierr, H5E_mpi_error_str, &H5E_mpi_error_str_len);      \
+    HERROR(H5E_INTERNAL, H5E_MPIERRSTR, H5E_mpi_error_str);                   \
+}
+#define	HMPI_GOTO_ERROR(retcode, str, mpierr){				      \
+    HMPI_ERROR(mpierr);							      \
+    HGOTO_ERROR(H5E_INTERNAL, H5E_MPI, retcode, str);			      \
+}
+#define	HMPI_RETURN_ERROR(retcode, str, mpierr){			      \
+    HMPI_ERROR(mpierr);							      \
+    HRETURN_ERROR(H5E_INTERNAL, H5E_MPI, retcode, str);                       \
+}
 #endif

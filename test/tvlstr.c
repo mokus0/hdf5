@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tvlstr.c,v 1.4.2.4 2002/01/04 03:45:42 koziol Exp $ */
+/* $Id: tvlstr.c,v 1.4.2.7 2002/06/10 19:48:52 wendling Exp $ */
 
 /***********************************************************
 *
@@ -40,6 +42,8 @@
 #define SPACE2_RANK	2
 #define SPACE2_DIM1	10
 #define SPACE2_DIM2	10
+
+#define VLSTR_TYPE	"vl_string_type"
 
 /* String for testing attributes */
 static const char *string_att = "This is the string for the attribute";
@@ -226,6 +230,72 @@ test_vlstrings_basic(void)
 
 /****************************************************************
 **
+**  test_vlstring_type(): Test VL string type.
+**      Tests if VL string is treated as string. 
+**
+****************************************************************/
+static void test_vlstring_type(void)
+{
+    hid_t               fid;           /* HDF5 File IDs                */
+    hid_t		tid_vlstr;
+    H5T_cset_t		cset;
+    H5T_str_t		pad;
+    herr_t              ret;
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing VL String type\n"));
+
+    /* Create file */
+    fid = H5Fcreate(DATAFILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create a datatype to refer to */
+    tid_vlstr = H5Tcopy(H5T_C_S1);
+    CHECK(tid_vlstr, FAIL, "H5Tcopy");
+
+    /* Change padding and verify it */ 
+    ret = H5Tset_strpad(tid_vlstr, H5T_STR_NULLPAD);
+    CHECK(ret, FAIL, "H5Tset_strpad");
+    pad = H5Tget_strpad(tid_vlstr);
+    VERIFY(pad, H5T_STR_NULLPAD, "H5Tget_strpad");
+
+    /* Convert to variable-length string */
+    ret = H5Tset_size(tid_vlstr, H5T_VARIABLE);
+    CHECK(ret, FAIL, "H5Tset_size");
+
+    /* Check default character set and padding */
+    cset = H5Tget_cset(tid_vlstr);
+    VERIFY(cset, H5T_CSET_ASCII, "H5Tget_cset");
+    pad = H5Tget_strpad(tid_vlstr);
+    VERIFY(pad, H5T_STR_NULLPAD, "H5Tget_strpad");
+
+    /* Commit variable-length string datatype to storage */
+    ret = H5Tcommit(fid, VLSTR_TYPE, tid_vlstr);
+    CHECK(ret, FAIL, "H5Tcommit");
+
+    ret = H5Tclose(tid_vlstr);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Open the variable-length string datatype just created */ 
+    tid_vlstr = H5Topen(fid, VLSTR_TYPE);
+    CHECK(tid_vlstr, FAIL, "H5Topen");
+
+    /* Verify character set and padding */ 
+    cset = H5Tget_cset(tid_vlstr);
+    VERIFY(cset, H5T_CSET_ASCII, "H5Tget_cset");
+    pad = H5Tget_strpad(tid_vlstr);
+    VERIFY(pad, H5T_STR_NULLPAD, "H5Tget_strpad");
+
+    /* Close datatype and file */
+    ret = H5Tclose(tid_vlstr);
+    CHECK(ret, FAIL, "H5Tclose");
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");    
+
+} /* end test_vlstring_type() */
+
+/****************************************************************
+**
 **  test_write_vl_string_attribute(): Test basic VL string code.
 **      Tests writing VL strings as attributes
 ** 
@@ -354,6 +424,7 @@ test_vlstrings(void)
 
     /* These next tests use the same file */
     test_vlstrings_basic();       /* Test basic VL string datatype */
+    test_vlstring_type();
 
     /* Test using VL strings in attributes */
     test_write_vl_string_attribute();

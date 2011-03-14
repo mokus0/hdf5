@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *		      All rights reserved.
- *
  * Programmer:	Robb Matzke <matzke@llnl.gov>
  *		Monday, November 10, 1997
  *
@@ -639,6 +650,7 @@ H5FD_family_query(const H5FD_t UNUSED *_f, unsigned long *flags /* out */)
         *flags|=H5FD_FEAT_AGGREGATE_METADATA; /* OK to aggregate metadata allocations */
         *flags|=H5FD_FEAT_ACCUMULATE_METADATA; /* OK to accumulate metadata for faster writes */
         *flags|=H5FD_FEAT_DATA_SIEVE;       /* OK to perform data sieving for faster raw data reads & writes */
+        *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
     FUNC_LEAVE(ret_value);
@@ -821,6 +833,9 @@ H5FD_family_read(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hs
     int			i;
     haddr_t		sub;
     hsize_t		req;
+#ifndef NDEBUG
+    hsize_t             tempreq;
+#endif /* NDEBUG */
 
     FUNC_ENTER(H5FD_family_read, FAIL);
 
@@ -838,9 +853,16 @@ H5FD_family_read(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hs
 
     /* Read from each member */
     while (size>0) {
-        i = addr / file->memb_size;
+        H5_ASSIGN_OVERFLOW(i,addr /file->memb_size,hsize_t,int);
         sub = addr % file->memb_size;
-        req = MIN(size, file->memb_size-sub);
+#ifndef NDEBUG
+	tempreq = file->memb_size-sub;
+        H5_CHECK_OVERFLOW(tempreq,hsize_t,size_t);
+        req = MIN(size, (size_t)tempreq);
+#else /* NDEBUG */
+        req = MIN(size, (size_t)(file->memb_size-sub));
+#endif /* NDEBUG */
+
         assert(i<file->nmembs);
 
         if (H5FDread(file->memb[i], type, memb_dxpl_id, sub, req, buf)<0)
@@ -884,6 +906,9 @@ H5FD_family_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, h
     int			i;
     haddr_t		sub;
     hsize_t		req;
+#ifndef NDEBUG
+    hsize_t             tempreq;
+#endif /* NDEBUG */
 
     FUNC_ENTER(H5FD_family_write, FAIL);
 
@@ -901,9 +926,17 @@ H5FD_family_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, h
 
     /* Write to each member */
     while (size>0) {
-        i = addr / file->memb_size;
+
+        H5_ASSIGN_OVERFLOW(i,addr /file->memb_size,hsize_t,int);
         sub = addr % file->memb_size;
-        req = MIN(size, file->memb_size-sub);
+#ifndef NDEBUG
+        tempreq = file->memb_size-sub;
+        H5_CHECK_OVERFLOW(tempreq,hsize_t,size_t);
+        req = MIN(size, (size_t)tempreq);
+#else /* NDEBUG */
+        req = MIN(size, (size_t)(file->memb_size-sub));
+#endif /* NDEBUG */
+
         assert(i<file->nmembs);
 
         if (H5FDwrite(file->memb[i], type, memb_dxpl_id, sub, req, buf)<0)

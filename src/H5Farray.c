@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998 NCSA
- *		      All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Thursday, January 15, 1998
  *
@@ -142,7 +153,7 @@ H5F_arr_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
     hsize_t	file_start;			/*byte offset to start	*/
     hsize_t	max_data = 0;			/*bytes in dataset	*/
     hsize_t	elmt_size = 1;			/*bytes per element	*/
-    size_t	nelmts, z;			/*number of elements	*/
+    hsize_t	nelmts, z;			/*number of elements	*/
     unsigned	ndims;				/*stride dimensionality	*/
     haddr_t	addr;				/*address in file	*/
     int	j;				    /*counters		*/
@@ -150,9 +161,6 @@ H5F_arr_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
     hbool_t	carray;				/*carry for subtraction	*/
 #ifdef H5_HAVE_PARALLEL
     H5FD_mpio_xfer_t xfer_mode=H5FD_MPIO_INDEPENDENT;
-#endif
-#ifdef COALESCE_READS
-    H5D_xfer_t *xfer_parms;                     /*transfer property list*/
 #endif
    
     FUNC_ENTER(H5F_arr_read, FAIL);
@@ -229,9 +237,8 @@ H5F_arr_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
              * and memory. Optimize the strides to result in the fewest number of
              * I/O requests.
              */
-            mem_start = H5V_hyper_stride(ndims, hslab_size, mem_size,
-                             mem_offset, mem_stride/*out*/);
-            file_start = H5V_hyper_stride(ndims, hslab_size, layout->dim,
+	    H5_ASSIGN_OVERFLOW(mem_start,H5V_hyper_stride(ndims, hslab_size, mem_size, mem_offset, mem_stride/*out*/),hsize_t,size_t);
+             file_start = H5V_hyper_stride(ndims, hslab_size, layout->dim,
                               file_offset, file_stride/*out*/);
             H5V_stride_optimize2(&ndims, &elmt_size, hslab_size,
                          mem_stride, file_stride);
@@ -272,8 +279,7 @@ H5F_arr_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
                  */
                 unsigned long max, min, temp;
 
-                temp = nelmts;
-                assert(temp==nelmts);	/* verify no overflow */
+                H5_ASSIGN_OVERFLOW(temp,nelmts,hsize_t,unsigned long);
                 MPI_Allreduce(&temp, &max, 1, MPI_UNSIGNED_LONG, MPI_MAX,
                       H5FD_mpio_communicator(f->shared->lf));
                 MPI_Allreduce(&temp, &min, 1, MPI_UNSIGNED_LONG, MPI_MIN,
@@ -288,27 +294,12 @@ H5F_arr_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
             }
 #endif
 
-#ifdef COALESCE_READS
-                /* Get the dataset transfer property list */
-                if (H5P_DEFAULT == dxpl_id) {
-                    xfer_parms = &H5D_xfer_dflt;
-                } else if (H5P_DATASET_XFER != H5P_get_class (dxpl_id) ||
-                       NULL == (xfer_parms = H5I_object (dxpl_id))) {
-                    HRETURN_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not xfer parms");
-                }
-
-            for (z=0, xfer_parms->gather_reads = nelmts - 1;
-                     z<nelmts;
-                     z++, xfer_parms->gather_reads--) {
-#else
 #ifdef QAK
         printf("%s: nelmts=%d, addr=%lu, elmt_size=%lu\n",FUNC,(int)nelmts,(unsigned long)addr,(unsigned long)elmt_size);
         printf("%s: sieve_buf=%p, sieve_loc=%lu, sieve_size=%lu, sieve_buf_size=%lu, sieve_dirty=%u\n",FUNC,f->shared->sieve_buf,(unsigned long)f->shared->sieve_loc,(unsigned long)f->shared->sieve_size,(unsigned long)f->shared->sieve_buf_size,(unsigned)f->shared->sieve_dirty);
         printf("%s: feature_flags=%lx\n",FUNC,(unsigned long)f->shared->lf->feature_flags);
 #endif /* QAK */
             for (z=0; z<nelmts; z++) {
-#endif
-
                 /* Read directly from file if the dataset is in an external file */
                 /* Note: We can't use data sieve buffers for datasets in external files
                  *  because the 'addr' of all external files is set to 0 (above) and
@@ -424,7 +415,7 @@ H5F_arr_write(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
     hsize_t	file_start;			/*byte offset to start	*/
     hsize_t	max_data = 0;			/*bytes in dataset	*/
     hsize_t	elmt_size = 1;			/*bytes per element	*/
-    size_t	nelmts, z;			/*number of elements	*/
+    hsize_t	nelmts, z;			/*number of elements	*/
     unsigned	ndims;				/*dimensionality	*/
     haddr_t	addr;				/*address in file	*/
     int	j;				    /*counters		*/
@@ -554,8 +545,7 @@ H5F_arr_write(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
                  */
                 unsigned long max, min, temp;
 
-                temp = nelmts;
-                assert(temp==nelmts);	/* verify no overflow */
+                H5_ASSIGN_OVERFLOW(temp,nelmts,hsize_t,unsigned long);
                 MPI_Allreduce(&temp, &max, 1, MPI_UNSIGNED_LONG, MPI_MAX,
                       H5FD_mpio_communicator(f->shared->lf));
                 MPI_Allreduce(&temp, &min, 1, MPI_UNSIGNED_LONG, MPI_MIN,

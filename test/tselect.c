@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tselect.c,v 1.33.2.7 2001/12/11 19:24:30 koziol Exp $ */
+/* $Id: tselect.c,v 1.33.2.13 2002/06/12 16:59:32 koziol Exp $ */
 
 /***********************************************************
 *
@@ -72,6 +74,20 @@
 #define SPACE6_RANK	1
 #define SPACE6_DIM1	(SPACE5_DIM1*SPACE5_DIM2*SPACE5_DIM3*SPACE5_DIM4*SPACE5_DIM5)
 
+/* 4-D dataset with fixed dimensions */
+#define SPACE7_NAME  "Space7"
+#define SPACE7_RANK	4
+#define SPACE7_DIM1	11
+#define SPACE7_DIM2	13
+#define SPACE7_DIM3	17
+#define SPACE7_DIM4	19
+
+/* 2-D dataset with easy dimensions */
+#define SPACE8_NAME  "Space8"
+#define SPACE8_RANK	2
+#define SPACE8_DIM1	10
+#define SPACE8_DIM2	10
+
 /* Element selection information */
 #define POINT1_NPOINTS 10
 
@@ -99,7 +115,8 @@ herr_t test_select_hyper_iter1(void *elem,hid_t type_id, hsize_t ndim, hssize_t 
 herr_t test_select_point_iter1(void *elem,hid_t type_id, hsize_t ndim, hssize_t *point, void *operator_data);
 herr_t test_select_all_iter1(void *elem,hid_t type_id, hsize_t ndim, hssize_t *point, void *operator_data);
 herr_t test_select_none_iter1(void *elem,hid_t type_id, hsize_t ndim, hssize_t *point, void *operator_data);
-herr_t test_select_hyper_iter2(void *_elem, hid_t UNUSED type_id, hsize_t ndim, hssize_t *point, void *_operator_data);
+herr_t test_select_hyper_iter2(void *_elem, hid_t type_id, hsize_t ndim, hssize_t *point, void *_operator_data);
+herr_t test_select_hyper_iter3(void *_elem,hid_t type_id, hsize_t ndim, hssize_t *point, void *_operator_data);
 
 /****************************************************************
 **
@@ -346,7 +363,7 @@ test_select_point(hid_t xfer_plist)
         VERIFY(temp_coord1[i][2],coord1[i][2],"H5Sget_select_elem_pointlist");
     } /* end for */
 
-    ret = H5Sget_select_npoints(sid1);
+    ret = (int)H5Sget_select_npoints(sid1);
     VERIFY(ret, 10, "H5Sget_select_npoints");
 
     /* Append another sequence of ten points to disk dataset */
@@ -371,7 +388,7 @@ test_select_point(hid_t xfer_plist)
         VERIFY(temp_coord1[i][2],coord1[i][2],"H5Sget_select_elem_pointlist");
     } /* end for */
 
-    ret = H5Sget_select_npoints(sid1);
+    ret = (int)H5Sget_select_npoints(sid1);
     VERIFY(ret, 20, "H5Sget_select_npoints");
 
     /* Select sequence of ten points for memory dataset */
@@ -400,7 +417,7 @@ test_select_point(hid_t xfer_plist)
     /*  the next list of points to the beginning of the point selection list) */
     HDmemcpy(((char *)pi.coord)+sizeof(coord2),coord2,sizeof(coord2));
 
-    ret = H5Sget_select_npoints(sid2);
+    ret = (int)H5Sget_select_npoints(sid2);
     VERIFY(ret, 10, "H5Sget_select_npoints");
 
     /* Append another sequence of ten points to memory dataset */
@@ -424,7 +441,7 @@ test_select_point(hid_t xfer_plist)
         VERIFY(temp_coord2[i][1],coord2[i][1],"H5Sget_select_elem_pointlist");
     } /* end for */
 
-    ret = H5Sget_select_npoints(sid2);
+    ret = (int)H5Sget_select_npoints(sid2);
     VERIFY(ret, 20, "H5Sget_select_npoints");
 
     /* Save points for later iteration */
@@ -466,7 +483,7 @@ test_select_point(hid_t xfer_plist)
         VERIFY(temp_coord3[i][1],coord3[i][1],"H5Sget_select_elem_pointlist");
     } /* end for */
 
-    ret = H5Sget_select_npoints(sid2);
+    ret = (int)H5Sget_select_npoints(sid2);
     VERIFY(ret, 10, "H5Sget_select_npoints");
 
     /* Append another sequence of ten points to disk dataset */
@@ -490,7 +507,7 @@ test_select_point(hid_t xfer_plist)
         VERIFY(temp_coord3[i][1],coord3[i][1],"H5Sget_select_elem_pointlist");
     } /* end for */
 
-    ret = H5Sget_select_npoints(sid2);
+    ret = (int)H5Sget_select_npoints(sid2);
     VERIFY(ret, 20, "H5Sget_select_npoints");
 
     /* Read selection from disk */
@@ -921,7 +938,7 @@ compare_size_t(const void *s1, const void *s2)
 ** 
 ****************************************************************/
 static void 
-test_select_hyper_stride(void)
+test_select_hyper_stride(hid_t xfer_plist)
 {
     hid_t		fid1;		/* HDF5 File IDs		*/
     hid_t		dataset;	/* Dataset ID			*/
@@ -1008,7 +1025,7 @@ test_select_hyper_stride(void)
     dataset=H5Dcreate(fid1,"Dataset1",H5T_STD_U16LE,sid1,H5P_DEFAULT);
 
     /* Write selection to disk */
-    ret=H5Dwrite(dataset,H5T_NATIVE_USHORT,sid2,sid1,H5P_DEFAULT,wbuf);
+    ret=H5Dwrite(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,wbuf);
     CHECK(ret, FAIL, "H5Dwrite");
 
     /* Close memory dataspace */
@@ -1028,7 +1045,7 @@ test_select_hyper_stride(void)
     CHECK(ret, FAIL, "H5Sselect_hyperslab");
 
     /* Read selection from disk */
-    ret=H5Dread(dataset,H5T_NATIVE_USHORT,sid2,sid1,H5P_DEFAULT,rbuf);
+    ret=H5Dread(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,rbuf);
     CHECK(ret, FAIL, "H5Dread");
 
     /* Sort the locations into the proper order */
@@ -1066,7 +1083,7 @@ test_select_hyper_stride(void)
     /* Free memory buffers */
     free(wbuf);
     free(rbuf);
-}   /* test_select_hyper() */
+}   /* test_select_hyper_stride() */
 
 /****************************************************************
 **
@@ -1075,7 +1092,7 @@ test_select_hyper_stride(void)
 ** 
 ****************************************************************/
 static void 
-test_select_hyper_contig(void)
+test_select_hyper_contig(hid_t dset_type, hid_t xfer_plist)
 {
     hid_t		fid1;		/* HDF5 File IDs		*/
     hid_t		dataset;	/* Dataset ID			*/
@@ -1132,10 +1149,10 @@ test_select_hyper_contig(void)
     CHECK(ret, FAIL, "H5Sselect_hyperslab");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",H5T_STD_U16LE,sid1,H5P_DEFAULT);
+    dataset=H5Dcreate(fid1,"Dataset1",dset_type,sid1,H5P_DEFAULT);
 
     /* Write selection to disk */
-    ret=H5Dwrite(dataset,H5T_NATIVE_USHORT,sid2,sid1,H5P_DEFAULT,wbuf);
+    ret=H5Dwrite(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,wbuf);
     CHECK(ret, FAIL, "H5Dwrite");
 
     /* Close memory dataspace */
@@ -1163,12 +1180,13 @@ test_select_hyper_contig(void)
     CHECK(ret, FAIL, "H5Sselect_hyperslab");
 
     /* Read selection from disk */
-    ret=H5Dread(dataset,H5T_NATIVE_USHORT,sid2,sid1,H5P_DEFAULT,rbuf);
+    ret=H5Dread(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,rbuf);
     CHECK(ret, FAIL, "H5Dread");
 
     /* Compare data read with data written out */
     if(HDmemcmp(rbuf,wbuf,sizeof(uint16_t)*30*12)) {
-        printf("hyperslab values don't match!\n");
+        num_errs++;
+        printf("Error: hyperslab values don't match!\n");
 #ifdef QAK
         for(i=0, tbuf=wbuf; i<12; i++)
             for(j=0; j<30; j++)
@@ -1195,7 +1213,129 @@ test_select_hyper_contig(void)
     /* Free memory buffers */
     free(wbuf);
     free(rbuf);
-}   /* test_select_hyper() */
+}   /* test_select_hyper_contig() */
+
+/****************************************************************
+**
+**  test_select_hyper_contig2(): Test H5S (dataspace) selection code.
+**      Tests more contiguous hyperslabs of various sizes and dimensionalities.
+** 
+****************************************************************/
+static void 
+test_select_hyper_contig2(hid_t dset_type, hid_t xfer_plist)
+{
+    hid_t		fid1;		/* HDF5 File IDs		*/
+    hid_t		dataset;	/* Dataset ID			*/
+    hid_t		sid1,sid2;	/* Dataspace ID			*/
+    hsize_t		dims2[] = {SPACE7_DIM4, SPACE7_DIM3, SPACE7_DIM2, SPACE7_DIM1};
+    hssize_t	        start[SPACE7_RANK];     /* Starting location of hyperslab */
+    hsize_t		count[SPACE7_RANK];     /* Element count of hyperslab */
+    uint16_t   *wbuf,       /* buffer to write to disk */
+               *rbuf,       /* buffer read from disk */
+               *tbuf;       /* temporary buffer pointer */
+    int        i,j,k,l;     /* Counters */
+    herr_t		ret;		/* Generic return value		*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing More Contiguous Hyperslabs Functionality\n"));
+
+    /* Allocate write & read buffers */
+    wbuf=malloc(sizeof(uint16_t)*SPACE7_DIM1*SPACE7_DIM2*SPACE7_DIM3*SPACE7_DIM4);
+    rbuf=calloc(sizeof(uint16_t),SPACE7_DIM1*SPACE7_DIM2*SPACE7_DIM3*SPACE7_DIM4);
+
+    /* Initialize write buffer */
+    for(i=0, tbuf=wbuf; i<SPACE7_DIM1; i++)
+        for(j=0; j<SPACE7_DIM2; j++)
+            for(k=0; k<SPACE7_DIM3; k++)
+                for(l=0; l<SPACE7_DIM4; l++)
+                    *tbuf++=(uint16_t)((i*SPACE7_DIM2)+j);
+
+    /* Create file */
+    fid1 = H5Fcreate(FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    /* Create dataspace for dataset */
+    sid1 = H5Screate_simple(SPACE7_RANK, dims2, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Create dataspace for writing buffer */
+    sid2 = H5Screate_simple(SPACE7_RANK, dims2, NULL);
+    CHECK(sid2, FAIL, "H5Screate_simple");
+
+    /* Select contiguous hyperslab for disk dataset */
+    start[0]=0; start[1]=0; start[2]=0; start[3]=0;
+    count[0]=2; count[1]=SPACE7_DIM3; count[2]=SPACE7_DIM2; count[3]=SPACE7_DIM1;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Select contiguous hyperslab in memory */
+    start[0]=0; start[1]=0; start[2]=0; start[3]=0;
+    count[0]=2; count[1]=SPACE7_DIM3; count[2]=SPACE7_DIM2; count[3]=SPACE7_DIM1;
+    ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Create a dataset */
+    dataset=H5Dcreate(fid1,"Dataset1",dset_type,sid1,H5P_DEFAULT);
+
+    /* Write selection to disk */
+    ret=H5Dwrite(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,wbuf);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Close memory dataspace */
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Create dataspace for reading buffer */
+    sid2 = H5Screate_simple(SPACE7_RANK, dims2, NULL);
+    CHECK(sid2, FAIL, "H5Screate_simple");
+
+    /* Select 6x5 count with a stride of 2x6 & 2x6 block hyperslab for disk dataset */
+    start[0]=0; start[1]=0; start[2]=0; start[3]=0;
+    count[0]=2; count[1]=SPACE7_DIM3; count[2]=SPACE7_DIM2; count[3]=SPACE7_DIM1;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Select 3x15 count with a stride of 4x2 & 4x2 block hyperslab for memory dataset */
+    start[0]=0; start[1]=0; start[2]=0; start[3]=0;
+    count[0]=2; count[1]=SPACE7_DIM3; count[2]=SPACE7_DIM2; count[3]=SPACE7_DIM1;
+    ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Read selection from disk */
+    ret=H5Dread(dataset,H5T_NATIVE_USHORT,sid2,sid1,xfer_plist,rbuf);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Compare data read with data written out */
+    if(HDmemcmp(rbuf,wbuf,sizeof(uint16_t)*2*SPACE7_DIM3*SPACE7_DIM2*SPACE7_DIM1)) {
+        num_errs++;
+        printf("Error: hyperslab values don't match!\n");
+#ifdef QAK
+        for(i=0, tbuf=wbuf; i<12; i++)
+            for(j=0; j<30; j++)
+                printf("i=%d, j=%d, *wbuf=%u, *rbuf=%u\n",i,j,(unsigned)*(wbuf+i*30+j),(unsigned)*(rbuf+i*30+j));
+#endif /* QAK */
+    } /* end if */
+
+    /* Close memory dataspace */
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close disk dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Free memory buffers */
+    free(wbuf);
+    free(rbuf);
+}   /* test_select_hyper_contig2() */
 
 /****************************************************************
 **
@@ -1678,6 +1818,125 @@ test_select_hyper_offset(void)
     free(wbuf);
     free(rbuf);
 }   /* test_select_hyper_offset() */
+
+/****************************************************************
+**
+**  test_select_hyper_offset2(): Test basic H5S (dataspace) selection code.
+**      Tests optimized hyperslab I/O with selection offsets.
+** 
+****************************************************************/
+static void 
+test_select_hyper_offset2(void)
+{
+    hid_t	fid1;		/* HDF5 File IDs		*/
+    hid_t	dataset;	/* Dataset ID			*/
+    hid_t	sid1,sid2;	/* Dataspace ID			*/
+    hsize_t	dims1[] = {SPACE8_DIM1, SPACE8_DIM2};
+    hsize_t	dims2[] = {SPACE8_DIM1, SPACE8_DIM2};
+    hssize_t	start[SPACE8_RANK];     /* Starting location of hyperslab */
+    hsize_t	count[SPACE8_RANK];     /* Element count of hyperslab */
+    hssize_t	offset[SPACE8_RANK];    /* Offset of selection */
+    uint8_t    *wbuf,       /* buffer to write to disk */
+               *rbuf,       /* buffer read from disk */
+               *tbuf,       /* temporary buffer pointer */
+               *tbuf2;      /* temporary buffer pointer */
+    int         i,j;        /* Counters */
+    herr_t	ret;        /* Generic return value */
+    htri_t	valid;      /* Generic boolean return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing More Hyperslab Selection Functions with Offsets\n"));
+
+    /* Allocate write & read buffers */
+    wbuf=malloc(sizeof(uint8_t)*SPACE8_DIM1*SPACE8_DIM2);
+    rbuf=calloc(sizeof(uint8_t),SPACE8_DIM1*SPACE8_DIM2);
+
+    /* Initialize write buffer */
+    for(i=0, tbuf=wbuf; i<SPACE8_DIM1; i++)
+        for(j=0; j<SPACE8_DIM2; j++)
+            *tbuf++=(uint8_t)((i*SPACE8_DIM2)+j);
+
+    /* Create file */
+    fid1 = H5Fcreate(FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    /* Create dataspace for dataset */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Create dataspace for writing buffer */
+    sid2 = H5Screate_simple(SPACE8_RANK, dims2, NULL);
+    CHECK(sid2, FAIL, "H5Screate_simple");
+
+    /* Select 4x10 hyperslab for disk dataset */
+    start[0]=1; start[1]=0;
+    count[0]=4; count[1]=10;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Set offset */
+    offset[0]=1; offset[1]=0;
+    ret = H5Soffset_simple(sid1,offset);
+    CHECK(ret, FAIL, "H5Soffset_simple");
+    valid = H5Sselect_valid(sid1);
+    VERIFY(valid, TRUE, "H5Sselect_valid");
+
+    /* Select 4x10 hyperslab for memory dataset */
+    start[0]=1; start[1]=0;
+    count[0]=4; count[1]=10;
+    ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Choose a valid offset for the memory dataspace */
+    offset[0]=2; offset[1]=0;
+    ret = H5Soffset_simple(sid2,offset);
+    CHECK(ret, FAIL, "H5Soffset_simple");
+    valid = H5Sselect_valid(sid2);
+    VERIFY(valid, TRUE, "H5Sselect_valid");
+
+    /* Create a dataset */
+    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_UCHAR,sid1,H5P_DEFAULT);
+
+    /* Write selection to disk */
+    ret=H5Dwrite(dataset,H5T_NATIVE_UCHAR,sid2,sid1,H5P_DEFAULT,wbuf);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Read selection from disk */
+    ret=H5Dread(dataset,H5T_NATIVE_UCHAR,sid2,sid1,H5P_DEFAULT,rbuf);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Compare data read with data written out */
+    for(i=0; i<4; i++) {
+        tbuf=wbuf+((i+3)*SPACE8_DIM2);
+        tbuf2=rbuf+((i+3)*SPACE8_DIM2);
+        for(j=0; j<SPACE8_DIM2; j++, tbuf++, tbuf2++) {
+            if(*tbuf!=*tbuf2) {
+                printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%u, *tbuf2=%u\n",__LINE__,i,j,(unsigned)*tbuf,(unsigned)*tbuf2);
+                num_errs++;
+            } /* end if */
+        } /* end for */
+    } /* end for */
+
+    /* Close memory dataspace */
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close disk dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Free memory buffers */
+    free(wbuf);
+    free(rbuf);
+}   /* test_select_hyper_offset2() */
 
 /****************************************************************
 **
@@ -3226,6 +3485,363 @@ test_select_valid(void)
     CHECK(error, FAIL, "H5Sclose");
 }   /* test_select_hyper_chunk() */
 
+/*
+ * Typedef for iteration structure used in the iteration tests
+ */
+typedef struct {
+    size_t curr_coord;          /* Current coordinate to examine */
+    hssize_t *coords;           /* Pointer to selection's coordinates */
+} iter_test_info;
+
+/****************************************************************
+**
+**  test_select_hyper_iter3(): Iterator for checking hyperslab iteration
+** 
+****************************************************************/
+herr_t 
+test_select_hyper_iter3(void UNUSED *_elem,hid_t UNUSED type_id, hsize_t ndim, hssize_t *point, void *_operator_data)
+{
+    iter_test_info *iter_info=(iter_test_info *)_operator_data; /* Get the pointer to the iterator information */
+    hssize_t *coord_ptr;        /* Pointer to the coordinate information for a point*/
+
+    /* Check number of dimensions */
+    if(ndim!=SPACE8_RANK)
+        return(-1);
+    else {
+        /* Check Coordinates */
+        coord_ptr=iter_info->coords+(2*iter_info->curr_coord);
+        iter_info->curr_coord++;
+        if(coord_ptr[0]!=point[0])
+            return(-1);
+        else if(coord_ptr[1]!=point[1])
+            return(-1);
+        else
+            return(0);
+    } /* end else */
+}   /* end test_select_hyper_iter3() */
+
+/****************************************************************
+**
+**  test_select_iterate_all(): Test basic H5S (dataspace) selection code.
+**      Tests iterating through "all" selections
+** 
+****************************************************************/
+static void 
+test_select_iterate_all(void)
+{
+    hid_t	sid1;           /* Dataspace ID */
+    hsize_t	dims1[] = {SPACE8_DIM1, SPACE8_DIM2};
+    iter_test_info iter_info;   /* Iterator information structure */
+    hssize_t    points[SPACE8_DIM1*SPACE8_DIM2][SPACE8_RANK];   /* Coordinates of selection */
+    unsigned short fake_buf;    /* Fake "buffer" to iterate through */
+    int         i,j;            /* Counters */
+    herr_t	ret;		/* Generic return value	*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Iterating Through 'all' Selections\n"));
+
+    /* Create dataspace for dataset on disk */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Space defaults to "all" selection */
+
+    /* Set the coordinates of the selection */
+    for(i=0; i<SPACE8_DIM1; i++)
+        for(j=0; j<SPACE8_DIM2; j++) {
+            points[(i*SPACE8_DIM2)+j][0]=i;
+            points[(i*SPACE8_DIM2)+j][1]=j;
+        } /* end for */
+
+    /* Initialize the iterator structure */
+    iter_info.curr_coord=0;
+    iter_info.coords=(hssize_t *)points;
+
+    /* Iterate through selection, verifying correct data */
+    ret = H5Diterate(&fake_buf,H5T_NATIVE_USHORT,sid1,test_select_hyper_iter3,&iter_info);
+    CHECK(ret, FAIL, "H5Diterate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+}   /* test_select_iterate_all() */
+
+/****************************************************************
+**
+**  test_select_iterate_point(): Test basic H5S (dataspace) selection code.
+**      Tests iterating through "point" selections
+** 
+****************************************************************/
+static void 
+test_select_iterate_point(hssize_t *offset)
+{
+    hid_t	sid1;           /* Dataspace ID */
+    hsize_t	dims1[] = {SPACE8_DIM1, SPACE8_DIM2};
+    hssize_t    real_offset[SPACE8_RANK];       /* Actual offset to use */
+    hssize_t    points[5][SPACE8_RANK] = {{2,4}, {3,8}, {8,4}, {7,5}, {7,7}};
+    size_t      num_points=5;   /* Number of points selected */
+    iter_test_info iter_info;   /* Iterator information structure */
+    unsigned short fake_buf;    /* Fake "buffer" to iterate through */
+    int         i;              /* Counters */
+    herr_t	ret;		/* Generic return value	*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Iterating Through 'point' Selections\n"));
+
+    /* Create dataspace for dataset on disk */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Select "point" selection */
+    ret = H5Sselect_elements(sid1, H5S_SELECT_SET,num_points,(const hssize_t **)points);
+    CHECK(ret, FAIL, "H5Sselect_elements");
+
+    if(offset!=NULL) {
+        HDmemcpy(real_offset,offset,SPACE8_RANK*sizeof(hssize_t));
+
+        /* Set offset, if provided */
+        ret = H5Soffset_simple(sid1,real_offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+    } /* end if */
+    else
+        HDmemset(real_offset,0,SPACE8_RANK*sizeof(hssize_t));
+
+    /* Initialize the iterator structure */
+    iter_info.curr_coord=0;
+    iter_info.coords=(hssize_t *)points;
+
+    /* Add in the offset */
+    for(i=0; i<(int)num_points; i++) {
+        points[i][0]+=real_offset[0];
+        points[i][1]+=real_offset[1];
+    } /* end for */
+
+    /* Iterate through selection, verifying correct data */
+    ret = H5Diterate(&fake_buf,H5T_NATIVE_USHORT,sid1,test_select_hyper_iter3,&iter_info);
+    CHECK(ret, FAIL, "H5Diterate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+}   /* test_select_iterate_point() */
+
+/****************************************************************
+**
+**  test_select_iterate_hyper_simple(): Test basic H5S (dataspace) selection code.
+**      Tests iterating through "simple" (i.e. one block) hyperslab selections
+** 
+****************************************************************/
+static void 
+test_select_iterate_hyper_simple(hssize_t *offset)
+{
+    hid_t	sid1;           /* Dataspace ID */
+    hsize_t	dims1[] = {SPACE8_DIM1, SPACE8_DIM2};
+    hssize_t    real_offset[SPACE8_RANK];       /* Actual offset to use */
+    hssize_t    start[SPACE8_RANK];     /* Hyperslab start */
+    hsize_t     count[SPACE8_RANK];     /* Hyperslab block size */
+    size_t      num_points;     /* Number of points in selection */
+    hssize_t    points[16][SPACE8_RANK];        /* Coordinates selected */
+    iter_test_info iter_info;   /* Iterator information structure */
+    unsigned short fake_buf;    /* Fake "buffer" to iterate through */
+    int         i,j;            /* Counters */
+    herr_t	ret;		/* Generic return value	*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Iterating Through Simple 'hyperslab' Selections\n"));
+
+    /* Create dataspace for dataset on disk */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Select "hyperslab" selection */
+    start[0]=3; start[1]=3;
+    count[0]=4; count[1]=4;
+    ret = H5Sselect_hyperslab(sid1, H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    if(offset!=NULL) {
+        HDmemcpy(real_offset,offset,SPACE8_RANK*sizeof(hssize_t));
+
+        /* Set offset, if provided */
+        ret = H5Soffset_simple(sid1,real_offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+    } /* end if */
+    else
+        HDmemset(real_offset,0,SPACE8_RANK*sizeof(hssize_t));
+
+    /* Initialize the iterator structure */
+    iter_info.curr_coord=0;
+    iter_info.coords=(hssize_t *)points;
+
+    /* Set the coordinates of the selection (with the offset) */
+    for(i=0, num_points=0; i<(int)count[0]; i++)
+        for(j=0; j<(int)count[1]; j++, num_points++) {
+            points[num_points][0]=i+start[0]+real_offset[0];
+            points[num_points][1]=j+start[1]+real_offset[1];
+        } /* end for */
+
+    /* Iterate through selection, verifying correct data */
+    ret = H5Diterate(&fake_buf,H5T_NATIVE_USHORT,sid1,test_select_hyper_iter3,&iter_info);
+    CHECK(ret, FAIL, "H5Diterate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+}   /* test_select_iterate_hyper_simple() */
+
+/****************************************************************
+**
+**  test_select_iterate_hyper_regular(): Test basic H5S (dataspace) selection code.
+**      Tests iterating through "regular" (i.e. strided block) hyperslab selections
+** 
+****************************************************************/
+static void 
+test_select_iterate_hyper_regular(hssize_t *offset)
+{
+    hid_t	sid1;           /* Dataspace ID */
+    hsize_t	dims1[] = {SPACE8_DIM1, SPACE8_DIM2};
+    hssize_t    real_offset[SPACE8_RANK];       /* Actual offset to use */
+    hssize_t    start[SPACE8_RANK];     /* Hyperslab start */
+    hsize_t     stride[SPACE8_RANK];    /* Hyperslab stride size */
+    hsize_t     count[SPACE8_RANK];     /* Hyperslab block count */
+    hsize_t     block[SPACE8_RANK];     /* Hyperslab block size */
+    hssize_t    points[16][SPACE8_RANK] = {
+        {2,2}, {2,3}, {2,6}, {2,7},
+        {3,2}, {3,3}, {3,6}, {3,7},
+        {6,2}, {6,3}, {6,6}, {6,7},
+        {7,2}, {7,3}, {7,6}, {7,7},
+        };
+    size_t      num_points=16;  /* Number of points selected */
+    iter_test_info iter_info;   /* Iterator information structure */
+    unsigned short fake_buf;    /* Fake "buffer" to iterate through */
+    int         i;              /* Counters */
+    herr_t	ret;		/* Generic return value	*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Iterating Through Regular 'hyperslab' Selections\n"));
+
+    /* Create dataspace for dataset on disk */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Select "hyperslab" selection */
+    start[0]=2; start[1]=2;
+    stride[0]=4; stride[1]=4;
+    count[0]=2; count[1]=2;
+    block[0]=2; block[1]=2;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,stride,count,block);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    if(offset!=NULL) {
+        HDmemcpy(real_offset,offset,SPACE8_RANK*sizeof(hssize_t));
+
+        /* Set offset, if provided */
+        ret = H5Soffset_simple(sid1,real_offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+    } /* end if */
+    else
+        HDmemset(real_offset,0,SPACE8_RANK*sizeof(hssize_t));
+
+    /* Initialize the iterator structure */
+    iter_info.curr_coord=0;
+    iter_info.coords=(hssize_t *)points;
+
+    /* Add in the offset */
+    for(i=0; i<(int)num_points; i++) {
+        points[i][0]+=real_offset[0];
+        points[i][1]+=real_offset[1];
+    } /* end for */
+
+    /* Iterate through selection, verifying correct data */
+    ret = H5Diterate(&fake_buf,H5T_NATIVE_USHORT,sid1,test_select_hyper_iter3,&iter_info);
+    CHECK(ret, FAIL, "H5Diterate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+}   /* test_select_iterate_hyper_regular() */
+
+/****************************************************************
+**
+**  test_select_iterate_hyper_irregular(): Test basic H5S (dataspace) selection code.
+**      Tests iterating through "irregular" (i.e. combined blocks) hyperslab selections
+** 
+****************************************************************/
+static void 
+test_select_iterate_hyper_irregular(hssize_t *offset)
+{
+    hid_t	sid1;           /* Dataspace ID */
+    hsize_t	dims1[] = {SPACE8_DIM1, SPACE8_DIM2};
+    hssize_t    real_offset[SPACE8_RANK];       /* Actual offset to use */
+    hssize_t    start[SPACE8_RANK];     /* Hyperslab start */
+    hsize_t     count[SPACE8_RANK];     /* Hyperslab block count */
+    hssize_t    iter_points[28][SPACE8_RANK] = { /* Coordinates, as iterated through */
+        {2,2}, {2,3}, {2,4}, {2,5},
+        {3,2}, {3,3}, {3,4}, {3,5},
+        {4,2}, {4,3}, {4,4}, {4,5}, {4,6}, {4,7},
+        {5,2}, {5,3}, {5,4}, {5,5}, {5,6}, {5,7},
+        {6,4}, {6,5}, {6,6}, {6,7},
+        {7,4}, {7,5}, {7,6}, {7,7},
+        };
+    size_t      num_iter_points=28;  /* Number of resulting points */
+    iter_test_info iter_info;   /* Iterator information structure */
+    unsigned short fake_buf;    /* Fake "buffer" to iterate through */
+    int         i;              /* Counters */
+    herr_t	ret;		/* Generic return value	*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Iterating Through Irregular 'hyperslab' Selections\n"));
+
+    /* Create dataspace for dataset on disk */
+    sid1 = H5Screate_simple(SPACE8_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Select first "hyperslab" selection */
+    start[0]=2; start[1]=2;
+    count[0]=4; count[1]=4;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_SET,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Combine with second "hyperslab" selection */
+    start[0]=4; start[1]=4;
+    count[0]=4; count[1]=4;
+    ret = H5Sselect_hyperslab(sid1,H5S_SELECT_OR,start,NULL,count,NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    if(offset!=NULL) {
+        HDmemcpy(real_offset,offset,SPACE8_RANK*sizeof(hssize_t));
+
+        /* Set offset, if provided */
+        ret = H5Soffset_simple(sid1,real_offset);
+        CHECK(ret, FAIL, "H5Soffset_simple");
+    } /* end if */
+    else
+        HDmemset(real_offset,0,SPACE8_RANK*sizeof(hssize_t));
+
+    /* Initialize the iterator structure */
+    iter_info.curr_coord=0;
+    iter_info.coords=(hssize_t *)iter_points;
+
+    /* Add in the offset */
+    for(i=0; i<(int)num_iter_points; i++) {
+        iter_points[i][0]+=real_offset[0];
+        iter_points[i][1]+=real_offset[1];
+    } /* end for */
+
+    /* Iterate through selection, verifying correct data */
+    ret = H5Diterate(&fake_buf,H5T_NATIVE_USHORT,sid1,test_select_hyper_iter3,&iter_info);
+    CHECK(ret, FAIL, "H5Diterate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+
+}   /* test_select_iterate_hyper_irregular() */
+
 /****************************************************************
 **
 **  test_select(): Main H5S selection testing routine.
@@ -3240,6 +3856,7 @@ test_select(void)
     int rdcc_nelmts;    /* Raw data number of elements */
     size_t rdcc_nbytes; /* Raw data number of bytes */
     double rdcc_w0;     /* Raw data write percentage */
+    hssize_t offset[SPACE7_RANK]={1,1}; /* Offset for testing selection offsets */
     herr_t	ret;	/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -3250,7 +3867,7 @@ test_select(void)
     CHECK(plist_id, FAIL, "H5Pcreate");
 
     /* test I/O with a very small buffer for reads */
-    ret=H5Pset_buffer(plist_id,(hsize_t)128,NULL,NULL);
+    ret=H5Pset_buffer(plist_id,(hsize_t)59,NULL,NULL);
     CHECK(ret, FAIL, "H5Pset_buffer");
 
     /* These next tests use the same file */
@@ -3265,11 +3882,20 @@ test_select(void)
 
     /* These next tests use the same file */
     test_select_combo();        /* Test combined hyperslab & element selection code */
-    test_select_hyper_stride(); /* Test strided hyperslab selection code */
-    test_select_hyper_contig(); /* Test contiguous hyperslab selection code */
+    test_select_hyper_stride(H5P_DEFAULT); /* Test strided hyperslab selection code */
+    test_select_hyper_stride(plist_id); /* Test strided hyperslab selection code */
+    test_select_hyper_contig(H5T_STD_U16LE,H5P_DEFAULT); /* Test contiguous hyperslab selection code */
+    test_select_hyper_contig(H5T_STD_U16LE,plist_id); /* Test contiguous hyperslab selection code */
+    test_select_hyper_contig(H5T_STD_U16BE,H5P_DEFAULT); /* Test contiguous hyperslab selection code */
+    test_select_hyper_contig(H5T_STD_U16BE,plist_id); /* Test contiguous hyperslab selection code */
+    test_select_hyper_contig2(H5T_STD_U16LE,H5P_DEFAULT); /* Test more contiguous hyperslab selection cases */
+    test_select_hyper_contig2(H5T_STD_U16LE,plist_id); /* Test more contiguous hyperslab selection cases */
+    test_select_hyper_contig2(H5T_STD_U16BE,H5P_DEFAULT); /* Test more contiguous hyperslab selection cases */
+    test_select_hyper_contig2(H5T_STD_U16BE,plist_id); /* Test more contiguous hyperslab selection cases */
     test_select_hyper_copy();   /* Test hyperslab selection copying code */
     test_select_point_copy();   /* Test point selection copying code */
     test_select_hyper_offset(); /* Test selection offset code with hyperslabs */
+    test_select_hyper_offset2();/* Test more selection offset code with hyperslabs */
     test_select_point_offset(); /* Test selection offset code with elements */
     test_select_hyper_union();  /* Test hyperslab union code */
     test_select_hyper_union_stagger();  /* Test hyperslab union code for staggered slabs */
@@ -3312,6 +3938,18 @@ test_select(void)
 
     /* More tests for checking validity of selections */
     test_select_valid();
+
+    /* Test iterating through selections */
+    test_select_iterate_all();
+    test_select_iterate_point(NULL);
+    test_select_iterate_point(offset);
+    test_select_iterate_hyper_simple(NULL);
+    test_select_iterate_hyper_simple(offset);
+    test_select_iterate_hyper_regular(NULL);
+    test_select_iterate_hyper_regular(offset);
+    test_select_iterate_hyper_irregular(NULL);
+    test_select_iterate_hyper_irregular(offset);
+
 }   /* test_select() */
 
 

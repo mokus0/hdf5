@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 2000 NCSA
- *		      All rights reserved.
- *
  * Programmer:	Quincey Koziol <koziol@ncsa.uiuc.edu>
  *		Thursday, September 28, 2000
  *
@@ -55,12 +66,20 @@
  * Macros that check for overflows.  These are somewhat dangerous to fiddle
  * with.
  */
-#if (SIZEOF_SIZE_T >= SIZEOF_OFF_T)
+#if (H5_SIZEOF_SIZE_T >= H5_SIZEOF_OFF_T)
 #   define H5F_OVERFLOW_SIZET2OFFT(X)					      \
     ((size_t)(X)>=(size_t)((size_t)1<<(8*sizeof(off_t)-1)))
 #else
 #   define H5F_OVERFLOW_SIZET2OFFT(X) 0
 #endif
+
+#if (H5_SIZEOF_HSIZE_T >= H5_SIZEOF_OFF_T)
+#   define H5F_OVERFLOW_HSIZET2OFFT(X)  \
+   ((hsize_t)(X)>=(hsize_t)((hsize_t)1<<(8*sizeof(off_t)-1)))
+#else                                           
+#   define H5F_OVERFLOW_HSIZET2OFFT(X) 0                                                                           
+#endif         
+
 
 /* The raw data chunk cache */
 typedef struct H5F_rdcc_t {
@@ -92,30 +111,32 @@ typedef struct H5F_file_t {
     haddr_t	base_addr;	/* Absolute base address for rel.addrs. */
     haddr_t	freespace_addr;	/* Relative address of free-space info	*/
     haddr_t	driver_addr;	/* File driver information block address*/
+    unsigned	boot_chksum;	/* Boot block checksum                  */
+    unsigned	drvr_chksum;	/* Driver info block checksum           */
     struct H5AC_t *cache;	/* The object cache			*/
     H5F_create_t *fcpl;		/* File-creation property list		*/
-                            /* This actually ends up being a pointer to a */
-                            /* H5P_t type, which is returned from H5P_copy */
-                            /* But that's ok because we only access it like */
-                            /* a H5F_create_t until we pass it back to */
-                            /* H5P_close to release it - QAK */
-    int	mdc_nelmts;	/* Size of meta data cache (elements)	*/
-    int	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
+                                /* (This actually ends up being a pointer to a */
+                                /* H5P_t type, which is returned from H5P_copy */
+                                /* But that's ok because we only access it like */
+                                /* a H5F_create_t until we pass it back to */
+                                /* H5P_close to release it - QAK) */
+    int	        mdc_nelmts;	/* Size of meta data cache (elements)	*/
+    int	        rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
     size_t	rdcc_nbytes;	/* Size of raw data chunk cache	(bytes)	*/
     double	rdcc_w0;	/* Preempt read chunks first? [0.0..1.0]*/
     hsize_t	threshold;	/* Threshold for alignment		*/
     hsize_t	alignment;	/* Alignment				*/
     unsigned	gc_ref;		/* Garbage-collect references?		*/
     struct H5G_t *root_grp;	/* Open root group			*/
-    int	ncwfs;		/* Num entries on cwfs list		*/
+    int	        ncwfs;		/* Num entries on cwfs list		*/
     struct H5HG_heap_t **cwfs;	/* Global heap cache			*/
 
     /* Data Sieve Buffering fields */
-    unsigned char *sieve_buf;  /* Buffer to hold data sieve buffer */
-    haddr_t sieve_loc;      /* File location (offset) of the data sieve buffer */
-    hsize_t sieve_size;     /* Size of the data sieve buffer used (in bytes) */
-    hsize_t sieve_buf_size; /* Size of the data sieve buffer allocated (in bytes) */
-    unsigned sieve_dirty;   /* Flag to indicate that the data sieve buffer is dirty */
+    unsigned char *sieve_buf;   /* Buffer to hold data sieve buffer */
+    haddr_t     sieve_loc;      /* File location (offset) of the data sieve buffer */
+    hsize_t     sieve_size;     /* Size of the data sieve buffer used (in bytes) */
+    hsize_t     sieve_buf_size; /* Size of the data sieve buffer allocated (in bytes) */
+    unsigned    sieve_dirty;    /* Flag to indicate that the data sieve buffer is dirty */
 
     H5F_rdcc_t	rdcc;		/* Raw data chunk cache			*/
 } H5F_file_t;
@@ -192,11 +213,6 @@ __DLL__ herr_t H5F_istore_write(H5F_t *f, hid_t dxpl_id,
 				const struct H5O_fill_t *fill,
 				const hssize_t offset[], const hsize_t size[],
 				const void *buf);
-__DLL__ herr_t H5F_istore_allocate (H5F_t *f, hid_t dxpl_id,
-				    const struct H5O_layout_t *layout,
-				    const hsize_t *space_dim,
-				    const struct H5O_pline_t *pline,
-				    const struct H5O_fill_t *fill);
 
 /* Functions that operate on contiguous storage wrt boot block */
 __DLL__ herr_t H5F_contig_read(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr, hsize_t size,

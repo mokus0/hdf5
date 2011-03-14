@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: titerate.c,v 1.4.2.3 2001/06/28 21:23:07 pvn Exp $ */
+/* $Id: titerate.c,v 1.4.2.5 2002/06/19 15:52:03 epourmal Exp $ */
 
 /***********************************************************
 *
@@ -33,7 +35,7 @@
 #define NATTR 50
 
 /* Number of groups for second group iteration test */
-#define NGROUPS 150
+#define H5_NGROUPS 150
 
 /* General maximum length of names used */
 #define NAMELEN     80
@@ -421,7 +423,7 @@ static void test_iter_group_large(void)
     hsize_t		dims[] = {SPACE1_DIM1};
     herr_t		ret;		/* Generic return value		*/
     char gname[20];         /* Temporary group name */
-    iter_info names[NGROUPS+2]; /* Names of objects in the root group */
+    iter_info names[H5_NGROUPS+2]; /* Names of objects in the root group */
     iter_info *curr_name;        /* Pointer to the current name in the root group */
     int                 i;
 
@@ -446,7 +448,7 @@ static void test_iter_group_large(void)
     CHECK(sid, FAIL, "H5Screate_simple");
 
     /* Create a bunch of groups */
-    for (i=0; i<NGROUPS; i++) {
+    for (i=0; i<H5_NGROUPS; i++) {
         sprintf(gname, "Group_%d", i); 
 
         /* Add the name to the list of objects in the root group */
@@ -467,8 +469,8 @@ static void test_iter_group_large(void)
     CHECK(dataset, FAIL, "H5Dcreate");
 
     /* Add the name to the list of objects in the root group */
-    strcpy(names[NGROUPS].name,"Dataset1");
-    names[NGROUPS].type=H5G_DATASET;
+    strcpy(names[H5_NGROUPS].name,"Dataset1");
+    names[H5_NGROUPS].type=H5G_DATASET;
 
     /* Close Dataset */
     ret = H5Dclose(dataset);
@@ -497,15 +499,15 @@ static void test_iter_group_large(void)
     CHECK(ret, FAIL, "H5Tcommit");
 
     /* Add the name to the list of objects in the root group */
-    strcpy(names[NGROUPS+1].name,"Datatype1");
-    names[NGROUPS+1].type=H5G_TYPE;
+    strcpy(names[H5_NGROUPS+1].name,"Datatype1");
+    names[H5_NGROUPS+1].type=H5G_TYPE;
 
     /* Close datatype */
     ret = H5Tclose(tid);
     CHECK(ret, FAIL, "H5Tclose");
 
     /* Need to sort the names in the root group, cause that's what the library does */
-    qsort(names,NGROUPS+2,sizeof(iter_info),iter_strcmp2);
+    qsort(names,H5_NGROUPS+2,sizeof(iter_info),iter_strcmp2);
 
     /* Iterate through the file to see members of the root group */
     curr_name=&names[0];

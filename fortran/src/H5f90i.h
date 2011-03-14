@@ -1,3 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+
 #ifndef _H5f90i_H
 #define _H5f90i_H
 
@@ -92,6 +107,20 @@ typedef float             real_f;
 
 #endif /*LINUX*/
 
+/* IA64 LINUX definitions */
+#if defined IA64
+typedef char              *_fcd;
+typedef long              hsize_t_f;
+typedef long              hssize_t_f;
+typedef long              size_t_f;
+typedef int               int_f;
+typedef int               hid_t_f;
+typedef float             real_f;
+#define FNAME_POST_UNDERSCORE
+#define _fcdtocp(desc) (desc)
+
+#endif /* IA64 LINUX*/
+
 #if defined(IRIX) || defined(IRIS4) || defined(sgi) || defined(__sgi__) || defined(__sgi)
 
 #ifndef IRIX
@@ -132,11 +161,6 @@ typedef float         real_f;
 #ifdef IRIX64
 #define BIG_LONGS
 #endif
-
-
-#define HAVE_STDC
-#define INCLUDES_ARE_ANSI
-
 #endif /* IRIX */
 
 #if (defined(SUN) || defined(sun) || defined(__sun__) || defined(__SUNPRO_C)) & !defined(__i386)
@@ -165,8 +189,8 @@ Please check your Makefile.
 #include <sys/stat.h>
 #define DF_MT             DFMT_SUN
 typedef char              *_fcd;
-typedef int               hsize_t_f;
-typedef int               hssize_t_f;
+typedef long long         hssize_t_f;
+typedef long long         hsize_t_f;
 typedef int               size_t_f;
 typedef int               int_f;
 typedef int               hid_t_f;
@@ -241,10 +265,6 @@ Please check your Makefile.
 #endif
 #define GOT_MACHINE
 
-#ifndef HAVE_UNISTD_H
-#define HAVE_UNISTD_H  /* unistd.h - close, fork,..etc */
-#endif
-
 #   define BSD
 #ifndef __GNUC__
 #include <memory.h>
@@ -260,11 +280,6 @@ typedef int            int_f;
 typedef int            hid_t_f;
 typedef float          real_f;
 #define _fcdtocp(desc) (desc)
-#ifdef  HAVE_FMPOOL
-#define FILELIB PAGEBUFIO  /* enable page buffering */
-#else
-#define FILELIB UNIXBUFIO
-#endif
 
 #endif /* HP9000 */
 
@@ -300,12 +315,6 @@ typedef float             real_f;
 
 #define DF_CAPFNAMES
 #define _fcdtocp(desc) (desc)
-
-#ifdef  HAVE_FMPOOL
-#define FILELIB PAGEBUFIO  /* enable page buffering */
-#else
-#define FILELIB UNIXBUFIO
-#endif
 
 #endif /*WINDOWS */
 

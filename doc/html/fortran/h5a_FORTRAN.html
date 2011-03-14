@@ -1,4 +1,21 @@
 <html>
+
+<!--
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ -->
+
 <head><title>
 FORTRAN Attribute API -- h5a
 </title></head>
@@ -241,11 +258,15 @@ FORTRAN Attribute API -- h5a
             INTEGER(HID_T), INTENT(IN) :: memtype_id ! Attribute datatype 
                                                      ! identifier  (in memory)
             TYPE, INTENT(INOUT)  :: buf         ! Data buffer; may be a scalar or an array
-            INTEGER, INTENT(IN)  :: dims(7)     ! Array to hold corresponding
-                                                ! dimension sizes of data buffer buf;
-                                                ! dim(k) has value of the k-th dimension
-                                                ! of buffer buf;
+            DIMENSION(*), INTEGER(HSIZE_T), INTENT(IN)  :: dims 
+                                                ! Array to hold corresponding dimension 
+                                                ! sizes of data buffer buf; dim(k) has 
+                                                ! value of the k-th dimension of buffer buf;
                                                 ! values are ignored if buf is a scalar
+                                                ! 
+                                                ! Deprecated type, will be removed in 
+                                                ! Release 1.6:
+                                                ! INTEGER, INTENT(IN)  :: dims(7)     
             INTEGER, INTENT(OUT) :: hdferr      ! Error code
                                                 ! 0 on success and -1 on failure
           END SUBROUTINE h5aread_f
@@ -270,13 +291,17 @@ FORTRAN Attribute API -- h5a
             INTEGER(HID_T), INTENT(IN) :: memtype_id ! Attribute datatype 
                                                      ! identifier  (in memory)
             TYPE, INTENT(IN) :: buf             ! Data buffer; may be a scalar or an array
-            INTEGER, INTENT(IN)  :: dims(7)     ! Array to hold corresponding
-                                                ! dimension sizes of data buffer buf;
-                                                ! dim(k) has value of the k-th dimension
-                                                ! of buffer buf;
+            DIMENSION(*), INTEGER(HSIZE_T), INTENT(IN)  :: dims 
+                                                ! Array to hold corresponding dimension 
+                                                ! sizes of data buffer buf; dim(k) has 
+                                                ! value of the k-th dimension of buffer buf;
                                                 ! values are ignored if buf is a scalar
-            INTEGER, INTENT(OUT) :: hdferr       ! Error code
-                                                 ! 0 on success and -1 on failure
+                                                ! 
+                                                ! Deprecated type, will be removed in 
+                                                ! Release 1.6:
+                                                ! INTEGER, INTENT(IN)  :: dims(7)     
+            INTEGER, INTENT(OUT) :: hdferr      ! Error code
+                                                ! 0 on success and -1 on failure
           END SUBROUTINE h5awrite_f
 </pre>          
 
@@ -293,9 +318,9 @@ FORTRAN Attribute API -- h5a
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 </address>
 
-Last modified:  29 June 2001
+Last modified:  6 May 2002
 <br>
-Describes HDF5 Release 1.4.3, February 2002
+Describes HDF5 Release 1.4.4, July 2002
 
 </body>
 </html>

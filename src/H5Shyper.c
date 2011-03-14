@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998-2001 NCSA
- *                         All rights reserved.
- *
  * Programmer:  Quincey Koziol <koziol@ncsa.uiuc.edu>
  *              Thursday, June 18, 1998
  *
@@ -54,7 +65,6 @@ typedef struct {
     H5S_sel_iter_t *iter;
     void *src;
     hsize_t	mem_size[H5O_LAYOUT_NDIMS];
-    hssize_t mem_offset[H5O_LAYOUT_NDIMS];
     H5D_operator_t op;
     void * op_data;
 } H5S_hyper_iter_info_t;
@@ -474,6 +484,7 @@ H5S_hyper_block_cache (H5S_hyper_node_t *node,
 static herr_t
 H5S_hyper_block_read (H5S_hyper_node_t *node, H5S_hyper_io_info_t *io_info, hsize_t region_size)
 {
+    size_t tmp_region_size;
     FUNC_ENTER (H5S_hyper_block_read, SUCCEED);
 
     assert(node && node->cinfo.cached);
@@ -494,7 +505,8 @@ H5S_hyper_block_read (H5S_hyper_node_t *node, H5S_hyper_io_info_t *io_info, hsiz
      * offset
      */
     node->cinfo.rpos+=region_size*io_info->elmt_size;
-    node->cinfo.rleft-=region_size;
+    H5_ASSIGN_OVERFLOW(tmp_region_size,region_size,hsize_t,size_t);
+    node->cinfo.rleft-=tmp_region_size;
 
     /* If we've read in all the elements from the block, throw it away */
     if(node->cinfo.rleft==0 && (node->cinfo.wleft==0 || node->cinfo.wleft==node->cinfo.size)) {
@@ -529,6 +541,7 @@ H5S_hyper_block_write (H5S_hyper_node_t *node,
 {
     hssize_t	file_offset[H5O_LAYOUT_NDIMS];	/*offset of slab in file*/
     hsize_t	hsize[H5O_LAYOUT_NDIMS];	/*size of hyperslab	*/
+    size_t      tmp_region_size;
     unsigned u;                   /* Counters */
 
     FUNC_ENTER (H5S_hyper_block_write, SUCCEED);
@@ -548,7 +561,8 @@ H5S_hyper_block_write (H5S_hyper_node_t *node,
      * offset
      */
     node->cinfo.wpos+=region_size*io_info->elmt_size;
-    node->cinfo.wleft-=region_size;
+    H5_ASSIGN_OVERFLOW(tmp_region_size,region_size,hsize_t,size_t);
+    node->cinfo.wleft-=tmp_region_size;
 
     /* If we've read in all the elements from the block, throw it away */
     if(node->cinfo.wleft==0 && (node->cinfo.rleft==0 || node->cinfo.rleft==node->cinfo.size)) {
@@ -879,8 +893,14 @@ H5S_hyper_iter_next (const H5S_t *file_space, H5S_sel_iter_t *file_iter)
 
     /* Calculate the offset and block count for each dimension */
     for(i=0; i<ndims; i++) {
-        iter_offset[i]=(file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)%file_space->select.sel_info.hslab.diminfo[i].stride;
-        iter_count[i]=(file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)/file_space->select.sel_info.hslab.diminfo[i].stride;
+        if(file_space->select.sel_info.hslab.diminfo[i].stride==1) {
+            iter_offset[i]=file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start;
+            iter_count[i]=0;
+        } /* end if */
+        else {
+            iter_offset[i]=(file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)%file_space->select.sel_info.hslab.diminfo[i].stride;
+            iter_count[i]=(file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)/file_space->select.sel_info.hslab.diminfo[i].stride;
+        } /* end else */
     } /* end for */
 
     /* Start with the fastest changing dimension */
@@ -1098,11 +1118,22 @@ for(i=0; i<ndims+1; i++)
 
         /* Compute the current "counts" for this location */
         for(i=0; i<ndims; i++) {
-            tmp_count[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)%file_space->select.sel_info.hslab.diminfo[i].stride;
-            tmp_block[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)/file_space->select.sel_info.hslab.diminfo[i].stride;
+            if(file_space->select.sel_info.hslab.diminfo[i].stride==1) {
+                tmp_count[i] = 0;
+                tmp_block[i] = file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start;
+            } /* end if */
+            else {
+                tmp_count[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)/file_space->select.sel_info.hslab.diminfo[i].stride;
+                tmp_block[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)%file_space->select.sel_info.hslab.diminfo[i].stride;
+            } /* end else */
         } /* end for */
 #ifdef QAK
 for(i=0; i<ndims; i++) {
+    printf("%s: file_iter->hyp.pos[%d]=%d\n",FUNC,(int)i,(int)file_iter->hyp.pos[i]);
+    printf("%s: file_space->select.sel_info.hslab.diminfo[%d].start=%d\n",FUNC,(int)i,(int)file_space->select.sel_info.hslab.diminfo[i].start);
+    printf("%s: file_space->select.sel_info.hslab.diminfo[%d].stride=%d\n",FUNC,(int)i,(int)file_space->select.sel_info.hslab.diminfo[i].stride);
+    printf("%s: file_space->select.sel_info.hslab.diminfo[%d].block=%d\n",FUNC,(int)i,(int)file_space->select.sel_info.hslab.diminfo[i].block);
+    printf("%s: file_space->select.sel_info.hslab.diminfo[%d].count=%d\n",FUNC,(int)i,(int)file_space->select.sel_info.hslab.diminfo[i].count);
     printf("%s: tmp_count[%d]=%d, tmp_block[%d]=%d\n",FUNC,(int)i,(int)tmp_count[i],(int)i,(int)tmp_block[i]);
     printf("%s: slab[%d]=%d\n",FUNC,(int)i,(int)slab[i]);
 }
@@ -1223,11 +1254,18 @@ for(i=0; i<file_space->extent.u.simple.rank; i++)
 
             /* Increment the offset and count for the other dimensions */
             temp_dim=fast_dim-1;
+#ifdef QAK
+printf("%s: temp_dim=%u\n",FUNC,(unsigned)temp_dim);
+#endif /* QAK */
             while(temp_dim>=0) {
                 /* Move to the next row in the curent dimension */
                 offset[temp_dim]++;
                 buf_off+=slab[temp_dim];
                 tmp_block[temp_dim]++;
+#ifdef QAK
+printf("%s: tmp_block[%d]=%u\n",FUNC,temp_dim,(unsigned)tmp_block[temp_dim]);
+printf("%s: tdiminfo[%d].block=%u\n",FUNC,temp_dim,(unsigned)tdiminfo[temp_dim].block);
+#endif /* QAK */
 
                 /* If this block is still in the range of blocks to output for the dimension, break out of loop */
                 if(tmp_block[temp_dim]<tdiminfo[temp_dim].block)
@@ -1685,8 +1723,14 @@ printf("%s: Check 2.0\n",FUNC);
 
         /* Compute the current "counts" for this location */
         for(i=0; i<ndims; i++) {
-            tmp_count[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)%file_space->select.sel_info.hslab.diminfo[i].stride;
-            tmp_block[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)/file_space->select.sel_info.hslab.diminfo[i].stride;
+            if(file_space->select.sel_info.hslab.diminfo[i].stride==1) {
+                tmp_count[i] = 0;
+                tmp_block[i] = file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start;
+            } /* end if */
+            else {
+                tmp_count[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)/file_space->select.sel_info.hslab.diminfo[i].stride;
+                tmp_block[i] = (file_iter->hyp.pos[i]-file_space->select.sel_info.hslab.diminfo[i].start)%file_space->select.sel_info.hslab.diminfo[i].stride;
+            } /* end else */
         } /* end for */
 
         /* Compute the initial buffer offset */
@@ -2239,8 +2283,14 @@ printf("%s: Check 2.0\n",FUNC);
 
         /* Compute the current "counts" for this location */
         for(i=0; i<ndims; i++) {
-            tmp_count[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)%mem_space->select.sel_info.hslab.diminfo[i].stride;
-            tmp_block[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)/mem_space->select.sel_info.hslab.diminfo[i].stride;
+            if(mem_space->select.sel_info.hslab.diminfo[i].stride==1) {
+                tmp_count[i] = 0;
+                tmp_block[i] = mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start;
+            } /* end if */
+            else {
+                tmp_count[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)/mem_space->select.sel_info.hslab.diminfo[i].stride;
+                tmp_block[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)%mem_space->select.sel_info.hslab.diminfo[i].stride;
+            } /* end else */
         } /* end for */
 
         /* Compute the initial buffer offset */
@@ -2646,7 +2696,7 @@ H5S_hyper_mwrite_opt (const void *_tconv_buf, size_t elmt_size,
     hsize_t actual_bytes;     /* The actual number of bytes to copy */
     hsize_t num_write=0;      /* Number of elements read */
 
-    FUNC_ENTER (H5S_hyper_fwrite_opt, 0);
+    FUNC_ENTER (H5S_hyper_mwrite_opt, 0);
 
 #ifdef QAK
 printf("%s: Called!, elmt_size=%d\n",FUNC,(int)elmt_size);
@@ -2755,8 +2805,14 @@ printf("%s: Check 2.0\n",FUNC);
 
         /* Compute the current "counts" for this location */
         for(i=0; i<ndims; i++) {
-            tmp_count[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)%mem_space->select.sel_info.hslab.diminfo[i].stride;
-            tmp_block[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)/mem_space->select.sel_info.hslab.diminfo[i].stride;
+            if(mem_space->select.sel_info.hslab.diminfo[i].stride==1) {
+                tmp_count[i] = 0;
+                tmp_block[i] = mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start;
+            } /* end if */
+            else {
+                tmp_count[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)/mem_space->select.sel_info.hslab.diminfo[i].stride;
+                tmp_block[i] = (mem_iter->hyp.pos[i]-mem_space->select.sel_info.hslab.diminfo[i].start)%mem_space->select.sel_info.hslab.diminfo[i].stride;
+            } /* end else */
         } /* end for */
 
         /* Compute the initial buffer offset */
@@ -2774,7 +2830,7 @@ printf("%s: buf_off=%u, actual_bytes=%u\n",FUNC,(unsigned)buf_off,(int)actual_by
 
 #ifdef QAK
 printf("%s: actual_write=%d\n",FUNC,(int)actual_write);
-for(i=0; i<file_space->extent.u.simple.rank; i++)
+for(i=0; i<mem_space->extent.u.simple.rank; i++)
     printf("%s: diminfo: start[%d]=%d, stride[%d]=%d, block[%d]=%d, count[%d]=%d\n",FUNC,
         (int)i,(int)mem_space->select.sel_info.hslab.diminfo[i].start,
         (int)i,(int)mem_space->select.sel_info.hslab.diminfo[i].stride,
@@ -4362,6 +4418,8 @@ for(i=0; i<ndims; i++)
                     temp_dim--;
                 } /* end while */
             } /* end if */
+            else
+                break;  /* Break out now, for 1-D selections */
 
             /* Re-compute offset array */
             for(i=0; i<ndims; i++) {
@@ -4608,8 +4666,12 @@ H5S_hyper_select_contiguous(const H5S_t *space)
          * dimension.
          */
         ret_value=TRUE;	/* assume true and reset if the dimensions don't match */
-        for(u=1; u<space->extent.u.simple.rank; u++) {
-            if(space->select.sel_info.hslab.diminfo[u].count>1 || space->select.sel_info.hslab.diminfo[u].block!=space->extent.u.simple.size[u]) {
+        for(u=0; u<space->extent.u.simple.rank; u++) {
+            if(space->select.sel_info.hslab.diminfo[u].count>1) {
+                ret_value=FALSE;
+                break;
+            } /* end if */
+            if(u>0 && space->select.sel_info.hslab.diminfo[u].block!=space->extent.u.simple.size[u]) {
                 ret_value=FALSE;
                 break;
             } /* end if */
@@ -5115,6 +5177,7 @@ H5S_hyper_select_iterate_mem (int dim, H5S_hyper_iter_info_t *iter_info)
     hsize_t offset;             /* offset of region in buffer */
     void *tmp_buf;              /* temporary location of the element in the buffer */
     H5S_hyper_region_t *regions;  /* Pointer to array of hyperslab nodes overlapped */
+    hssize_t mem_offset[H5O_LAYOUT_NDIMS];      /* Offset array */
     size_t num_regions;         /* number of regions overlapped */
     herr_t user_ret=0;          /* User's return value */
     size_t i;                   /* Counters */
@@ -5136,28 +5199,29 @@ H5S_hyper_select_iterate_mem (int dim, H5S_hyper_iter_info_t *iter_info)
         /*  (Which means that we've got a list of the regions in the fastest */
         /*   changing dimension and should input those regions) */
         if((unsigned)(dim+2)==iter_info->space->extent.u.simple.rank) {
-            HDmemcpy(iter_info->mem_offset, iter_info->iter->hyp.pos,(iter_info->space->extent.u.simple.rank*sizeof(hssize_t)));
-            iter_info->mem_offset[iter_info->space->extent.u.simple.rank]=0;
+            /* Get the current coordinate position */
+            HDmemcpy(mem_offset, iter_info->iter->hyp.pos,(iter_info->space->extent.u.simple.rank*sizeof(hssize_t)));
+            mem_offset[iter_info->space->extent.u.simple.rank]=0;
 
             /* Iterate over data from regions */
             for(i=0; i<num_regions && user_ret==0; i++) {
                 /* Set the location of the current hyperslab */
-                iter_info->mem_offset[iter_info->space->extent.u.simple.rank-1]=regions[i].start;
+                mem_offset[iter_info->space->extent.u.simple.rank-1]=regions[i].start;
 
                 /* Get the offset in the memory buffer */
                 offset=H5V_array_offset(iter_info->space->extent.u.simple.rank+1,
-                    iter_info->mem_size,iter_info->mem_offset);
+                    iter_info->mem_size,mem_offset);
                 tmp_buf=((char *)iter_info->src+offset);
 
                 /* Iterate over each element in the current region */
                 for(j=regions[i].start; j<=regions[i].end && user_ret==0; j++) {
                     /* Call the user's function */
-                    user_ret=(*(iter_info->op))(tmp_buf,iter_info->dt,(hsize_t)iter_info->space->extent.u.simple.rank,iter_info->mem_offset,iter_info->op_data);
+                    user_ret=(*(iter_info->op))(tmp_buf,iter_info->dt,(hsize_t)iter_info->space->extent.u.simple.rank,mem_offset,iter_info->op_data);
 
                     /* Subtract the element from the selected region (not implemented yet) */
 
                     /* Increment the coordinate offset */
-                    iter_info->mem_offset[iter_info->space->extent.u.simple.rank-1]=j;
+                    mem_offset[iter_info->space->extent.u.simple.rank-1]++;
 
                     /* Advance the pointer in the buffer */
                     tmp_buf=((char *)tmp_buf+iter_info->elem_size);
@@ -5280,12 +5344,12 @@ H5S_hyper_select_iterate_mem_opt(H5S_sel_iter_t UNUSED *iter, void *buf, hid_t t
     for(u=0; u<ndims; u++) {
         tmp_count[u]=diminfo[u].count;
         tmp_block[u]=diminfo[u].block;
-        offset[u]=diminfo[u].start;
+        offset[u]=(diminfo[u].start+space->select.offset[u]);
     } /* end for */
 
     /* Initialize the starting location */
     for(loc=buf,u=0; u<ndims; u++)
-        loc+=diminfo[u].start*slab[u];
+        loc+=offset[u]*slab[u];
 
     /* Go iterate over the hyperslabs */
     while(user_ret==0) {
@@ -5363,7 +5427,7 @@ H5S_hyper_select_iterate_mem_opt(H5S_sel_iter_t UNUSED *iter, void *buf, hid_t t
 
         /* Re-compute buffer location & offset array */
         for(loc=buf,u=0; u<ndims; u++) {
-            temp_off=diminfo[u].start
+            temp_off=(diminfo[u].start+space->select.offset[u])
                 +diminfo[u].stride*(diminfo[u].count-tmp_count[u])
                     +(diminfo[u].block-tmp_block[u]);
             loc+=temp_off*slab[u];

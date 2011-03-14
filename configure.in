@@ -1,15 +1,35 @@
 dnl Process this file with autoconf to produce configure.
 dnl
-dnl Copyright (C) 1997, 1998, 1999, 2000, 2001
-dnl     National Center for Supercomputing Applications
-dnl     All rights reserved.
+dnl Copyright by the Board of Trustees of the University of Illinois.
+dnl All rights reserved.
+dnl
+dnl This file is part of HDF5.  The full HDF5 copyright notice, including
+dnl terms governing use, modification, and redistribution, is contained in
+dnl the files COPYING and Copyright.html.  COPYING can be found at the root
+dnl of the source code distribution tree; Copyright.html can be found at the
+dnl root level of an installed copy of the electronic HDF5 document set and
+dnl is linked from the top-level documents page.  It can also be found at
+dnl http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.134.2.34 2002/02/13 23:26:43 wendling Exp $)
-AC_INIT(src/H5.c)
-AC_CONFIG_HEADER(src/H5config.h)
+AC_REVISION($Id: configure.in,v 1.134.2.50 2002/06/28 20:04:21 wendling Exp $)
+
+dnl AC_INIT takes the name of the package, the version number, and an
+dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
+dnl as its argument.
+dnl
+dnl NOTE: Don't forget to change the version number here when we do a
+dnl release!!!
+dnl
+AC_INIT([HDF5], [1.4.4], [hdfhelp@ncsa.uiuc.edu])
+AC_CONFIG_SRCDIR([src/H5.c])
+AC_CONFIG_HEADER([src/H5config.h])
+
+AC_CONFIG_AUX_DIR([bin])
+
 AC_OUTPUT_COMMANDS([
   echo "creating src/H5pubconf.h"
   sed 's/#define /#define H5_/' <src/H5config.h |\
@@ -23,7 +43,7 @@ AC_OUTPUT_COMMANDS([
     /bin/mv -f pubconf src/H5pubconf.h
   fi
 ])
-AC_CONFIG_AUX_DIR(bin)
+
 AC_CANONICAL_HOST
 AC_SUBST(CPPFLAGS)
 
@@ -67,6 +87,9 @@ case $host_os in
   aix4.*)
     host_os_novers=aix4.x
     ;;
+  aix5.*)
+    host_os_novers=aix5.x
+    ;;
   freebsd*)
     host_os_novers=freebsd
     ;;
@@ -107,22 +130,23 @@ case $HSIZET in
   *)
     AC_MSG_RESULT(large)
     HSIZET=large
-    AC_DEFINE(HAVE_LARGE_HSIZET)
+    AC_DEFINE(HAVE_LARGE_HSIZET, 1,
+              [Define if it's safe to use \`long long' for hsize_t and hssize_t])
     ;;
 esac
 
 host_config="none"
 for f in $host_cpu-$host_vendor-$host_os \
-	 $host_cpu-$host_vendor-$host_os_novers \
-	 $host_vendor-$host_os \
+         $host_cpu-$host_vendor-$host_os_novers \
+         $host_vendor-$host_os \
          $host_vendor-$host_os_novers \
-	 $host_cpu-$host_os \
+         $host_cpu-$host_os \
          $host_cpu-$host_os_novers \
          $host_cpu-$host_vendor \
-	 $host_os \
-	 $host_os_novers \
-	 $host_vendor \
-	 $host_cpu ; do
+         $host_os \
+         $host_os_novers \
+         $host_vendor \
+         $host_cpu ; do
   AC_MSG_CHECKING(for config $f)
   if test -f "$srcdir/config/$f"; then
     host_config=$srcdir/config/$f
@@ -256,7 +280,7 @@ esac
 AC_MSG_CHECKING(make)
 AC_SUBST_FILE(DEPEND)
 if test "`${MAKE-make} --version -f /dev/null 2>/dev/null |\
-	sed -n 1p|cut -c1-8`" = "GNU Make"; then
+          sed -n 1p|cut -c1-8`" = "GNU Make"; then
   AC_MSG_RESULT(GNU make)
   GMAKE=yes
   if test "X$GCC" = "Xyes"; then
@@ -420,7 +444,7 @@ dnl
 AC_CHECK_LIB(m,ceil)
 
 if test "`uname`" = "SunOS" -o "`uname -sr`" = "HP-UX B.11.00"; then
-  dnl ...for Solaris and hdf4
+  dnl ...for Solaris
   AC_CHECK_LIB(nsl, xdr_int)
 fi
 
@@ -474,7 +498,7 @@ case "$host_cpu-$host_vendor-$host_os" in
                        dnl Add the large file support flags to the
                        dnl CPPFLAGS macro if we're on a Linux system
                        dnl which austensibly supports LFS. (We think it
-                       dnl does if it has the ``getdents64'' syscall).
+                       dnl does if it has the `getdents64' syscall).
                        LINUX_LFS=yes)
         ;;
     esac
@@ -590,119 +614,6 @@ AC_ARG_WITH(fnord,
     --with-xxx=DIR     - Specify only the directory which contains the
                          include/ and lib/ subdirectories
   ],,)
-
-dnl ----------------------------------------------------------------------
-dnl Is HDF4 present?  If so then we can compile the hdf4 related tools.
-dnl The HDF4 software has 4 component libraries (df, mfhdf, z, jpeg)
-dnl and many header files.  Will just verify the presence of mfhdf.h
-dnl because it includes many other HDF4 header files.
-dnl Their locations might be specified with the `--with-hdf4' command-line
-dnl switch.  The value is an include path and/or a library path.
-dnl If the library path is specified then it must be preceded by a comma.
-dnl
-dnl To check, we first assume HDF4 is present and then prove otherwise
-dnl when we cannot find all its components.
-dnl Notice that HDF4 (when wanted) must be checked before checking for
-dnl the ZLIB components because:
-dnl    1. HDF4 components contain ZLIB components.
-dnl    2. ZLIB components are always checked while HDF4 components are optional.
-dnl If ZLIB is checked first and not found, the libz value is set to no.
-dnl That will cause the later checking of HDF4 components, which also
-dnl include libz, to always fail.
-dnl If HDF4 components are checked first and the libz is not found, it will
-dnl cause the later checking of ZLIB componenets to fail too.  But in this
-dnl case, one can configure again without the optional with-hdf4 option.
-dnl
-AC_SUBST(HAVE_HDF4) HAVE_HDF4="no"
-AC_SUBST(HAVE_ZLIB) HAVE_ZLIB="no"
-
-AC_SUBST(H5TOH4) H5TOH4=h5toh4
-AC_SUBST(TESTH5TOH4) TESTH5TOH4='$(srcdir)/testh5toh4.sh'
-
-AC_SUBST(H4TOH5) H4TOH5=h4toh5
-AC_SUBST(H4TOH5TEST) H4TOH5TEST=h4toh5test
-AC_SUBST(TESTH4TOH5) TESTH4TOH5='$(srcdir)/testh4toh5.sh'
-
-AC_ARG_WITH(hdf4,
-  [  --with-hdf4[=DIR]       Use the HDF4 library [default=no]],,
-  withval=no)
-
-case "$withval" in
-  yes)
-    failed="no"
-    AC_CHECK_LIB(z, compress2,, failed="yes")
-    if test "$failed" = "no"; then
-      HAVE_ZLIB="yes"
-      AC_CHECK_LIB(jpeg, jpeg_start_compress,, failed="yes")
-    fi
-    if test "$failed" = "no"; then
-      AC_CHECK_LIB(df, Hstartaccess,, failed="yes")
-    fi
-    if test "$failed" = "no"; then
-      AC_CHECK_LIB(mfhdf, SDstart,, failed="yes")
-    fi
-
-    if test "$failed" = "yes"; then
-      unset H5TOH4 TESTH5TOH4 H4TOH5 H4TOH5TEST TESTH4TOH5
-    else
-      HAVE_HDF4="yes"
-    fi
-    ;;
-  no)
-    AC_MSG_CHECKING(for HDF4)
-    AC_MSG_RESULT(suppressed)
-    unset H5TOH4 TESTH5TOH4 H4TOH5 H4TOH5TEST TESTH4TOH5
-    ;;
-  *)
-    case "$withval" in
-      *,*)
-        hdf4_inc="`echo $withval | cut -f1 -d,`"
-        hdf4_lib="`echo $withval | cut -f2 -d, -s`"
-        ;;
-      *)
-        if test -n "$withval"; then
-          hdf4_inc="$withval/include"
-          hdf4_lib="$withval/lib"
-        fi
-        ;;
-    esac
-
-    saved_CPPFLAGS="$CPPFLAGS"
-    saved_LDFLAGS="$LDFLAGS"
-    if test -n "$hdf4_inc"; then
-      CPPFLAGS="$CPPFLAGS -I$hdf4_inc"
-    fi
-
-    failed="no"
-    AC_CHECK_HEADERS(mfhdf.h,, failed="yes")
-
-    if test -n "$hdf4_lib"; then
-      LDFLAGS="$LDFLAGS -L$hdf4_lib"
-    fi
-
-    if test "$failed" = "no"; then
-      AC_CHECK_LIB(z, compress2,, failed="yes")
-    fi
-    if test "$failed" = "no"; then
-      AC_CHECK_LIB(jpeg, jpeg_start_compress,, failed="yes")
-      HAVE_ZLIB="yes"
-    fi
-    if test "$failed" = "no"; then
-      AC_CHECK_LIB(df, Hstartaccess,, failed="yes")
-    fi
-    if test "$failed" = "no"; then
-      AC_CHECK_LIB(mfhdf, SDstart,, failed="yes")
-    fi
-
-    if test "$failed" = "yes"; then
-      CPPFLAGS="$saved_CPPFLAGS"
-      LDFLAGS="$saved_LDFLAGS"
-      unset H5TOH4 TESTH5TOH4 H4TOH5 H4TOH5TEST TESTH4TOH5
-    else
-      HAVE_HDF4="yes"
-    fi
-    ;;
-esac
 
 dnl ----------------------------------------------------------------------
 dnl Is the GNU zlib present? It has a header file `zlib.h' and a library
@@ -865,7 +776,8 @@ case "$withval" in
 esac
 
 if test -n "$GASS"; then
-  AC_DEFINE(HAVE_GASS)
+  AC_DEFINE(HAVE_GASS, 1,
+            [Define if the Globus GASS is defined])
 fi
 
 dnl ----------------------------------------------------------------------
@@ -873,8 +785,9 @@ dnl Are SRB Client and other system libraries(socket, elf) present?
 dnl
 AC_SUBST(SRB) SRB="yes"
 AC_SUBST(TESTSRB) TESTSRB='$(srcdir)/testsrb'
-AC_ARG_WITH(srb,[  --with-srb[=DIR]        Use the SRB Library [default=no]],
-	    ,withval=no)
+AC_ARG_WITH(srb,
+  [  --with-srb[=DIR]        Use the SRB Library [default=no]],,
+	withval=no)
 
 case "$withval" in
   yes)
@@ -925,8 +838,10 @@ case "$withval" in
     fi
     ;;
 esac
+
 if test -n "$SRB"; then
-  AC_DEFINE(HAVE_SRB)
+  AC_DEFINE(HAVE_SRB, 1,
+            [Define if the SRB is defined])
 fi
 
 dnl ----------------------------------------------------------------------
@@ -1022,7 +937,8 @@ case "X-$THREADSAFE" in
 esac
 
 if test "X$THREADSAFE" = "Xyes"; then
-  AC_DEFINE(HAVE_THREADSAFE)
+  AC_DEFINE(HAVE_THREADSAFE, 1,
+            [Define if we have thread safe support])
 fi
 
 dnl ----------------------------------------------------------------------
@@ -1037,7 +953,8 @@ AC_ARG_ENABLE(hdf5v1_2,
 
 if test "X$HDF5_V1_2_COMPAT" = "Xyes"; then
   AC_MSG_RESULT(yes)
-  AC_DEFINE(WANT_H5_V1_2_COMPAT)
+  AC_DEFINE(WANT_H5_V1_2_COMPAT, 1,
+            [Define if the HDF5 v1.2 compatibility functions are to be compiled in])
 else
   AC_MSG_RESULT(no)
 fi
@@ -1053,7 +970,8 @@ AC_ARG_ENABLE(stream-vfd,
 if test "$STREAM_VFD" = "yes"; then
   AC_MSG_RESULT(yes)
   AC_CHECK_HEADERS(netinet/tcp.h sys/filio.h)
-  AC_DEFINE(HAVE_STREAM)
+  AC_DEFINE(HAVE_STREAM, 1,
+            [Define if the stream virtual file driver should be compiled])
 
   dnl Check if 'socklen_t' available
   AC_MSG_CHECKING([if socklen_t is defined])
@@ -1071,7 +989,9 @@ if test "$STREAM_VFD" = "yes"; then
 #endif
   ],
     [socklen_t foo; return 0;],
-    AC_DEFINE(HAVE_SOCKLEN_T) AC_MSG_RESULT(yes),
+    AC_DEFINE(HAVE_SOCKLEN_T, 1,
+              [Define if \`socklen_t' is defined])
+    AC_MSG_RESULT(yes),
     AC_MSG_RESULT(no)
   )
 else
@@ -1088,7 +1008,8 @@ AC_MSG_CHECKING(for tm_gmtoff in struct tm)
 AC_TRY_COMPILE([
 #include <sys/time.h>
 #include <time.h>],[struct tm tm; tm.tm_gmtoff=0;],
-AC_DEFINE(HAVE_TM_GMTOFF)
+AC_DEFINE(HAVE_TM_GMTOFF, 1,
+          [Define if \`tm_gmtoff' is a member of \`struct tm'])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
@@ -1097,7 +1018,8 @@ AC_MSG_CHECKING(for __tm_gmtoff in struct tm)
 AC_TRY_COMPILE([
 #include <sys/time.h>
 #include <time.h>],[struct tm tm; tm.__tm_gmtoff=0;],
-AC_DEFINE(HAVE___TM_GMTOFF)
+AC_DEFINE(HAVE___TM_GMTOFF, 1,
+          [Define if \`__tm_gmtoff' is a member of \`struct tm'])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
@@ -1106,7 +1028,8 @@ AC_MSG_CHECKING(for global timezone variable)
 AC_TRY_LINK([
 #include <sys/time.h>
 #include <time.h>], [timezone=0;],
-AC_DEFINE(HAVE_TIMEZONE)
+AC_DEFINE(HAVE_TIMEZONE, 1,
+          [Define if \`timezone' is a global variable])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
@@ -1117,7 +1040,8 @@ AC_TRY_COMPILE([
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>],[struct timezone tz; tz.tz_minuteswest=0;],
-AC_DEFINE(HAVE_STRUCT_TIMEZONE)
+AC_DEFINE(HAVE_STRUCT_TIMEZONE, 1,
+          [Define if \`struct timezone' is defined])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
@@ -1127,7 +1051,8 @@ dnl
 AC_MSG_CHECKING(for st_blocks in struct stat)
 AC_TRY_COMPILE([
 #include <sys/stat.h>],[struct stat sb; sb.st_blocks=0;],
-AC_DEFINE(HAVE_STAT_ST_BLOCKS)
+AC_DEFINE(HAVE_STAT_ST_BLOCKS, 1,
+          [Define if \`struct stat' has the \`st_blocks' field])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
@@ -1139,25 +1064,29 @@ AC_CHECK_FUNCS(_scrsize ioctl)
 
 AC_MSG_CHECKING(for struct videoconfig)
 AC_TRY_COMPILE(,[struct videoconfig w; w.numtextcols=0;],
-AC_DEFINE(HAVE_STRUCT_VIDEOCONFIG)
+AC_DEFINE(HAVE_STRUCT_VIDEOCONFIG, 1,
+          [Define if \`struct videoconfig' is defined])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
 AC_MSG_CHECKING(for struct text_info)
 AC_TRY_COMPILE(,[struct text_info w; w.screenwidth=0;],
-AC_DEFINE(HAVE_STRUCT_TEXT_INFO)
+AC_DEFINE(HAVE_STRUCT_TEXT_INFO, 1,
+          [Define if \`struct text_info' is defined])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
 AC_MSG_CHECKING(for TIOCGWINSZ)
 AC_TRY_COMPILE([#include <sys/ioctl.h>],[int w=TIOCGWINSZ;],
-AC_DEFINE(HAVE_TIOCGWINSZ)
+AC_DEFINE(HAVE_TIOCGWINSZ, 1,
+          [Define if the ioctl TIOGWINSZ is defined])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
 AC_MSG_CHECKING(for TIOCGGETD)
 AC_TRY_COMPILE([#include <sys/ioctl.h>],[int w=TIOCGETD;],
-AC_DEFINE(HAVE_TIOCGETD)
+AC_DEFINE(HAVE_TIOCGETD, 1,
+          [Define if the ioctl TIOCGETD is defined])
 AC_MSG_RESULT(yes),
 AC_MSG_RESULT(no))
 
@@ -1177,13 +1106,15 @@ AC_C_INLINE
 
 AC_MSG_CHECKING(for __attribute__ extension)
 AC_TRY_COMPILE(,[int __attribute__((unused)) x],
-               AC_DEFINE(HAVE_ATTRIBUTE)
+               AC_DEFINE(HAVE_ATTRIBUTE, 1,
+                         [Define if the __attribute__(()) extension is present])
                AC_MSG_RESULT(yes),
                AC_MSG_RESULT(no))
 
 AC_MSG_CHECKING(for __FUNCTION__ extension)
 AC_TRY_COMPILE(,[(void)__FUNCTION__],
-               AC_DEFINE(HAVE_FUNCTION)
+               AC_DEFINE(HAVE_FUNCTION, 1,
+                         [Define if the compiler understand the __FUNCTION__ keyword])
                AC_MSG_RESULT(yes),
                AC_MSG_RESULT(no))
 
@@ -1217,7 +1148,8 @@ int main(void)
 done)
 
 AC_MSG_RESULT(%${hdf5_cv_printf_ll}d and %${hdf5_cv_printf_ll}u)
-AC_DEFINE_UNQUOTED(PRINTF_LL_WIDTH,"$hdf5_cv_printf_ll")
+AC_DEFINE_UNQUOTED(PRINTF_LL_WIDTH, "$hdf5_cv_printf_ll", 
+                   [Width for printf() for type \`long long' or \`__int64', us. \`ll'])
 
 dnl ----------------------------------------------------------------------
 dnl Turn on debugging by setting compiler flags
@@ -1338,7 +1270,7 @@ case "$CC_BASENAME" in
     AC_MSG_CHECKING(for mpirun)
 
     dnl Find the path where mpicc is located.
-    cmd=`echo $CC | cut -f1 -d' '`
+    cmd="`echo $CC | cut -f1 -d' '`"
     if (echo $cmd | grep / >/dev/null); then
       path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
     else
@@ -1368,7 +1300,7 @@ case "$CC_BASENAME" in
     AC_MSG_CHECKING(for mpirun_lam or mpirun)
 
     dnl Find the path where hcc is located
-    cmd=`echo $CC | cut -f1 -d' '`
+    cmd="`echo $CC | cut -f1 -d' '`"
     if (echo $cmd | grep / >/dev/null); then
       path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
     else
@@ -1485,7 +1417,8 @@ dnl Print some other parallel information and do some sanity checks.
 dnl
 if test -n "$PARALLEL"; then
   dnl We are building a parallel library
-  AC_DEFINE(HAVE_PARALLEL)
+  AC_DEFINE(HAVE_PARALLEL, 1,
+            [Define if we have parallel support])
 
   dnl Display what we found about running programs
   AC_MSG_CHECKING(prefix for running on one processor)
@@ -1522,11 +1455,11 @@ dnl and installed with the libraries.
 dnl
 
 dnl HDF5 version from the first line of the README.txt file.
-H5_VERSION=`cut -d' ' -f3 $srcdir/README.txt | head -1`
+H5_VERSION="`cut -d' ' -f3 $srcdir/README.txt | head -1`"
 AC_SUBST(H5_VERSION)
 
 dnl Configuration date
-AC_SUBST(CONFIG_DATE) CONFIG_DATE=`date`
+AC_SUBST(CONFIG_DATE) CONFIG_DATE="`date`"
 
 dnl User doing the configuration
 AC_SUBST(CONFIG_USER) CONFIG_USER="`whoami`@`hostname`"
@@ -1605,7 +1538,7 @@ if test -x /bin/pwd; then
 else
   pwd=pwd
 fi
-AC_SUBST(ROOT) ROOT=`$pwd`
+AC_SUBST(ROOT) ROOT="`$pwd`"
 
 dnl ----------------------------------------------------------------------
 dnl Determine the runtime libraries we may need to include in the
@@ -1617,7 +1550,7 @@ if test -n "$LDFLAGS"; then
   for d in $LDFLAGS ; do
     case "$d" in
       -L*)
-        d=`echo $d | sed -e 's/-L//g'`
+        d="`echo $d | sed -e 's/-L//g'`"
         case "$d" in
           .*)
             dnl If the path isn't absolute, make it so by
@@ -1692,52 +1625,38 @@ if test -n "$TESTPARALLEL"; then
   PARALLEL_MAKE="$TESTPARALLEL/Makefile"
 fi
 
-EXTRA_H4_MAKEFILES=""
-
-if test -n "$H4TOH5"; then
-  EXTRA_H4_MAKEFILES="$EXTRA_H4_MAKEFILES tools/h4toh5/Makefile"
-fi
-    
-if test -n "$H5TOH4"; then
-  EXTRA_H4_MAKEFILES="$EXTRA_H4_MAKEFILES tools/h5toh4/Makefile"
-fi
-
-AC_OUTPUT(src/libhdf5.settings
-          config/depend1
-          config/depend2
-          config/depend3
-          config/depend4
-          config/dependN
-          config/commence
-          config/conclude
-          Makefile
-          src/Makefile
-          pablo/Makefile
-          test/Makefile
-          $PARALLEL_MAKE
-          perform/Makefile
-          tools/Makefile
-          tools/h5dump/Makefile
-          tools/h5ls/Makefile
-          tools/lib/Makefile
-          tools/misc/Makefile
-          tools/misc/h5cc
-          tools/gifconv/Makefile
-          $EXTRA_H4_MAKEFILES
-          examples/Makefile
-          doc/Makefile
-          doc/html/Makefile
-          doc/html/ADGuide/Makefile
-          doc/html/Graphics/Makefile
-          doc/html/Intro/Makefile
-          doc/html/PSandPDF/Makefile
-          doc/html/TechNotes/Makefile
-          doc/html/Tutor/Makefile
-          doc/html/Tutor/Graphics/Makefile
-          doc/html/Tutor/examples/Makefile
-          doc/html/Tutor/examples/java/Makefile
-          doc/html/cpplus/Makefile
-          doc/html/fortran/Makefile)
+AC_CONFIG_FILES([src/libhdf5.settings
+                 config/depend1
+                 config/depend2
+                 config/depend3
+                 config/depend4
+                 config/dependN
+                 config/commence
+                 config/conclude
+                 Makefile
+                 src/Makefile
+                 pablo/Makefile
+                 test/Makefile
+                 $PARALLEL_MAKE
+                 perform/Makefile
+                 tools/Makefile
+                 tools/h5dump/Makefile
+                 tools/h5ls/Makefile
+                 tools/lib/Makefile
+                 tools/misc/Makefile
+                 tools/misc/h5cc
+                 tools/gifconv/Makefile
+                 examples/Makefile
+                 doc/Makefile
+                 doc/html/Makefile
+                 doc/html/ADGuide/Makefile
+                 doc/html/Graphics/Makefile
+                 doc/html/Intro/Makefile
+                 doc/html/PSandPDF/Makefile
+                 doc/html/TechNotes/Makefile
+                 doc/html/cpplus/Makefile
+                 doc/html/fortran/Makefile])
+AC_OUTPUT
 no_create=$saved_no_create
 
 # Then the stamp2 file for H5config.h
@@ -1746,12 +1665,13 @@ touch ./config/stamp2
 # Finally the makefiles
 test "$no_create" = yes || ${CONFIG_SHELL-/bin/sh} $CONFIG_STATUS || exit 1
 
+chmod 755 tools/misc/h5cc
+
 dnl We don't want inline defined for C++ compilers
 dnl Don't worry about the C++ ifdef wrappers in the H5pubconf file, since
 dnl 'H5_inline' isn't a C++ keyword.
 cat >> src/H5config.h <<EOF
 
-/* inline is a keyword in C++. If this is a C++ compiler, undefine it */
 #if defined(__cplusplus) && defined(inline)
 #undef inline
 #endif
@@ -1786,12 +1706,23 @@ PRINT() {
   echo "$1" 1>>src/libhdf5.settings
 }
 
+dnl ----------------------------------------------------------------------
+dnl Print "Yes" if all arguments are "yes", otherwise "No"
+dnl
 IF_YES_NO() {
-  if test "$1" = "yes"; then
-    PRINT "Yes"
-  else
+  if test $# -lt 1; then
     PRINT "No"
+    return
+  else
+    while test $# -gt 0; do
+      if test "$1" != "yes"; then
+	PRINT "No"
+	return
+      fi
+      shift
+    done
   fi
+  PRINT "Yes"
 }
 
 IF_ENABLED_DISABLED() {
@@ -1850,9 +1781,6 @@ IF_YES_NO "$HDF_FORTRAN"
 PRINT_N "                           GASS"
 IF_YES_NO "$GASS"
 
-PRINT_N "                           HDF4"
-IF_YES_NO "$HAVE_HDF4"
-
 PRINT_N "        HDF5 v1.2 Compatibility"
 IF_YES_NO "$HDF5_V1_2_COMPAT"
 
@@ -1881,5 +1809,6 @@ IF_ENABLED_DISABLED "$STREAM_VFD"
 PRINT_N "                   Threadsafety"
 IF_ENABLED_DISABLED "$THREADSAFE"
 
+dnl Zlib compression depends on zlib.h header and compress2()
 PRINT_N "               Zlib-compression"
-IF_YES_NO "$HAVE_ZLIB"
+IF_YES_NO "$ac_cv_header_zlib_h" "$ac_cv_func_compress2"

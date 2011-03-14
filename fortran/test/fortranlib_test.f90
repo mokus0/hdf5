@@ -1,3 +1,16 @@
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!   Copyright by the Board of Trustees of the University of Illinois.         *
+!   All rights reserved.                                                      *
+!                                                                             *
+!   This file is part of HDF5.  The full HDF5 copyright notice, including     *
+!   terms governing use, modification, and redistribution, is contained in    *
+!   the files COPYING and Copyright.html.  COPYING can be found at the root   *
+!   of the source code distribution tree; Copyright.html can be found at the  *
+!   root level of an installed copy of the electronic HDF5 document set and   *
+!   is linked from the top-level documents page.  It can also be found at     *
+!   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+!   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
 ! 
 !    Testing Fortran functionality.
@@ -26,10 +39,10 @@
      INTEGER :: identifier_total_error = 0
      INTEGER :: group_total_error = 0
      INTEGER :: error_total_error = 0
-     CHARACTER*8 error_string
-     CHARACTER*8 :: success = ' PASSED '
-     CHARACTER*8 :: failure = '*FAILED*'
-     CHARACTER*4 :: e_format ='(8a)'
+     CHARACTER(LEN=8) error_string
+     CHARACTER(LEN=8) :: success = ' PASSED '
+     CHARACTER(LEN=8) :: failure = '*FAILED*'
+     CHARACTER(LEN=4) :: e_format ='(8a)'
 
      CALL h5open_f(error) 
      write(*,*) '                       ==========================                            '

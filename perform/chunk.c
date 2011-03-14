@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998 NCSA
- *                    All rights reserved.
- *
  * Programmer:  Robb Matzke <robb@arborea.spizella.com>
  *              Thursday, May 14, 1998
  *
@@ -162,10 +173,10 @@ create_dataset (void)
  *-------------------------------------------------------------------------
  */
 static double
-test_rowmaj (int op, hsize_t cache_size, hsize_t io_size)
+test_rowmaj (int op, size_t cache_size, size_t io_size)
 {
     hid_t	file, dset, mem_space, file_space;
-    signed char	*buf = calloc (1, SQUARE(io_size));
+    signed char	*buf = calloc (1, (size_t)(SQUARE(io_size)));
     hsize_t	i, j, hs_size[2];
     hssize_t	hs_offset[2];
     int		mdc_nelmts, rdcc_nelmts;
@@ -237,13 +248,13 @@ test_rowmaj (int op, hsize_t cache_size, hsize_t io_size)
  *-------------------------------------------------------------------------
  */
 static double
-test_diag (int op, hsize_t cache_size, hsize_t io_size, hsize_t offset)
+test_diag (int op, size_t cache_size, size_t io_size, size_t offset)
 {
     hid_t	file, dset, mem_space, file_space;
     hsize_t	i, hs_size[2];
     hsize_t	nio = 0;
     hssize_t	hs_offset[2];
-    signed char	*buf = calloc (1, SQUARE (io_size));
+    signed char	*buf = calloc (1, (size_t)(SQUARE (io_size)));
     int		mdc_nelmts, rdcc_nelmts;
     double	w0;
 
@@ -312,10 +323,10 @@ test_diag (int op, hsize_t cache_size, hsize_t io_size, hsize_t offset)
 int
 main (void)
 {
-    hsize_t	io_size;
+    size_t	io_size;
     double	effic, io_percent;
     FILE	*f, *d;
-    int		cache_size;
+    size_t	cache_size;
     double	w0;
 
     /*
@@ -360,8 +371,8 @@ main (void)
 	 cache_size<=RM_CACHE_END;
 	 cache_size+=RM_CACHE_DELT) {
 	for (io_percent=RM_START; io_percent<=RM_END; io_percent+=RM_DELTA) {
-	    io_size = MAX (1, (int)(CH_SIZE*io_percent));
-	    printf ("Rowmaj-rd %8d %8.2f", cache_size, io_percent);
+	    io_size = MAX (1, (size_t)(CH_SIZE*io_percent));
+	    printf ("Rowmaj-rd %8d %8.2f", (int)cache_size, io_percent);
 	    fflush (stdout);
 	    effic = test_rowmaj (READ, cache_size, io_size);
 	    printf (" %8.2f\n", effic);
@@ -406,8 +417,8 @@ main (void)
 	 cache_size<=RM_CACHE_END;
 	 cache_size+=RM_CACHE_DELT) {
 	for (io_percent=RM_START; io_percent<=RM_END; io_percent+=RM_DELTA) {
-	    io_size = MAX (1, (int)(CH_SIZE*io_percent));
-	    printf ("Rowmaj-wr %8d %8.2f", cache_size, io_percent);
+	    io_size = MAX (1, (size_t)(CH_SIZE*io_percent));
+	    printf ("Rowmaj-wr %8d %8.2f", (int)cache_size, io_percent);
 	    fflush (stdout);
 	    effic = test_rowmaj (WRITE, cache_size, io_size);
 	    printf (" %8.2f\n", effic);
@@ -451,8 +462,8 @@ main (void)
 	for (io_percent=DIAG_START;
 	     io_percent<=DIAG_END;
 	     io_percent+=DIAG_DELTA) {
-	    io_size = MAX (1, (int)(CH_SIZE*io_percent));
-	    printf ("Diag-rd   %8d %8.2f", cache_size, io_percent);
+	    io_size = MAX (1, (size_t)(CH_SIZE*io_percent));
+	    printf ("Diag-rd   %8d %8.2f", (int)cache_size, io_percent);
 	    fflush (stdout);
 	    effic = test_diag (READ, cache_size, io_size, MAX (1, io_size/2));
 	    printf (" %8.2f\n", effic);
@@ -496,8 +507,8 @@ main (void)
 	for (io_percent=DIAG_START;
 	     io_percent<=DIAG_END;
 	     io_percent+=DIAG_DELTA) {
-	    io_size = MAX (1, (int)(CH_SIZE*io_percent));
-	    printf ("Diag-wr   %8d %8.2f", cache_size, io_percent);
+	    io_size = MAX (1, (size_t)(CH_SIZE*io_percent));
+	    printf ("Diag-wr   %8d %8.2f", (int)cache_size, io_percent);
 	    fflush (stdout);
 	    effic = test_diag (WRITE, cache_size, io_size, MAX (1, io_size/2));
 	    printf (" %8.2f\n", effic);

@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 1999-2001 NCSA
- *                       All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Monday, July 26, 1999
  *
@@ -37,6 +48,25 @@ static haddr_t H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size);
 /* Declare a PQ free list to manage the metadata accumulator buffer */
 H5FL_BLK_DEFINE_STATIC(meta_accum);
 
+/* Local macro definitions */
+#define H5FD_ACCUM_THROTTLE     8
+#define H5FD_ACCUM_THRESHOLD    2048
+
+/* Static local variables */
+
+/* Global count of the number of H5FD_t's handed out.  This is used as a
+ * "serial number" for files that are currently open and is used for the
+ * 'fileno[2]' field in H5G_stat_t.  However, if a VFL driver is not able
+ * to detect whether two files are the same, a file that has been opened
+ * by H5Fopen more than once with that VFL driver will have two different
+ * serial numbers.  :-/
+ *
+ * Also, if a file is opened, the 'fileno[2]' field is retrieved for an
+ * object and the file is closed and re-opened, the 'fileno[2]' value will
+ * be different.
+ */
+static unsigned long file_serial_no[2];
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5FD_init_interface
@@ -64,6 +94,9 @@ H5FD_init_interface(void)
 	HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL,
 		      "unable to initialize interface");
     }
+
+    /* Reset the file serial numbers */
+    HDmemset(file_serial_no,0,sizeof(file_serial_no));
 
     FUNC_LEAVE(SUCCEED);
 }
@@ -790,6 +823,7 @@ H5FD_open(const char *name, unsigned flags, hid_t fapl_id, haddr_t maxaddr)
     file->maxaddr = maxaddr;
     HDmemset(file->fl, 0, sizeof(file->fl));
     file->def_meta_block_size = fapl->meta_block_size;
+    file->def_sdata_block_size = fapl->sdata_block_size;
     file->accum_loc = HADDR_UNDEF;
     file->threshold = fapl->threshold;
     file->alignment = fapl->alignment;
@@ -797,6 +831,14 @@ H5FD_open(const char *name, unsigned flags, hid_t fapl_id, haddr_t maxaddr)
     /* Retrieve the VFL driver feature flags */
     if (H5FD_query(file, &(file->feature_flags))<0)
         HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, NULL, "unable to query file driver");
+
+    /* Increment the global serial number & assign it to this H5FD_t object */
+    if(++file_serial_no[0]==0) {
+        /* (Just error out if we wrap both numbers around for now...) */
+        if(++file_serial_no[1]==0)
+            HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, NULL, "unable to get file serial number");
+    } /* end if */
+    HDmemcpy(file->fileno,file_serial_no,sizeof(file_serial_no));
 
     FUNC_LEAVE(file);
 }
@@ -1383,47 +1425,144 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
     }
 #endif
 
-    /*
-     * If the metadata aggregation feature is enabled for this VFL driver,
-     * allocate "generic" metadata space and sub-allocate out of that, if
-     * possible.  Otherwise just allocate through H5FD_real_alloc()
-     */
-    /* Allocate all types of metadata out of the metadata block */
-    if((file->feature_flags&H5FD_FEAT_AGGREGATE_METADATA) && type!=H5FD_MEM_DRAW) {
-        /* Check if the space requested is larger than the space left in the block */
-        if(size>file->cur_meta_block_size) {
-            /* Check if the block asked for is too large for a metadata block */
-            if(size>=file->def_meta_block_size) {
-                /* Allocate just enough room for this new block the regular way */
-                ret_value=H5FD_real_alloc(file,type,size);
+    /* Handle metadata differently from "raw" data */
+    if(type!=H5FD_MEM_DRAW) {
+        /*
+         * If the metadata aggregation feature is enabled for this VFL driver,
+         * allocate "generic" metadata space and sub-allocate out of that, if
+         * possible.  Otherwise just allocate through H5FD_real_alloc()
+         */
+        /* Allocate all types of metadata out of the metadata block */
+        if(file->feature_flags&H5FD_FEAT_AGGREGATE_METADATA) {
+            /* Check if the space requested is larger than the space left in the block */
+            if(size>file->cur_meta_block_size) {
+                haddr_t new_meta;       /* Address for new metadata */
+
+                /* Check if the block asked for is too large for a metadata block */
+                if(size>=file->def_meta_block_size) {
+                    /* Allocate more room for this new block the regular way */
+                    new_meta=H5FD_real_alloc(file,type,size);
+
+                    /* Check if the new metadata is at the end of the current metadata block */
+                    if(file->eoma+file->cur_meta_block_size==new_meta) {
+                        /* Treat the allocation request as if the current metadata block
+                         * grew by the amount allocated and just update the eoma
+                         * address.  Don't bother updating the cur_meta_block_size
+                         * since it will just grow and shrink by the same amount.
+                         */
+                        ret_value=file->eoma;
+                        file->eoma+=size;
+                    } /* end if */
+                    else {
+                        /* Use the new metadata block for the space allocated */
+                        ret_value=new_meta;
+                    } /* end else */
+                } /* end if */
+                else {
+                    /* Allocate another metadata block */
+                    new_meta=H5FD_real_alloc(file,H5FD_MEM_DEFAULT,file->def_meta_block_size);
+
+                    /* Check if the new metadata is at the end of the current metadata block */
+                    if(file->eoma+file->cur_meta_block_size==new_meta) {
+                        file->cur_meta_block_size+=file->def_meta_block_size;
+                    } /* end if */
+                    else {
+                        /* Return the unused portion of the metadata block to a free list */
+                        if(file->eoma!=0)
+                            if(H5FD_free(file,H5FD_MEM_DEFAULT,file->eoma,file->cur_meta_block_size)<0)
+                                HRETURN_ERROR(H5E_VFL, H5E_CANTFREE, HADDR_UNDEF, "can't free metadata block");
+
+                        /* Point the metadata block at the newly allocated block */
+                        file->eoma=new_meta;
+                        file->cur_meta_block_size=file->def_meta_block_size;
+                    } /* end else */
+
+
+                    /* Allocate space out of the metadata block */
+                    ret_value=file->eoma;
+                    file->cur_meta_block_size-=size;
+                    file->eoma+=size;
+                } /* end else */
             } /* end if */
             else {
-                /*
-                 * Instead of just dropping the remainder of the block on the
-                 * floor and leaving the space in the file unused, we should
-                 * return this small piece of unused space to the free list
-                 * management. - QAK
-                 */
-
-                /* Allocate another metadata block */
-                file->eoma=H5FD_real_alloc(file,H5FD_MEM_DEFAULT,file->def_meta_block_size);
-                file->cur_meta_block_size=file->def_meta_block_size;
-
                 /* Allocate space out of the metadata block */
                 ret_value=file->eoma;
                 file->cur_meta_block_size-=size;
                 file->eoma+=size;
             } /* end else */
         } /* end if */
-        else {
-            /* Allocate space out of the metadata block */
-            ret_value=file->eoma;
-            file->cur_meta_block_size-=size;
-            file->eoma+=size;
+        else { /* Allocate data the regular way */
+            ret_value=H5FD_real_alloc(file,type,size);
         } /* end else */
     } /* end if */
-    else { /* Allocate data the regular way */
-        ret_value=H5FD_real_alloc(file,type,size);
+    else { /* Allocate "raw" data */
+        /*
+         * If the "small data" aggregation feature is enabled for this VFL driver,
+         * allocate "small data" space and sub-allocate out of that, if
+         * possible.  Otherwise just allocate through H5FD_real_alloc()
+         */
+        if(file->feature_flags&H5FD_FEAT_AGGREGATE_SMALLDATA) {
+            /* Check if the space requested is larger than the space left in the block */
+            if(size>file->cur_sdata_block_size) {
+                haddr_t new_data;       /* Address for new raw data block */
+
+                /* Check if the block asked for is too large for the "small data" block */
+                if(size>=file->def_sdata_block_size) {
+                    /* Allocate more room for this new block the regular way */
+                    new_data=H5FD_real_alloc(file,type,size);
+
+                    /* Check if the new raw data is at the end of the current "small data" block */
+                    if(file->eosda+file->cur_sdata_block_size==new_data) {
+                        /* Treat the allocation request as if the current "small data"
+                         * block grew by the amount allocated and just update the
+                         * eosda address.  Don't bother updating the
+                         * cur_sdata_block_size since it will just grow and shrink by
+                         * the same amount.
+                         */
+                        ret_value=file->eosda;
+                        file->eosda+=size;
+                    } /* end if */
+                    else {
+                        /* Use the new "small data" block for the space allocated */
+                        ret_value=new_data;
+                    } /* end else */
+                } /* end if */
+                else {
+                    /* Allocate another "small data" block */
+                    new_data=H5FD_real_alloc(file,type,file->def_sdata_block_size);
+
+                    /* Check if the new raw data is at the end of the current "small data" block */
+                    if(file->eosda+file->cur_sdata_block_size==new_data) {
+                        file->cur_sdata_block_size+=file->def_sdata_block_size;
+                    } /* end if */
+                    else {
+                        /* Return the unused portion of the "small data" block to a free list */
+                        if(file->eosda!=0)
+                            if(H5FD_free(file,H5FD_MEM_DRAW,file->eosda,file->cur_sdata_block_size)<0)
+                                HRETURN_ERROR(H5E_VFL, H5E_CANTFREE, HADDR_UNDEF, "can't free 'small data' block");
+
+                        /* Point the "small data" block at the newly allocated block */
+                        file->eosda=new_data;
+                        file->cur_sdata_block_size=file->def_sdata_block_size;
+                    } /* end else */
+
+
+                    /* Allocate space out of the "small data" block */
+                    ret_value=file->eosda;
+                    file->cur_sdata_block_size-=size;
+                    file->eosda+=size;
+                } /* end else */
+            } /* end if */
+            else {
+                /* Allocate space out of the "small data" block */
+                ret_value=file->eosda;
+                file->cur_sdata_block_size-=size;
+                file->eosda+=size;
+            } /* end else */
+        } /* end if */
+        else { /* Allocate data the regular way */
+            ret_value=H5FD_real_alloc(file,type,size);
+        } /* end else */
     } /* end else */
 
 done:
@@ -1601,10 +1740,14 @@ H5FD_free(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
     /* Check args */
     assert(file && file->cls);
     assert(type>=0 && type<H5FD_MEM_NTYPES);
-    if (!H5F_addr_defined(addr) || addr>file->maxaddr || 0==size ||
+    if (!H5F_addr_defined(addr) || addr>file->maxaddr || 
             H5F_addr_overflow(addr, size) || addr+size>file->maxaddr) {
         HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "invalid region");
     }
+
+    /* Allow 0-sized free's to occur without penalty */
+    if(0==size)
+        HRETURN(SUCCEED);
 
     /* Map request type to free list */
     if (H5FD_MEM_DEFAULT==file->cls->fl_map[type]) {
@@ -2088,63 +2231,122 @@ H5FD_read(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t si
 #endif
 
     /* Check if this information is in the metadata accumulator */
-    if((file->feature_flags&H5FD_FEAT_ACCUMULATE_METADATA) &&
-        H5F_addr_overlap(addr,size,file->accum_loc,file->accum_size)) {
+    if((file->feature_flags&H5FD_FEAT_ACCUMULATE_METADATA) && type!=H5FD_MEM_DRAW) {
+        /* Current read overlaps with metadata accumulator */
+        if(H5F_addr_overlap(addr,size,file->accum_loc,file->accum_size)) {
+            unsigned char *read_buf=(unsigned char *)buf; /* Pointer to the buffer being read in */
+            hsize_t amount_read;        /* Amount to read at a time */
+            hsize_t read_off;           /* Offset to read from */
 
-        unsigned char *read_buf=(unsigned char *)buf; /* Pointer to the buffer being read in */
-        hsize_t amount_read;        /* Amount to read at a time */
-        hsize_t read_off;           /* Offset to read from */
+            /* Read the part before the metadata accumulator */
+            if(addr<file->accum_loc) {
+                /* Set the amount to read */
+                 H5_ASSIGN_OVERFLOW(amount_read,file->accum_loc-addr,hsize_t,size_t);
 
-        /* Double check that we aren't reading raw data */
-        assert(type!=H5FD_MEM_DRAW);
+                /* Dispatch to driver */
+                if ((file->cls->read)(file, type, dxpl_id, addr, amount_read, read_buf)<0)
+                    HRETURN_ERROR(H5E_VFL, H5E_READERROR, FAIL, "driver read request failed");
 
-        /* Read the part before the metadata accumulator */
-        if(addr<file->accum_loc) {
-            /* Set the amount to read */
-            amount_read=file->accum_loc-addr;
+                /* Adjust the buffer, address & size */
+                read_buf+=amount_read;
+                addr+=amount_read;
+                size-=amount_read;
+            } /* end if */
 
-            /* Dispatch to driver */
-            if ((file->cls->read)(file, type, dxpl_id, addr, amount_read, read_buf)<0)
-                HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "driver read request failed");
+            /* Copy the part overlapping the metadata accumulator */
+            if(size>0 && (addr>=file->accum_loc && addr<(file->accum_loc+file->accum_size))) {
+                /* Set the offset to "read" from */
+                read_off=addr-file->accum_loc;
 
-            /* Adjust the buffer, address & size */
-            read_buf+=amount_read;
-            addr+=amount_read;
-            size-=amount_read;
+                /* Set the amount to "read" */
+                amount_read=MIN((file->accum_size-read_off),size);
+
+                /* Copy the data out of the buffer */
+                H5_CHECK_OVERFLOW(amount_read,hsize_t,size_t);
+                
+                HDmemcpy(read_buf,file->meta_accum+read_off,(size_t)amount_read);
+
+                /* Adjust the buffer, address & size */
+                read_buf+=amount_read;
+                addr+=amount_read;
+                size-=amount_read;
+            } /* end if */
+
+            /* Read the part after the metadata accumulator */
+            if(size>0 && addr>=(file->accum_loc+file->accum_size)) {
+                /* Dispatch to driver */
+                if ((file->cls->read)(file, type, dxpl_id, addr, size, read_buf)<0)
+                    HRETURN_ERROR(H5E_VFL, H5E_READERROR, FAIL, "driver read request failed");
+
+                /* Adjust the buffer, address & size */
+                read_buf+=size;
+                addr+=size;
+                size-=size;
+            } /* end if */
+
+            /* Make certain we've read it all */
+            assert(size==0);
         } /* end if */
+        /* Current read doesn't overlap with metadata accumulator, read it into accumulator */
+        else {
+            /* Only update the metadata accumulator if it is not dirty or if
+             * we are allowed to write the accumulator out during reads (when
+             * it is dirty)
+             */
+            if(file->feature_flags&H5FD_FEAT_ACCUMULATE_METADATA_READ || !file->accum_dirty) {
+                /* Flush current contents, if dirty */
+                if(file->accum_dirty) {
+                    if ((file->cls->write)(file, H5FD_MEM_DEFAULT, dxpl_id, file->accum_loc, file->accum_size, file->meta_accum)<0)
+                        HRETURN_ERROR(H5E_VFL, H5E_WRITEERROR, FAIL, "driver write request failed");
 
-        /* Copy the part overlapping the metadata accumulator */
-        if(size>0 && (addr>=file->accum_loc && addr<(file->accum_loc+file->accum_size))) {
-            /* Set the offset to "read" from */
-            read_off=addr-file->accum_loc;
+                    /* Reset accumulator dirty flag */
+                    file->accum_dirty=FALSE;
+                } /* end if */
 
-            /* Set the amount to "read" */
-            amount_read=MIN((file->accum_size-read_off),size);
+                /* Cache the new piece of metadata */
+                /* Check if we need to resize the buffer */
+                if(size>file->accum_buf_size) {
+                    /* Grow the metadata accumulator buffer */
+                    if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,size))==NULL)
+                        HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer");
 
-            /* Copy the data out of the buffer */
-            assert(amount_read==(hsize_t)((size_t)amount_read)); /*check for overflow*/
-            HDmemcpy(read_buf,file->meta_accum+read_off,(size_t)amount_read);
+                    /* Note the new buffer size */
+                    file->accum_buf_size=size;
+                } /* end if */
+                else {
+                    /* Check if we should shrink the accumulator buffer */
+                    if(size<(file->accum_buf_size/H5FD_ACCUM_THROTTLE) &&
+                            file->accum_buf_size>H5FD_ACCUM_THRESHOLD) {
+                        hsize_t new_size=(file->accum_buf_size/H5FD_ACCUM_THROTTLE); /* New size of accumulator buffer */
 
-            /* Adjust the buffer, address & size */
-            read_buf+=amount_read;
-            addr+=amount_read;
-            size-=amount_read;
-        } /* end if */
+                        /* Shrink the accumulator buffer */
+                        if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,new_size))==NULL)
+                            HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer");
 
-        /* Read the part after the metadata accumulator */
-        if(size>0 && addr>=(file->accum_loc+file->accum_size)) {
-            /* Dispatch to driver */
-            if ((file->cls->read)(file, type, dxpl_id, addr, size, read_buf)<0)
-                HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "driver read request failed");
+                        /* Note the new buffer size */
+                        file->accum_buf_size=new_size;
+                    } /* end if */
+                } /* end else */
 
-            /* Adjust the buffer, address & size */
-            read_buf+=size;
-            addr+=size;
-            size-=size;
-        } /* end if */
+                /* Update accumulator information */
+                file->accum_loc=addr;
+                file->accum_size=size;
+                file->accum_dirty=FALSE;
 
-        /* Make certain we've read it all */
-        assert(size==0);
+                /* Read into accumulator */
+                if ((file->cls->read)(file, H5FD_MEM_DEFAULT, dxpl_id, file->accum_loc, file->accum_size, file->meta_accum)<0)
+                    HRETURN_ERROR(H5E_VFL, H5E_READERROR, FAIL, "driver read request failed");
+
+                /* Copy into buffer */
+                assert(size==(hsize_t)((size_t)size)); /*check for overflow*/
+                HDmemcpy(buf,file->meta_accum,(size_t)size);
+            } /* end if */
+            else {
+                /* Dispatch to driver */
+                if ((file->cls->read)(file, type, dxpl_id, addr, size, buf)<0)
+                    HRETURN_ERROR(H5E_VFL, H5E_READERROR, FAIL, "driver read request failed");
+            } /* end else */
+        } /* end else */
     } /* end if */
     else {
         /* Dispatch to driver */
@@ -2251,7 +2453,7 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
         /* Check if there is already metadata in the accumulator */
         if(file->accum_size>0) {
             /* Check if the piece of metadata being written adjoins or is inside the metadata accumulator */
-            if((addr>=file->accum_loc && addr <(file->accum_loc+file->accum_size))
+            if((addr>=file->accum_loc && addr<=(file->accum_loc+file->accum_size))
                 || ((addr+size)>file->accum_loc && (addr+size)<=(file->accum_loc+file->accum_size))
                 || (addr<file->accum_loc && (addr+size)>file->accum_loc)) {
 
@@ -2316,8 +2518,7 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
                 /* Check if the new metadata overlaps the beginning of the current accumulator */
                 else if(addr<file->accum_loc && (addr+size)<=(file->accum_loc+file->accum_size)) {
                     /* Calculate the new accumulator size, based on the amount of overlap */
-                    new_size=(file->accum_loc-addr)+file->accum_size;
-
+             	    H5_ASSIGN_OVERFLOW(new_size,(file->accum_loc-addr)+file->accum_size,hsize_t,size_t);
                     /* Check if we need more buffer space */
                     if(new_size>file->accum_buf_size) {
                         /* Reallocate the metadata accumulator buffer */
@@ -2329,14 +2530,13 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
                     } /* end if */
 
                     /* Calculate the proper offset of the existing metadata */
-                    old_offset=(addr+size)-file->accum_loc;
+                    H5_ASSIGN_OVERFLOW(old_offset,(addr+size)-file->accum_loc,hsize_t,size_t);/*check for overflow*/
 
                     /* Move the existing metadata to the proper location */
-                    assert((file->accum_size-old_offset)==(hsize_t)((size_t)(file->accum_size-old_offset))); /*check for overflow*/
                     HDmemmove(file->meta_accum+size,file->meta_accum+old_offset,(size_t)(file->accum_size-old_offset));
 
                     /* Copy the new metadata at the front */
-                    assert(size==(hsize_t)((size_t)size)); /*check for overflow*/
+		    H5_CHECK_OVERFLOW(size,hsize_t,size_t); /*check for overflow*/
                     HDmemcpy(file->meta_accum,buf,(size_t)size);
 
                     /* Set the new size & location of the metadata accumulator */
@@ -2349,8 +2549,7 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
                 /* Check if the new metadata overlaps the end of the current accumulator */
                 else if(addr>=file->accum_loc && (addr+size)>(file->accum_loc+file->accum_size)) {
                     /* Calculate the new accumulator size, based on the amount of overlap */
-                    new_size=(addr-file->accum_loc)+size;
-
+ 		    H5_ASSIGN_OVERFLOW(new_size,(addr-file->accum_loc)+size,hsize_t,size_t);
                     /* Check if we need more buffer space */
                     if(new_size>file->accum_buf_size) {
                         /* Reallocate the metadata accumulator buffer */
@@ -2379,24 +2578,45 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
             /* New piece of metadata doesn't adjoin or overlap the existing accumulator */
             else {
                 /* Write out the existing metadata accumulator, with dispatch to driver */
-                if ((file->cls->write)(file, H5FD_MEM_DEFAULT, dxpl_id, file->accum_loc, file->accum_size, file->meta_accum)<0)
-                    HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "driver write request failed");
+                if(file->accum_dirty) {
+                    if ((file->cls->write)(file, H5FD_MEM_DEFAULT, dxpl_id, file->accum_loc, file->accum_size, file->meta_accum)<0)
+                        HRETURN_ERROR(H5E_VFL, H5E_WRITEERROR, FAIL, "driver write request failed");
+
+                    /* Reset accumulator dirty flag */
+                    file->accum_dirty=FALSE;
+                } /* end if */
 
                 /* Cache the new piece of metadata */
-                /* Check if we need to reallocate the buffer */
+                /* Check if we need to resize the buffer */
                 if(size>file->accum_buf_size) {
-                    /* Reallocate the metadata accumulator buffer */
+                    /* Grow the metadata accumulator buffer */
                     if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,size))==NULL)
                         HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer");
 
                     /* Note the new buffer size */
                     file->accum_buf_size=size;
                 } /* end if */
+                else {
+                    /* Check if we should shrink the accumulator buffer */
+                    if(size<(file->accum_buf_size/H5FD_ACCUM_THROTTLE) &&
+                            file->accum_buf_size>H5FD_ACCUM_THRESHOLD) {
+                        hsize_t tmp_size=(file->accum_buf_size/H5FD_ACCUM_THROTTLE); /* New size of accumulator buffer */
 
-                /* Store the piece of metadata in the accumulator */
+                        /* Shrink the accumulator buffer */
+                        if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,tmp_size))==NULL)
+                            HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer");
+
+                        /* Note the new buffer size */
+                        file->accum_buf_size=tmp_size;
+                    } /* end if */
+                } /* end else */
+
+                /* Update the metadata accumulator information */
                 file->accum_loc=addr;
                 file->accum_size=size;
                 file->accum_dirty=TRUE;
+
+                /* Store the piece of metadata in the accumulator */
                 assert(size==(hsize_t)((size_t)size)); /*check for overflow*/
                 HDmemcpy(file->meta_accum,buf,(size_t)size);
             } /* end else */
@@ -2413,10 +2633,12 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
                 file->accum_buf_size=size;
             } /* end if */
 
-            /* Store the piece of metadata in the accumulator */
+            /* Update the metadata accumulator information */
             file->accum_loc=addr;
             file->accum_size=size;
             file->accum_dirty=TRUE;
+
+            /* Store the piece of metadata in the accumulator */
             assert(size==(hsize_t)((size_t)size)); /*check for overflow*/
             HDmemcpy(file->meta_accum,buf,(size_t)size);
         } /* end else */
@@ -2507,3 +2729,35 @@ H5FD_flush(H5FD_t *file)
 
     FUNC_LEAVE(SUCCEED);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5FD_get_fileno
+ *
+ * Purpose:	Quick and dirty routine to retrieve the file's 'fileno' value
+ *          (Mainly added to stop non-file routines from poking about in the
+ *          H5FD_t data structure)
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol <koziol@ncsa.uiuc.edu>
+ *		March 27, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5FD_get_fileno(const H5FD_t *file, unsigned long *filenum)
+{
+    FUNC_ENTER(H5FD_get_fileno, FAIL);
+
+    assert(file);
+    assert(filenum);
+
+    /* Retrieve the file's serial number */
+    HDmemcpy(filenum,file->fileno,sizeof(file->fileno));
+
+    FUNC_LEAVE(SUCCEED);
+} /* end H5F_get_fileno() */
+

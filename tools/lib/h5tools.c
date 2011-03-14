@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (c) 1998, 1999, 2000, 2001
- *     National Center for Supercomputing Applications
- *     All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Thursday, July 23, 1998
  *
@@ -188,7 +198,7 @@ h5tools_fopen(const char *fname, const char *driver, char *drivername,
 #define NUM_DRIVERS     (sizeof(drivers_list) / sizeof(struct d_list))
 
     static int          initialized = 0;
-    register int        drivernum;
+    size_t        drivernum;
     hid_t               fid = FAIL;
 #ifndef VERSION12
     hid_t               fapl = H5P_DEFAULT;
@@ -608,7 +618,7 @@ h5tools_dump_simple_subset(FILE *stream, const h5dump_t *info, hid_t dset,
 {
     herr_t              ret;                    /*the value to return   */
     hid_t		f_space;		/*file data space	*/
-    hsize_t		elmtno, i;		/*counters		*/
+    hsize_t		i;		/*counters		*/
     hssize_t		zero = 0;               /*vector of zeros	*/
     unsigned int	flags;			/*buffer extent flags	*/
     hsize_t		total_size[H5S_MAX_RANK];/*total size of dataset*/
@@ -651,7 +661,7 @@ h5tools_dump_simple_subset(FILE *stream, const h5dump_t *info, hid_t dset,
             ctx.p_min_idx[i] = 0;
 
     H5Sget_simple_extent_dims(f_space, total_size, NULL);
-    ctx.size_last_dim = total_size[ctx.ndims - 1];
+    ctx.size_last_dim = (int)total_size[ctx.ndims - 1];
 
     count = sset->count[ctx.ndims - 1];
     sset->count[ctx.ndims - 1] = 1;
@@ -821,7 +831,7 @@ h5tools_dump_simple_dset(FILE *stream, const h5dump_t *info, hid_t dset,
             ctx.p_min_idx[i] = 0;
 
     H5Sget_simple_extent_dims(f_space, total_size, NULL);
-    ctx.size_last_dim = total_size[ctx.ndims - 1];
+    ctx.size_last_dim = (int)total_size[ctx.ndims - 1];
 
     /* calculate the number of elements we're going to print */
     p_nelmts = 1;
@@ -978,7 +988,7 @@ h5tools_dump_simple_mem(FILE *stream, const h5dump_t *info, hid_t obj_id,
     if (nelmts == 0)
         return SUCCEED; /*nothing to print*/
 
-    ctx.size_last_dim = ctx.p_max_idx[ctx.ndims - 1];
+    ctx.size_last_dim = (int)(ctx.p_max_idx[ctx.ndims - 1]);
 
     /* Print it */
     h5tools_dump_simple_data(stream, info, obj_id, &ctx,

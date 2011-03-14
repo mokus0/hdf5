@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 2000 NCSA
- *		      All rights reserved.
- *
  * Programmer: Quincey Koziol <koziol@ncsa.uiuc.edu>
  *	       Thursday, March 23, 2000
  *
@@ -317,7 +328,7 @@ H5FL_reg_alloc(H5FL_reg_head_t *head, unsigned clear)
     } /* end if */
     /* Otherwise allocate a node */
     else {
-        if (NULL==(new_obj = H5FL_malloc(sizeof(H5FL_reg_node_t)+head->size)))
+        if (NULL==(new_obj = H5FL_malloc((hsize_t)(sizeof(H5FL_reg_node_t)+head->size))))
             HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
 #ifdef H5FL_DEBUG
@@ -588,7 +599,7 @@ H5FL_blk_find_list(H5FL_blk_node_t **head, hsize_t size)
  *-------------------------------------------------------------------------
  */
 static H5FL_blk_node_t *
-H5FL_blk_create_list(H5FL_blk_node_t **head, hsize_t size)
+H5FL_blk_create_list(H5FL_blk_node_t **head, size_t size)
 {
     H5FL_blk_node_t *temp;  /* Temp. pointer to node in the list */
     H5FL_blk_node_t *ret_value=NULL;
@@ -600,7 +611,7 @@ H5FL_blk_create_list(H5FL_blk_node_t **head, hsize_t size)
         HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for chunk info");
     
     /* Set the correct values for the new free list */
-    temp->size=size;
+    H5_ASSIGN_OVERFLOW(temp->size,size,hsize_t,size_t);
     temp->list=NULL;
 
     /* Attach to head of priority queue */
@@ -713,10 +724,12 @@ H5FL_blk_alloc(H5FL_blk_head_t *head, hsize_t size, unsigned clear)
 
         /* Decrement the number of blocks & memory used on free list */
         head->onlist--;
-        head->list_mem-=size;
+        H5_ASSIGN_OVERFLOW(head->list_mem,head->list_mem-size,hsize_t,size_t);
+        /*head->list_mem-=size;*/
 
         /* Decrement the amount of global "block" free list memory in use */
-        H5FL_blk_gc_head.mem_freed-=size;
+        H5_ASSIGN_OVERFLOW(H5FL_blk_gc_head.mem_freed,H5FL_blk_gc_head.mem_freed-size,hsize_t,size_t);
+        /*H5FL_blk_gc_head.mem_freed-=size;*/
 
     } /* end if */
     /* No free list available, or there are no nodes on the list, allocate a new node to give to the user */
@@ -729,7 +742,7 @@ H5FL_blk_alloc(H5FL_blk_head_t *head, hsize_t size, unsigned clear)
         head->allocated++;
 
         /* Initialize the block allocated */
-        temp->size=size;
+        H5_ASSIGN_OVERFLOW(temp->size,size,hsize_t,size_t);
         temp->next=NULL;
 
         /* Set the return value to the block itself */
@@ -785,7 +798,7 @@ H5FL_blk_free(H5FL_blk_head_t *head, void *block)
     temp=(H5FL_blk_list_t *)((unsigned char *)block-sizeof(H5FL_blk_list_t));
 
     /* check if there is a free list for native blocks of this size */
-    if((free_list=H5FL_blk_find_list(&(head->head),temp->size))==NULL) {
+    if((free_list=H5FL_blk_find_list(&(head->head),(hsize_t)temp->size))==NULL) {
         /* No free list available, create a new list node and insert it to the queue */
         free_list=H5FL_blk_create_list(&(head->head),temp->size);
     } /* end if */
@@ -1156,7 +1169,7 @@ H5FL_arr_free(H5FL_arr_head_t *head, void *obj)
         head->u.list_arr[temp->nelem]=temp;
 
         /* Set the amount of memory being freed */
-        mem_size=temp->nelem*head->size;
+        H5_ASSIGN_OVERFLOW(mem_size,temp->nelem*head->size,hsize_t,size_t);
 
         /* Increment the number of blocks & memory used on free list */
         head->onlist[temp->nelem]++;
@@ -1240,7 +1253,7 @@ H5FL_arr_alloc(H5FL_arr_head_t *head, hsize_t elem, unsigned clear)
             head->list_mem-=mem_size;
 
             /* Decrement the amount of global "array" free list memory in use */
-            H5FL_arr_gc_head.mem_freed-=mem_size;
+            H5_ASSIGN_OVERFLOW(H5FL_arr_gc_head.mem_freed,H5FL_arr_gc_head.mem_freed-mem_size,hsize_t,size_t);
 
         } /* end if */
         /* Otherwise allocate a node */
@@ -1373,7 +1386,7 @@ H5FL_arr_gc_list(H5FL_arr_head_t *head)
         for(i=0; i<head->maxelem; i++) {
             if(head->onlist[i]>0) {
                 /* Calculate the total memory used on this list */
-                total_mem=head->onlist[i]*i*head->size;
+                H5_ASSIGN_OVERFLOW(total_mem,head->onlist[i]*i*head->size,hsize_t,size_t);
 
                 /* For each free list being garbage collected, walk through the nodes and free them */
                 arr_free_list=head->u.list_arr[i];

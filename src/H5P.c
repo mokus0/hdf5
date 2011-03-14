@@ -1,16 +1,18 @@
-/****************************************************************************
-* NCSA HDF								                                    *
-* Software Development Group						                        *
-* National Center for Supercomputing Applications			                *
-* University of Illinois at Urbana-Champaign				                *
-* 605 E. Springfield, Champaign IL 61820				                    *
-*									                                        *
-* For conditions of distribution and use, see the accompanying		        *
-* hdf/COPYING file.							                                *
-*									                                        *
-****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5P.c,v 1.140.2.8 2001/12/31 05:58:27 acheng Exp $ */
+/* $Id: H5P.c,v 1.140.2.15 2002/06/10 19:47:50 wendling Exp $ */
 
 /* Private header files */
 #include "H5private.h"		/* Generic Functions			*/
@@ -1495,7 +1497,7 @@ herr_t
 H5Pset_external(hid_t plist_id, const char *name, off_t offset, hsize_t size)
 {
     int			idx;
-    size_t		total, tmp;
+    hsize_t		total, tmp;
     H5D_create_t	*plist = NULL;
 
     FUNC_ENTER(H5Pset_external, FAIL);
@@ -2427,7 +2429,7 @@ H5Pget_family(hid_t plist_id, hsize_t *memb_size/*out*/,
 }
 
 
-#ifdef HAVE_PARALLEL
+#ifdef H5_HAVE_PARALLEL
 /*-------------------------------------------------------------------------
  * Function:	H5Pset_mpi
  *
@@ -2660,7 +2662,7 @@ H5Pget_xfer(hid_t plist_id, H5D_transfer_t *data_xfer_mode)
 
     FUNC_LEAVE (SUCCEED);
 }
-#endif /* HAVE_PARALLEL */
+#endif /* H5_HAVE_PARALLEL */
 #endif /* WANT_H5_V1_2_COMPAT */
 
 
@@ -3925,6 +3927,89 @@ H5Pget_sieve_buf_size(hid_t fapl_id, hsize_t *size/*out*/)
 } /* end H5Pget_sieve_buf_size() */
 
 
+/*-------------------------------------------------------------------------
+ * Function:	H5Pset_small_data_block_size
+ *
+ * Purpose:	Sets the minimum size of "small" raw data block allocations
+ *      when the H5FD_FEAT_AGGREGATE_SMALLDATA is set by a VFL driver.
+ *      Each "small" raw data block is allocated to be this size and then
+ *      specific pieces of raw data are sub-allocated from this block.
+ *      
+ *		The default value is set to 2048 (bytes), indicating that
+ *      "small" raw data will be attempted to be bunched together in (at least)
+ *      2K blocks in the file.  Setting the value to 0 with this API function
+ *      will turn off the "small" raw data aggregation, even if the VFL driver
+ *      attempts to use that strategy.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Monday, June 10, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5Pset_small_data_block_size(hid_t fapl_id, hsize_t size)
+{
+    H5F_access_t	*fapl = NULL;
+    
+    FUNC_ENTER (H5Pset_small_data_block_size, FAIL);
+    H5TRACE2("e","ih",fapl_id,size);
+
+    /* Check args */
+    if (H5P_FILE_ACCESS != H5P_get_class (fapl_id) ||
+            NULL == (fapl = H5I_object (fapl_id))) {
+        HRETURN_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL,
+		       "not a file access property list");
+    }
+
+    /* Set values */
+    fapl->sdata_block_size = size;
+
+    FUNC_LEAVE (SUCCEED);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5Pget_small_data_block_size
+ *
+ * Purpose:	Returns the current settings for the "small" raw data block
+ *      allocation property from a file access property list.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Monday, June 10, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5Pget_small_data_block_size(hid_t fapl_id, hsize_t *size/*out*/)
+{
+    H5F_access_t	*fapl = NULL;
+
+    FUNC_ENTER (H5Pget_small_data_block_size, FAIL);
+    H5TRACE2("e","ix",fapl_id,size);
+
+    /* Check args */
+    if (H5P_FILE_ACCESS != H5P_get_class (fapl_id) ||
+            NULL == (fapl = H5I_object (fapl_id))) {
+        HRETURN_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL,
+		       "not a file access property list");
+    }
+
+    /* Get values */
+    if (size)
+        *size = fapl->sdata_block_size;
+
+    FUNC_LEAVE (SUCCEED);
+}
+
+
 /*--------------------------------------------------------------------------
  NAME
     H5P_copy_prop
@@ -4867,7 +4952,7 @@ static herr_t H5P_register(H5P_genclass_t *pclass, const char *name, size_t size
      */
     if(pclass->plists>0 || pclass->classes>0) {
         if((new_class=H5P_create_class(pclass->parent,pclass->name,pclass->hashsize,
-                (unsigned)pclass->internal,pclass->create_func,pclass->create_data,
+                pclass->internal,pclass->create_func,pclass->create_data,
                 pclass->close_func,pclass->close_data))==NULL)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTCOPY, FAIL, "can't copy class");
 

@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *		      All rights reserved.
- *
  * Programmer:	Robb Matzke <matzke@llnl.gov>
  *		Friday, October 10, 1997
  *
@@ -212,13 +223,13 @@ test_fill(size_t nx, size_t ny, size_t nz,
 				 * original * fill values and add the new ones.
 				 */
 				ref_value = init_full(dst, nx, ny, nz);
-				for (u=dst_offset[0];
+				for (u=(size_t)dst_offset[0];
 				     u<dst_offset[0]+dx;
 				     u++) {
-				    for (v = dst_offset[1];
+				    for (v = (size_t)dst_offset[1];
 					 v < dst_offset[1] + dy;
 					 v++) {
-					for (w = dst_offset[2];
+					for (w = (size_t)dst_offset[2];
 					     w < dst_offset[2] + dz;
 					     w++) {
 					    ref_value -= dst[u*ny*nz+v*nz+w];

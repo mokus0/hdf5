@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Software Development Group                                               *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING file.                                                        *
- *                                                                          *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5.c,v 1.99.2.8 2002/01/11 16:43:01 koziol Exp $ */
+/* $Id: H5.c,v 1.99.2.12 2002/06/10 19:47:07 wendling Exp $ */
 
 /* private headers */
 #include "H5private.h"          /*library                 		*/
@@ -33,11 +35,6 @@
 /* we need this for the struct rusage declaration */
 #if defined(H5_HAVE_GETRUSAGE) && defined(linux)
 #include <sys/resource.h>
-#endif
-
-/* We need this on Irix64 even though we've included stdio.h as documented */
-#if !defined __MWERKS__  
-FILE *fdopen(int fd, const char *mode);
 #endif
 
 #define PABLO_MASK      H5_mask
@@ -851,7 +848,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 		    } else if (sizeof(hsize_t)==sizeof(long)) {
 			HDstrcpy (modifier, "l");
 		    } else {
-			HDstrcpy (modifier, PRINTF_LL_WIDTH);
+			HDstrcpy (modifier, H5_PRINTF_LL_WIDTH);
 		    }
 		    break;
 		case 'Z':
@@ -860,7 +857,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 		    } else if (sizeof(size_t)==sizeof(long)) {
 			HDstrcpy (modifier, "l");
 		    } else {
-			HDstrcpy (modifier, PRINTF_LL_WIDTH);
+			HDstrcpy (modifier, H5_PRINTF_LL_WIDTH);
 		    }
 		    break;
 		default:
@@ -953,7 +950,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 	    case 'g':
 	    case 'G':
 		if (!HDstrcmp (modifier, "h")) {
-		    float x = va_arg (ap, double);
+		    float x = (float)(va_arg (ap, double));
 		    n = fprintf (stream, template, x);
 		} else if (!*modifier || !HDstrcmp (modifier, "l")) {
 		    double x = va_arg (ap, double);
@@ -963,7 +960,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 		     * Some compilers complain when `long double' and
 		     * `double' are the same thing.
 		     */
-#if SIZEOF_LONG_DOUBLE != SIZEOF_DOUBLE
+#if H5_SIZEOF_LONG_DOUBLE != H5_SIZEOF_DOUBLE
 		    long double x = va_arg (ap, long double);
 		    n = fprintf (stream, template, x);
 #else
@@ -984,12 +981,12 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 			if (fwidth>0) {
 			    sprintf(template+HDstrlen(template), "%d", fwidth);
 			}
-			if (sizeof(x)==SIZEOF_INT) {
+			if (sizeof(x)==H5_SIZEOF_INT) {
 			    HDstrcat(template, "d");
-			} else if (sizeof(x)==SIZEOF_LONG) {
+			} else if (sizeof(x)==H5_SIZEOF_LONG) {
 			    HDstrcat(template, "ld");
-			} else if (sizeof(x)==SIZEOF_LONG_LONG) {
-			    HDstrcat(template, PRINTF_LL_WIDTH);
+			} else if (sizeof(x)==H5_SIZEOF_LONG_LONG) {
+			    HDstrcat(template, H5_PRINTF_LL_WIDTH);
 			    HDstrcat(template, "d");
 			}
 			n = fprintf(stream, template, x);

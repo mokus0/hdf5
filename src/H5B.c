@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*-------------------------------------------------------------------------
- * Copyright (C) 1997	National Center for Supercomputing Applications.
- *			All rights reserved.
- *
- *-------------------------------------------------------------------------
  *
  * Created:		hdf5btree.c
  *			Jul 10 1997
@@ -99,8 +109,6 @@
 #include "H5MFprivate.h"	/*file memory management		*/
 #include "H5MMprivate.h"	/*core memory management		*/
 #include "H5Pprivate.h"		/*property lists                        */
-
-#include "H5FDmpio.h"		/*for H5FD_mpio_tas_allsame()		*/
 
 #define PABLO_MASK	H5B_mask
 
@@ -483,10 +491,6 @@ H5B_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5B_t *bt)
 	 * bother writing data for the child entries that don't exist or
 	 * for the final unchanged children.
 	 */
-#ifdef H5_HAVE_PARALLEL
-	if (IS_H5FD_MPIO(f))
-	    H5FD_mpio_tas_allsame(f->shared->lf, TRUE); /* only p0 will write */
-#endif /* H5_HAVE_PARALLEL */
 	if (H5F_block_write(f, H5FD_MEM_BTREE, addr, (hsize_t)size, H5P_DEFAULT, bt->page)<0) {
 	    HRETURN_ERROR(H5E_BTREE, H5E_CANTFLUSH, FAIL,
 			  "unable to save B-tree node to disk");
@@ -680,11 +684,11 @@ H5B_split(H5F_t *f, const H5B_class_t *type, H5B_t *old_bt, haddr_t old_addr,
      * and the new node.
      */
     if (!H5F_addr_defined(old_bt->right)) {
-	nleft = 2 * k * split_ratios[2];	/*right*/
+	nleft = (int)(2 * k * split_ratios[2]);	/*right*/
     } else if (!H5F_addr_defined(old_bt->left)) {
-	nleft = 2 * k * split_ratios[0];	/*left*/
+	nleft = (int)(2 * k * split_ratios[0]);	/*left*/
     } else {
-	nleft = 2 * k * split_ratios[1];	/*middle*/
+	nleft = (int)(2 * k * split_ratios[1]);	/*middle*/
     }
 
     /*
@@ -2054,7 +2058,7 @@ H5B_copy(H5F_t *f, const H5B_t *old_bt)
     H5B_t		*ret_value = NULL;
     hsize_t		total_native_keysize;
     hsize_t		size;
-    unsigned               nkeys;
+    size_t              nkeys;
     unsigned		u;
 
     FUNC_ENTER(H5B_copy, NULL);
@@ -2084,8 +2088,8 @@ H5B_copy(H5F_t *f, const H5B_t *old_bt)
 
     if (NULL==(ret_value->page=H5FL_BLK_ALLOC(page,size,0)) ||
             NULL==(ret_value->native=H5FL_BLK_ALLOC(native_block,total_native_keysize,0)) ||
-            NULL==(ret_value->child=H5FL_ARR_ALLOC(haddr_t,nkeys,0)) ||
-            NULL==(ret_value->key=H5FL_ARR_ALLOC(H5B_key_t,(nkeys+1),0))) {
+            NULL==(ret_value->child=H5FL_ARR_ALLOC(haddr_t,(hsize_t)nkeys,0)) ||
+            NULL==(ret_value->key=H5FL_ARR_ALLOC(H5B_key_t,(hsize_t)(nkeys+1),0))) {
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		     "memory allocation failed for B-tree root node");
     }

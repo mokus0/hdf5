@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998 NCSA
- *		      All rights reserved.
- *
  * Programmer:	Robb Matzke <matzke@llnl.gov>
  *		Tuesday, March 31, 1998
  */
@@ -1963,7 +1974,6 @@ H5T_detect_class (H5T_t *dt, H5T_class_t cls)
         case H5T_VLEN:
         case H5T_ENUM:
             HRETURN(H5T_detect_class(dt->parent,cls));
-            break;
 
         default:
             break;
@@ -2219,7 +2229,7 @@ H5Tget_precision(hid_t type_id)
     }
     if (dt->parent) dt = dt->parent;	/*defer to parent*/
     if (H5T_COMPOUND==dt->type || H5T_OPAQUE==dt->type || H5T_ARRAY==dt->type) {
-	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, H5T_ORDER_ERROR,
+	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, 0,
 		      "operation not defined for specified data type");
     }
     
@@ -2803,8 +2813,7 @@ H5Tget_ebias(hid_t type_id)
     }
     
     /* bias */
-    ebias = dt->u.atomic.u.f.ebias;
-
+    H5_ASSIGN_OVERFLOW(ebias,dt->u.atomic.u.f.ebias,uint64_t,size_t);
     FUNC_LEAVE(ebias);
 }
 
@@ -3084,14 +3093,24 @@ H5Tget_cset(hid_t type_id)
 	HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, H5T_CSET_ERROR,
 		      "not a data type");
     }
-    if (dt->parent) dt = dt->parent; /*defer to parent*/
-    if (H5T_STRING != dt->type) {
+    /* Don't see any reason for this.  Causes problem for variable-length
+     *  string. -SLU (& QAK) */
+    /*if (dt->parent) dt = dt->parent;*/ /*defer to parent*/
+    /* Both string and VL string have character set */
+    if (!(H5T_STRING == dt->type || (H5T_VLEN == dt->type && H5T_VLEN_STRING ==
+	dt->u.vlen.type))) {
 	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, H5T_CSET_ERROR,
 		      "operation not defined for data type class");
     }
     
     /* result */
-    cset = dt->u.atomic.u.s.cset;
+    if(H5T_STRING == dt->type)
+        cset = dt->u.atomic.u.s.cset;
+    else if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
+	cset = dt->u.vlen.cset;
+    else
+	HRETURN_ERROR(H5E_DATATYPE, H5E_BADVALUE, H5T_CSET_ERROR,
+		      "can't get cset info");
 
     FUNC_LEAVE(cset);
 }
@@ -3135,14 +3154,25 @@ H5Tset_cset(hid_t type_id, H5T_cset_t cset)
 	HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL,
 		      "illegal character set type");
     }
-    if (dt->parent) dt = dt->parent; /*defer to parent*/
-    if (H5T_STRING != dt->type) {
+    /* Don't see any reason for this.  Causes problem for variable-length
+     *  string. -SLU (& QAK) */
+    /*if (dt->parent) dt = dt->parent;*/ /*defer to parent*/
+    /* Both string and VL string have character set */
+    if (!(H5T_STRING == dt->type || (H5T_VLEN == dt->type && H5T_VLEN_STRING ==
+        dt->u.vlen.type))) {
 	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		      "operation not defined for data type class");
     }
     
     /* Commit */
-    dt->u.atomic.u.s.cset = cset;
+    if(H5T_STRING == dt->type)
+        dt->u.atomic.u.s.cset = cset;
+    else if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
+	dt->u.vlen.cset = cset;
+    else
+	HRETURN_ERROR(H5E_DATATYPE, H5E_BADVALUE, FAIL,
+		      "can't set cset info");
+
     FUNC_LEAVE(SUCCEED);
 }
 
@@ -3182,14 +3212,24 @@ H5Tget_strpad(hid_t type_id)
 	NULL == (dt = H5I_object(type_id))) {
 	HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, H5T_STR_ERROR, "not a data type");
     }
-    if (dt->parent) dt = dt->parent; /*defer to parent*/
-    if (H5T_STRING != dt->type) {
+    /* Don't see any reason for this.  Causes problem for variable-length
+     *  string. -SLU (& QAK) */
+    /*if (dt->parent) dt = dt->parent;*/ /*defer to parent*/
+    /* Both string and VL string have character set */
+    if (!(H5T_STRING == dt->type || (H5T_VLEN == dt->type && H5T_VLEN_STRING ==
+        dt->u.vlen.type))) {
 	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, H5T_STR_ERROR,
 		      "operation not defined for data type class");
     }
     
     /* result */
-    strpad = dt->u.atomic.u.s.pad;
+    if(H5T_STRING == dt->type)
+        strpad = dt->u.atomic.u.s.pad;
+    else if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
+        strpad = dt->u.vlen.pad;
+    else
+	HRETURN_ERROR(H5E_DATATYPE, H5E_BADVALUE, H5T_STR_ERROR,
+		      "can't get strpad info");
 
     FUNC_LEAVE(strpad);
 }
@@ -3243,14 +3283,25 @@ H5Tset_strpad(hid_t type_id, H5T_str_t strpad)
     if (strpad < 0 || strpad >= H5T_NSTR) {
 	HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "illegal string pad type");
     }
-    if (dt->parent) dt = dt->parent; /*defer to parent*/
-    if (H5T_STRING != dt->type) {
+    /* Don't see any reason for this.  Causes problem for variable-length
+     *  string. -SLU (& QAK) */
+    /*if (dt->parent) dt = dt->parent;*/ /*defer to parent*/
+    /* Both string and VL string have character set */
+    if (!(H5T_STRING == dt->type || (H5T_VLEN == dt->type && H5T_VLEN_STRING ==
+        dt->u.vlen.type))) {
 	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		      "operation not defined for data type class");
     }
     
     /* Commit */
-    dt->u.atomic.u.s.pad = strpad;
+    if(H5T_STRING == dt->type)
+        dt->u.atomic.u.s.pad = strpad;
+    else if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
+        dt->u.vlen.pad = strpad;
+    else
+	HRETURN_ERROR(H5E_DATATYPE, H5E_BADVALUE, H5T_STR_ERROR,
+		      "can't set strpad info");
+
     FUNC_LEAVE(SUCCEED);
 }
 
@@ -3361,6 +3412,65 @@ H5Tget_member_name(hid_t type_id, int membno)
     }
 
     /* Value */
+    FUNC_LEAVE(ret_value);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5Tget_member_index
+ *
+ * Purpose:	Returns the index of a member in a compound or enumeration
+ *		data type by given name.Members are stored in no particular 
+ *		order with numbers 0 through N-1 where N is the value 
+ *		returned by H5Tget_nmembers().
+ *	
+ * Return:	Success:	index of the member if exists.
+ *		Failure:	-1.
+ *
+ * Programmer:	Raymond Lu
+ *		Thursday, April 4, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+int
+H5Tget_member_index(hid_t type_id, const char *name)
+{
+    H5T_t	*dt = NULL;
+    int		ret_value = FAIL;
+    int		nmembs, i;
+
+    FUNC_ENTER(H5Tget_member_index, FAIL);
+    H5TRACE2("Is","is",type_id,name);
+
+    /* Check arguments */
+    assert(name);
+    if(H5I_DATATYPE!=H5I_get_type(type_id) || NULL==(dt=H5I_object(type_id)))
+	HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
+
+    /* Locate member by name */
+    switch (dt->type) {
+    case H5T_COMPOUND:
+	nmembs = dt->u.compnd.nmembs;
+	for(i=0; i<nmembs; i++) {
+	    if(!HDstrcmp(dt->u.compnd.memb[i].name, name))
+		HGOTO_DONE(i);
+	}
+	break;	
+    case H5T_ENUM:
+	nmembs = dt->u.enumer.nmembs;
+	for(i=0; i<nmembs; i++) {
+	    if(!HDstrcmp(dt->u.enumer.name[i], name))
+		HGOTO_DONE(i);
+	}
+	break;
+    default:
+	HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, 
+		"operation not supported for this type");
+    }
+
+done:
     FUNC_LEAVE(ret_value);
 }
 
@@ -3627,6 +3737,8 @@ H5Tinsert(hid_t parent_id, const char *name, size_t offset, hid_t member_id)
     H5TRACE4("e","iszi",parent_id,name,offset,member_id);
 
     /* Check args */
+    if (parent_id==member_id)
+        HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't insert compound datatype in itself");
     if (H5I_DATATYPE != H5I_get_type(parent_id) ||
 	NULL == (parent = H5I_object(parent_id)) ||
 	H5T_COMPOUND != parent->type) {
@@ -5208,6 +5320,10 @@ H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type)
 		       "data type is immutable");
     }
 
+    /* Check for a "sensible" datatype to store on disk */
+    if(H5T_is_sensible(type)!=TRUE)
+        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "datatype is not sensible");
+
     /* Find the insertion file */
     if (NULL==(file=H5G_insertion_file(loc, name))) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL,
@@ -5490,6 +5606,8 @@ H5T_set_size(H5T_t *dt, size_t size)
                 /* Convert string to variable-length datatype */
                 if(size==H5T_VARIABLE) {
                     H5T_t	*base = NULL;		/* base data type */
+                    H5T_cset_t  tmp_cset;		/* Temp. cset info */
+                    H5T_str_t   tmp_strpad;		/* Temp. strpad info */
 
                     /* Get a copy of unsigned char type as the base/parent type */
                     if (NULL==(base=H5I_object(H5T_NATIVE_UCHAR)))
@@ -5505,8 +5623,16 @@ H5T_set_size(H5T_t *dt, size_t size)
                      */
                     dt->force_conv = TRUE;
 
+                    /* Before we mess with the info in the union, extract the values we need */
+                    tmp_cset=dt->u.atomic.u.s.cset;
+                    tmp_strpad=dt->u.atomic.u.s.pad;
+
                     /* This is a string, not a sequence */
                     dt->u.vlen.type = H5T_VLEN_STRING;
+
+		    /* Set character set and padding information */
+		    dt->u.vlen.cset = tmp_cset;
+ 		    dt->u.vlen.pad  = tmp_strpad;
 
                     /* Set up VL information */
                     if (H5T_vlen_mark(dt, NULL, H5T_VLEN_MEMORY)<0)
@@ -6221,7 +6347,7 @@ char *
 H5T_enum_nameof(H5T_t *dt, void *value, char *name/*out*/, size_t size)
 {
     int	lt, md, rt;		/*indices for binary search	*/
-    int	cmp;			/*comparison result		*/
+    int	cmp=0;			/*comparison result		*/
     
     FUNC_ENTER(H5T_enum_nameof, NULL);
 
@@ -6230,6 +6356,12 @@ H5T_enum_nameof(H5T_t *dt, void *value, char *name/*out*/, size_t size)
     assert(value);
     assert(name || 0==size);
     if (name && size>0) *name = '\0';
+
+    /* Sanity check */
+    if (dt->u.enumer.nmembs == 0) {
+	HRETURN_ERROR(H5E_DATATYPE, H5E_NOTFOUND, NULL,
+		      "datatype has no members");
+    }
 
     /* Do a binary search over the values to find the correct one */
     H5T_sort_value(dt, NULL);
@@ -6248,10 +6380,12 @@ H5T_enum_nameof(H5T_t *dt, void *value, char *name/*out*/, size_t size)
 	    break;
 	}
     }
-    if (md<0) {
-	HRETURN_ERROR(H5E_DATATYPE, H5E_NOTFOUND, NULL,
-		      "value is not in the domain of the enumeration type");
+    /* Value was not yet defined. This fixes bug # 774, 2002/06/05 EIP */
+    if (cmp!=0) {
+        HRETURN_ERROR(H5E_DATATYPE, H5E_NOTFOUND, NULL,
+                      "value is currently not defined");
     }
+
 
     /* Save result name */
     if (!name && NULL==(name=H5MM_malloc(strlen(dt->u.enumer.name[md])+1))) {
@@ -6290,14 +6424,20 @@ herr_t
 H5T_enum_valueof(H5T_t *dt, const char *name, void *value/*out*/)
 {
     int	lt, md, rt;		/*indices for binary search	*/
-    int	cmp;			/*comparison result		*/
+    int	cmp=0;			/*comparison result		*/
     
-    FUNC_ENTER(H5T_enum_nameof, FAIL);
+    FUNC_ENTER(H5T_enum_valueof, FAIL);
 
     /* Check args */
     assert(dt && H5T_ENUM==dt->type);
     assert(name && *name);
     assert(value);
+
+    /* Sanity check */
+    if (dt->u.enumer.nmembs == 0) {
+	HRETURN_ERROR(H5E_DATATYPE, H5E_NOTFOUND, FAIL,
+		      "datatype has no members");
+    }
 
     /* Do a binary search over the names to find the correct one */
     H5T_sort_name(dt, NULL);
@@ -6316,10 +6456,11 @@ H5T_enum_valueof(H5T_t *dt, const char *name, void *value/*out*/)
 	    break;
 	}
     }
-    if (md<0) {
+    if (cmp!=0) {
 	HRETURN_ERROR(H5E_DATATYPE, H5E_NOTFOUND, FAIL,
-		      "string is not in the domain of the enumeration type");
+		      "string doesn't exist in the enumeration type");
     }
+
 
     HDmemcpy(value, dt->u.enumer.value+md*dt->size, dt->size);
     FUNC_LEAVE(SUCCEED);
@@ -7192,7 +7333,7 @@ done:
  */
 hid_t
 H5Tarray_create(hid_t base_id, int ndims, const hsize_t dim[/* ndims */],
-    const int UNUSED perm[/* ndims */])
+    const int perm[/* ndims */])
 {
     H5T_t	*base = NULL;		/* base data type	*/
     H5T_t	*dt = NULL;		    /* new array data type	*/
@@ -7274,8 +7415,8 @@ H5T_array_create(H5T_t *base, int ndims, const hsize_t dim[/* ndims */],
 
     /* Copy the array dimensions & compute the # of elements in the array */
     for(i=0, ret_value->u.array.nelem=1; i<ndims; i++) {
-        ret_value->u.array.dim[i] = dim[i];
-        ret_value->u.array.nelem *= dim[i];
+        H5_ASSIGN_OVERFLOW(ret_value->u.array.dim[i],dim[i],hsize_t,size_t);
+        ret_value->u.array.nelem *=(size_t)dim[i];
     } /* end for */
 
     /* Copy the dimension permutations */
@@ -7376,6 +7517,59 @@ H5Tget_array_dims(hid_t type_id, hsize_t dims[], int perm[])
 
     FUNC_LEAVE(ret_value);
 }   /* end H5Tget_array_dims */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5T_is_sensible
+ *
+ * Purpose:	Determines if a data type is sensible to store on disk
+ *              (i.e. not partially initialized)
+ *
+ * Return:	Success:	TRUE, FALSE
+ *
+ *		Failure:	Negative
+ *
+ * Programmer:	Quincey Koziol
+ *		Tuesday, June 11, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5T_is_sensible(const H5T_t *dt)
+{
+    htri_t	ret_value = FAIL;
+    
+    FUNC_ENTER(H5T_is_sensible, FAIL);
+
+    assert(dt);
+
+    switch(dt->type) {
+        case H5T_COMPOUND:
+            /* Only allow compound datatypes with at least one member to be stored on disk */
+            if(dt->u.compnd.nmembs > 0)
+                ret_value=TRUE;
+            else
+                ret_value=FALSE;
+            break;
+
+        case H5T_ENUM:
+            /* Only allow enum datatypes with at least one member to be stored on disk */
+            if(dt->u.enumer.nmembs > 0)
+                ret_value=TRUE;
+            else
+                ret_value=FALSE;
+            break;
+
+        default:
+            /* Assume all other datatype are sensible to store on disk */
+            ret_value=TRUE;
+            break;
+    } /* end switch */
+
+    FUNC_LEAVE(ret_value);
+}
 
 
 /*-------------------------------------------------------------------------
@@ -7590,12 +7784,12 @@ H5T_debug(H5T_t *dt, FILE *stream)
 		    (unsigned long) (dt->u.atomic.u.f.esize));
 	    tmp = dt->u.atomic.u.f.ebias >> 32;
 	    if (tmp) {
-		size_t hi = tmp;
-		size_t lo = dt->u.atomic.u.f.ebias & 0xffffffff;
+		size_t hi = (size_t)tmp;
+		size_t lo = (size_t)(dt->u.atomic.u.f.ebias & 0xffffffff);
 		fprintf(stream, " bias=0x%08lx%08lx",
 			(unsigned long)hi, (unsigned long)lo);
 	    } else {
-		size_t lo = dt->u.atomic.u.f.ebias & 0xffffffff;
+		size_t lo = (size_t)(dt->u.atomic.u.f.ebias & 0xffffffff);
 		fprintf(stream, " bias=0x%08lx", (unsigned long)lo);
 	    }
 	    break;

@@ -1,3 +1,20 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* This file contains C stubs for H5E Fortran APIs */
+
+
 #include "H5f90.h"
 
 
@@ -49,6 +66,7 @@ nh5eprint_c1(_fcd name, int_f* namelen)
   int c_namelen;
   c_namelen = *namelen;
   c_name = (char*)HD5f2cstring(name, c_namelen);
+  if (c_name == NULL) return ret_val;
   file = fopen(c_name, "a");
        if(!file) return ret_val;
 
@@ -57,6 +75,7 @@ nh5eprint_c1(_fcd name, int_f* namelen)
    */
   status = H5Eprint(file);
   fclose(file);
+  HDfree(c_name);
 
   if(status < 0) return ret_val;
   ret_val = 0;
@@ -113,7 +132,7 @@ nh5eget_major_c(int_f* error_no, _fcd name)
    * Call H5Eget_major function.
    */
   c_name = H5Eget_major(c_error_no);
-  HDpackFstring((char*)c_name, _fcdtocp(name), strlen(c_name)); 
+  HD5packFstring((char*)c_name, _fcdtocp(name), strlen(c_name)); 
   
   if(!strcmp(c_name, "Invalid major error number")) return ret_val;
   ret_val = 0;
@@ -143,7 +162,7 @@ nh5eget_minor_c(int_f* error_no, _fcd name)
    * Call H5Eget_minor function.
    */
   c_name = H5Eget_minor(c_error_no);
-  HDpackFstring((char*)c_name, _fcdtocp(name), strlen(c_name)); 
+  HD5packFstring((char*)c_name, _fcdtocp(name), strlen(c_name)); 
   
   if(!strcmp(c_name, "Invalid minor error number")) return ret_val;
   ret_val = 0;

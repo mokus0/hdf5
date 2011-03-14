@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998 NCSA
- *		 All rights reserved.
- *
  * Programmer:	Robb Matzke <matzke@llnl.gov>
  *		Friday, October 30, 1998
  *
@@ -15,17 +26,8 @@
 #define _H5private_H
 
 #include "H5public.h"		/* Include Public Definitions		*/
-/*
- * Since H5config.h is a generated header file, it is messy to try
- * to put a #ifndef _H5config_H ... #endif guard in it.
- * HDF5 has set an internal rule that it is being included here.
- * Source files should NOT include H5config.h directly but include
- * it via H5private.h.  The #ifndef _H5private_H guard above would
- * prevent repeated include.
- */
-#include "H5config.h"		/* Include all configuration info	*/
 
-/* include the pthread library */
+/* include the pthread header */
 #ifdef H5_HAVE_THREADSAFE
 #include <pthread.h>
 #endif
@@ -139,19 +141,6 @@
 
 #define VC_EXTRALEAN		/*Exclude rarely-used stuff from Windows headers */
 #include <windows.h>
-
-/*
-inline is now in C but in the C99 standard and not the old C89 version so
-MS doesn't recognize it yet (as of April 2001)
-Move H5_inline into windows version of H5pubconf.h; avoid duplicating warnings.
-*/
-/*
-#if defined(__MWERKS__) || defined(__cplusplus)
-# define H5_inline   inline
-# else
-# define H5_inline 
-#endif
-*/
 
 #endif /*WIN32*/
 
@@ -277,16 +266,16 @@ Move H5_inline into windows version of H5pubconf.h; avoid duplicating warnings.
  * supported by the compiler, usually 64 bits.	It must be legal to qualify
  * `long_long' with `unsigned'.
  */
-#if SIZEOF_LONG_LONG>0
+#if H5_SIZEOF_LONG_LONG>0
 #   define long_long	long long
-#elif SIZEOF___INT64>0
+#elif H5_SIZEOF___INT64>0
 #   define long_long	__int64	/*Win32*/
-#   undef SIZEOF_LONG_LONG
-#   define SIZEOF_LONG_LONG SIZEOF___INT64
+#   undef H5_SIZEOF_LONG_LONG
+#   define H5_SIZEOF_LONG_LONG H5_SIZEOF___INT64
 #else
 #   define long_long	long int
-#   undef SIZEOF_LONG_LONG
-#   define SIZEOF_LONG_LONG SIZEOF_LONG
+#   undef H5_SIZEOF_LONG_LONG
+#   define H5_SIZEOF_LONG_LONG H5_SIZEOF_LONG
 #endif
 
 /*
@@ -296,114 +285,114 @@ Move H5_inline into windows version of H5pubconf.h; avoid duplicating warnings.
  * be exactly one byte wide because we use it for pointer calculations to
  * void* memory.
  */
-#if SIZEOF_INT8_T==0
+#if H5_SIZEOF_INT8_T==0
     typedef signed char int8_t;
-#   undef SIZEOF_INT8_T
-#   define SIZEOF_INT8_T SIZEOF_CHAR
-#elif SIZEOF_INT8_T==1
+#   undef H5_SIZEOF_INT8_T
+#   define H5_SIZEOF_INT8_T H5_SIZEOF_CHAR
+#elif H5_SIZEOF_INT8_T==1
 #else
 #   error "the int8_t type must be 1 byte wide"
 #endif
 
-#if SIZEOF_UINT8_T==0
+#if H5_SIZEOF_UINT8_T==0
     typedef unsigned char uint8_t;
-#   undef SIZEOF_UINT8_T
-#   define SIZEOF_UINT8_T SIZEOF_CHAR
-#elif SIZEOF_UINT8_T==1
+#   undef H5_SIZEOF_UINT8_T
+#   define H5_SIZEOF_UINT8_T H5_SIZEOF_CHAR
+#elif H5_SIZEOF_UINT8_T==1
 #else
 #   error "the uint8_t type must be 1 byte wide"
 #endif
 
-#if SIZEOF_INT16_T>=2
-#elif SIZEOF_SHORT>=2
+#if H5_SIZEOF_INT16_T>=2
+#elif H5_SIZEOF_SHORT>=2
     typedef short int16_t;
-#   undef SIZEOF_INT16_T
-#   define SIZEOF_INT16_T SIZEOF_SHORT
-#elif SIZEOF_INT>=2
+#   undef H5_SIZEOF_INT16_T
+#   define H5_SIZEOF_INT16_T H5_SIZEOF_SHORT
+#elif H5_SIZEOF_INT>=2
     typedef int int16_t;
-#   undef SIZEOF_INT16_T
-#   define SIZEOF_INT16_T SIZEOF_INT
+#   undef H5_SIZEOF_INT16_T
+#   define H5_SIZEOF_INT16_T H5_SIZEOF_INT
 #else
 #   error "nothing appropriate for int16_t"
 #endif
 
-#if SIZEOF_UINT16_T>=2
-#elif SIZEOF_SHORT>=2
+#if H5_SIZEOF_UINT16_T>=2
+#elif H5_SIZEOF_SHORT>=2
     typedef unsigned short uint16_t;
-#   undef SIZEOF_UINT16_T
-#   define SIZEOF_UINT16_T SIZEOF_SHORT
-#elif SIZEOF_INT>=2
+#   undef H5_SIZEOF_UINT16_T
+#   define H5_SIZEOF_UINT16_T H5_SIZEOF_SHORT
+#elif H5_SIZEOF_INT>=2
     typedef unsigned uint16_t;
-#   undef SIZEOF_UINT16_T
-#   define SIZEOF_UINT16_T SIZEOF_INT
+#   undef H5_SIZEOF_UINT16_T
+#   define H5_SIZEOF_UINT16_T H5_SIZEOF_INT
 #else
 #   error "nothing appropriate for uint16_t"
 #endif
 
-#if SIZEOF_INT32_T>=4
-#elif SIZEOF_SHORT>=4
+#if H5_SIZEOF_INT32_T>=4
+#elif H5_SIZEOF_SHORT>=4
     typedef short int32_t;
-#   undef SIZEOF_INT32_T
-#   define SIZEOF_INT32_T SIZEOF_SHORT
-#elif SIZEOF_INT>=4
+#   undef H5_SIZEOF_INT32_T
+#   define H5_SIZEOF_INT32_T H5_SIZEOF_SHORT
+#elif H5_SIZEOF_INT>=4
     typedef int int32_t;
-#   undef SIZEOF_INT32_T
-#   define SIZEOF_INT32_T SIZEOF_INT
-#elif SIZEOF_LONG>=4
+#   undef H5_SIZEOF_INT32_T
+#   define H5_SIZEOF_INT32_T H5_SIZEOF_INT
+#elif H5_SIZEOF_LONG>=4
     typedef long int32_t;
-#   undef SIZEOF_INT32_T
-#   define SIZEOF_INT32_T SIZEOF_LONG
+#   undef H5_SIZEOF_INT32_T
+#   define H5_SIZEOF_INT32_T H5_SIZEOF_LONG
 #else
 #   error "nothing appropriate for int32_t"
 #endif
 
-#if SIZEOF_UINT32_T>=4
-#elif SIZEOF_SHORT>=4
+#if H5_SIZEOF_UINT32_T>=4
+#elif H5_SIZEOF_SHORT>=4
     typedef short uint32_t;
-#   undef SIZEOF_UINT32_T
-#   define SIZEOF_UINT32_T SIZEOF_SHORT
-#elif SIZEOF_INT>=4
+#   undef H5_SIZEOF_UINT32_T
+#   define H5_SIZEOF_UINT32_T H5_SIZEOF_SHORT
+#elif H5_SIZEOF_INT>=4
     typedef unsigned int uint32_t;
-#   undef SIZEOF_UINT32_T
-#   define SIZEOF_UINT32_T SIZEOF_INT
-#elif SIZEOF_LONG>=4
+#   undef H5_SIZEOF_UINT32_T
+#   define H5_SIZEOF_UINT32_T H5_SIZEOF_INT
+#elif H5_SIZEOF_LONG>=4
     typedef unsigned long uint32_t;
-#   undef SIZEOF_UINT32_T
-#   define SIZEOF_UINT32_T SIZEOF_LONG
+#   undef H5_SIZEOF_UINT32_T
+#   define H5_SIZEOF_UINT32_T H5_SIZEOF_LONG
 #else
 #   error "nothing appropriate for uint32_t"
 #endif
 
-#if SIZEOF_INT64_T>=8
-#elif SIZEOF_INT>=8
+#if H5_SIZEOF_INT64_T>=8
+#elif H5_SIZEOF_INT>=8
     typedef int int64_t;
-#   undef SIZEOF_INT64_T
-#   define SIZEOF_INT64_T SIZEOF_INT
-#elif SIZEOF_LONG>=8
+#   undef H5_SIZEOF_INT64_T
+#   define H5_SIZEOF_INT64_T H5_SIZEOF_INT
+#elif H5_SIZEOF_LONG>=8
     typedef long int64_t;
-#   undef SIZEOF_INT64_T
-#   define SIZEOF_INT64_T SIZEOF_LONG
-#elif SIZEOF_LONG_LONG>=8
+#   undef H5_SIZEOF_INT64_T
+#   define H5_SIZEOF_INT64_T H5_SIZEOF_LONG
+#elif H5_SIZEOF_LONG_LONG>=8
     typedef long_long int64_t;
-#   undef SIZEOF_INT64_T
-#   define SIZEOF_INT64_T SIZEOF_LONG_LONG
+#   undef H5_SIZEOF_INT64_T
+#   define H5_SIZEOF_INT64_T H5_SIZEOF_LONG_LONG
 #else
 #   error "nothing appropriate for int64_t"
 #endif
 
-#if SIZEOF_UINT64_T>=8
-#elif SIZEOF_INT>=8
+#if H5_SIZEOF_UINT64_T>=8
+#elif H5_SIZEOF_INT>=8
     typedef unsigned uint64_t;
-#   undef SIZEOF_UINT64_T
-#   define SIZEOF_UINT64_T SIZEOF_INT
-#elif SIZEOF_LONG>=8
+#   undef H5_SIZEOF_UINT64_T
+#   define H5_SIZEOF_UINT64_T H5_SIZEOF_INT
+#elif H5_SIZEOF_LONG>=8
     typedef unsigned long uint64_t;
-#   undef SIZEOF_UINT64_T
-#   define SIZEOF_UINT64_T SIZEOF_LONG
-#elif SIZEOF_LONG_LONG>=8
+#   undef H5_SIZEOF_UINT64_T
+#   define H5_SIZEOF_UINT64_T H5_SIZEOF_LONG
+#elif H5_SIZEOF_LONG_LONG>=8
     typedef unsigned long_long uint64_t;
-#   undef SIZEOF_UINT64_T
-#   define SIZEOF_UINT64_T SIZEOF_LONG_LONG
+#   undef H5_SIZEOF_UINT64_T
+#   define H5_SIZEOF_UINT64_T H5_SIZEOF_LONG_LONG
 #else
 #   error "nothing appropriate for uint64_t"
 #endif
@@ -444,6 +433,23 @@ Move H5_inline into windows version of H5pubconf.h; avoid duplicating warnings.
 }
 #else /* NDEBUG */
 #define H5_CHECK_OVERFLOW(var,vartype,casttype)
+#endif /* NDEBUG */
+
+
+/*
+ * A macro for detecting over/under-flow when assigning between types
+ */
+#ifndef NDEBUG
+#define H5_ASSIGN_OVERFLOW(var,expr,vartype,casttype)   \
+{                                                       \
+    vartype _tmp_overflow=(vartype)(expr);              \
+    casttype _tmp_overflow2=(casttype)(_tmp_overflow);  \
+    assert((casttype)_tmp_overflow==_tmp_overflow2);    \
+    (var)=_tmp_overflow2;                               \
+}
+#else /* NDEBUG */
+#define H5_ASSIGN_OVERFLOW(var,expr,vartype,casttype)   \
+    (var)=(casttype)(expr);
 #endif /* NDEBUG */
 
 /*
@@ -547,7 +553,14 @@ __DLL__ int HDfprintf (FILE *stream, const char *fmt, ...);
 /* fscanf() variable arguments */
 #define HDfseek(F,O,W)		fseek(F,O,W)
 #define HDfsetpos(F,P)		fsetpos(F,P)
+/* definitions related to the file stat utilities */
+#ifdef WIN32
+#define HDfstat(F,B)            _fstati64(F,B)
+typedef	struct _stati64		h5_stat_t;
+#else
 #define HDfstat(F,B)		fstat(F,B)
+typedef struct stat             h5_stat_t;
+#endif
 #define HDftell(F)		ftell(F)
 #define HDfwrite(M,Z,N,F)	fwrite(M,Z,N,F)
 #define HDgetc(F)		getc(F)
@@ -670,7 +683,11 @@ __DLL__ int HDfprintf (FILE *stream, const char *fmt, ...);
 #define HDsqrt(X)		sqrt(X)
 #define HDsrand(N)		srand(N)
 /* sscanf() variable arguments */
+#ifdef WIN32
+#define HDstat(S,B)             _stati64(S,B)
+#else
 #define HDstat(S,B)		stat(S,B)
+#endif
 #define HDstrcat(X,Y)		strcat(X,Y)
 #define HDstrchr(S,C)		strchr(S,C)
 #define HDstrcmp(X,Y)		strcmp(X,Y)

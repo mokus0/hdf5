@@ -1,3 +1,20 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* This file contains C stubs for H5P Fortran APIs */
+
+
 #include "H5f90.h"
 
 
@@ -1190,6 +1207,8 @@ nh5pset_fapl_split_c(hid_t_f *prp_id, int_f* meta_len, _fcd meta_ext, hid_t_f* m
      c_meta_plist = *meta_plist;
      c_raw_plist = *raw_plist; 
      ret = H5Pset_fapl_split(c_prp_id, c_meta_ext, c_meta_plist, c_raw_ext, c_raw_plist );
+     HDfree(c_meta_ext);
+     HDfree(c_raw_ext);
      if (ret < 0) return ret_value;
      ret_value = 0;
      return ret_value;
@@ -1243,8 +1262,8 @@ nh5pget_fapl_split_c(hid_t_f *prp_id, size_t_f* meta_ext_size , _fcd meta_ext, h
      if (ret < 0) return ret_value;
      *meta_plist = c_meta_plist;
      *raw_plist = c_raw_plist;
-     HDpackFstring(c_meta_ext, _fcdtocp(meta_ext), strlen(c_meta_ext));  
-     HDpackFstring(c_raw_ext, _fcdtocp(raw_ext), strlen(c_raw_ext));  
+     HD5packFstring(c_meta_ext, _fcdtocp(meta_ext), strlen(c_meta_ext));  
+     HD5packFstring(c_raw_ext, _fcdtocp(raw_ext), strlen(c_raw_ext));  
     
      ret_value = 0;
      return ret_value;
@@ -1498,7 +1517,7 @@ nh5pget_filter_c(hid_t_f *prp_id, int_f* filter_number, int_f* flags, size_t_f* 
      *filter_id = c_filter;
      *cd_nelmts = c_cd_nelmts;
      *flags = c_flags;
-     HDpackFstring(c_name, _fcdtocp(name), strlen(c_name)); 
+     HD5packFstring(c_name, _fcdtocp(name), strlen(c_name)); 
  
      for (i = 0; i < c_cd_nelmts; i++)
           cd_values[i] = (int_f)c_cd_values[i];
@@ -1547,6 +1566,7 @@ nh5pset_external_c (hid_t_f *prp_id, _fcd name, int_f* namelen, int_f* offset, h
       */
      c_prp_id = *prp_id;
      ret = H5Pset_external(c_prp_id, c_name, c_offset, c_bytes);
+     HDfree(c_name);
 
      if (ret < 0) return ret_value;
      ret_value = 0;
@@ -1629,7 +1649,7 @@ nh5pget_external_c(hid_t_f *prp_id,int*idx, size_t_f* name_size, _fcd name, int_
 
      *offset = (int_f)c_offset;
      *bytes = (hsize_t_f)size;
-     HDpackFstring(c_name, _fcdtocp(name), strlen(c_name)); 
+     HD5packFstring(c_name, _fcdtocp(name), strlen(c_name)); 
     
      HDfree(c_name);
      ret_value = 0;

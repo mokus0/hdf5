@@ -1,14 +1,16 @@
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Software Development Group                                               *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING file.                                                        *
- *                                                                          *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * This file contains function prototypes for each exported function in the
@@ -171,7 +173,7 @@ __DLL__ herr_t H5Pget_split(hid_t plist_id, size_t meta_ext_size, char *meta_ext
 __DLL__ herr_t H5Pset_family(hid_t plist_id, hsize_t memb_size, hid_t memb_plist_id);
 __DLL__ herr_t H5Pget_family(hid_t plist_id, hsize_t *memb_size/*out*/,
 	       hid_t *memb_plist_id/*out*/);
-#if defined(HAVE_PARALLEL) || defined(H5_HAVE_PARALLEL)
+#if defined(H5_HAVE_PARALLEL)
 __DLL__ herr_t H5Pset_mpi(hid_t plist_id, MPI_Comm comm, MPI_Info info);
 __DLL__ herr_t H5Pget_mpi(hid_t plist_id, MPI_Comm *comm, MPI_Info *info);
 __DLL__ herr_t H5Pset_xfer(hid_t plist_id, H5D_transfer_t data_xfer_mode);
@@ -230,6 +232,8 @@ __DLL__ herr_t H5Pset_meta_block_size(hid_t fapl_id, hsize_t size);
 __DLL__ herr_t H5Pget_meta_block_size(hid_t fapl_id, hsize_t *size/*out*/);
 __DLL__ herr_t H5Pset_sieve_buf_size(hid_t fapl_id, hsize_t size);
 __DLL__ herr_t H5Pget_sieve_buf_size(hid_t fapl_id, hsize_t *size/*out*/);
+__DLL__ herr_t H5Pset_small_data_block_size(hid_t fapl_id, hsize_t size);
+__DLL__ herr_t H5Pget_small_data_block_size(hid_t fapl_id, hsize_t *size/*out*/);
 
 #ifdef __cplusplus
 }

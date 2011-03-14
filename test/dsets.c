@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *		      All rights reserved.
- *
  * Programmer:	Robb Matzke <matzke@llnl.gov>
  *		Tuesday, December  9, 1997
  *
@@ -365,13 +376,14 @@ test_compression(hid_t file)
     const hsize_t	chunk_size[2] = {2, 25};
     const hssize_t	hs_offset[2] = {7, 30};
     const hsize_t	hs_size[2] = {4, 50};
-    const char		*not_supported;
-    
     hsize_t		i, j, n;
     void		*tconv_buf = NULL;
+#if !(defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ))
+    const char		*not_supported;
 
     not_supported = "    Deflate compression is not supported.\n"
 		    "    The zlib was not found when hdf5 was configured.";
+#endif 
     
     TESTING("compression (setup)");
     
@@ -437,7 +449,7 @@ test_compression(hid_t file)
     
     for (i=n=0; i<size[0]; i++) {
 	for (j=0; j<size[1]; j++) {
-	    points[i][j] = n++;
+	    points[i][j] = (int)(n++);
 	}
     }
 

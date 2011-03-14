@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1997 NCSA
- *		      All rights reserved.
- *
  * Programmer: Robb Matzke <matzke@llnl.gov>
  *	       Friday, October 10, 1997
  */
@@ -294,7 +305,7 @@ H5V_hyper_stride(unsigned n, const hsize_t *size,
         default:
             /* others */
             for (i=(int)(n-2), acc=1; i>=0; --i) {
-                hsize_t tmp = acc * (total_size[i+1] - size[i+1]);
+                tmp = acc * (total_size[i+1] - size[i+1]);
                 assert (tmp<((hsize_t)1<<(8*sizeof(hssize_t)-1)));
                 stride[i] = (hssize_t)tmp; /*overflow checked*/
                 acc *= total_size[i+1];
@@ -633,8 +644,8 @@ H5V_hyper_copy(unsigned n, const hsize_t *_size,
             default:
                 /* others */
                 for (ii=(int)(n-2), dst_acc=1, src_acc=1; ii>=0; --ii) {
-                    hsize_t tmp1 = dst_acc * (dst_size[ii+1] - size[ii+1]);
-                    hsize_t tmp2 = src_acc * (src_size[ii+1] - size[ii+1]);
+                    tmp1 = dst_acc * (dst_size[ii+1] - size[ii+1]);
+                    tmp2 = src_acc * (src_size[ii+1] - size[ii+1]);
                     assert (tmp1<((hsize_t)1<<(8*sizeof(hssize_t)-1)));
                     assert (tmp2<((hsize_t)1<<(8*sizeof(hssize_t)-1)));
                     dst_stride[ii] = (hssize_t)tmp1; /*overflow checked*/
@@ -751,6 +762,7 @@ H5V_stride_copy(unsigned n, hsize_t elmt_size, const hsize_t *size,
         for (i=0; i<nelmts; i++) {
 
             /* Copy an element */
+	    H5_CHECK_OVERFLOW(elmt_size,hsize_t,size_t);
             HDmemcpy(dst, src, (size_t)elmt_size);
 
             /* Decrement indices and advance pointers */
@@ -765,7 +777,7 @@ H5V_stride_copy(unsigned n, hsize_t elmt_size, const hsize_t *size,
             }
         }
     } else {
-        assert(elmt_size==(hsize_t)((size_t)elmt_size)); /*check for overflow*/
+        H5_CHECK_OVERFLOW(elmt_size,hsize_t,size_t); /*check for overflow*/
         HDmemcpy (dst, src, (size_t)elmt_size);
         HRETURN (SUCCEED);
     }

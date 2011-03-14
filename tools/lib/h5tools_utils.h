@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (c) 2001 National Center for Supercomputing Applications
- *                    All rights reserved.
- *
  * Programmer:  Bill Wendling <wendling@ncsa.uiuc.edu>
  *              Tuesday, 6. March 2001
  *
@@ -69,7 +80,7 @@ extern int    get_option(int argc, const char **argv, const char *opt,
 /*struct taken from the dumper. needed in table struct*/
 typedef struct obj_t {
     unsigned long objno[2];
-    char objname[1024];
+    char *objname;
     int displayed;
     int recorded;
     int objflag;
@@ -84,7 +95,7 @@ typedef struct table_t {
 
 /*this struct stores the information that is passed to the find_objs function*/
 typedef struct find_objs_t {
-    int prefix_len; 
+    size_t prefix_len; 
     char *prefix;
     unsigned int threshold; /* should be 0 or 1 */
     table_t *group_table;
@@ -109,6 +120,6 @@ extern char    *get_objectname(table_t*, int);
 extern herr_t   find_objs(hid_t group, const char *name, void *op_data);
 extern int      search_obj(table_t *temp, unsigned long *);
 extern void     init_table(table_t **tbl);
-extern void     init_prefix(char **temp, int);
+extern void     init_prefix(char **temp, size_t );
 
 #endif	/* H5TOOLS_UTILS_H__ */

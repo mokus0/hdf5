@@ -1,16 +1,18 @@
-/****************************************************************************
-* NCSA HDF								   *
-* Software Development Group						   *
-* National Center for Supercomputing Applications			   *
-* University of Illinois at Urbana-Champaign				   *
-* 605 E. Springfield, Champaign IL 61820				   *
-*									   *
-* For conditions of distribution and use, see the accompanying		   *
-* hdf/COPYING file.							   *
-*									   *
-****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5S.c,v 1.69.2.4 2001/08/15 14:48:04 koziol Exp $ */
+/* $Id: H5S.c,v 1.69.2.10 2002/06/19 20:19:44 koziol Exp $ */
 
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
 
@@ -39,8 +41,9 @@ static size_t			H5S_aconv_g = 0;	/*entries allocated*/
 static size_t			H5S_nconv_g = 0;	/*entries used*/
 
 #ifdef H5_HAVE_PARALLEL
-/* Global var whose value comes from environment variable */
-hbool_t         H5_mpi_opt_types_g = FALSE;
+/* Global vars whose value can be set from environment variable also*/
+hbool_t H5S_mpi_opt_types_g = TRUE;
+hbool_t H5S_mpi_prefer_derived_types_g = TRUE;
 #endif
 
 /* Declare a free list to manage the H5S_simple_t struct */
@@ -92,16 +95,14 @@ H5S_init_interface(void)
     {
         /* Allow MPI buf-and-file-type optimizations? */
         const char *s = HDgetenv ("HDF5_MPI_OPT_TYPES");
-#ifdef H5FDmpio_DEBUG
-	hbool_t         oldtmp = H5_mpi_opt_types_g ;
-#endif
-        if (s && HDisdigit(*s)) {
-            H5_mpi_opt_types_g = (int)HDstrtol (s, NULL, 0);
-        }
-#ifdef H5FDmpio_DEBUG
-    	fprintf(stdout, "H5_mpi_opt_types_g was %ld became %ld\n",
-		    oldtmp, H5_mpi_opt_types_g);
-#endif
+        if (s && HDisdigit(*s))
+            H5S_mpi_opt_types_g = (int)HDstrtol (s, NULL, 0);
+    }
+    {
+        /* Prefer MPI derived types for collective data transfers? */
+        const char *s = HDgetenv ("HDF5_MPI_PREFER_DERIVED_TYPES");
+        if (s && HDisdigit(*s))
+            H5S_mpi_prefer_derived_types_g = (int)HDstrtol (s, NULL, 0);
     }
 #endif
 
@@ -265,6 +266,7 @@ H5S_term_interface(void)
 	    /* Clear/free conversion table */
 	    HDmemset(H5S_fconv_g, 0, sizeof(H5S_fconv_g));
 	    HDmemset(H5S_mconv_g, 0, sizeof(H5S_mconv_g));
+
 	    for (i=0; i<H5S_nconv_g; i++) H5MM_xfree(H5S_conv_g[i]);
 	    H5S_conv_g = H5MM_xfree(H5S_conv_g);
 	    H5S_nconv_g = H5S_aconv_g = 0;
@@ -1157,10 +1159,15 @@ H5S_read(H5G_entry_t *ent)
 		       "memory allocation failed");
     }
     
-    if (H5O_read(ent, H5O_SDSPACE, 0, &(ds->extent.u.simple))) {
-        ds->extent.type = H5S_SIMPLE;
-    } else {
-        ds->extent.type = H5S_SCALAR;
+    if (H5O_read(ent, H5O_SDSPACE, 0, &(ds->extent.u.simple)) == NULL) {
+	  HRETURN_ERROR(H5E_DATASPACE, H5E_CANTINIT, NULL,
+			"unable to load dataspace info from dataset header");
+    }
+
+    if(ds->extent.u.simple.rank != 0) {
+         ds->extent.type = H5S_SIMPLE;
+     } else {
+         ds->extent.type = H5S_SCALAR;
     }
 
     /* Default to entire dataspace being selected */
@@ -1270,7 +1277,9 @@ H5S_is_simple(const H5S_t *sdim)
 
     /* Check args and all the boring stuff. */
     assert(sdim);
-    ret_value = sdim->extent.type == H5S_SIMPLE ? TRUE : FALSE;
+    ret_value = (sdim->extent.type == H5S_SIMPLE ||
+	  sdim->extent.type == H5S_SCALAR) ? TRUE : FALSE;
+ 
 
     FUNC_LEAVE(ret_value);
 }
@@ -1509,7 +1518,7 @@ H5S_find (const H5S_t *mem_space, const H5S_t *file_space)
     assert (mem_space && (H5S_SIMPLE==mem_space->extent.type ||
 			  H5S_SCALAR==mem_space->extent.type));
     assert (file_space && (H5S_SIMPLE==file_space->extent.type ||
-			   H5S_SCALAR==mem_space->extent.type));
+			   H5S_SCALAR==file_space->extent.type));
 
     /*
      * We can't do conversion if the source and destination select a

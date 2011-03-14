@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 1998-2001 NCSA
- *                         All rights reserved.
- *
  * Programmer:  Quincey Koziol <koziol@ncsa.uiuc.edu>
  *              Tuesday, June 16, 1998
  *
@@ -188,6 +199,7 @@ H5S_all_fgath (H5F_t *f, const struct H5O_layout_t *layout,
     /*
      * Read piece from file.
      */
+    H5_CHECK_OVERFLOW(actual_bytes,hsize_t,size_t);
     if (H5F_seq_read(f, dxpl_id, layout, pline, fill, efl, file_space,
             elmt_size, actual_bytes, buf_off, buf/*out*/)<0) {
         HRETURN_ERROR(H5E_DATASPACE, H5E_READERROR, 0, "read error");
@@ -249,6 +261,7 @@ H5S_all_fscat (H5F_t *f, const struct H5O_layout_t *layout,
     /*
      * Write piece from file.
      */
+    H5_CHECK_OVERFLOW(actual_bytes,hsize_t,size_t);
     if (H5F_seq_write(f, dxpl_id, layout, pline, fill, efl, file_space,
             elmt_size, actual_bytes, buf_off, buf/*out*/)<0) {
         HRETURN_ERROR(H5E_DATASPACE, H5E_WRITEERROR, 0, "write error");
@@ -288,7 +301,7 @@ H5S_all_mgath (const void *_buf, size_t elmt_size,
 	       hsize_t nelmts, void *tconv_buf/*out*/)
 {
     const uint8_t *buf=(const uint8_t*)_buf;   /* Get local copies for address arithmetic */
-    size_t      actual_bytes;       /* The actual number of bytes to read */
+    hsize_t      actual_bytes;       /* The actual number of bytes to read */
 
     FUNC_ENTER (H5S_all_mgath, 0);
 
@@ -305,7 +318,8 @@ H5S_all_mgath (const void *_buf, size_t elmt_size,
     actual_bytes=elmt_size*nelmts;
 
     /* "read" in the bytes from the source (buf) to the destination (tconv_buf) */
-    HDmemcpy(tconv_buf,buf,actual_bytes);
+    H5_CHECK_OVERFLOW(actual_bytes,hsize_t,size_t);
+    HDmemcpy(tconv_buf,buf,(size_t)actual_bytes);
 
     /* Advance iterator */
     mem_iter->all.elmt_left-=nelmts;
@@ -338,7 +352,7 @@ H5S_all_mscat (const void *tconv_buf, size_t elmt_size,
 	       hsize_t nelmts, void *_buf/*out*/)
 {
     uint8_t *buf=(uint8_t *)_buf;
-    size_t      actual_bytes;       /* The actual number of bytes to write */
+    hsize_t      actual_bytes;       /* The actual number of bytes to write */
 
     FUNC_ENTER (H5S_all_mscat, FAIL);
 
@@ -355,7 +369,8 @@ H5S_all_mscat (const void *tconv_buf, size_t elmt_size,
     actual_bytes=elmt_size*nelmts;
 
     /* "write" the bytes from the source (tconv_buf) to the destination (buf) */
-    HDmemcpy(buf,tconv_buf,actual_bytes);
+    H5_CHECK_OVERFLOW(actual_bytes,hsize_t,size_t);
+    HDmemcpy(buf,tconv_buf,(size_t)actual_bytes);
 
     /* Advance iterator */
     mem_iter->all.elmt_left-=nelmts;
@@ -409,7 +424,7 @@ H5S_all_read(H5F_t *f, const H5O_layout_t *layout, const H5O_pline_t *pline,
                 large_contiguous=0;
     int	        i;
     size_t	down_size[H5O_LAYOUT_NDIMS];
-    size_t      acc;
+    hsize_t      acc;
 
     FUNC_ENTER(H5S_all_read, FAIL);
     *must_convert = TRUE;
@@ -479,6 +494,7 @@ printf("%s: check 1.0\n",FUNC);
                 mem_size=(mem_node->end[u]-mem_node->start[u])+1;
                 mem_off=mem_node->start[u];
             } /* end else */
+            mem_off+=mem_space->select.offset[u];
         } /* end if */
         else {
             mem_size=mem_space->extent.u.simple.size[u];
@@ -495,6 +511,7 @@ printf("%s: check 1.0\n",FUNC);
                 file_size=(file_node->end[u]-file_node->start[u])+1;
                 file_off=file_node->start[u];
             } /* end else */
+            file_off+=file_space->select.offset[u];
         } /* end if */
         else {
             file_size=file_space->extent.u.simple.size[u];
@@ -563,7 +580,7 @@ printf("%s: check 1.0\n",FUNC);
         if(small_contiguous || large_contiguous) {
             /* Compute the "down sizes" for each dimension */
             for (acc=elmt_size, i=(mem_space->extent.u.simple.rank-1); i>=0; i--) {
-                down_size[i]=acc;
+	        H5_ASSIGN_OVERFLOW(down_size[i],acc,hsize_t,size_t);
                 acc*=mem_space->extent.u.simple.size[i];
             } /* end for */
 
@@ -641,7 +658,7 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
                 large_contiguous=0;
     int	        i;
     size_t	down_size[H5O_LAYOUT_NDIMS];
-    size_t      acc;
+    hsize_t      acc;
     
     FUNC_ENTER(H5S_all_write, FAIL);
     *must_convert = TRUE;
@@ -708,6 +725,7 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
                 mem_size=(mem_node->end[u]-mem_node->start[u])+1;
                 mem_off=mem_node->start[u];
             } /* end else */
+            mem_off+=mem_space->select.offset[u];
         } /* end if */
         else {
             mem_size=mem_space->extent.u.simple.size[u];
@@ -724,6 +742,7 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
                 file_size=(file_node->end[u]-file_node->start[u])+1;
                 file_off=file_node->start[u];
             } /* end else */
+            file_off+=file_space->select.offset[u];
         } /* end if */
         else {
             file_size=file_space->extent.u.simple.size[u];
@@ -792,7 +811,7 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
         if(small_contiguous || large_contiguous) {
             /* Compute the "down sizes" for each dimension */
             for (acc=elmt_size, i=(mem_space->extent.u.simple.rank-1); i>=0; i--) {
-                down_size[i]=acc;
+	      H5_ASSIGN_OVERFLOW(down_size[i],acc,hsize_t,size_t);
                 acc*=mem_space->extent.u.simple.size[i];
             } /* end for */
 

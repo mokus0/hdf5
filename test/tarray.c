@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								                                    *
- * Software Development Group						                        *
- * National Center for Supercomputing Applications			                *
- * University of Illinois at Urbana-Champaign				                *
- * 605 E. Springfield, Champaign IL 61820				                    *
- *									                                        *
- * For conditions of distribution and use, see the accompanying		        *
- * hdf/COPYING file.							                            *
- *									                                        *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tarray.c,v 1.5.2.4 2001/08/15 14:52:03 koziol Exp $ */
+/* $Id: tarray.c,v 1.5.2.7 2002/06/10 19:48:45 wendling Exp $ */
 
 /***********************************************************
 *
@@ -507,7 +509,7 @@ test_array_compound_atomic(void)
     for(i=0; i<SPACE1_DIM1; i++)
         for(j=0; j<ARRAY1_DIM1; j++) {
             wdata[i][j].i=i*10+j;
-            wdata[i][j].f=i*2.5+j;
+            wdata[i][j].f=(float)(i*2.5+j);
         } /* end for */
 
     /* Create file */
@@ -735,7 +737,7 @@ test_array_compound_array(void)
         for(j=0; j<ARRAY1_DIM1; j++) {
             wdata[i][j].i=i*10+j;
             for(k=0; k<ARRAY1_DIM1; k++)
-                wdata[i][j].f[k]=i*10+j*2.5+k;
+                wdata[i][j].f[k]=(float)(i*10+j*2.5+k);
 #ifdef WANT_H5_V1_2_COMPAT
             for(k=0; k<ARRAY1_DIM1; k++)
                 wdata[i][j].d[k]=i*15+j*7.5+k;
@@ -1624,7 +1626,7 @@ test_array_bkg(void)
 		for (j = 0; j < ALEN; j++)
 		  {
 			cf[i].a[j] = 100*(i+1) + j;
-			cf[i].b[j] = 100.*(i+1) + 0.01*j;
+			cf[i].b[j] = (float)(100.*(i+1) + 0.01*j);
 			cf[i].c[j] = 100.*(i+1) + 0.02*j;
 		  }
 	  }
@@ -1767,11 +1769,12 @@ test_array_bkg(void)
     /* -------------------------------- */
     for (i=0; i< LENGTH; i++)
         for (j = 0; j < ALEN; j++)
-            cf[i].b[j]=fld[i].b[j] = 1.313;
+            cf[i].b[j]=fld[i].b[j] = (float)1.313;
 
     status = H5Dwrite (dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, fld);
     CHECK(status, FAIL, "H5Dwrite");
 
+    /* Read just the field changed */
     status = H5Dread (dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, fldr);
     CHECK(status, FAIL, "H5Dread");
    
@@ -1783,15 +1786,47 @@ test_array_bkg(void)
                 continue;
             }
     
-    status = H5Dclose(dataset);
-    CHECK(status, FAIL, "H5Dclose");
-
     status = H5Tclose (type);
     CHECK(status, FAIL, "H5Tclose");
   
     status = H5Tclose (array_dt);
     CHECK(status, FAIL, "H5Tclose");
 
+    type = H5Dget_type(dataset);
+    CHECK(type, FAIL, "H5Dget_type");
+
+    /* Read the entire dataset again */
+    status = H5Dread(dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, cfr);
+    CHECK(status, FAIL, "H5Dread");
+
+    /* Verify correct data */    
+    /* ------------------- */
+    for (i = 0; i < LENGTH; i++) {        
+	    for (j = 0; j < ALEN; j++) {
+            if(cf[i].a[j]!=cfr[i].a[j]) {
+                num_errs++;
+                printf("Field a data doesn't match, cf[%d].a[%d]=%d, cfr[%d].a[%d]=%d\n",(int)i,(int)j,(int)cf[i].a[j],(int)i,(int)j,(int)cfr[i].a[j]);
+                continue;
+            }
+            if(cf[i].b[j]!=cfr[i].b[j]) {
+                num_errs++;
+                printf("Field b data doesn't match, cf[%d].b[%d]=%f, cfr[%d].b[%d]=%f\n",(int)i,(int)j,(float)cf[i].b[j],(int)i,(int)j,(float)cfr[i].b[j]);
+                continue;
+            }
+            if(cf[i].c[j]!=cfr[i].c[j]) {
+                num_errs++;
+                printf("Field c data doesn't match, cf[%d].b[%d]=%f, cfr[%d].b[%d]=%f\n",(int)i,(int)j,(float)cf[i].c[j],(int)i,(int)j,(float)cfr[i].c[j]);
+                continue;
+            }
+        }
+    }
+
+    status = H5Dclose(dataset);
+    CHECK(status, FAIL, "H5Dclose");
+
+    status = H5Tclose (type);
+    CHECK(status, FAIL, "H5Tclose");
+  
     status = H5Fclose(fid);
     CHECK(status, FAIL, "H5Fclose");
 

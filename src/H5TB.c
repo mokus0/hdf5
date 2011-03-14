@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright (C) 2000 NCSA
- *		      All rights reserved.
- *
  * Programmer: Quincey Koziol <koziol@ncsa.uiuc.edu>
  *	       Saturday, April 22, 2000
  *
@@ -56,16 +67,17 @@
  * void H5TB_free( ITM ***root, void (*df)(ITM *), void (*kf)(void *) );
  */
 
-/* $Id: H5TB.c,v 1.22.2.3 2001/08/15 14:49:28 koziol Exp $ */
+/* $Id: H5TB.c,v 1.22.2.7 2002/06/10 19:48:09 wendling Exp $ */
 
 #include "H5private.h"		/*library                                 */
 #include "H5Eprivate.h"		/*error handling                          */
+#include "H5Fprivate.h"		/*File address macros                     */
 #include "H5MMprivate.h"	/*core memory management                  */
 #include "H5FLprivate.h"	/*free lists                              */
 #include "H5TBprivate.h"        /*threaded, balanced, binary trees	  */
 
 #define KEYcmp(k1,k2,a) ((NULL!=compar) ? (*compar)( k1, k2, a) \
-                 : HDmemcmp( k1, k2, 0<(a) ? (a) : HDstrlen(k1) )  )
+                 : HDmemcmp( k1, k2, 0<(a) ? ((size_t)a) : HDstrlen(k1) )  )
 
 /* Return maximum of two scalar values (use arguments w/o side effects): */
 #define   Max(a,b)  ( (a) > (b) ? (a) : (b) )
@@ -1154,13 +1166,14 @@ H5TB_ffind(H5TB_NODE * root, void * key, unsigned fast_compare, H5TB_NODE ** pp)
     H5TB_NODE  *parent = NULL;
     int        side;
     int        cmp = 1;
+    H5TB_NODE  *ret_value = NULL;
 
     FUNC_ENTER (H5TB_ffind, NULL);
 
     switch(fast_compare) {
         case H5TB_FAST_HADDR_COMPARE:
             if (ptr) {
-                while (0 != (cmp = (*(haddr_t *)key - *(haddr_t *)ptr->key))) {
+                while (0 != (cmp = H5F_addr_cmp(*(haddr_t *)key,*(haddr_t *)ptr->key))) {
                       parent = ptr;
                       side = (cmp < 0) ? LEFT : RIGHT;
                       if (!HasChild(ptr, side))
@@ -1170,6 +1183,9 @@ H5TB_ffind(H5TB_NODE * root, void * key, unsigned fast_compare, H5TB_NODE ** pp)
               } /* end if */
             if (NULL != pp)
                 *pp = parent;
+
+	    /* Set return value */
+            ret_value= (0 == cmp) ? ptr : NULL; 
             break;
 
         case H5TB_FAST_INTN_COMPARE:
@@ -1184,13 +1200,16 @@ H5TB_ffind(H5TB_NODE * root, void * key, unsigned fast_compare, H5TB_NODE ** pp)
               } /* end if */
             if (NULL != pp)
                 *pp = parent;
+
+	    /* Set return value */
+            ret_value= (0 == cmp) ? ptr : NULL;
             break;
 
         default:
             break;
     } /* end switch */
 
-    FUNC_LEAVE((0 == cmp) ? ptr : NULL);
+    FUNC_LEAVE(ret_value);
 } /* H5TB_ffind() */
 
 /* swapkid -- Often refered to as "rotating" nodes.  ptr and ptr's `side'

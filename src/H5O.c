@@ -1,8 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*-------------------------------------------------------------------------
- * Copyright (C) 1997	National Center for Supercomputing Applications.
- *			All rights reserved.
- *
- *-------------------------------------------------------------------------
  *
  * Created:		H5O.c
  *			Aug  5 1997
@@ -26,10 +36,6 @@
 #include "H5MMprivate.h"
 #include "H5Oprivate.h"
 #include "H5Pprivate.h"
-
-/* The MPIO driver for H5FD_mpio_tas_allsame() */
-#include "H5FDmpio.h"
-
 
 #define PABLO_MASK	H5O_mask
 
@@ -343,6 +349,12 @@ H5O_close(H5G_entry_t *obj_ent)
  *
  * 	Robb Matzke, 1999-07-28
  *	The ADDR argument is passed by value.
+ * 
+ *	Raymond Lu, 2002-2-27
+ *	Add a temporary solution for compatibility with version 1.5.  
+ *	A new fill value message is added to 1.5, whose ID is 5.  Don't 
+ * 	read this message since v1.4 doesn't know it.
+ *
  *-------------------------------------------------------------------------
  */
 static H5O_t *
@@ -377,6 +389,7 @@ H5O_load(H5F_t *f, haddr_t addr, const void UNUSED *_udata1,
 
     /* read fixed-lenth part of object header */
     hdr_size = H5O_SIZEOF_HDR(f);
+    assert(hdr_size<=sizeof(buf));
     if (H5F_block_read(f, H5FD_MEM_OHDR, addr, hdr_size, H5P_DEFAULT, buf) < 0) {
 	HGOTO_ERROR(H5E_OHDR, H5E_READERROR, NULL,
 		    "unable to read object header");
@@ -450,34 +463,39 @@ H5O_load(H5F_t *f, haddr_t addr, const void UNUSED *_udata1,
 	    flags = *p++;
 	    p += 3; /*reserved*/
 
-	    if (id >= NELMTS(message_type_g) || NULL == message_type_g[id]) {
-		HGOTO_ERROR(H5E_OHDR, H5E_BADMESG, NULL,
-			    "corrupt object header");
-	    }
-	    if (p + mesg_size > oh->chunk[chunkno].image + chunk_size) {
-		HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, NULL,
-			    "corrupt object header");
-	    }
-	    if (H5O_NULL_ID == id && oh->nmesgs > 0 &&
-		H5O_NULL_ID == oh->mesg[oh->nmesgs - 1].type->id &&
-		oh->mesg[oh->nmesgs - 1].chunkno == chunkno) {
-		/* combine adjacent null messages */
-		mesgno = oh->nmesgs - 1;
-		oh->mesg[mesgno].raw_size += H5O_SIZEOF_MSGHDR(f) + mesg_size;
-	    } else {
-		/* new message */
-		if (oh->nmesgs >= nmesgs) {
-		    HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL,
-				"corrupt object header");
-		}
-		mesgno = oh->nmesgs++;
-		oh->mesg[mesgno].type = message_type_g[id];
-		oh->mesg[mesgno].dirty = FALSE;
-		oh->mesg[mesgno].flags = flags;
-		oh->mesg[mesgno].native = NULL;
-		oh->mesg[mesgno].raw = p;
-		oh->mesg[mesgno].raw_size = mesg_size;
-		oh->mesg[mesgno].chunkno = chunkno;
+	    if (id != 5) { /* This is a temporary solution for compatibility 
+			    * with version 1.5.  A new fill value message is 
+			    * added to 1.5, whose ID is 5.  Don't read this 
+			    * message since v1.4 doesn't know it. */
+	        if (id>=NELMTS(message_type_g) || NULL==message_type_g[id]) {
+		    HGOTO_ERROR(H5E_OHDR, H5E_BADMESG, NULL,
+			        "corrupt object header");
+	        }
+	        if (p + mesg_size > oh->chunk[chunkno].image + chunk_size) {
+		    HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, NULL,
+			        "corrupt object header");
+	        }
+	        if (H5O_NULL_ID == id && oh->nmesgs > 0 &&
+		    H5O_NULL_ID == oh->mesg[oh->nmesgs - 1].type->id &&
+		    oh->mesg[oh->nmesgs - 1].chunkno == chunkno) {
+		    /* combine adjacent null messages */
+		    mesgno = oh->nmesgs - 1;
+		    oh->mesg[mesgno].raw_size+=H5O_SIZEOF_MSGHDR(f)+mesg_size;
+	        } else {
+		    /* new message */
+		    if (oh->nmesgs >= nmesgs) {
+		        HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL,
+			    	    "corrupt object header");
+		    }
+		    mesgno = oh->nmesgs++;
+		    oh->mesg[mesgno].type = message_type_g[id];
+		    oh->mesg[mesgno].dirty = FALSE;
+		    oh->mesg[mesgno].flags = flags;
+		    oh->mesg[mesgno].native = NULL;
+		    oh->mesg[mesgno].raw = p;
+		    oh->mesg[mesgno].raw_size = mesg_size;
+		    oh->mesg[mesgno].chunkno = chunkno;
+	        }
 	    }
 	}
 	assert(p == oh->chunk[chunkno].image + chunk_size);
@@ -582,10 +600,6 @@ H5O_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5O_t *oh)
         combine=1;
     } /* end if */
     else {
-#ifdef H5_HAVE_PARALLEL
-        if (IS_H5FD_MPIO(f))
-            H5FD_mpio_tas_allsame(f->shared->lf, TRUE); /*only p0 will write*/
-#endif /* H5_HAVE_PARALLEL */
         if (H5F_block_write(f, H5FD_MEM_OHDR, addr, (hsize_t)H5O_SIZEOF_HDR(f), 
                     H5P_DEFAULT, buf) < 0) {
             HRETURN_ERROR(H5E_OHDR, H5E_WRITEERROR, FAIL,
@@ -669,10 +683,6 @@ H5O_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5O_t *oh)
                 HDmemcpy(p+H5O_SIZEOF_HDR(f),oh->chunk[i].image,oh->chunk[i].size);
 
                 /* Write the combined prefix/chunk out */
-#ifdef H5_HAVE_PARALLEL
-                if (IS_H5FD_MPIO(f))
-                    H5FD_mpio_tas_allsame(f->shared->lf, TRUE); /*only p0 write*/
-#endif /* H5_HAVE_PARALLEL */
                 if (H5F_block_write(f, H5FD_MEM_OHDR, addr,
                             (hsize_t)(H5O_SIZEOF_HDR(f)+oh->chunk[i].size),
                             H5P_DEFAULT, p) < 0) {
@@ -684,10 +694,6 @@ H5O_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5O_t *oh)
                 p = H5FL_BLK_FREE(chunk_image,p);
             } /* end if */
             else {
-#ifdef H5_HAVE_PARALLEL
-                if (IS_H5FD_MPIO(f))
-                H5FD_mpio_tas_allsame(f->shared->lf, TRUE); /*only p0 write*/
-#endif /* H5_HAVE_PARALLEL */
                 if (H5F_block_write(f, H5FD_MEM_OHDR, oh->chunk[i].addr,
                             (hsize_t)(oh->chunk[i].size),
                             H5P_DEFAULT, oh->chunk[i].image) < 0) {
@@ -1894,6 +1900,8 @@ H5O_alloc_new_chunk(H5F_t *f, H5O_t *oh, size_t size)
 	oh->mesg[i].chunkno = oh->mesg[found_other].chunkno;
 
 	oh->mesg[found_other].dirty = TRUE;
+        /* Copy the message to the new location */
+        HDmemcpy(p+H5O_SIZEOF_MSGHDR(f),oh->mesg[found_other].raw,oh->mesg[found_other].raw_size);
 	oh->mesg[found_other].raw = p + H5O_SIZEOF_MSGHDR(f);
 	oh->mesg[found_other].chunkno = chunkno;
 	p += H5O_SIZEOF_MSGHDR(f) + oh->mesg[found_other].raw_size;

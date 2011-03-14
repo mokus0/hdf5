@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Software Development Group                                               *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING file.                                                        *
- *                                                                          *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Fprivate.h,v 1.117.2.4 2002/01/23 22:29:55 koziol Exp $ */
+/* $Id: H5Fprivate.h,v 1.117.2.9 2002/06/19 13:01:27 koziol Exp $ */
 
 /*
  * This file contains macros & information for file access
@@ -241,6 +243,7 @@ typedef struct H5F_access_t {
     hsize_t	threshold;	/* Threshold for alignment		*/
     hsize_t	alignment;	/* Alignment				*/
     size_t	meta_block_size;    /* Minimum metadata allocation block size (when aggregating metadata allocations) */
+    size_t	sdata_block_size;   /* Minimum "small data" allocation block size (when aggregating "small data" allocations) */
     hsize_t	sieve_buf_size;     /* Maximum sieve buffer size (when data sieving is allowed by file driver) */
     unsigned	gc_ref;		/* Garbage-collect references?		*/
     hid_t	driver_id;	/* File driver ID			*/
@@ -269,6 +272,7 @@ struct H5S_t;
 __DLL__ herr_t H5F_init(void);
 __DLL__ unsigned H5F_get_intent(H5F_t *f);
 __DLL__ hid_t H5F_get_driver_id(H5F_t *f);
+__DLL__ herr_t H5F_get_fileno(const H5F_t *f, unsigned long *filenum);
 
 /* Functions that operate on array storage */
 __DLL__ herr_t H5F_arr_create(H5F_t *f,
@@ -312,14 +316,16 @@ __DLL__ herr_t H5F_seq_write (H5F_t *f, hid_t dxpl_id,
 
 
 /* Functions that operate on indexed storage */
+#ifdef H5_HAVE_PARALLEL
+__DLL__ herr_t H5F_istore_allocate (H5F_t *f, hid_t dxpl_id,
+				    const struct H5O_layout_t *layout,
+				    const hsize_t *space_dim,
+				    const struct H5O_pline_t *pline,
+				    const struct H5O_fill_t *fill);
+#endif /* H5_HAVE_PARALLEL */
 __DLL__ hsize_t H5F_istore_allocated(H5F_t *f, unsigned ndims, haddr_t addr);
 __DLL__ herr_t H5F_istore_dump_btree(H5F_t *f, FILE *stream, unsigned ndims,
 				     haddr_t addr);
-
-/* Functions for allocation/releasing chunks */
-__DLL__ void * H5F_istore_chunk_alloc(size_t chunk_size);
-__DLL__ void * H5F_istore_chunk_realloc(void *chunk, size_t new_size);
-__DLL__ void * H5F_istore_chunk_free(void *chunk);
 
 /* Address-related functions */
 __DLL__ void H5F_addr_encode(H5F_t *, uint8_t** /*in,out*/, haddr_t);

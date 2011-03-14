@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 1999 NCSA
- *                  All rights reserved.
- *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Thursday, July 29, 1999
  *
@@ -267,13 +278,13 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
 {
     int	o_flags;
     int		fd;
-    struct stat	sb;
     H5FD_sec2_t	*file=NULL;
 #ifdef WIN32
-	HFILE filehandle;
-	struct _BY_HANDLE_FILE_INFORMATION fileinfo;
-	int results;   
+    HFILE filehandle;
+    struct _BY_HANDLE_FILE_INFORMATION fileinfo;
+    int results;   
 #endif
+    h5_stat_t sb;
 
     FUNC_ENTER(H5FD_sec2_open, NULL);
 
@@ -294,7 +305,7 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
     /* Open the file */
     if ((fd=HDopen(name, o_flags, 0666))<0)
         HRETURN_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to open file");
-    if (fstat(fd, &sb)<0) {
+    if (HDfstat(fd, &sb)<0) {
         close(fd);
         HRETURN_ERROR(H5E_FILE, H5E_BADFILE, NULL, "unable to fstat file");
     }
@@ -430,6 +441,7 @@ H5FD_sec2_query(const H5FD_t UNUSED *_f, unsigned long *flags /* out */)
         *flags|=H5FD_FEAT_AGGREGATE_METADATA; /* OK to aggregate metadata allocations */
         *flags|=H5FD_FEAT_ACCUMULATE_METADATA; /* OK to accumulate metadata for faster writes */
         *flags|=H5FD_FEAT_DATA_SIEVE;       /* OK to perform data sieving for faster raw data reads & writes */
+        *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
     FUNC_LEAVE(ret_value);
@@ -711,7 +723,7 @@ H5FD_sec2_flush(H5FD_t *_file)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
 
-    FUNC_ENTER(H5FD_sec2_seek, FAIL);
+    FUNC_ENTER(H5FD_sec2_flush, FAIL);
 
     if (file->eoa>file->eof) {
         if (-1==file_seek(file->fd, (file_offset_t)(file->eoa-1), SEEK_SET))

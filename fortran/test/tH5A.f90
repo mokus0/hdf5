@@ -1,3 +1,16 @@
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!   Copyright by the Board of Trustees of the University of Illinois.         *
+!   All rights reserved.                                                      *
+!                                                                             *
+!   This file is part of HDF5.  The full HDF5 copyright notice, including     *
+!   terms governing use, modification, and redistribution, is contained in    *
+!   the files COPYING and Copyright.html.  COPYING can be found at the root   *
+!   of the source code distribution tree; Copyright.html can be found at the  *
+!   root level of an installed copy of the electronic HDF5 document set and   *
+!   is linked from the top-level documents page.  It can also be found at     *
+!   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+!   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
     SUBROUTINE attribute_test(total_error)
 
@@ -60,16 +73,17 @@
      INTEGER(HID_T) :: attr4_type      !Returned REAL Attribute Datatype identifier
      INTEGER(HID_T) :: attr5_type      !Returned INTEGER Attribute Datatype identifier
      INTEGER        :: num_attrs      !number of attributes 
-     CHARACTER*256 :: attr_name    !buffer to put attr_name
+     CHARACTER(LEN=256) :: attr_name    !buffer to put attr_name
      INTEGER(SIZE_T)    ::  name_size = 80 !attribute name length
 
-     CHARACTER*35, DIMENSION(2) ::  attr_data  ! String attribute data
-     CHARACTER*35, DIMENSION(2) ::  aread_data ! Buffer to put read back 
+     CHARACTER(LEN=35), DIMENSION(2) ::  attr_data  ! String attribute data
+     CHARACTER(LEN=35), DIMENSION(2) ::  aread_data ! Buffer to put read back 
                                                ! string attr data
      CHARACTER ::  attr_character_data = 'A'
      DOUBLE PRECISION,  DIMENSION(1) ::  attr_double_data = 3.459
      REAL,         DIMENSION(1) ::  attr_real_data = 4.0
      INTEGER,      DIMENSION(1) ::  attr_integer_data = 5
+     INTEGER(HSIZE_T), DIMENSION(7) :: data_dims_b
      INTEGER, DIMENSION(7) :: data_dims
 
      
@@ -234,8 +248,8 @@
      !
      ! Write the Real attribute data.
      !
-     data_dims(1) = 1 
-     CALL h5awrite_f(attr4_id, atype4_id, attr_real_data, data_dims, error)
+     data_dims_b(1) = 1 
+     CALL h5awrite_f(attr4_id, atype4_id, attr_real_data, data_dims_b, error)
      CALL check("h5awrite_f",error,total_error)
 
      !

@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: th5s.c,v 1.19.2.3 2001/10/02 16:59:50 koziol Exp $ */
+/* $Id: th5s.c,v 1.19.2.7 2002/06/10 19:48:48 wendling Exp $ */
 
 /***********************************************************
 *
@@ -70,7 +72,7 @@ struct space4_struct {
     unsigned u;
     float f;
     char c2;
- } space4_data={'v',987123,-3.14,'g'}; /* Test data for 4th dataspace */
+ } space4_data={'v',987123,(float)-3.14,'g'}; /* Test data for 4th dataspace */
 
 /****************************************************************
 **
@@ -101,7 +103,8 @@ test_h5s_basic(void)
     sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
     CHECK(sid1, FAIL, "H5Screate_simple");
 
-    n = H5Sget_simple_extent_npoints(sid1);
+   
+    H5_ASSIGN_OVERFLOW(n,H5Sget_simple_extent_npoints(sid1),hsize_t,size_t);
     CHECK(n, UFAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, SPACE1_DIM1 * SPACE1_DIM2 * SPACE1_DIM3,
 	   "H5Sget_simple_extent_npoints");
@@ -118,7 +121,7 @@ test_h5s_basic(void)
     sid2 = H5Screate_simple(SPACE2_RANK, dims2, max2);
     CHECK(sid2, FAIL, "H5Screate_simple");
 
-    n = H5Sget_simple_extent_npoints(sid2);
+    H5_ASSIGN_OVERFLOW(n,H5Sget_simple_extent_npoints(sid2),hsize_t,size_t);    
     CHECK(n, UFAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, SPACE2_DIM1 * SPACE2_DIM2 * SPACE2_DIM3 * SPACE2_DIM4,
 	   "H5Sget_simple_extent_npoints");
@@ -219,8 +222,7 @@ test_h5s_scalar_write(void)
     /* Create scalar dataspace */
     sid1 = H5Screate_simple(SPACE3_RANK, NULL, NULL);
     CHECK(sid1, FAIL, "H5Screate_simple");
-
-    n = H5Sget_simple_extent_npoints(sid1);
+    H5_ASSIGN_OVERFLOW(n,H5Sget_simple_extent_npoints(sid1),hsize_t,size_t);    
     CHECK(n, UFAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, 1, "H5Sget_simple_extent_npoints");
 
@@ -271,6 +273,7 @@ test_h5s_scalar_read(void)
     size_t		n;	 	/* Number of dataspace elements */
     unsigned      	rdata;      	/* Scalar data read in 		*/
     herr_t		ret;		/* Generic return value		*/
+    H5S_class_t ext_type;               /* Extent type */
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Scalar Dataspace Manipulation\n"));
@@ -286,7 +289,7 @@ test_h5s_scalar_read(void)
     sid1=H5Dget_space(dataset);
     CHECK(sid1, FAIL, "H5Dget_space");
 
-    n = H5Sget_simple_extent_npoints(sid1);
+    H5_ASSIGN_OVERFLOW(n,H5Sget_simple_extent_npoints(sid1),hsize_t,size_t);    
     CHECK(n, UFAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, 1, "H5Sget_simple_extent_npoints");
 
@@ -296,6 +299,10 @@ test_h5s_scalar_read(void)
 
     ret = H5Sget_simple_extent_dims(sid1, tdims, NULL);
     VERIFY(ret, 0, "H5Sget_simple_extent_dims");
+
+    /* Verify extent type */
+    ext_type = H5Sget_simple_extent_type(sid1);
+    VERIFY(ext_type, H5S_SCALAR, "H5Sget_simple_extent_type");
 
     ret = H5Dread(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
@@ -363,7 +370,7 @@ test_h5s_compound_scalar_write(void)
     sid1 = H5Screate_simple(SPACE3_RANK, NULL, NULL);
     CHECK(sid1, FAIL, "H5Screate_simple");
 
-    n = H5Sget_simple_extent_npoints(sid1);
+    H5_ASSIGN_OVERFLOW(n,H5Sget_simple_extent_npoints(sid1),hsize_t,size_t);    
     CHECK(n, UFAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, 1, "H5Sget_simple_extent_npoints");
 
@@ -427,7 +434,7 @@ test_h5s_compound_scalar_read(void)
     sid1=H5Dget_space(dataset);
     CHECK(sid1, FAIL, "H5Dget_space");
 
-    n = H5Sget_simple_extent_npoints(sid1);
+    H5_ASSIGN_OVERFLOW(n,H5Sget_simple_extent_npoints(sid1),hsize_t,size_t);    
     CHECK(n, UFAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, 1, "H5Sget_simple_extent_npoints");
 
@@ -509,7 +516,7 @@ test_h5s_chunk(void)
     /* Initialize float array */
     for(i=0; i<50000; i++)
         for(j=0; j<3; j++)
-            chunk_data_flt[i][j]=i*2.5-j*100.3;
+            chunk_data_flt[i][j]=(float)(i*2.5-j*100.3);
 
     status= H5Dwrite(dsetID,H5T_NATIVE_FLOAT,H5S_ALL,H5S_ALL,H5P_DEFAULT,chunk_data_flt);
     CHECK(status, FAIL, "H5Dwrite");

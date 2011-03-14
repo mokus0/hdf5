@@ -1,3 +1,17 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /* NOTES:
 ** 04/01 - 04/10: been working on it a lot. I think it does gif89 images just fine with
 **		  palettes. So that's cool. Putting in multiple images and animation support right now
@@ -10,16 +24,14 @@
 
 #include "gif.h"
 #include <stdio.h>
+#include <assert.h>
 
 #define MAX_FILE_LEN 256
 #define MAX_NUMBER_IMAGES 50
 
-extern int hdfWriteGIF(FILE *fp, BYTE *pic, int ptype, int w, int h, BYTE *rmap,
-    BYTE *gmap, BYTE *bmap, BYTE *pc2ncmap, int numcols, int colorstyle, int BitsPerPixel);
-
 int EndianOrder;
 
-void PutByte(BYTE b , FILE *fpGif)
+static void PutByte(BYTE b , FILE *fpGif)
 {
 	if (fputc(b , fpGif) == EOF) {
 		printf("File Writing Error, cannot continue");
@@ -28,7 +40,7 @@ void PutByte(BYTE b , FILE *fpGif)
 }
 
 
-void putword(int w, FILE *fp)
+static void putword(int w, FILE *fp)
 {
 	/* writes a 16-bit integer in GIF order (LSB first) */
 	
@@ -37,7 +49,7 @@ void putword(int w, FILE *fp)
 	fputc((w>>8)&0xff,fp);
 }
 
-void usage() {
+static void usage(void) {
 	printf("Usage: h52gif <h5_file> <gif_file> -i <h5_image> [-p <h5_palette>]\n");
 	printf("h52gif expects *at least* one h5_image. You may repeat -i <h5_image> [-p <h5_palette>] at most 50 times (maximum of 50 images).\n");
 }
@@ -53,12 +65,9 @@ int main(int argc , char **argv) {
 	
 	CHAR *HDFName = NULL;
 	CHAR *GIFName = NULL;
-	CHAR *image_path = NULL;
-	CHAR *pal_path = NULL;
 	/* reference variables */
 	
 	int has_local_palette; /* treated as a flag */
-	int loop_times; /* number of times to loop, i'm going to treat it as a yes or no */
 	
 	BYTE* b;
 	
@@ -68,15 +77,13 @@ int main(int argc , char **argv) {
 	BYTE  Blue[256];
 	
 	int   RWidth, RHeight;
-	int   LeftOfs, TopOfs;
+	/*int   LeftOfs, TopOfs;*/
 	int   ColorMapSize, InitCodeSize, Background, BitsPerPixel;
 	int   j,nc;
-	int	  w,h,i;
+	int	  w,i;
 	int   numcols = 256;
-	int   CountDown;
-	int   curx , cury;
 	int   time_out = 0;		/* time between two images in the animation */
-	int   n_images , index;
+	int   n_images , indx;
 	
 	BYTE pc2nc[256] , r1[256] , g1[256] , b1[256];
 	
@@ -94,8 +101,8 @@ int main(int argc , char **argv) {
 		return 0;
 	}
 	
-	memset(image_name_arr , NULL , MAX_NUMBER_IMAGES);
-	memset(pal_name_arr , NULL , MAX_NUMBER_IMAGES);
+	memset((void*)&image_name_arr[0] , 0 , MAX_NUMBER_IMAGES);
+	memset((void*)&pal_name_arr[0] , 0 , MAX_NUMBER_IMAGES);
 
 	HDFName = (CHAR*) malloc (strlen(argv[1]) + 1);
 	GIFName = (CHAR*) malloc (strlen(argv[2]) + 1);
@@ -172,7 +179,7 @@ int main(int argc , char **argv) {
 	n_images = number_of_images;
 
 	Background = 0;
-	for (index = 0 ; index < n_images ; index++) {
+	for (indx = 0 ; indx < n_images ; indx++) {
 		
 		/* try to read the image and the palette */
 		/* Lots of funky stuff to support multiple images has been taken off.
@@ -183,19 +190,16 @@ int main(int argc , char **argv) {
 		** to write the global palette out and then independantly write the smaller local 
 		** palettes
 		*/
-		if (ReadHDF(&Image , GlobalPalette , dim_sizes , HDFName , image_name_arr[index] , pal_name_arr[index]) < 0) {
+		if (ReadHDF(&Image , GlobalPalette , dim_sizes , HDFName , image_name_arr[indx] , pal_name_arr[indx]) < 0) {
 			fprintf(stderr , "Unable to read HDF file\n");
 			return -1;
 		}
 				
-		w = dim_sizes[1];
-		h = dim_sizes[0];
+                assert(dim_sizes[0]==(hsize_t)((int)dim_sizes[0]));   
+                 assert(dim_sizes[1]==(hsize_t)((int)dim_sizes[1]));
+                RWidth = (int)dim_sizes[1];
+                RHeight = (int)dim_sizes[0];
 
-		RWidth  = dim_sizes[1];
-		RHeight = dim_sizes[0];
-		LeftOfs = TopOfs = 0;
-
-		
 		/* If the first image does not have a palette, I make my own global color table
 		** Obviously this is not the best thing to do, better steps would be:
 		** 1. Check for either a global palette or a global attribute called palette
@@ -242,12 +246,8 @@ int main(int argc , char **argv) {
 		ColorMapSize = 1 << BitsPerPixel;
 		
 		
-		CountDown = w * h;    /* # of pixels we'll be doing */
-		
 		if (BitsPerPixel <= 1) InitCodeSize = 2;
 		else InitCodeSize = BitsPerPixel;
-		
-		curx = cury = 0;
 		
 		if (!fpGif) {
 			fprintf(stderr,  "WriteGIF: file not open for writing\n" );
@@ -257,15 +257,13 @@ int main(int argc , char **argv) {
 		/* If it is the first image we do all the header stuff that isn't required for the
 		** rest of the images. 
         */
-		if (index == 0) {
+		if (indx == 0) {
 			/* Write out the GIF header and logical screen descriptor */
 			if (n_images > 1) {
 				fwrite("GIF89a", 1, 6, fpGif);    /* the GIF magic number */
-				loop_times = 0;
 			}
 			else {
 				fwrite("GIF87a", 1, 6, fpGif);    /* the GIF magic number */
-				loop_times = 1;
 			}
 			
 			putword(RWidth, fpGif);           /* screen descriptor */
@@ -281,7 +279,7 @@ int main(int argc , char **argv) {
 			fputc(0, fpGif);                  /* future expansion byte */
 			
 			
-			/* If loop_times is 0 , put in the application extension to make the gif anime loop
+			/* If time_out>0, put in the application extension to make the gif anime loop
 			** indefinitely
 			*/
 			if (time_out > 0) {
@@ -331,7 +329,7 @@ int main(int argc , char **argv) {
 
 		fputc (InitCodeSize , fpGif);
 		
-		i = hdfWriteGIF(fpGif , Image , 0 , dim_sizes[0] , dim_sizes[1] , r1, g1 , b1 , pc2nc , 256 , 8 , BitsPerPixel);
+		hdfWriteGIF(fpGif , Image , (int)dim_sizes[0] , (int)dim_sizes[1] , pc2nc , BitsPerPixel);
 		fputc(0x00 , fpGif);		
 		free (Image);
 	} 

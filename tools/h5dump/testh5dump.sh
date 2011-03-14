@@ -1,7 +1,16 @@
 #! /bin/sh
-# 
-#  Copyright (C) 1998-2001 National Center for Supercomputing Applications
-#                          All rights reserved.
+#
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 #
 # Tests for the h5dump tool
 
@@ -149,6 +158,20 @@ TOOLTEST tempty.ddl tempty.h5
 
 # test for files with groups that have comments
 TOOLTEST tgrp_comments.ddl tgrp_comments.h5
+
+# test the --filedriver flag
+TOOLTEST tsplit_file.ddl --filedriver=split tsplit_file
+TOOLTEST tfamily.ddl --filedriver=family tfamily%05d.h5
+TOOLTEST tmulti.ddl --filedriver=multi tmulti
+
+# test for files with group names which reach > 1024 bytes in size
+TOOLTEST tlarge_objname.ddl -w157 tlarge_objname.h5
+
+# test Subsetting
+TOOLTEST tall-4s.ddl --dataset=/g1/g1.1/dset1.1.1 --start=1,1 --stride=2,3 --count=3,2 --block=1,1 tall.h5
+TOOLTEST tall-5s.ddl -d "/g1/g1.1/dset1.1.2[0;2;10;]" tall.h5
+TOOLTEST tdset-3s.ddl -d "/dset1[1,1;;;]" tdset.h5
+TOOLTEST tdset2-1s.ddl -d "/dset1[;3,2;4,4;1,4]" tdset2.h5
 
 # test XML
 TOOLTEST tall.h5.xml --xml tall.h5

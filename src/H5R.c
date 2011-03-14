@@ -1,16 +1,18 @@
-/****************************************************************************
-* NCSA HDF								   *
-* Software Development Group						   *
-* National Center for Supercomputing Applications			   *
-* University of Illinois at Urbana-Champaign				   *
-* 605 E. Springfield, Champaign IL 61820				   *
-*									   *
-* For conditions of distribution and use, see the accompanying		   *
-* hdf/COPYING file.							   *
-*									   *
-****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5R.c,v 1.45.2.3 2001/08/15 14:47:56 koziol Exp $ */
+/* $Id: H5R.c,v 1.45.2.5 2002/06/10 19:47:56 wendling Exp $ */
 
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 
@@ -200,11 +202,9 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             buf_size+=sizeof(haddr_t);
 
             /* Allocate the space to store the serialized information */
-            assert(buf_size==(hssize_t)((size_t)buf_size)); /*check for overflow*/
-            if (NULL==(buf = H5MM_malloc((size_t)buf_size))) {
-                HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
-                       "memory allocation failed");
-            }
+            H5_CHECK_OVERFLOW(buf_size,hssize_t,size_t);
+            if (NULL==(buf = H5MM_malloc((size_t)buf_size)))
+                HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
 
             /* Serialize information for dataset OID */
             p=(uint8_t *)buf;
@@ -217,7 +217,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
                   "Unable to serialize selection");
 
             /* Save the serialized buffer for later */
-            assert(buf_size==(hssize_t)((size_t)buf_size)); /*check for overflow*/
+	     H5_CHECK_OVERFLOW(buf_size,hssize_t,size_t);
             if(H5HG_insert(loc->file,(size_t)buf_size,buf,&hobjid)<0)
                 HGOTO_ERROR(H5E_REFERENCE, H5E_WRITEERROR, FAIL,
                   "Unable to serialize selection");

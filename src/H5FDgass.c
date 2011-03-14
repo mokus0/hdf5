@@ -1,7 +1,18 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /*
- * Copyright © 1999 NCSA
- *                  All rights reserved.
- *
  * Programmer:  Saurabh Bagchi (bagchi@uiuc.edu)
  *              Thursday, August 12 -Tuesday, August 17, 1999
  *
@@ -304,10 +315,10 @@ H5FD_gass_open(const char *name, unsigned flags, hid_t fapl_id,
 	       haddr_t maxaddr)
 {
     int		fd;
-    struct stat	sb;
     H5FD_gass_t	*file=NULL;
     const H5FD_gass_fapl_t	*fa=NULL;
     H5FD_gass_fapl_t		_fa;
+    h5_stat_t sb;
     char *filename = (char *) H5MM_malloc(80 * sizeof(char));
     
     FUNC_ENTER(H5FD_gass_open, NULL);
@@ -382,7 +393,7 @@ H5FD_gass_open(const char *name, unsigned flags, hid_t fapl_id,
       
     }
    
-     if (fstat(fd, &sb)<0) {
+     if (HDfstat(fd, &sb)<0) {
         close(fd);
         HRETURN_ERROR(H5E_IO, H5E_BADFILE, NULL, "fstat failed");
     }
@@ -463,6 +474,7 @@ H5FD_gass_query(const UNUSED H5FD_t *_f, unsigned long *flags /* out */)
     if(flags) {
         *flags = 0;
         *flags|=H5FD_FEAT_DATA_SIEVE;       /* OK to perform data sieving for faster raw data reads & writes */
+        *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     }
 
     FUNC_LEAVE(ret_value);

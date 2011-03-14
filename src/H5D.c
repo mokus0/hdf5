@@ -1,16 +1,18 @@
-/****************************************************************************
-* NCSA HDF                                                                  *
-* Software Development Group                                                *
-* National Center for Supercomputing Applications                           *
-* University of Illinois at Urbana-Champaign                                *
-* 605 E. Springfield, Champaign IL 61820                                    *
-*                                                                           *
-* For conditions of distribution and use, see the accompanying              *
-* hdf/COPYING file.                                                         *
-*                                                                           *
-****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5D.c,v 1.208.2.5 2002/02/14 16:29:28 koziol Exp $ */
+/* $Id: H5D.c,v 1.208.2.15 2002/06/19 20:19:27 koziol Exp $ */
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Iprivate.h"		/* IDs			  		*/
@@ -92,10 +94,11 @@ H5D_xfer_t	H5D_xfer_dflt = {
     NULL,                   	/*No information needed for free() calls    */
     H5FD_VFD_DEFAULT,			/*See H5Pget_driver()			    */
     NULL,			/*No file driver-specific information yet   */
-#ifdef COALESCE_READS
-    0,                          /*coalesce single reads into a read         */
-                                /*transaction                               */
-#endif
+#ifdef H5_HAVE_PARALLEL
+    0,                          /* Whether to use a view for this I/O */
+    MPI_DATATYPE_NULL,          /* MPI type for buffer (memory) */
+    MPI_DATATYPE_NULL,          /* MPI type for file */
+#endif /* H5_HAVE_PARALLEL */
 };
 
 /* Interface initialization? */
@@ -982,8 +985,13 @@ H5D_create(H5G_entry_t *loc, const char *name, const H5T_t *type,
 		     "memory allocation failed");
     }
 
+    /* Check if the datatype is "sensible" for use in a dataset */
+    if(H5T_is_sensible(type)!=TRUE)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, NULL, "datatype is not sensible");
+
     /* Copy datatype for dataset */
-    new_dset->type = H5T_copy(type, H5T_COPY_ALL);
+    if((new_dset->type = H5T_copy(type, H5T_COPY_ALL))==NULL)
+        HGOTO_ERROR(H5E_DATATYPE, H5E_CANTCOPY, NULL, "can't copy datatype");
 
     /* Mark any VL datatypes as being on disk now */
     if (H5T_vlen_mark(new_dset->type, f, H5T_VLEN_DISK)<0) {
@@ -1136,13 +1144,11 @@ printf("%s: check 0.5\n",FUNC);
 printf("%s: check 1.0\n",FUNC);
 #endif /* QAK */
     if (0==efl->nused) {
-        if (H5F_arr_create(f, &(new_dset->layout)) < 0) {
-            HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, NULL,
-                "unable to initialize storage");
-        }
-    } else {
+        if (H5F_arr_create(f, &(new_dset->layout)) < 0)
+            HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, NULL, "unable to initialize storage");
+    } /* end if */
+    else
         new_dset->layout.addr = HADDR_UNDEF;
-    }
 
 #ifdef QAK
 printf("%s: check 2.0\n",FUNC);
@@ -1431,12 +1437,16 @@ H5D_open_oid(H5G_entry_t *ent)
     }
 
     /* Get the external file list message, which might not exist */
-    if (NULL==H5O_read (&(dataset->ent), H5O_EFL, 0,
+    /*if (NULL==H5O_read (&(dataset->ent), H5O_EFL, 0,
 			&(dataset->create_parms->efl)) &&
             !H5F_addr_defined (dataset->layout.addr)) {
         HGOTO_ERROR (H5E_DATASET, H5E_CANTINIT, NULL,
 		     "storage address is undefined an no external file list");
-    }
+    }*/
+    /* A temporary solution for compatibility with v1.5.  For new fill value
+     * design, data space may not allocated except in case of external storage.
+     */
+    H5O_read (&(dataset->ent), H5O_EFL, 0, &(dataset->create_parms->efl));
 
     /*
      * Make sure all storage is properly initialized for chunked datasets.
@@ -1594,7 +1604,7 @@ H5D_read(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
     hbool_t     must_convert;       /*have to xfer the slow way*/
 #ifdef H5_HAVE_PARALLEL
     H5FD_mpio_dxpl_t	*dx = NULL;
-    H5FD_mpio_xfer_t	xfer_mode;		/*xfer_mode for this request */
+    H5FD_mpio_xfer_t	xfer_mode=H5FD_MPIO_INDEPENDENT;	/*xfer_mode for this request */
     hbool_t		xfer_mode_changed=0;	/*xfer_mode needs restore */
     hbool_t		doing_mpio=0;		/*This is an MPIO access */
 #endif
@@ -1613,6 +1623,11 @@ H5D_read(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
     HDmemset(&mem_iter,0,sizeof(H5S_sel_iter_t));
     HDmemset(&bkg_iter,0,sizeof(H5S_sel_iter_t));
     HDmemset(&file_iter,0,sizeof(H5S_sel_iter_t));
+
+    /* Check if the dataset has space */
+    if(!H5F_addr_defined (dataset->layout.addr)
+			       && (dataset->create_parms->efl.nused==0))
+        HGOTO_ERROR (H5E_DATASET, H5E_READERROR, FAIL, "no data to read");
 
     /* Get the dataset transfer property list */
     if (H5P_DEFAULT == dxpl_id) {
@@ -1637,7 +1652,7 @@ H5D_read(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
     /* Collect Parallel I/O information for possible later use */
     if (H5FD_MPIO==xfer_parms->driver_id){
 	doing_mpio++;
-	if (dx=xfer_parms->driver_info){
+	if ((dx=xfer_parms->driver_info)!=NULL){
 	    xfer_mode = dx->xfer_mode;
 	}else
 	    HGOTO_ERROR (H5E_DATASET, H5E_CANTINIT, FAIL,
@@ -1688,7 +1703,7 @@ printf("%s: check 1.0, nelmts=%d\n",FUNC,(int)nelmts);
      * mem-and-file-dataspace-xfer functions
      * (the latter in case the arguments to sconv_funcs
      * turn out to be inappropriate for MPI-IO).  */
-    if (H5_mpi_opt_types_g &&
+    if (H5S_mpi_opt_types_g &&
         IS_H5FD_MPIO(dataset->ent.file)) {
 	/* Only collective write should call this since it eventually
 	 * calls MPI_File_set_view which is a collective call.
@@ -2043,7 +2058,7 @@ H5D_write(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
     hbool_t     must_convert;       /*have to xfer the slow way*/
 #ifdef H5_HAVE_PARALLEL
     H5FD_mpio_dxpl_t	*dx = NULL;
-    H5FD_mpio_xfer_t	xfer_mode;		/*xfer_mode for this request */
+    H5FD_mpio_xfer_t	xfer_mode=H5FD_MPIO_INDEPENDENT;	/*xfer_mode for this request */
     hbool_t		xfer_mode_changed=0;	/*xfer_mode needs restore */
     hbool_t		doing_mpio=0;		/*This is an MPIO access */
 #endif
@@ -2088,6 +2103,11 @@ H5D_write(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
     printf("%s: check 0.3, buf=%p\n", FUNC,buf);
 #endif /* QAK */
 
+    /* Check if the dataset has space */
+    if(!H5F_addr_defined (dataset->layout.addr)
+			       && (dataset->create_parms->efl.nused==0))
+        HGOTO_ERROR (H5E_DATASET, H5E_WRITEERROR, FAIL, "no space to write");
+
     /* Get the dataset transfer property list */
     if (H5P_DEFAULT == dxpl_id) {
         xfer_parms = &H5D_xfer_dflt;
@@ -2115,7 +2135,7 @@ H5D_write(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
     /* Collect Parallel I/O information for possible later use */
     if (H5FD_MPIO==xfer_parms->driver_id){
 	doing_mpio++;
-	if (dx=xfer_parms->driver_info){
+	if ((dx=xfer_parms->driver_info)!=NULL){
 	    xfer_mode = dx->xfer_mode;
 	}else
 	    HGOTO_ERROR (H5E_DATASET, H5E_CANTINIT, FAIL,
@@ -2170,7 +2190,7 @@ H5D_write(H5D_t *dataset, const H5T_t *mem_type, const H5S_t *mem_space,
      * mem-and-file-dataspace-xfer functions
      * (the latter in case the arguments to sconv_funcs
      * turn out to be inappropriate for MPI-IO).  */
-    if (H5_mpi_opt_types_g &&
+    if (H5S_mpi_opt_types_g &&
         IS_H5FD_MPIO(dataset->ent.file)) {
 	/* Only collective write should call this since it eventually
 	 * calls MPI_File_set_view which is a collective call.
@@ -2310,6 +2330,7 @@ printf("%s: check 2.0, src_type_size=%d, dst_type_size=%d, target_size=%d\n",FUN
 #ifdef QAK
     printf("%s: check 4.0, nelmts=%d, request_nelmts=%d, need_bkg=%d\n",
 	   FUNC,(int)nelmts,(int)request_nelmts,(int)need_bkg);
+    printf("%s: check 4.1, tconv_buf=%p, bkg_buf=%p\n",FUNC,tconv_buf,bkg_buf);
 #endif
 
     /* Start strip mining... */

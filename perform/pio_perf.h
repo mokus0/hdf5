@@ -1,16 +1,31 @@
-/*
- * Copyright (C) 2001
- *     National Center for Supercomputing Applications
- *     All rights reserved.
- *
- */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 #ifndef PIO_PERF_H__
 #define PIO_PERF_H__
 
 #include "pio_timer.h"
+#include "H5private.h"
+#include "h5test.h"
+
+/* setup the dataset no fill option if this is v1.5 or more */
+#if H5_VERS_MAJOR > 1 || H5_VERS_MINOR > 4
+#define H5_HAVE_NOFILL 1
+#endif
 
 typedef enum iotype_ {
-    RAW,
+    POSIXIO,
     MPIO,
     PHDF5
     /*NUM_TYPES*/
@@ -19,11 +34,20 @@ typedef enum iotype_ {
 typedef struct parameters_ {
     iotype	io_type;        /* The type of IO test to perform       */
     int		num_procs;      /* Maximum number of processes to use   */
-    int		num_files;      /* Number of files to create            */
+    long	num_files;      /* Number of files to create            */
     long	num_dsets;      /* Number of datasets to create         */
-    long	num_elmts;      /* Number of native ints in each dset   */
-    int		num_iters;      /* Number of times to loop doing the IO */
-    long 	buf_size;       /* Buffer size                          */
+    off_t	num_bytes;      /* Number of bytes in each dset         */
+    int 	num_iters;      /* Number of times to loop doing the IO */
+    size_t 	buf_size;       /* Buffer size                          */
+    size_t 	blk_size;       /* Block size                           */
+    unsigned    interleaved;    /* Interleaved vs. contiguous blocks    */
+    unsigned    collective;     /* Collective vs. independent I/O       */
+    hsize_t 	h5_align;       /* HDF5 object alignment                */
+    hsize_t 	h5_thresh;      /* HDF5 object alignment threshold      */
+    int 	h5_use_chunks;  /* Make HDF5 dataset chunked            */
+    int    	h5_no_fill;     /* Disable HDF5 writing fill values     */
+    int    	h5_write_only;  /* Perform the write tests only         */
+    int 	verify;    	/* Verify data correctness              */
 } parameters;
 
 typedef struct results_ {
@@ -39,8 +63,10 @@ typedef struct results_ {
 #define FAIL        -1
 #endif  /* !FAIL */
 
-extern int      comm_world_rank_g;  /* my rank in MPI_COMM_RANK */
-extern int      comm_world_nprocs_g;/* num. of processes of MPI_COMM_WORLD */
+extern FILE     *output;            /* output file                          */
+extern pio_time *timer_g;           /* timer: global for stub functions     */
+extern int      comm_world_rank_g;  /* my rank in MPI_COMM_RANK             */
+extern int      comm_world_nprocs_g;/* num. of processes of MPI_COMM_WORLD  */
 extern MPI_Comm pio_comm_g;         /* Communicator to run the PIO          */
 extern int      pio_mpi_rank_g;     /* MPI rank of pio_comm_g               */
 extern int      pio_mpi_nprocs_g;   /* number of processes of pio_comm_g    */
@@ -49,12 +75,22 @@ extern int      pio_debug_level;    /* The debug level:
                                      *   1 - Minimal
                                      *   2 - Some more
                                      *   3 - Maximal
+                                     *   4 - Even More Debugging (timer stuff)
                                      */
+
+#define HDprint_rank(f)              /* print rank in MPI_COMM_WORLD */    \
+    HDfprintf(f, "%d: ", comm_world_rank_g);
+#define HDprint_size(f)              /* print size of MPI_COMM_WORLD */    \
+    HDfprintf(f, "%d", comm_world_nprocs_g);
+#define HDprint_rank_size(f)         /* print rank/size of MPI_COMM_WORLD */  \
+    HDfprintf(f, "%d/%d: ", comm_world_rank_g, comm_world_nprocs_g);
 
 #ifdef __cplusplus
 extern "C" {
 #endif  /* __cplusplus */
+
 extern results do_pio(parameters param);
+
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */

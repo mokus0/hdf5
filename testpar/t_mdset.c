@@ -1,4 +1,18 @@
-/* $Id: t_mdset.c,v 1.6.2.4 2001/11/01 13:53:01 acheng Exp $ */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* $Id: t_mdset.c,v 1.6.2.9 2002/06/19 18:27:48 koziol Exp $ */
 
 #include "testphdf5.h"
 
@@ -61,10 +75,12 @@ void multiple_dset_write(char *filename, int ndatasets)
 	H5Dwrite (dataset, H5T_NATIVE_DOUBLE, memspace, filespace, H5P_DEFAULT, outme);
 
 	H5Dclose (dataset);
+#ifdef BARRIER_CHECKS
 	if (! ((n+1) % 10)) {
 	    printf("created %d datasets\n", n+1);
 	    MPI_Barrier(MPI_COMM_WORLD);
 	}
+#endif /* BARRIER_CHECKS */
     }
 
     H5Sclose (filespace);
@@ -82,7 +98,7 @@ void multiple_dset_write(char *filename, int ndatasets)
 void multiple_group_write(char *filename, int ngroups)
 {
     int mpi_rank, mpi_size;
-    int i, j, l, m;
+    int l, m;
     char gname[64];
     hid_t fid, gid, plist, memspace, filespace;
     hssize_t chunk_origin[DIM];
@@ -121,10 +137,12 @@ void multiple_group_write(char *filename, int ngroups)
             write_dataset(memspace, filespace, gid); 
         H5Gclose(gid);
 
+#ifdef BARRIER_CHECKS
         if(! ((m+1) % 10)) {
             printf("created %d groups\n", m+1);
             MPI_Barrier(MPI_COMM_WORLD);
 	}
+#endif /* BARRIER_CHECKS */
     }
     
     /* recursively creates subgroups under the first group. */
@@ -181,10 +199,12 @@ void create_group_recursive(hid_t memspace, hid_t filespace, hid_t gid,
   
    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
+#ifdef BARRIER_CHECKS
    if(! ((counter+1) % 10)) {
         printf("created %dth child groups\n", counter+1);
         MPI_Barrier(MPI_COMM_WORLD);
    }
+#endif /* BARRIER_CHECKS */
  
    sprintf(gname, "%dth_child_group", counter+1);   
    child_gid = H5Gcreate(gid, gname, 0);
@@ -245,8 +265,10 @@ void multiple_group_read(char *filename, int ngroups)
                 nerrors += error_num;
         H5Gclose(gid);
 
+#ifdef BARRIER_CHECKS
         if(!((m+1)%10))
             MPI_Barrier(MPI_COMM_WORLD);
+#endif /* BARRIER_CHECKS */
     }
 
     /* open all the groups in vertical direction. */
@@ -269,11 +291,14 @@ int read_dataset(hid_t memspace, hid_t filespace, hid_t gid)
 {
     int i, j, n, mpi_rank, vrfy_errors=0;
     char dname[32];
-    DATATYPE outdata[SIZE][SIZE], indata[SIZE][SIZE];
+    DATATYPE *outdata, *indata;
     hid_t did;
     hsize_t block[DIM]={SIZE,SIZE};
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    indata = (DATATYPE*)malloc(SIZE*SIZE*sizeof(DATATYPE));
+    outdata = (DATATYPE*)malloc(SIZE*SIZE*sizeof(DATATYPE));
 
     for(n=0; n<NDATASET; n++) {
         sprintf(dname, "dataset%d", n);
@@ -283,14 +308,21 @@ int read_dataset(hid_t memspace, hid_t filespace, hid_t gid)
         H5Dread(did, H5T_NATIVE_INT, memspace, filespace, H5P_DEFAULT, 
                 indata);
 
+        /* this is the original value */
         for(i=0; i<SIZE; i++)
-            for(j=0; j<SIZE; j++) 
-                outdata[i][j] = n*1000 + mpi_rank;
-        
+	    for(j=0; j<SIZE; j++) { 
+	         *outdata = n*1000 + mpi_rank;
+                 outdata++;
+	    }
+        outdata -= SIZE*SIZE;
+
         vrfy_errors = dataset_vrfy(NULL, NULL, NULL, block, indata, outdata);
 	       
         H5Dclose(did);
     }
+
+    free(indata);
+    free(outdata);
 
     return vrfy_errors;
 }
@@ -307,8 +339,10 @@ void recursive_read_group(hid_t memspace, hid_t filespace, hid_t gid,
     char  gname[64];
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+#ifdef BARRIER_CHECKS
     if((counter+1) % 10) 
         MPI_Barrier(MPI_COMM_WORLD);
+#endif /* BARRIER_CHECKS */
 
     if( (err_num = read_dataset(memspace, filespace, gid)) )
         nerrors += err_num;

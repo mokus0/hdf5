@@ -1,4 +1,21 @@
 <html>
+
+<!--
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by the Board of Trustees of the University of Illinois.         *
+  * All rights reserved.                                                      *
+  *                                                                           *
+  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+  * terms governing use, modification, and redistribution, is contained in    *
+  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+  * of the source code distribution tree; Copyright.html can be found at the  *
+  * root level of an installed copy of the electronic HDF5 document set and   *
+  * is linked from the top-level documents page.  It can also be found at     *
+  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ -->
+
   <head>
     <title>
       HDF5 File Format Specification
@@ -268,24 +285,34 @@ Elena>               "Free-space object"
 	</tr>
 
 	<tr align=center>
-	  <td colspan=4>Base Address</td>
+	  <td colspan=4>Base Address*</td>
 	</tr>
 
 	<tr align=center>
-	  <td colspan=4>Address of Global Free-space Heap</td>
+	  <td colspan=4>Address of Global Free-space Heap*</td>
 	</tr>
 
 	<tr align=center>
-	  <td colspan=4>End of File Address</td>
+	  <td colspan=4>End of File Address*</td>
 	</tr>
 
 	<tr align=center>
-	  <td colspan=4>Driver Information Block Address</td>
+	  <td colspan=4>Driver Information Block Address*</td>
 	</tr>
 
 	<tr align=center>
-	  <td colspan=4><br>Root Group Address<br><br></td>
+	  <td colspan=4>Root Group Address*</td>
 	</tr>
+      </table>
+
+      <table width="80%" border=0>
+	<tr><td>
+          <div align=right>
+            (Items marked with an asterisk (*) in the above table
+            <br>
+            are of the size specified in "Size of Offsets.")
+          </div>
+        </td></tr>
       </table>
     </center>
 
@@ -2322,8 +2349,8 @@ Elena>               "Free-space object"
 
     <p>The Class Bit Field and Properties fields vary depending
       on the Type Class, which is the low-order four bits of the Type
-      Class and Version field (the high-order four byte are the
-      version which should be set to the value one).  The type class
+      Class and Version field (the high-order four bits are the
+      version, which should be set to the value one).  The type class
       is one of 0 (fixed-point number), 1 (floating-point number), 
       2 (date and time), 3 (text string), 4 (bit field), 5 (opaque), 
       6 (compound), 7 (reference), 8 (enumeration), or 9 (variable-length).  
@@ -2543,7 +2570,7 @@ Elena>               "Free-space object"
     <center>
       <table border cellpadding=4 width="80%">
 	<caption align=top>
-	  <b>Bit Field for Bitfield types (Class 4)</b>
+	  <b>Bit Field for Bitfield Types (Class 4)</b>
 	</caption>
 
 	<tr align=center>
@@ -2576,7 +2603,7 @@ Elena>               "Free-space object"
     <center>
       <table border cellpadding=4 width="80%">
 	<caption align=top>
-	  <b>Properties for Bitfield types (Class 4)</b>
+	  <b>Properties for Bitfield Types (Class 4)</b>
 	</caption>
 
 	<tr align=center>
@@ -2597,7 +2624,7 @@ Elena>               "Free-space object"
     <center>
       <table border cellpadding=4 width="80%">
 	<caption align=top>
-	  <b>Bit Field for Opaque types (Class 5)</b>
+	  <b>Bit Field for Opaque Types (Class 5)</b>
 	</caption>
 
 	<tr align=center>
@@ -2616,7 +2643,7 @@ Elena>               "Free-space object"
     <center>
       <table border cellpadding=4 width="80%">
 	<caption align=top>
-	  <b>Properties for Opaque types (Class 5)</b>
+	  <b>Properties for Opaque Types (Class 5)</b>
 	</caption>
 
 	<tr align=center>
@@ -2729,7 +2756,7 @@ Elena>               "Free-space object"
     <center>
       <table border cellpadding=4 width="80%">
 	<caption align=top>
-	  <b>Bit Field for Enumeration types (Class 8)</b>
+	  <b>Bit Field for Enumeration Types (Class 8)</b>
 	</caption>
 
 	<tr align=center>
@@ -2754,7 +2781,7 @@ Elena>               "Free-space object"
     <center>
       <table border cellpadding=4 width="80%">
 	<caption align=top>
-	  <b>Properties for Enumeration types (Class 8)</b>
+	  <b>Properties for Enumeration Types (Class 8)</b>
 	</caption>
 
 	<tr align=center>
@@ -2799,6 +2826,117 @@ Elena>               "Free-space object"
         </tr>
       </table>
     </center>
+
+
+   <p>
+    <center>
+      <table border cellpadding=4 width="80%">
+	<caption align=top>
+	  <b>Bit Field for Variable-length Types (Class 9)</b>
+	</caption>
+
+	<tr align=center>
+	  <th width="10%">Bits</th>
+	  <th width="90%">Meaning</th>
+	</tr>
+
+	<tr valign=top>
+	  <td>0-3</td>
+	  <td><dl><dt><b>Type</b></dt>
+	    <dt>0 Variable-length sequence</dt>
+              <dd>This variable-length datatype can be of any sequence 
+              of data.  Variable-length sequences do not have padding 
+              or character set information.</dd>
+            <dt>1 Variable-length string</dt>
+              <dd>This variable-length datatype is composed of a series of 
+              characters.  Variable-length strings have padding and 
+              character set information.</dd></dl>
+          </td>
+	</tr>
+
+	<tr valign=top>
+	  <td>4-7</td>
+	  <td><dl><dt><b>Padding type</b> (variable-length string only)</dt>
+              <dd>This four-bit value determines the type of padding 
+              used for variable-length strings.  The values are the same 
+              as for the string padding type, as follows:</dd>
+	    <dt>0 Null terminate</dt>
+              <dd>A zero byte marks the end of a string and is guaranteed 
+              to be present after converting a long string to a short 
+              string.  When converting a short string to a long string, 
+              the value is padded with additional null characters 
+              as necessary.
+            <dt>1 Null pad</dt>
+              <dd>Null characters are added to the end of the value 
+              during conversion from a short string to a longer string.  
+              Conversion from a long string to a shorter string 
+              simply truncates the value.</dd>
+            <dt>2 Space pad</dt>
+              <dd>Space characters are added to the end of the value 
+              during conversion from a short string to a longer string.
+              Conversion from a long string to a shorter string simply 
+              truncates the value.
+              This is the Fortran representation of the string.
+              </dd>
+            <dt>3-15 Reserved</dt>
+              <dd>These values are reserved for future use.</dd></dl>
+          </td>
+	</tr>
+
+	<tr valign=top>
+	  <td>8-11</td>
+	  <td><dl><dt><b>Character set</b> (variable-length string only)</dt>
+              <dd>This four-bit value specifies the character set 
+              to be used for encoding the string.</dd>
+	    <dt>0 8-bit ASCII</dt>
+              <dd>As of this writing (July 2002, Release 1.4.4), 
+              8-bit ASCII is the only character set supported.
+              Therefore, no translations have been defined.</dd></dl>
+          </td>
+	</tr>
+
+	<tr valign=top>
+	  <td>12-23</td>
+	  <td>Reserved (zero).</td>
+	</tr>
+      </table>
+    </center>
+
+    <p>
+    <center>
+      <table border cellpadding=4 width="80%">
+        <caption align=top>
+          <b>Properties for Variable-length Types (Class 9)</b>
+        </caption>
+
+        <tr align=center>
+          <th width="25%">Byte</th>
+          <th width="25%">Byte</th>
+          <th width="25%">Byte</th>
+          <th width="25%">Byte</th>
+        </tr>
+
+        <tr align=center>
+          <td colspan=4><br>Parent Type<br><br></td>
+        </tr>
+
+      </table>
+    </center>
+
+    <center>
+      <table border=0 cellpadding=4 width="80%">
+        <tr align=left valign=top>
+          <td valign=top width=20%>Parent Type:</td>
+          <td valign=top>Each variable-length type is based on 
+            some parent type.  The information for that parent type is 
+            described recursively by this field.</td>
+        </tr>
+      </table>
+    </center>
+
+
+   <p>
+
 
 <!--
     <p>Datatype examples are <a href="Datatypes.html">here</a>.
@@ -3965,11 +4103,11 @@ in the structure, with each item formatted according to its datatype.
 -->
 <address><a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a></address>
 <!-- hhmts start -->
-Last modified: 8 March 2000
+Last modified: 1 July 2002
 <!-- hhmts end -->
 
 <br>
-Describes HDF5 Release 1.4.3, February 2002
+Describes HDF5 Release 1.4.4, July 2002
 
 </body>
 </html>

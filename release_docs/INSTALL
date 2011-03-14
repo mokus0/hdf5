@@ -491,6 +491,18 @@
             $ INSTALL="$PWD/bin/install-sh -c" ./configure ...
             $ make install
 
+	If you want to install HDF5 in a location other than the location
+	specified by the `--prefix=DIR' flag during configuration (or
+	instead of the default location, `/usr/local'), you can do that
+	by issuing the command:
+
+	    $ make install prefix=NEW_DIR
+
+	where NEW_DIR is the new directory you wish to install HDF5. If
+	you do this, you should also modify the installed "bin/h5cc"
+	script. Change the "prefix=..." line to reflect the value of
+	NEW_DIR.
+
 	The library can be used without installing it by pointing the
 	compiler at the `src' directory for both include files and
 	libraries. However, the minimum which must be installed to make

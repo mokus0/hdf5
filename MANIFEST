@@ -11,7 +11,6 @@
 ./Makefile.dist
 ./Makefile.in
 ./README.txt
-./acconfig.h
 ./aclocal.m4
 ./configure
 ./configure.in
@@ -22,7 +21,6 @@
 ./bin/config.guess
 ./bin/config.sub
 ./bin/config_para_ibm_sp.sh 
-./bin/config_para_tflops.sh
 ./bin/debug-ohdr			_DO_NOT_DISTRIBUTE_
 ./bin/dependencies
 ./bin/distdep
@@ -30,12 +28,13 @@
 ./bin/h5vers
 ./bin/install-sh
 ./bin/iostats
-./bin/locate_hdf4
-./bin/ltconfig
+./bin/locate_sw
 ./bin/ltmain.sh
+./bin/mkdirs
 ./bin/release
 ./bin/runtest				_DO_NOT_DISTRIBUTE_
 ./bin/snapshot
+./bin/snapshot_version			_DO_NOT_DISTRIBUTE_
 ./bin/trace
 
 ./config/BlankForm
@@ -63,6 +62,7 @@
 ./config/linux-gnulibc1
 ./config/linux-gnulibc2
 ./config/powerpc-ibm-aix4.x
+./config/powerpc-ibm-aix5.x
 ./config/rs6000-ibm-aix4.x
 ./config/solaris2.x
 ./config/sv1-cray
@@ -94,7 +94,6 @@
 ./doc/html/Datasets.html
 ./doc/html/Dataspaces.html
 ./doc/html/Datatypes.html
-./doc/html/DatatypesEnum.html
 ./doc/html/Dependencies
 ./doc/html/ddl.html
 ./doc/html/Debugging.html
@@ -228,167 +227,167 @@
 ./doc/html/TechNotes/version.gif
 ./doc/html/TechNotes/version.obj        _DO_NOT_DISTRIBUTE_
 
-./doc/html/Tutor/Contents.html
-./doc/html/Tutor/ContentsAdd.html
-./doc/html/Tutor/ContentsAdv.html
-./doc/html/Tutor/ContentsFull.html
-./doc/html/Tutor/ContentsIntro.html
-./doc/html/Tutor/Copyright.html
-./doc/html/Tutor/Dependencies
-./doc/html/Tutor/Makefile.in
-./doc/html/Tutor/answers.html
-./doc/html/Tutor/api.html
-./doc/html/Tutor/bighdf2sp.JPG
-./doc/html/Tutor/compound.html
-./doc/html/Tutor/crtatt.html
-./doc/html/Tutor/crtdat.html
-./doc/html/Tutor/crtfile.html
-./doc/html/Tutor/crtgrp.html
-./doc/html/Tutor/crtgrpar.html
-./doc/html/Tutor/crtgrpd.html
-./doc/html/Tutor/extend.html
-./doc/html/Tutor/fileorg.html
-./doc/html/Tutor/footer-ncsalogo.gif
-./doc/html/Tutor/glossary.html
-./doc/html/Tutor/img001.gif
-./doc/html/Tutor/img002.gif
-./doc/html/Tutor/img003.gif
-./doc/html/Tutor/img004.gif
-./doc/html/Tutor/img005.gif
-./doc/html/Tutor/index.html
-./doc/html/Tutor/intro.html
-./doc/html/Tutor/iterate.html
-./doc/html/Tutor/mount.html
-./doc/html/Tutor/property.html
-./doc/html/Tutor/questions.html
-./doc/html/Tutor/rdwt.html
-./doc/html/Tutor/references.html
-./doc/html/Tutor/reftoobj.html
-./doc/html/Tutor/reftoreg.html
-./doc/html/Tutor/select.html
-./doc/html/Tutor/selectc.html
-./doc/html/Tutor/software.html
-./doc/html/Tutor/title.html
-./doc/html/Tutor/util.html
-./doc/html/Tutor/property.html
-./doc/html/Tutor/software.html
+./doc/html/Tutor/Contents.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/ContentsAdd.html       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/ContentsAdv.html       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/ContentsFull.html      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/ContentsIntro.html     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Copyright.html         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Dependencies           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Makefile.in            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/answers.html           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/api.html               _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/bighdf2sp.JPG          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/compound.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/crtatt.html            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/crtdat.html            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/crtfile.html           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/crtgrp.html            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/crtgrpar.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/crtgrpd.html           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/extend.html            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/fileorg.html           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/footer-ncsalogo.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/glossary.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/img001.gif             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/img002.gif             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/img003.gif             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/img004.gif             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/img005.gif             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/index.html             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/intro.html             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/iterate.html           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/mount.html             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/property.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/questions.html         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/rdwt.html              _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/references.html        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/reftoobj.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/reftoreg.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/select.html            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/selectc.html           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/software.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/title.html             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/util.html              _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/property.html          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/software.html          _DO_NOT_DISTRIBUTE_
 
-./doc/html/Tutor/Graphics/AddInfo.gif
-./doc/html/Tutor/Graphics/AdvTopics.gif
-./doc/html/Tutor/Graphics/BLANK.gif
-./doc/html/Tutor/Graphics/ChunkExt.gif
-./doc/html/Tutor/Graphics/CompDTypes.gif
-./doc/html/Tutor/Graphics/Copy.gif
-./doc/html/Tutor/Graphics/CreateAttr.gif
-./doc/html/Tutor/Graphics/CreateDset1.gif
-./doc/html/Tutor/Graphics/CreateDset2.gif
-./doc/html/Tutor/Graphics/CreateFile.gif
-./doc/html/Tutor/Graphics/CreateGrp1.gif
-./doc/html/Tutor/Graphics/CreateGrp2.gif
-./doc/html/Tutor/Graphics/Dependencies
-./doc/html/Tutor/Graphics/Examples.gif
-./doc/html/Tutor/Graphics/FileOrg.gif
-./doc/html/Tutor/Graphics/FullTOC1.gif
-./doc/html/Tutor/Graphics/FullTOC2.gif
-./doc/html/Tutor/Graphics/Glossary.gif
-./doc/html/Tutor/Graphics/H5API.gif
-./doc/html/Tutor/Graphics/Intro.gif
-./doc/html/Tutor/Graphics/IntroTopics.gif
-./doc/html/Tutor/Graphics/Iterate.gif
-./doc/html/Tutor/Graphics/Makefile.in
-./doc/html/Tutor/Graphics/MountFile.gif
-./doc/html/Tutor/Graphics/Quiz.gif
-./doc/html/Tutor/Graphics/QuizAns.gif
-./doc/html/Tutor/Graphics/RdWrDataset.gif
-./doc/html/Tutor/Graphics/RefObject.gif
-./doc/html/Tutor/Graphics/RefRegion.gif
-./doc/html/Tutor/Graphics/References.gif
-./doc/html/Tutor/Graphics/SelectElemCp.gif
-./doc/html/Tutor/Graphics/SelectHyp.gif
-./doc/html/Tutor/Graphics/TOC.gif
-./doc/html/Tutor/Graphics/TOCFull.gif
-./doc/html/Tutor/Graphics/TOCShort.gif
-./doc/html/Tutor/Graphics/TitlePg.gif
-./doc/html/Tutor/Graphics/Utilities.gif
+./doc/html/Tutor/Graphics/AddInfo.gif      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/AdvTopics.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/BLANK.gif        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/ChunkExt.gif     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CompDTypes.gif   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Copy.gif         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CreateAttr.gif   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CreateDset1.gif  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CreateDset2.gif  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CreateFile.gif   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CreateGrp1.gif   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/CreateGrp2.gif   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Dependencies     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Examples.gif     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/FileOrg.gif      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/FullTOC1.gif     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/FullTOC2.gif     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Glossary.gif     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/H5API.gif        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Intro.gif        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/IntroTopics.gif  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Iterate.gif      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Makefile.in      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/MountFile.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Quiz.gif         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/QuizAns.gif      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/RdWrDataset.gif  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/RefObject.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/RefRegion.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/References.gif   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/SelectElemCp.gif _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/SelectHyp.gif    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/TOC.gif          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/TOCFull.gif      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/TOCShort.gif     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/TitlePg.gif      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/Graphics/Utilities.gif    _DO_NOT_DISTRIBUTE_
 
-./doc/html/Tutor/examples/Dependencies
-./doc/html/Tutor/examples/Makefile.in
-./doc/html/Tutor/examples/attrexample.f90
-./doc/html/Tutor/examples/chunk.f90
-./doc/html/Tutor/examples/compound.f90
-./doc/html/Tutor/examples/dsetexample.f90
-./doc/html/Tutor/examples/fileexample.f90
-./doc/html/Tutor/examples/groupexample.f90
-./doc/html/Tutor/examples/grpdsetexample.f90
-./doc/html/Tutor/examples/grpit.f90
-./doc/html/Tutor/examples/grpsexample.f90
-./doc/html/Tutor/examples/h5_compound.c
-./doc/html/Tutor/examples/h5_copy.c
-./doc/html/Tutor/examples/h5_crtatt.c
-./doc/html/Tutor/examples/h5_crtdat.c
-./doc/html/Tutor/examples/h5_crtfile.c
-./doc/html/Tutor/examples/h5_crtgrp.c
-./doc/html/Tutor/examples/h5_crtgrpar.c
-./doc/html/Tutor/examples/h5_crtgrpd.c
-./doc/html/Tutor/examples/h5_extend.c
-./doc/html/Tutor/examples/h5_hyperslab.c
-./doc/html/Tutor/examples/h5_iterate.c
-./doc/html/Tutor/examples/h5_mount.c
-./doc/html/Tutor/examples/h5_rdwt.c
-./doc/html/Tutor/examples/h5_read.c
-./doc/html/Tutor/examples/h5_ref2obj.c
-./doc/html/Tutor/examples/h5_ref2objr.c
-./doc/html/Tutor/examples/h5_ref2objw.c
-./doc/html/Tutor/examples/h5_ref2reg.c
-./doc/html/Tutor/examples/h5_ref2regr.c
-./doc/html/Tutor/examples/h5_ref2regw.c
-./doc/html/Tutor/examples/h5_reference.c
-./doc/html/Tutor/examples/hyperslab.f90
-./doc/html/Tutor/examples/mountexample.f90
-./doc/html/Tutor/examples/refobjexample.f90
-./doc/html/Tutor/examples/refregexample.f90
-./doc/html/Tutor/examples/rwdsetexample.f90
-./doc/html/Tutor/examples/selectele.f90
+./doc/html/Tutor/examples/Dependencies       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/Makefile.in        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/attrexample.f90    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/chunk.f90          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/compound.f90       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/dsetexample.f90    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/fileexample.f90    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/groupexample.f90   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/grpdsetexample.f90 _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/grpit.f90          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/grpsexample.f90    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_compound.c      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_copy.c          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_crtatt.c        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_crtdat.c        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_crtfile.c       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_crtgrp.c        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_crtgrpar.c      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_crtgrpd.c       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_extend.c        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_hyperslab.c     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_iterate.c       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_mount.c         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_rdwt.c          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_read.c          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_ref2obj.c       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_ref2objr.c      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_ref2objw.c      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_ref2reg.c       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_ref2regr.c      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_ref2regw.c      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/h5_reference.c     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/hyperslab.f90      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/mountexample.f90   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/refobjexample.f90  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/refregexample.f90  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/rwdsetexample.f90  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/selectele.f90      _DO_NOT_DISTRIBUTE_
 
-./doc/html/Tutor/examples/java/Dependencies
-./doc/html/Tutor/examples/java/Makefile.in
-./doc/html/Tutor/examples/java/Makefile.in.txt
-./doc/html/Tutor/examples/java/Makefile.txt
-./doc/html/Tutor/examples/java/Compound.java
-./doc/html/Tutor/examples/java/Copy.java
-./doc/html/Tutor/examples/java/CreateAttribute.java
-./doc/html/Tutor/examples/java/CreateDataset.java
-./doc/html/Tutor/examples/java/CreateFile.java
-./doc/html/Tutor/examples/java/CreateFileInput.java
-./doc/html/Tutor/examples/java/CreateGroup.java
-./doc/html/Tutor/examples/java/CreateGroupAR.java
-./doc/html/Tutor/examples/java/CreateGroupDataset.java
-./doc/html/Tutor/examples/java/DatasetRdWt.java
-./doc/html/Tutor/examples/java/HyperSlab.java
-./doc/html/Tutor/examples/java/README
-./doc/html/Tutor/examples/java/readme.html
-./doc/html/Tutor/examples/java/runCompound.sh
-./doc/html/Tutor/examples/java/runCompound.sh.in
-./doc/html/Tutor/examples/java/runCopy.sh
-./doc/html/Tutor/examples/java/runCopy.sh.in
-./doc/html/Tutor/examples/java/runCreateAttribute.sh
-./doc/html/Tutor/examples/java/runCreateAttribute.sh.in
-./doc/html/Tutor/examples/java/runCreateDataset.sh
-./doc/html/Tutor/examples/java/runCreateDataset.sh.in
-./doc/html/Tutor/examples/java/runCreateFile.sh
-./doc/html/Tutor/examples/java/runCreateFile.sh.in
-./doc/html/Tutor/examples/java/runCreateFileInput.sh
-./doc/html/Tutor/examples/java/runCreateFileInput.sh.in
-./doc/html/Tutor/examples/java/runCreateGroup.sh
-./doc/html/Tutor/examples/java/runCreateGroup.sh.in
-./doc/html/Tutor/examples/java/runCreateGroupAR.sh
-./doc/html/Tutor/examples/java/runCreateGroupAR.sh.in
-./doc/html/Tutor/examples/java/runCreateGroupDataset.sh
-./doc/html/Tutor/examples/java/runCreateGroupDataset.sh.in
-./doc/html/Tutor/examples/java/runDatasetRdWt.sh
-./doc/html/Tutor/examples/java/runDatasetRdWt.sh.in
-./doc/html/Tutor/examples/java/runHyperSlab.sh
-./doc/html/Tutor/examples/java/runHyperSlab.sh.in
+./doc/html/Tutor/examples/java/Dependencies             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/Makefile.in              _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/Makefile.in.txt          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/Makefile.txt             _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/Compound.java            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/Copy.java                _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateAttribute.java     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateDataset.java       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateFile.java          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateFileInput.java     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateGroup.java         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateGroupAR.java       _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/CreateGroupDataset.java  _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/DatasetRdWt.java         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/HyperSlab.java           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/README                   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/readme.html              _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCompound.sh           _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCompound.sh.in        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCopy.sh               _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCopy.sh.in            _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateAttribute.sh    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateAttribute.sh.in _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateDataset.sh      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateDataset.sh.in   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateFile.sh         _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateFile.sh.in      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateFileInput.sh    _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateFileInput.sh.in _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateGroup.sh        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateGroup.sh.in     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateGroupAR.sh      _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateGroupAR.sh.in   _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateGroupDataset.sh _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runCreateGroupDataset.sh.in _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runDatasetRdWt.sh        _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runDatasetRdWt.sh.in     _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runHyperSlab.sh          _DO_NOT_DISTRIBUTE_
+./doc/html/Tutor/examples/java/runHyperSlab.sh.in       _DO_NOT_DISTRIBUTE_
 
 ./doc/html/cpplus/CppInterfaces.html
 ./doc/html/cpplus/CppUserNotes.doc
@@ -488,7 +487,6 @@
 
 ./fortran/Makefile.dist
 ./fortran/Makefile.in
-./fortran/acconfig.h
 ./fortran/aclocal.m4
 ./fortran/acsite.m4
 ./fortran/configure
@@ -520,6 +518,7 @@
 ./fortran/config/linux-gnulibc1
 ./fortran/config/linux-gnulibc2
 ./fortran/config/powerpc-ibm-aix4.x
+./fortran/config/powerpc-ibm-aix5.x
 ./fortran/config/rs6000-ibm-aix4.x
 ./fortran/config/solaris2.x
 ./fortran/config/sv1-cray
@@ -573,7 +572,7 @@
 ./fortran/src/H5Sff.f90
 ./fortran/src/H5Tf.c
 ./fortran/src/H5Tff.f90
-./fortran/src/H5config.h.in
+./fortran/src/H5config_fortran.h.in
 ./fortran/src/H5f90.h
 ./fortran/src/H5f90global.f90
 ./fortran/src/H5f90i.h
@@ -746,9 +745,10 @@
 ./pablo/ProcTrace.h
 ./pablo/READ_ME
 
-./perform/Makefile.in
 ./perform/Dependencies
+./perform/Makefile.in
 ./perform/chunk.c
+./perform/gen_report.pl
 ./perform/iopipe.c
 ./perform/mpi-perf.c
 ./perform/overhead.c
@@ -912,6 +912,7 @@
 ./test/extend.c
 ./test/external.c
 ./test/fillval.c
+./test/fill_new.h5
 ./test/flush1.c
 ./test/flush2.c
 ./test/gass_append.c
@@ -929,6 +930,7 @@
 ./test/ohdr.c
 ./test/space_overflow.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_old_array.c			_DO_NOT_DISTRIBUTE_
+./test/gen_old_fill.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_new_array.c			_DO_NOT_DISTRIBUTE_
 ./test/srb_append.c
 ./test/srb_read.c
@@ -987,22 +989,6 @@
 ./tools/gifconv/readhdf.c
 ./tools/gifconv/writehdf.c
 
-./tools/h4toh5/Dependencies
-./tools/h4toh5/Makefile.in
-./tools/h4toh5/h4toh5anno.c
-./tools/h4toh5/h4toh5image.c
-./tools/h4toh5/h4toh5main.c
-./tools/h4toh5/h4toh5main.h
-./tools/h4toh5/h4toh5pal.c
-./tools/h4toh5/h4toh5sds.c
-./tools/h4toh5/h4toh5test.c
-./tools/h4toh5/h4toh5util.c
-./tools/h4toh5/h4toh5util.h
-./tools/h4toh5/h4toh5vdata.c
-./tools/h4toh5/h4toh5vgroup.c
-./tools/h4toh5/testh4toh5.sh
-./tools/h4toh5/parafile
-
 ./tools/h5dump/Dependencies
 ./tools/h5dump/Makefile.in
 ./tools/h5dump/h5dump.c
@@ -1014,12 +1000,6 @@
 ./tools/h5ls/Makefile.in
 ./tools/h5ls/h5ls.c
 ./tools/h5ls/testh5ls.sh
-
-./tools/h5toh4/Dependencies
-./tools/h5toh4/Makefile.in
-./tools/h5toh4/h5toh4.c
-./tools/h5toh4/h5toh4.h
-./tools/h5toh4/testh5toh4.sh
 
 ./tools/lib/Dependencies
 ./tools/lib/Makefile.in
@@ -1036,12 +1016,15 @@
 ./tools/misc/h5cc.in
 ./tools/misc/h5debug.c
 ./tools/misc/h5import.c
+./tools/misc/h5redeploy.in
 ./tools/misc/h5repart.c
 ./tools/misc/pdb2hdf.c
 
 ./tools/testfiles/tall-1.ddl
 ./tools/testfiles/tall-2.ddl
 ./tools/testfiles/tall-3.ddl
+./tools/testfiles/tall-4s.ddl
+./tools/testfiles/tall-5s.ddl
 ./tools/testfiles/tall.h5
 ./tools/testfiles/tarray1.ddl
 ./tools/testfiles/tarray1.h5
@@ -1073,13 +1056,27 @@
 ./tools/testfiles/tdatareg.ddl 
 ./tools/testfiles/tdset-1.ddl
 ./tools/testfiles/tdset-2.ddl
+./tools/testfiles/tdset-3s.ddl
 ./tools/testfiles/tdset.h5
+./tools/testfiles/tdset2-1s.ddl
 ./tools/testfiles/tdset2.h5
 ./tools/testfiles/tempty.ddl
 ./tools/testfiles/tempty.h5
 ./tools/testfiles/tempty.ls
 ./tools/testfiles/tenum.h5
 ./tools/testfiles/tenum.ddl
+./tools/testfiles/tfamily.ddl
+./tools/testfiles/tfamily00000.h5
+./tools/testfiles/tfamily00001.h5
+./tools/testfiles/tfamily00002.h5
+./tools/testfiles/tfamily00003.h5
+./tools/testfiles/tfamily00004.h5
+./tools/testfiles/tfamily00005.h5
+./tools/testfiles/tfamily00006.h5
+./tools/testfiles/tfamily00007.h5
+./tools/testfiles/tfamily00008.h5
+./tools/testfiles/tfamily00009.h5
+./tools/testfiles/tfamily00010.h5
 ./tools/testfiles/tgroup-1.ddl
 ./tools/testfiles/tgroup-2.ddl
 ./tools/testfiles/tgroup.h5
@@ -1091,10 +1088,19 @@
 ./tools/testfiles/thlink-4.ddl
 ./tools/testfiles/thlink-5.ddl
 ./tools/testfiles/thlink.h5
+./tools/testfiles/tlarge_objname.ddl
+./tools/testfiles/tlarge_objname.h5
 ./tools/testfiles/tloop-1.ddl
 ./tools/testfiles/tloop.h5
 ./tools/testfiles/tloop2.h5
 ./tools/testfiles/tmany.h5
+./tools/testfiles/tmulti-b.h5
+./tools/testfiles/tmulti.ddl
+./tools/testfiles/tmulti-g.h5
+./tools/testfiles/tmulti-l.h5
+./tools/testfiles/tmulti-o.h5
+./tools/testfiles/tmulti-r.h5
+./tools/testfiles/tmulti-s.h5
 ./tools/testfiles/tnestcomp-1.ddl
 ./tools/testfiles/tnestedcomp.h5
 ./tools/testfiles/tobjref.h5
@@ -1106,6 +1112,9 @@
 ./tools/testfiles/tslink-1.ddl
 ./tools/testfiles/tslink-2.ddl
 ./tools/testfiles/tslink.h5
+./tools/testfiles/tsplit_file-m.h5
+./tools/testfiles/tsplit_file-r.h5
+./tools/testfiles/tsplit_file.ddl
 ./tools/testfiles/tstr-1.ddl
 ./tools/testfiles/tstr.h5
 ./tools/testfiles/tstr2.h5
@@ -1119,25 +1128,6 @@
 ./tools/testfiles/tvldtypes3.h5
 ./tools/testfiles/tvldtypes4.ddl
 ./tools/testfiles/tvldtypes4.h5
-
-# new hdf4 files for testing h4toh5 converter
-./tools/testfiles/anno_test.hdf
-./tools/testfiles/gr_typ_test.hdf
-./tools/testfiles/grnameclash_test.hdf
-./tools/testfiles/image_attr_test.hdf
-./tools/testfiles/ras_24_test.hdf
-./tools/testfiles/ras_8_test.hdf
-./tools/testfiles/ras24il.hdf
-./tools/testfiles/sds_attr_test.hdf
-./tools/testfiles/sds_dim_test.hdf
-./tools/testfiles/sds_typ_test.hdf
-./tools/testfiles/sdsnameclash_test.hdf
-./tools/testfiles/vdata_test.hdf
-./tools/testfiles/vdnameclash_test.hdf
-./tools/testfiles/vg_all_test.hdf
-./tools/testfiles/vg_hl_test.hdf
-./tools/testfiles/vg_loop_test.hdf
-./tools/testfiles/vgnameclash_test.hdf
 
 # Expected output from h5ls tests
 ./tools/testfiles/help-1.ls
@@ -1155,40 +1145,6 @@
 ./tools/testfiles/tsaf.ls
 ./tools/testfiles/tslink-1.ls
 ./tools/testfiles/tstr-1.ls
-
-./tools/testfiles/Expected/tall.hdf
-./tools/testfiles/Expected/tattr.hdf
-./tools/testfiles/Expected/tcompound.hdf
-./tools/testfiles/Expected/tcompound2.hdf
-./tools/testfiles/Expected/tdset.hdf
-./tools/testfiles/Expected/tdset2.hdf
-./tools/testfiles/Expected/tgroup.hdf
-./tools/testfiles/Expected/thlink.hdf
-./tools/testfiles/Expected/tloop.hdf
-./tools/testfiles/Expected/tmany.hdf
-./tools/testfiles/Expected/tslink.hdf
-./tools/testfiles/Expected/tstr.hdf
-./tools/testfiles/Expected/tstr2.hdf
-
-#new expected hdf5 files from converter,2/15/01
-./tools/testfiles/Expected/anno_test.h5
-./tools/testfiles/Expected/gr_typ_test.h5
-./tools/testfiles/Expected/grnameclash_test.h5
-./tools/testfiles/Expected/image_attr_test.h5
-./tools/testfiles/Expected/ras_24_test.h5
-./tools/testfiles/Expected/ras_8_test.h5
-./tools/testfiles/Expected/ras24il.h5
-./tools/testfiles/Expected/sds_attr.h5
-./tools/testfiles/Expected/sds_attr_test.h5
-./tools/testfiles/Expected/sds_dim_test.h5
-./tools/testfiles/Expected/sds_typ_test.h5
-./tools/testfiles/Expected/sdsnameclash_test.h5
-./tools/testfiles/Expected/vdata_test.h5
-./tools/testfiles/Expected/vdnameclash_test.h5
-./tools/testfiles/Expected/vg_all_test.h5
-./tools/testfiles/Expected/vg_hl_test.h5
-./tools/testfiles/Expected/vg_loop_test.h5
-./tools/testfiles/Expected/vgnameclash_test.h5
 
 #additional test input and output for h5dump XML
 ./tools/testfiles/tall.h5.xml
@@ -1248,4 +1204,3 @@
 
 ./windows/all.zip
 ./windows/all_withf90.zip
-./windows/all_withhdf4.zip

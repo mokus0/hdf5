@@ -1,16 +1,18 @@
-/****************************************************************************
-* NCSA HDF                                                                  *
-* Software Development Group                                                *
-* National Center for Supercomputing Applications                           *
-* University of Illinois at Urbana-Champaign                                *
-* 605 E. Springfield, Champaign IL 61820                                    *
-*                                                                           *
-* For conditions of distribution and use, see the accompanying              *
-* hdf/COPYING file.                                                         *
-*                                                                           *
-****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Tvlen.c,v 1.12.2.3 2001/08/15 14:50:23 koziol Exp $ */
+/* $Id: H5Tvlen.c,v 1.12.2.5 2002/06/10 19:48:15 wendling Exp $ */
 
 #define H5T_PACKAGE		/*suppress error about including H5Tpkg    */
 
@@ -205,7 +207,8 @@ herr_t H5T_vlen_seq_mem_read(H5F_t UNUSED *f, void *vl_addr, void *buf, size_t l
 herr_t H5T_vlen_seq_mem_write(const H5D_xfer_t *xfer_parms, H5F_t UNUSED *f, void *vl_addr, void *buf, hsize_t seq_len, hsize_t base_size)
 {
     hvl_t *vl=(hvl_t *)vl_addr;   /* Pointer to the user's hvl_t information */
-    size_t len=seq_len*base_size;
+    size_t len;
+    H5_ASSIGN_OVERFLOW(len,(seq_len*base_size),hsize_t,size_t);
 
     FUNC_ENTER (H5T_vlen_seq_mem_write, FAIL);
 
@@ -215,13 +218,12 @@ herr_t H5T_vlen_seq_mem_write(const H5D_xfer_t *xfer_parms, H5F_t UNUSED *f, voi
 
     if(seq_len!=0) {
         /* Use the user's memory allocation routine is one is defined */
-        assert((seq_len*base_size)==(hsize_t)((size_t)(seq_len*base_size))); /*check for overflow*/
         if(xfer_parms->vlen_alloc!=NULL) {
-            if(NULL==(vl->p=(xfer_parms->vlen_alloc)((size_t)(seq_len*base_size),xfer_parms->alloc_info)))
+            if(NULL==(vl->p=(xfer_parms->vlen_alloc)(len,xfer_parms->alloc_info)))
                 HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
           } /* end if */
         else {  /* Default to system malloc */
-            if(NULL==(vl->p=H5MM_malloc((size_t)(seq_len*base_size))))
+            if(NULL==(vl->p=H5MM_malloc(len)))
                 HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
           } /* end else */
 
@@ -233,7 +235,7 @@ herr_t H5T_vlen_seq_mem_write(const H5D_xfer_t *xfer_parms, H5F_t UNUSED *f, voi
         vl->p=NULL;
 
     /* Set the sequence length */
-    vl->len=seq_len;
+    H5_ASSIGN_OVERFLOW(vl->len,seq_len,hsize_t,size_t);
 
     FUNC_LEAVE (SUCCEED);
 }   /* end H5T_vlen_seq_mem_write() */
@@ -316,7 +318,8 @@ herr_t H5T_vlen_str_mem_read(H5F_t UNUSED *f, void *vl_addr, void *buf, size_t l
 herr_t H5T_vlen_str_mem_write(const H5D_xfer_t *xfer_parms, H5F_t UNUSED *f, void *vl_addr, void *buf, hsize_t seq_len, hsize_t base_size)
 {
     char **s=(char **)vl_addr;   /* Pointer to the user's hvl_t information */
-    size_t len=seq_len*base_size;
+    size_t len;
+    H5_CHECK_OVERFLOW(((seq_len+1)*base_size),hsize_t,size_t);
 
     FUNC_ENTER (H5T_vlen_str_mem_write, FAIL);
 
@@ -324,7 +327,7 @@ herr_t H5T_vlen_str_mem_write(const H5D_xfer_t *xfer_parms, H5F_t UNUSED *f, voi
     assert(buf);
 
     /* Use the user's memory allocation routine is one is defined */
-    assert(((seq_len+1)*base_size)==(hsize_t)((size_t)((seq_len+1)*base_size))); /*check for overflow*/
+
     if(xfer_parms->vlen_alloc!=NULL) {
         if(NULL==(*s=(xfer_parms->vlen_alloc)((size_t)((seq_len+1)*base_size),xfer_parms->alloc_info)))
             HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
@@ -334,6 +337,7 @@ herr_t H5T_vlen_str_mem_write(const H5D_xfer_t *xfer_parms, H5F_t UNUSED *f, voi
             HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
       } /* end else */
 
+   len=(size_t)seq_len*base_size;
     HDmemcpy(*s,buf,len);
     (*s)[len]='\0';
 
@@ -434,7 +438,7 @@ herr_t H5T_vlen_disk_write(const H5D_xfer_t UNUSED *xfer_parms, H5F_t *f, void *
 {
     uint8_t *vl=(uint8_t *)vl_addr;   /* Pointer to the user's hvl_t information */
     H5HG_t hobjid;
-    size_t len=seq_len*base_size;
+    size_t len;
 
     FUNC_ENTER (H5T_vlen_disk_write, FAIL);
 
@@ -444,11 +448,13 @@ herr_t H5T_vlen_disk_write(const H5D_xfer_t UNUSED *xfer_parms, H5F_t *f, void *
     assert(f);
 
     /* Set the length of the sequence */
+    H5_CHECK_OVERFLOW(seq_len,hsize_t,size_t);
     UINT32ENCODE(vl, seq_len);
     
     /* Check if this sequence actually has any data */
     if(seq_len!=0) {
         /* Write the VL information to disk (allocates space also) */
+        H5_ASSIGN_OVERFLOW(len,(seq_len*base_size),hsize_t,size_t);
         if(H5HG_insert(f,len,buf,&hobjid)<0)
             HRETURN_ERROR(H5E_DATATYPE, H5E_WRITEERROR, FAIL, "Unable to write VL information");
     } /* end if */

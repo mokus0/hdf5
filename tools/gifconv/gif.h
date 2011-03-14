@@ -22,6 +22,7 @@
 
 /* typedef H5T_NATIVE_UINT8  BYTE; */
 typedef unsigned char BYTE;
+typedef BYTE		byte;
 
 /* typedef H5T_NATIVE_UINT16  WORD; */
 typedef unsigned long WORD;
@@ -169,11 +170,15 @@ int WriteHDF(GIFTOMEM , CHAR * , CHAR *);
 */
 int ReadHDF(BYTE** data , BYTE palette[256][3] , hsize_t *image_size , CHAR *h5_file , CHAR *dset_name , CHAR *pal_name);
 
-BYTE *ReadDataSubBlocks(BYTE ** , WORD *);
 BYTE *Decompress (GIFIMAGEDESC * , GIFHEAD *);
 BYTE GetByte(BYTE *);
 WORD GetWord(BYTE *);
 
 void cleanup(BYTE*);
+
+/* HDFGIFWR.C */
+extern int
+hdfWriteGIF(FILE *fp, byte *pic, int w, int h, byte *pc2ncmap, int BitsPerPixel);
+
 #endif  /* GIF_H */
 

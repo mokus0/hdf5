@@ -1,14 +1,16 @@
-/****************************************************************************
- * NCSA HDF                                                                 *
- * Software Development Group                                               *
- * National Center for Supercomputing Applications                          *
- * University of Illinois at Urbana-Champaign                               *
- * 605 E. Springfield, Champaign IL 61820                                   *
- *                                                                          *
- * For conditions of distribution and use, see the accompanying             *
- * hdf/COPYING file.                                                        *
- *                                                                          *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * This file contains public declarations for the H5T module.
@@ -505,6 +507,7 @@ __DLL__ H5T_pad_t H5Tget_inpad(hid_t type_id);
 __DLL__ H5T_str_t H5Tget_strpad(hid_t type_id);
 __DLL__ int H5Tget_nmembers(hid_t type_id);
 __DLL__ char *H5Tget_member_name(hid_t type_id, int membno);
+__DLL__ int H5Tget_member_index(hid_t type_id, const char *name);
 __DLL__ size_t H5Tget_member_offset(hid_t type_id, int membno);
 #if defined(WANT_H5_V1_2_COMPAT) || defined(H5_WANT_H5_V1_2_COMPAT)
 __DLL__ int H5Tget_member_dims(hid_t type_id, int membno, size_t dims[]/*out*/,

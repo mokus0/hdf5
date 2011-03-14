@@ -1,16 +1,18 @@
-/****************************************************************************
- * NCSA HDF								    *
- * Software Development Group						    *
- * National Center for Supercomputing Applications			    *
- * University of Illinois at Urbana-Champaign				    *
- * 605 E. Springfield, Champaign IL 61820				    *
- *									    *
- * For conditions of distribution and use, see the accompanying		    *
- * hdf/COPYING file.							    *
- *									    *
- ****************************************************************************/
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5I.c,v 1.36.2.3 2001/08/15 14:45:17 koziol Exp $ */
+/* $Id: H5I.c,v 1.36.2.5 2002/06/12 18:02:37 koziol Exp $ */
 
 /*
  * FILE:	H5I.c - Internal storage routines for handling "IDs"
@@ -413,7 +415,7 @@ H5I_clear_group(H5I_type_t grp, hbool_t force)
             /* Free the object regardless of reference count */
             if (grp_ptr->free_func && (grp_ptr->free_func)(cur->obj_ptr)<0) {
                 if (force) {
-#if H5I_DEBUG
+#ifdef H5I_DEBUG
                     if (H5DEBUG(I)) {
                     fprintf(H5DEBUG(I), "H5I: free grp=%d obj=0x%08lx "
                         "failure ignored\n", (int)grp,

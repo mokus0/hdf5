@@ -53,7 +53,7 @@ host_triplet = @host@
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/testph5.sh.in $(top_srcdir)/config/commence.am \
 	$(top_srcdir)/config/conclude.am COPYING
-check_PROGRAMS = $(am__EXEEXT_1)
+check_PROGRAMS = $(am__EXEEXT_1) t_shapesame$(EXEEXT)
 TESTS = $(check_PROGRAMS) $(am__EXEEXT_2)
 subdir = testpar
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -87,6 +87,10 @@ t_posix_compliant_SOURCES = t_posix_compliant.c
 t_posix_compliant_OBJECTS = t_posix_compliant.$(OBJEXT)
 t_posix_compliant_LDADD = $(LDADD)
 t_posix_compliant_DEPENDENCIES = $(LIBH5TEST) $(LIBHDF5)
+t_shapesame_SOURCES = t_shapesame.c
+t_shapesame_OBJECTS = t_shapesame.$(OBJEXT)
+t_shapesame_LDADD = $(LDADD)
+t_shapesame_DEPENDENCIES = $(LIBH5TEST) $(LIBHDF5)
 am_testphdf5_OBJECTS = testphdf5.$(OBJEXT) t_dset.$(OBJEXT) \
 	t_file.$(OBJEXT) t_mdset.$(OBJEXT) t_ph5basic.$(OBJEXT) \
 	t_coll_chunk.$(OBJEXT) t_span_tree.$(OBJEXT) \
@@ -108,9 +112,9 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = t_cache.c t_mpi.c t_pflush1.c t_pflush2.c \
-	t_posix_compliant.c $(testphdf5_SOURCES)
+	t_posix_compliant.c t_shapesame.c $(testphdf5_SOURCES)
 DIST_SOURCES = t_cache.c t_mpi.c t_pflush1.c t_pflush2.c \
-	t_posix_compliant.c $(testphdf5_SOURCES)
+	t_posix_compliant.c t_shapesame.c $(testphdf5_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 am__tty_colors = \
@@ -319,7 +323,6 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -360,6 +363,16 @@ LIBH5_HL = $(top_builddir)/hl/src/libhdf5_hl.la
 LIBH5F_HL = $(top_builddir)/hl/fortran/src/libhdf5hl_fortran.la
 LIBH5CPP_HL = $(top_builddir)/hl/c++/src/libhdf5_hl_cpp.la
 
+# Note that in svn revision 19400 the '/' after DESTDIR in H5* variables below  
+# has been removed. According to the official description of DESTDIR by Gnu at 
+# http://www.gnu.org/prep/standards/html_node/DESTDIR.html, DESTDIR is 
+# prepended to the normal and complete install path that it precedes for the 
+# purpose of installing in a temporary directory which is useful for building 
+# rpms and other packages.  The '/' after ${DESTDIR} will be followed by another 
+# '/' at the beginning of the normal install path.  When DESTDIR is empty the  
+# path then begins with '//', which is incorrect and causes problems at least for 
+# Cygwin.   
+
 # Scripts used to build examples
 # If only shared libraries have been installed, have h5cc build examples with
 # shared libraries instead of static libraries
@@ -368,6 +381,7 @@ H5CC_PP = ${DESTDIR}$(bindir)/h5pcc
 H5FC = ${DESTDIR}$(bindir)/h5fc
 H5FC_PP = ${DESTDIR}$(bindir)/h5pfc
 H5CPP = ${DESTDIR}$(bindir)/h5c++
+ACLOCAL_AMFLAGS = "-I m4"
 
 # The trace script; this is used on source files from the C library to
 # insert tracing macros.
@@ -381,8 +395,8 @@ TRACE = perl $(top_srcdir)/bin/trace
 # MPItest.h5 is from t_mpi
 # Para*.h5 are from testphdf
 # go is used for debugging. See testphdf5.c.
-CHECK_CLEANFILES = *.chkexe *.chklog *.clog $(TEST_PROG) *.o *.exe \
-	MPItest.h5 Para*.h5 CacheTestDummy.h5 go
+CHECK_CLEANFILES = *.chkexe *.chklog *.clog MPItest.h5 Para*.h5 \
+	CacheTestDummy.h5 go
 INCLUDES = -I$(top_srcdir)/src -I$(top_srcdir)/test
 
 # Test programs and scripts.  These are our main targets.
@@ -391,7 +405,7 @@ TEST_PROG_PARA = t_mpi t_posix_compliant testphdf5 t_cache t_pflush1 t_pflush2
 TEST_SCRIPT_PARA = testph5.sh
 check_SCRIPTS = $(TEST_SCRIPT)
 testphdf5_SOURCES = testphdf5.c t_dset.c t_file.c t_mdset.c t_ph5basic.c \
-        t_coll_chunk.c t_span_tree.c t_chunk_alloc.c t_filter_read.c 
+        t_coll_chunk.c t_span_tree.c t_chunk_alloc.c t_filter_read.c
 
 
 # The tests all depend on the hdf5 library and the test library
@@ -473,6 +487,9 @@ t_pflush2$(EXEEXT): $(t_pflush2_OBJECTS) $(t_pflush2_DEPENDENCIES)
 t_posix_compliant$(EXEEXT): $(t_posix_compliant_OBJECTS) $(t_posix_compliant_DEPENDENCIES) 
 	@rm -f t_posix_compliant$(EXEEXT)
 	$(LINK) $(t_posix_compliant_OBJECTS) $(t_posix_compliant_LDADD) $(LIBS)
+t_shapesame$(EXEEXT): $(t_shapesame_OBJECTS) $(t_shapesame_DEPENDENCIES) 
+	@rm -f t_shapesame$(EXEEXT)
+	$(LINK) $(t_shapesame_OBJECTS) $(t_shapesame_LDADD) $(LIBS)
 testphdf5$(EXEEXT): $(testphdf5_OBJECTS) $(testphdf5_DEPENDENCIES) 
 	@rm -f testphdf5$(EXEEXT)
 	$(LINK) $(testphdf5_OBJECTS) $(testphdf5_LDADD) $(LIBS)
@@ -495,6 +512,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_pflush2.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_ph5basic.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_posix_compliant.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_shapesame.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_span_tree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/testphdf5.Po@am__quote@
 

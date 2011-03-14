@@ -417,6 +417,11 @@ SET (H5Z_SRCS
     ${HDF5_SRC_DIR}/H5Zszip.c
     ${HDF5_SRC_DIR}/H5Ztrans.c
 )
+IF (H5_ZLIB_HEADER)
+  SET_PROPERTY(SOURCE ${HDF5_SRC_DIR}/H5Zdeflate.c PROPERTY
+      COMPILE_DEFINITIONS H5_ZLIB_HEADER="${H5_ZLIB_HEADER}")
+ENDIF (H5_ZLIB_HEADER)
+
 
 SET (H5Z_HDRS
     ${HDF5_SRC_DIR}/H5Zpkg.h
@@ -452,6 +457,7 @@ SET (common_SRCS
     ${HDF5_SRC_DIR}/H5FO.c
     ${HDF5_SRC_DIR}/H5HP.c
     ${HDF5_SRC_DIR}/H5I.c
+    ${HDF5_SRC_DIR}/H5Itest.c
     ${HDF5_SRC_DIR}/H5L.c
     ${HDF5_SRC_DIR}/H5Lexternal.c
     ${HDF5_SRC_DIR}/H5MM.c
@@ -546,14 +552,8 @@ SET (H5_PRIVATE_HEADERS
     ${HDF5_SRC_DIR}/H5Vprivate.h
     ${HDF5_SRC_DIR}/H5WBprivate.h
     ${HDF5_SRC_DIR}/H5Zprivate.h
+    ${HDF5_SRC_DIR}/H5win32defs.h
 )
-
-IF (WIN32)
-  SET (H5_PRIVATE_HEADERS
-      ${H5_PRIVATE_HEADERS}
-      ${HDF5_SRC_DIR}/H5win32defs.h
-  )
-ENDIF (WIN32)
 
 INCLUDE_DIRECTORIES (${HDF5_SOURCE_DIR})
 INCLUDE_DIRECTORIES (${CMAKE_BINARY_DIR})
@@ -647,13 +647,17 @@ H5_SET_LIB_OPTIONS (${HDF5_LIB_TARGET} ${HDF5_LIB_NAME} ${LIB_TYPE})
 #-----------------------------------------------------------------------------
 # Add file(s) to CMake Install
 #-----------------------------------------------------------------------------
-INSTALL (
-    FILES
-        ${H5_PUBLIC_HEADERS}
-        ${H5_PRIVATE_HEADERS}
-    DESTINATION
-        include
-)
+IF (NOT HDF5_INSTALL_NO_DEVELOPMENT)
+  INSTALL (
+      FILES
+          ${H5_PUBLIC_HEADERS}
+          ${H5_PRIVATE_HEADERS}
+      DESTINATION
+          ${HDF5_INSTALL_INCLUDE_DIR}
+      COMPONENT
+          headers
+  )
+ENDIF (NOT HDF5_INSTALL_NO_DEVELOPMENT)
 
 #-----------------------------------------------------------------------------
 # Add Target(s) to CMake Install for import into other projects
@@ -664,8 +668,8 @@ IF (HDF5_EXPORTED_TARGETS)
           ${HDF5_LIB_TARGET}
       EXPORT
           ${HDF5_EXPORTED_TARGETS}
-      LIBRARY DESTINATION lib
-      ARCHIVE DESTINATION lib
-      RUNTIME DESTINATION bin
+      LIBRARY DESTINATION ${HDF5_INSTALL_LIB_DIR} COMPONENT libraries
+      ARCHIVE DESTINATION ${HDF5_INSTALL_LIB_DIR} COMPONENT libraries
+      RUNTIME DESTINATION ${HDF5_INSTALL_BIN_DIR} COMPONENT libraries
   )
 ENDIF (HDF5_EXPORTED_TARGETS)

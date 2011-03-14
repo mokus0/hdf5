@@ -50,6 +50,7 @@ $(EXTRA_PROG): $(H5FC)
 endif
 
 # Tell automake how to install examples
+# Note: no '/' after DESTDIR.  Explanation in commence.am
 EXAMPLEDIR=${DESTDIR}$(exec_prefix)/share/hdf5_examples/hl/fortran
 
 # List dependencies for each example.  Normally, automake would take

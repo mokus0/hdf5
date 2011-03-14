@@ -275,7 +275,6 @@ libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
-lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -316,6 +315,16 @@ LIBH5_HL = $(top_builddir)/hl/src/libhdf5_hl.la
 LIBH5F_HL = $(top_builddir)/hl/fortran/src/libhdf5hl_fortran.la
 LIBH5CPP_HL = $(top_builddir)/hl/c++/src/libhdf5_hl_cpp.la
 
+# Note that in svn revision 19400 the '/' after DESTDIR in H5* variables below  
+# has been removed. According to the official description of DESTDIR by Gnu at 
+# http://www.gnu.org/prep/standards/html_node/DESTDIR.html, DESTDIR is 
+# prepended to the normal and complete install path that it precedes for the 
+# purpose of installing in a temporary directory which is useful for building 
+# rpms and other packages.  The '/' after ${DESTDIR} will be followed by another 
+# '/' at the beginning of the normal install path.  When DESTDIR is empty the  
+# path then begins with '//', which is incorrect and causes problems at least for 
+# Cygwin.   
+
 # Scripts used to build examples
 # If only shared libraries have been installed, have h5cc build examples with
 # shared libraries instead of static libraries
@@ -324,6 +333,7 @@ H5CC_PP = ${DESTDIR}$(bindir)/h5pcc
 H5FC = ${DESTDIR}$(bindir)/h5fc
 H5FC_PP = ${DESTDIR}$(bindir)/h5pfc
 H5CPP = ${DESTDIR}$(bindir)/h5c++
+ACLOCAL_AMFLAGS = "-I m4"
 
 # The trace script; this is used on source files from the C library to
 # insert tracing macros.
@@ -332,11 +342,11 @@ TRACE = perl $(top_srcdir)/bin/trace
 # .chkexe files are used to mark tests that have run successfully.
 # .chklog files are output from those tests.
 # *.clog are from the MPE option.
-CHECK_CLEANFILES = *.chkexe *.chklog *.clog $(TEST_PROG) *.o *.exe \
-	*.h5
+CHECK_CLEANFILES = *.chkexe *.chklog *.clog *.h5
 @BUILD_PARALLEL_CONDITIONAL_TRUE@TEST_PROG_PARA = 
 
 # Example directory
+# Note: no '/' after DESTDIR.  Explanation in commence.am
 EXAMPLEDIR = ${DESTDIR}$(exec_prefix)/share/hdf5_examples/hl/c
 EXAMPLETOPDIR = ${DESTDIR}$(exec_prefix)/share/hdf5_examples/hl
 
@@ -344,7 +354,7 @@ EXAMPLETOPDIR = ${DESTDIR}$(exec_prefix)/share/hdf5_examples/hl
 # Don't tell automake about them, because if it knew they were programs,
 # it would try to compile them instead of using the h5cc script.
 # Use the boilerplate in config/examples.am instead.
-TEST_PROG = ex_lite1 ex_lite2 ex_lite3 ptExampleFL ptExampleVL \
+TEST_PROG = ex_lite1 ex_lite2 ex_lite3 ptExampleFL \
             ex_image1 ex_image2 \
             ex_table_01 ex_table_02 ex_table_03 ex_table_04 \
             ex_table_05 ex_table_06 ex_table_07 ex_table_08 \
@@ -354,7 +364,7 @@ TEST_PROG = ex_lite1 ex_lite2 ex_lite3 ptExampleFL ptExampleVL \
 
 # Install files
 # List all file that should be installed in examples directory
-INSTALL_FILES = ex_lite1.c ex_lite2.c ex_lite3.c ptExampleFL.c ptExampleVL.c \
+INSTALL_FILES = ex_lite1.c ex_lite2.c ex_lite3.c ptExampleFL.c \
                 ex_image1.c ex_image2.c \
                 ex_table_01.c ex_table_02.c ex_table_03.c ex_table_04.c      \
                 ex_table_05.c ex_table_06.c ex_table_07.c ex_table_08.c      \
@@ -611,7 +621,6 @@ ex_lite1: $(srcdir)/ex_lite1.c
 ex_lite2: $(srcdir)/ex_lite2.c
 ex_lite3: $(srcdir)/ex_lite3.c
 ptExampleFL: $(srcdir)/ptExampleFL.c
-ptExampleVL: $(srcdir)/ptExampleVL.c
 ex_image1: $(srcdir)/ex_image1.c
 ex_image2: $(srcdir)/ex_image2.c
 ex_table01: $(srcdir)/ex_table01.c
@@ -643,42 +652,52 @@ uninstall-local:
 	@$(MAKE) $(AM_MAKEFLAGS) uninstall-examples
 
 install-examples: $(EXAMPLEDIR) $(INSTALL_FILES) 
-	@for f in X $(INSTALL_FILES); do                                     \
-	  if test $$f != X; then                                             \
-	    (set -x; $(INSTALL) $(srcdir)/$$f $(EXAMPLEDIR)/. || exit 1);\
-	  fi;                                                                \
+	@for f in X $(INSTALL_FILES); do                                       \
+	  if test $$f != X; then                                               \
+	    (set -x; $(INSTALL) $(srcdir)/$$f $(EXAMPLEDIR)/. || exit 1);      \
+            chmod a-x $(EXAMPLEDIR)/$$f;                                       \
+	  fi;                                                                  \
 	done
-	@for f in X $(INSTALL_SCRIPT_FILES); do                                   \
-	  if test $$f != X; then                                             \
-	    (set -x; $(INSTALL) $$f $(EXAMPLEDIR)/. || exit 1);\
-	  fi;                                                                \
+	@for f in X $(INSTALL_SCRIPT_FILES); do                                \
+	  if test $$f != X; then                                               \
+	    (set -x; $(INSTALL) $$f $(EXAMPLEDIR)/. || exit 1);                \
+	  fi;                                                                  \
 	done
-	@for f in X $(INSTALL_TOP_SCRIPT_FILES); do                       \
-	  if test $$f != X; then                                             \
-	    (set -x; $(INSTALL) $(srcdir)/$$f $(EXAMPLETOPDIR)/. || exit 1); \
-	  fi;                                                                \
+	@for f in X $(INSTALL_TOP_FILES); do                                   \
+	  if test $$f != X; then                                               \
+	    (set -x; $(INSTALL) $(srcdir)/$$f $(EXAMPLETOPDIR)/. || exit 1);   \
+            chmod a-x $(EXAMPLETOPDIR)/$$f;\
+	  fi;                                                                  \
+	done
+	@for f in X $(INSTALL_TOP_SCRIPT_FILES); do                            \
+	  if test $$f != X; then                                               \
+	    (set -x; $(INSTALL) $(srcdir)/$$f $(EXAMPLETOPDIR)/. || exit 1);   \
+	  fi;                                                                  \
 	done
 
 uninstall-examples:
-	@if test -n "$(INSTALL_FILES)" -a -d $(EXAMPLEDIR); then             \
-	  set -x; cd $(EXAMPLEDIR) && $(RM) $(INSTALL_FILES);                \
+	@if test -n "$(INSTALL_FILES)" -a -d $(EXAMPLEDIR); then               \
+	  set -x; cd $(EXAMPLEDIR) && $(RM) $(INSTALL_FILES);                  \
         fi
-	@if test -n "$(INSTALL_SCRIPT_FILES)" -a -d $(EXAMPLEDIR); then           \
-	  set -x; cd $(EXAMPLEDIR) && $(RM) $(INSTALL_SCRIPT_FILES);              \
+	@if test -n "$(INSTALL_SCRIPT_FILES)" -a -d $(EXAMPLEDIR); then        \
+	  set -x; cd $(EXAMPLEDIR) && $(RM) $(INSTALL_SCRIPT_FILES);           \
         fi
-	@if test -n "$(INSTALL_TOP_SCRIPT_FILES)" -a -d $(EXAMPLETOPDIR); then    \
-	  set -x; cd $(EXAMPLETOPDIR) && $(RM) $(INSTALL_TOP_SCRIPT_FILES);       \
+	@if test -n "$(INSTALL_TOP_FILES)" -a -d $(EXAMPLETOPDIR); then        \
+	  set -x; cd $(EXAMPLETOPDIR) && $(RM) $(INSTALL_TOP_FILES);           \
+        fi
+	@if test -n "$(INSTALL_TOP_SCRIPT_FILES)" -a -d $(EXAMPLETOPDIR); then \
+	  set -x; cd $(EXAMPLETOPDIR) && $(RM) $(INSTALL_TOP_SCRIPT_FILES);    \
         fi
 
 installcheck-local:
-	@if test "$(STATIC_SHARED)" = "static, shared"; then               \
-	  H5CCFLAGS="-shlib" $(MAKE) $(AM_MAKEFLAGS) check;                \
-	  $(MAKE) $(AM_MAKEFLAGS) clean;                                   \
-	  H5CCFLAGS="" $(MAKE) $(AM_MAKEFLAGS) check;                      \
-	 elif test "$(STATIC_SHARED)" = "shared"; then                     \
-	  H5CCFLAGS="-shlib" $(MAKE) $(AM_MAKEFLAGS) check;                \
-	 else                                                              \
-	  $(MAKE) $(AM_MAKEFLAGS) check;                                   \
+	@if test "$(STATIC_SHARED)" = "static, shared"; then                   \
+	  H5CCFLAGS="-shlib" $(MAKE) $(AM_MAKEFLAGS) check;                    \
+	  $(MAKE) $(AM_MAKEFLAGS) clean;                                       \
+	  H5CCFLAGS="" $(MAKE) $(AM_MAKEFLAGS) check;                          \
+	 elif test "$(STATIC_SHARED)" = "shared"; then                         \
+	  H5CCFLAGS="-shlib" $(MAKE) $(AM_MAKEFLAGS) check;                    \
+	 else                                                                  \
+	  $(MAKE) $(AM_MAKEFLAGS) check;                                       \
 	 fi
 
 # lib/progs/tests targets recurse into subdirectories. build-* targets

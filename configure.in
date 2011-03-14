@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 19299 2010-08-25 21:18:57Z koziol $)
+AC_REVISION($Id: configure.in 20092 2011-02-11 22:30:31Z nfortne2 $)
 AC_PREREQ([2.53])
 
 dnl AC_INIT takes the name of the package, the version number, and an
@@ -26,12 +26,12 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.8.5-patch1], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.6], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AM_CONFIG_HEADER([src/H5config.h])
 
 AC_CONFIG_AUX_DIR([bin])
-
+AC_CONFIG_MACRO_DIR([m4])
 dnl AM_INIT_AUTOMAKE takes a list of options that should be applied to
 dnl every Makefile.am when automake is run.
 AM_INIT_AUTOMAKE([foreign])
@@ -253,6 +253,9 @@ case $host_os in
     ;;
   aix5.*)
     host_os_novers=aix5.x
+    ;;
+  aix6.*)
+    host_os_novers=aix6.x
     ;;
   freebsd*)
     host_os_novers=freebsd
@@ -683,7 +686,7 @@ dnl    RUNSERIAL	-- This is a command which will be prepended to
 dnl			   the executable name to run the executable using
 dnl			   a single process. For serial versions of the
 dnl			   library this will normally be empty. For parallel
-dnl			   versions it might be something like `mpirun -np 1'.
+dnl			   versions it might be something like `mpiexec -n 1'.
 dnl			   The value of this variable is substituted in *.in
 dnl			   files.
 dnl
@@ -692,9 +695,9 @@ dnl			   the executable name to run the executable on
 dnl			   multiple processors. For the serial library the
 dnl			   value will normally be the empty string. For
 dnl			   parallel library it should be something like
-dnl			   `mpi -np $$NPROCS' where NPROCS will eventually
-dnl			   contain the number of processors on which to run
-dnl			   the executable (the double dollarsigns are to
+dnl			   "mpiexec -n \$\${NPROCS:=6}" where NPROCS will
+dnl			   eventually contain the number of processors on which
+dnl			   to run the executable (the double dollarsigns are to
 dnl			   protect the expansion until make executes the
 dnl			   command).  The value of this variable is
 dnl			   substituted in *.in files.
@@ -708,15 +711,15 @@ dnl ----------------------------------------------------------------------
 dnl If the compiler is obviously a parallel compiler then we're building
 dnl a parallel version of hdf5 and should define HAVE_PARALLEL. Furthermore,
 dnl the name of the compiler might tell us how to run the resulting
-dnl executable. For `mpicc' the executable should be run with `mpirun' from
+dnl executable. For `mpicc' the executable should be run with `mpiexec' from
 dnl the same directory as mpicc if it exists.
 dnl
 case "$CC_BASENAME" in
   mpicc)
-    dnl The mpich compiler. Use mpirun from the same directory if it
+    dnl The mpich compiler. Use mpiexec from the same directory if it
     dnl exists.
     PARALLEL=mpicc
-    AC_MSG_CHECKING([for mpirun])
+    AC_MSG_CHECKING([for mpiexec])
 
     dnl Find the path where mpicc is located.
     cmd="`echo $CC | cut -f1 -d' '`"
@@ -730,48 +733,13 @@ case "$CC_BASENAME" in
       done
     fi
 
-    dnl Is there an mpirun at that path?
-    if test -x $path/mpirun; then
-      AC_MSG_RESULT([$path/mpirun])
+    dnl Is there an mpiexec at that path?
+    if test -x $path/mpiexec; then
+      AC_MSG_RESULT([$path/mpiexec])
       RUNSERIAL="${RUNSERIAL:-none}"
 
       if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="$path/mpirun -np \$\${NPROCS:=3}"
-      fi
-    else
-      AC_MSG_RESULT([none])
-    fi
-    ;;
-
-  hcc)
-    dnl The LAM compiler. Use mpirun_lam or mpirun from the same directory
-    dnl if it exists.
-    PARALLEL=hcc
-    AC_MSG_CHECKING([for mpirun_lam or mpirun])
-
-    dnl Find the path where hcc is located
-    cmd="`echo $CC | cut -f1 -d' '`"
-    if (echo $cmd | grep / >/dev/null); then
-      path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
-    else
-      for path in `echo $PATH | ${TR} ":" " "`; do
-        if test -x $path/$cmd; then
-          break
-        fi
-      done
-    fi
-
-    dnl Is there an mpirun_lam or mpirun at that path?
-    if test -x $path/mpirun_lam -o -x $path/mpirun; then
-      if test -x $path/mpirun_lam; then
-        cmd=mpirun_lam
-      else
-        cmd=mpirun
-      fi
-      AC_MSG_RESULT([$path/$cmd])
-      RUNSERIAL="${RUNSERIAL:-none}"
-      if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="$path/$cmd -np \$\${NPROCS:=3}"
+        RUNPARALLEL="$path/mpiexec -n \$\${NPROCS:=6}"
       fi
     else
       AC_MSG_RESULT([none])
@@ -781,25 +749,6 @@ case "$CC_BASENAME" in
   mpcc|mpcc_r)
     dnl The IBM compiler
     PARALLEL="$CC_BASENAME"
-    ;;
-
-  cmpicc)
-    dnl The ChaMPIon compiler on NCSA tungsten. The cmpirun command on tungsten 
-    dnl isn't in the same path as cmpicc.
-    PARALLEL=cmpicc
-    AC_MSG_CHECKING([for cmpirun])
-
-    dnl Is there an cmpirun?
-    if test -x cmpirun; then
-      AC_MSG_RESULT([cmpirun])
-      RUNSERIAL="${RUNSERIAL:-none}"
-
-      if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="cmpirun -np \$\${NPROCS:=3}"
-      fi
-    else
-      AC_MSG_RESULT([none])
-    fi
     ;;
 
   *)
@@ -813,7 +762,7 @@ dnl If the Fortran compiler is obviously a parallel compiler then we're
 dnl building a parallel version of hdf5 and should define HAVE_PARALLEL.
 dnl Furthermore, the name of the compiler might tell us how to run the
 dnl resulting executable. For `mpif90' the executable should be run with
-dnl `mpirun' from the same directory as mpif90 if it exists.
+dnl `mpiexec' from the same directory as mpif90 if it exists.
 dnl
 if test "X$HDF_FORTRAN" = "Xyes"; then
   dnl Change to the Fortran 90 language
@@ -821,10 +770,10 @@ if test "X$HDF_FORTRAN" = "Xyes"; then
 
   case "$FC" in
     *mpif90*)
-      dnl The Fortran mpich compiler. Use mpirun from the same directory
+      dnl The Fortran mpich compiler. Use mpiexec from the same directory
       dnl if it exists.
       PARALLEL=mpif90
-      AC_MSG_CHECKING([for mpirun])
+      AC_MSG_CHECKING([for mpiexec])
 
       dnl Find the path where mpif90 is located.
       cmd=`echo $FC |cut -f1 -d' '`
@@ -838,13 +787,13 @@ if test "X$HDF_FORTRAN" = "Xyes"; then
         done
       fi
 
-      dnl Is there an mpirun at that path?
-      if test -x $path/mpirun; then
-        AC_MSG_RESULT([$path/mpirun])
+      dnl Is there an mpiexec at that path?
+      if test -x $path/mpiexec; then
+        AC_MSG_RESULT([$path/mpiexec])
         RUNSERIAL="${RUNSERIAL:-none}"
 
         if test -z "$RUNPARALLEL"; then
-          RUNPARALLEL="$path/mpirun -np \$\${NPROCS:=2}"
+          RUNPARALLEL="$path/mpiexec -n \$\${NPROCS:=6}"
         fi
       else
         AC_MSG_RESULT([none])
@@ -1394,7 +1343,18 @@ case "$host_cpu-$host_vendor-$host_os" in
 
     dnl Add POSIX support on Linux systems, so <features.h> defines
     dnl __USE_POSIX, which is required to get the prototype for fdopen
-    dnl defined correctly in <stdio.h>
+    dnl defined correctly in <stdio.h>. 
+    dnl This flag was removed from h5cc as of 2009-10-17 when it was found
+    dnl that the flag broke compiling netCDF-4 code with h5cc, but kept in 
+    dnl H5_CPPFLAGS because fdopen and HDfdopen fail without it. HDfdopen
+    dnl is used only by H5_debug_mask which is used only when debugging in
+    dnl H5_init_library (all in H5.c).  When the flag was removed this was
+    dnl the only compile failure noted;  however, defining the Macro 
+    dnl makes available the functionality from the POSIX.1 standard as well
+    dnl as all or the ISO C facilities, according to a discussion of 
+    dnl defining the _POSIX_SOURCE, _BSD_SOURCE, and _POSIX_C_SOURCE Macros
+    dnl and their interaction found at 
+    dnl http://www.gnu.org/s/libc/manual/html_node/Feature-Test-Macros.html.
     H5_CPPFLAGS="-D_POSIX_SOURCE $H5_CPPFLAGS"
 
     dnl Also add BSD support on Linux systems, so <features.h> defines
@@ -1411,8 +1371,8 @@ CPPFLAGS="$AM_CPPFLAGS $CPPFLAGS"
 
 AC_TRY_COMPILE([#include <sys/types.h>],
                [off64_t n = 0;],
-               [AC_CHECK_FUNCS([lseek64 fseek64 ftruncate64])],
-               [AC_MSG_RESULT([skipping test for lseek64(), fseek64(), ftruncate64()])])
+               [AC_CHECK_FUNCS([lseek64 fseeko64 ftello64 ftruncate64])],
+               [AC_MSG_RESULT([skipping test for lseek64(), fseeko64 , ftello64, ftruncate64() because off64_t is not defined])])
 AC_CHECK_FUNCS(fseeko ftello)
 AC_TRY_COMPILE([
 #include <sys/types.h>
@@ -2622,22 +2582,22 @@ case "X-$enable_parallel" in
       AC_LANG_POP(Fortran)
     fi
 
-    dnl Set RUNPARALLEL to mpirun if not set yet.
+    dnl Set RUNPARALLEL to mpiexec if not set yet.
     dnl Check for building on Cray if RUNPARALLEL is not yet set by checking
-    dnl for 'aprun' command (which is the parallel job launcher, like mpirun).
+    dnl for 'aprun' command (which is the parallel job launcher, like mpiexec).
     if test "X$PARALLEL" = "Xyes" -a -z "$RUNPARALLEL"; then
         dnl Find the path where aprun is located.
   	for path in `echo $PATH | ${TR} ":" " "`; do
   	  if test -x $path/aprun; then
-            RUNPARALLEL="aprun -q -n \$\${NPROCS:=3}"
+            RUNPARALLEL="aprun -q -n \$\${NPROCS:=6}"
   	    break;
   	  fi
 	done
     fi
 
-    dnl Set RUNPARALLEL to mpirun if not set yet.
+    dnl Set RUNPARALLEL to mpiexec if not set yet.
     if test "X$PARALLEL" = "Xyes" -a -z "$RUNPARALLEL"; then
-      RUNPARALLEL="mpirun -np \$\${NPROCS:=3}"
+      RUNPARALLEL="mpiexec -n \$\${NPROCS:=6}"
     fi
     ;;
 
@@ -3627,6 +3587,167 @@ else
 fi
 
 dnl ----------------------------------------------------------------------
+dnl Set the flag to indicate that the machine is using a special algorithm to convert
+dnl 'long double' to '(unsigned) long' values.  (This flag should only be set for 
+dnl the IBM Power6 Linux.  When the bit sequence of long double is 
+dnl 0x4351ccf385ebc8a0bfcc2a3c3d855620, the converted value of (unsigned)long 
+dnl is 0x004733ce17af227f, not the same as the library's conversion to 0x004733ce17af2282.
+dnl The machine's conversion gets the correct value.  We define the macro and disable
+dnl this kind of test until we figure out what algorithm they use.
+dnl
+AC_MSG_CHECKING([if using special algorithm to convert long double to (unsigned) long values])
+
+if test ${ac_cv_sizeof_long_double} = 0; then
+   hdf5_cv_ldouble_to_long_special=${hdf5_cv_ldouble_to_long_special=no}
+else
+   AC_CACHE_VAL([hdf5_cv_ldouble_to_long_special],
+        [AC_TRY_RUN([
+        int main(void)
+        {
+            long double         ld = 20041683600089727.779961L;
+            long                ll;
+            unsigned long       ull;
+            unsigned char       s[16];
+            unsigned char       s2[8];
+            int                 ret = 1;
+            
+            if(sizeof(long double) == 16 && sizeof(long) == 8) {
+                /*make sure the long double type has 16 bytes in size and 
+                 * 11 bits of exponent.  If it is,
+                 *the bit sequence should be like below.  It's not 
+                 *a decent way to check but this info isn't available. */   
+                memcpy(s, &ld, 16);
+                if(s[0]==0x43 && s[1]==0x51 && s[2]==0xcc && s[3]==0xf3 &&
+                    s[4]==0x85 && s[5]==0xeb && s[6]==0xc8 && s[7]==0xa0 &&
+                    s[8]==0xbf && s[9]==0xcc && s[10]==0x2a && s[11]==0x3c) {
+
+                    /* Assign the hexadecimal value of long double type. */
+                    s[0]=0x43; s[1]=0x51; s[2]=0xcc; s[3]=0xf3;
+                    s[4]=0x85; s[5]=0xeb; s[6]=0xc8; s[7]=0xa0;
+                    s[8]=0xbf; s[9]=0xcc; s[10]=0x2a; s[11]=0x3c;
+                    s[12]=0x3d; s[13]=0x85; s[14]=0x56; s[15]=0x20;
+
+                    memcpy(&ld, s, 16);
+
+                    ll = (long)ld;
+                    memcpy(s2, &ll, 8);
+
+                    /* The library's algorithm converts it to 0x 00 47 33 ce 17 af 22 82
+                     * and gets wrong value 20041683600089730 on the IBM Power6 Linux.
+                     * But the IBM Power6 Linux converts it to 0x00 47 33 ce 17 af 22 7f
+                     * and gets the correct value 20041683600089727.  It uses some special
+                     * algorithm.  We're going to define the macro and skip the test until
+                     * we can figure out how they do it. */
+                    if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
+                       s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
+                        ret = 0;
+
+                    ull = (unsigned long)ld;
+                    memcpy(s2, &ull, 8);
+
+                    /* The unsigned long is the same as signed long. */
+                    if(s2[0]==0x00 && s2[1]==0x47 && s2[2]==0x33 && s2[3]==0xce &&
+                       s2[4]==0x17 && s2[5]==0xaf && s2[6]==0x22 && s2[7]==0x7f)
+                        ret = 0;
+                }    
+            }   
+            
+    done:
+            exit(ret);
+        }
+        ], [hdf5_cv_ldouble_to_long_special=yes], [hdf5_cv_ldouble_to_long_special=no],)])
+fi
+
+if test ${hdf5_cv_ldouble_to_long_special} = "yes"; then
+  AC_DEFINE([LDOUBLE_TO_LONG_SPECIAL], [1],
+            [Define if your system converts long double to (unsigned) long values with special algorithm.])
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+
+dnl ----------------------------------------------------------------------
+dnl Set the flag to indicate that the machine is using a special algorithm
+dnl to convert some values of '(unsigned) long' to 'long double' values.  
+dnl (This flag should be off for all machines, except for IBM Power6 Linux, 
+dnl when the bit sequences are 003fff..., 007fff..., 00ffff..., 01ffff..., 
+dnl ..., 7fffff..., the compiler uses a unknown algorithm.  We define a 
+dnl macro and skip the test for now until we know about the algorithm.
+dnl
+AC_MSG_CHECKING([if using special algorithm to convert (unsigned) long to long double values])
+
+if test ${ac_cv_sizeof_long_double} = 0; then
+   hdf5_cv_long_to_ldouble_special=${hdf5_cv_long_to_ldouble_special=no}
+else
+   AC_CACHE_VAL([hdf5_cv_long_to_ldouble_special],
+        [AC_TRY_RUN([
+        int main(void)
+        {
+            long double         ld;
+            long                ll;
+            unsigned long       ull;
+            unsigned char       s[16];
+            int                 flag=0, ret=1;
+        
+            /*Determine if long double has 16 byte in size, 11 bit exponent, and
+             *the bias is 0x3ff */ 
+            if(sizeof(long double) == 16) { 
+                ld = 1.0L;
+                memcpy(s, &ld, 16);
+                if(s[0]==0x3f && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
+                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00) 
+                    flag = 1; 
+            }
+             
+            if(flag==1 && sizeof(long)==8) {
+                ll = 0x003fffffffffffffL;
+                ld = (long double)ll;
+                memcpy(s, &ld, 16);
+                /* The library converts the value to 0x434fffffffffffff8000000000000000.
+                 * In decimal it is 18014398509481982.000000, one value short of the original.
+                 * The IBM Power6 Linux converts it to 0x4350000000000000bff0000000000000.
+                 * The value is correct in decimal. It uses some special
+                 * algorithm.  We're going to define the macro and skip the test until
+                 * we can figure out how they do it. */
+                if(s[0]==0x43 && s[1]==0x50 && s[2]==0x00 && s[3]==0x00 &&
+                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
+                    s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
+                    s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
+                    ret = 0;
+            }        
+            if(flag==1 && sizeof(unsigned long)==8) {
+                ull = 0xffffffffffffffffUL;
+                ld = (long double)ull;
+                memcpy(s, &ld, 16);
+                /* Use a different value from signed long to test. The problem is the same
+                 * for both long and unsigned long. The value is 18446744073709551615.
+                 * The library converts the value to 0x43effffffffffffffe000000000000000.
+                 * In decimal it's 18446744073709548544.000000, very different from the original.
+                 * The IBM Power6 Linux converts it to 0x43f0000000000000bff0000000000000.
+                 * The value is correct in decimal. It uses some special
+                 * algorithm.  We're going to define the macro and skip the test until
+                 * we can figure out how they do it. */
+                if(s[0]==0x43 && s[1]==0xf0 && s[2]==0x00 && s[3]==0x00 &&
+                    s[4]==0x00 && s[5]==0x00 && s[6]==0x00 && s[7]==0x00 &&
+                    s[8]==0xbf && s[9]==0xf0 && s[10]==0x00 && s[11]==0x00 &&
+                    s[12]==0x00 && s[13]==0x00 && s[14]==0x00 && s[15]==0x00)
+                    ret = 0;
+            }        
+    done:
+            exit(ret);
+        }
+        ], [hdf5_cv_long_to_ldouble_special=yes], [hdf5_cv_long_to_ldouble_special=no],)])
+fi
+
+if test ${hdf5_cv_long_to_ldouble_special} = "yes"; then
+  AC_DEFINE([LONG_TO_LDOUBLE_SPECIAL], [1],
+            [Define if your system can convert (unsigned) long to long double values with special algorithm.])
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+
+dnl ----------------------------------------------------------------------
 dnl Set the flag to indicate that the machine can accurately convert
 dnl 'long double' to '(unsigned) long long' values.  (This flag should be set for 
 dnl all machines, except for Mac OS 10.4 and SGI IRIX64 6.5.  When the bit sequence
@@ -3688,6 +3809,7 @@ if test ${hdf5_cv_ldouble_to_llong_accurate} = "yes"; then
 else
   AC_MSG_RESULT([no])
 fi
+
 
 dnl ----------------------------------------------------------------------
 dnl Set the flag to indicate that the machine can accurately convert

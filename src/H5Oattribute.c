@@ -833,8 +833,8 @@ H5O_attr_write_cb(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
 {
     H5O_iter_wrt_t *udata = (H5O_iter_wrt_t *)_udata;   /* Operator user data */
     H5O_chunk_proxy_t *chk_proxy = NULL;        /* Chunk that message is in */
-    unsigned chk_flags = H5AC__NO_FLAGS_SET;   /* Flags for unprotecting chunk */
-    herr_t ret_value = H5_ITER_CONT;   /* Return value */
+    hbool_t chk_dirtied = FALSE;        /* Flag for unprotecting chunk */
+    herr_t ret_value = H5_ITER_CONT;    /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5O_attr_write_cb)
 
@@ -851,19 +851,24 @@ H5O_attr_write_cb(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
 
         /* Because the attribute structure is shared now. The only situation that requires
          * copying the data is when the metadata cache evicts and reloads this attribute. 
-         * The attribute structure will be different in that situation. SLU-2010/7/29 */
-        if(((H5A_t *)mesg->native)->shared != udata->attr->shared)
+         * The shared attribute structure will be different in that situation. SLU-2010/7/29 */
+        if(((H5A_t *)mesg->native)->shared != udata->attr->shared) {
+            /* Sanity check */
+            HDassert(((H5A_t *)mesg->native)->shared->data);
+            HDassert(udata->attr->shared->data);
+            HDassert(((H5A_t *)mesg->native)->shared->data != udata->attr->shared->data);
+
             /* (Needs to occur before updating the shared message, or the hash
              *      value on the old & new messages will be the same) */
-            HDmemcpy(((H5A_t *)mesg->native)->shared->data, udata->attr->shared->data, 
-                     udata->attr->shared->data_size);
+            HDmemcpy(((H5A_t *)mesg->native)->shared->data, udata->attr->shared->data, udata->attr->shared->data_size);
+        } /* end if */
 
         /* Mark the message as modified */
         mesg->dirty = TRUE;
-        chk_flags |= H5AC__DIRTIED_FLAG;
+        chk_dirtied = TRUE;
 
         /* Release chunk */
-        if(H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_flags) < 0)
+        if(H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_dirtied) < 0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTUNPROTECT, H5_ITER_ERROR, "unable to unprotect object header chunk")
         chk_proxy = NULL;
 
@@ -884,7 +889,7 @@ H5O_attr_write_cb(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
 
 done:
     /* Release chunk, if not already done */
-    if(chk_proxy && H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_flags) < 0)
+    if(chk_proxy && H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_dirtied) < 0)
         HDONE_ERROR(H5E_ATTR, H5E_CANTUNPROTECT, H5_ITER_ERROR, "unable to unprotect object header chunk")
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1033,8 +1038,8 @@ H5O_attr_rename_mod_cb(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
 {
     H5O_iter_ren_t *udata = (H5O_iter_ren_t *)_udata;   /* Operator user data */
     H5O_chunk_proxy_t *chk_proxy = NULL;        /* Chunk that message is in */
-    unsigned chk_flags = H5AC__NO_FLAGS_SET;   /* Flags for unprotecting chunk */
-    herr_t ret_value = H5_ITER_CONT;   /* Return value */
+    hbool_t chk_dirtied = FALSE;        /* Flag for unprotecting chunk */
+    herr_t ret_value = H5_ITER_CONT;    /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5O_attr_rename_mod_cb)
 
@@ -1061,10 +1066,10 @@ H5O_attr_rename_mod_cb(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
 
         /* Mark the message as modified */
         mesg->dirty = TRUE;
-        chk_flags |= H5AC__DIRTIED_FLAG;
+        chk_dirtied = TRUE;
 
         /* Release chunk */
-        if(H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_flags) < 0)
+        if(H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_dirtied) < 0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTUNPROTECT, H5_ITER_ERROR, "unable to unprotect object header chunk")
         chk_proxy = NULL;
 
@@ -1128,7 +1133,7 @@ H5O_attr_rename_mod_cb(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
 
 done:
     /* Release chunk, if not already done */
-    if(chk_proxy && H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_flags) < 0)
+    if(chk_proxy && H5O_chunk_unprotect(udata->f, udata->dxpl_id, chk_proxy, chk_dirtied) < 0)
         HDONE_ERROR(H5E_ATTR, H5E_CANTUNPROTECT, H5_ITER_ERROR, "unable to unprotect object header chunk")
 
     FUNC_LEAVE_NOAPI(ret_value)

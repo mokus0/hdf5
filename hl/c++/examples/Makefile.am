@@ -23,16 +23,17 @@ include $(top_srcdir)/config/commence.am
 
 # These are the programs that 'make all' or 'make prog' will build and
 # which 'make check' will run.  List them in the order they should be run.
-TEST_PROG=ptExampleFL ptExampleVL
+TEST_PROG=ptExampleFL 
 
 # These are the example files to be installed
-INSTALL_FILES=ptExampleFL.cpp ptExampleVL.cpp
+INSTALL_FILES=ptExampleFL.cpp 
 INSTALL_SCRIPT_FILES = run-hlc++-ex.sh
 
 # Tell conclude.am that these are C++ tests.
 CXX_API=yes
 
 # Where to install examples
+# Note: no '/' after DESTDIR.  Explanation in commence.am
 EXAMPLEDIR=${DESTDIR}$(exec_prefix)/share/hdf5_examples/hl/c++
 
 # How to build programs using h5c++
@@ -44,7 +45,6 @@ $(EXTRA_PROG): $(H5CPP)
 # will try to build them with the normal C++ compiler, not h5c++.  This is
 # an inelegant way of solving the problem, unfortunately.
 ptExampleFL: ptExampleFL.cpp
-ptExampleVL: ptExampleVL.cpp
 
 include $(top_srcdir)/config/examples.am
 include $(top_srcdir)/config/conclude.am

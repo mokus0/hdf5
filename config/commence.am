@@ -45,6 +45,16 @@ LIBH5CPP_HL=$(top_builddir)/hl/c++/src/libhdf5_hl_cpp.la
 # Install directories that automake doesn't know about
 docdir = $(exec_prefix)/doc
 
+# Note that in svn revision 19400 the '/' after DESTDIR in H5* variables below  
+# has been removed. According to the official description of DESTDIR by Gnu at 
+# http://www.gnu.org/prep/standards/html_node/DESTDIR.html, DESTDIR is 
+# prepended to the normal and complete install path that it precedes for the 
+# purpose of installing in a temporary directory which is useful for building 
+# rpms and other packages.  The '/' after ${DESTDIR} will be followed by another 
+# '/' at the beginning of the normal install path.  When DESTDIR is empty the  
+# path then begins with '//', which is incorrect and causes problems at least for 
+# Cygwin.   
+
 # Scripts used to build examples
 # If only shared libraries have been installed, have h5cc build examples with
 # shared libraries instead of static libraries
@@ -65,6 +75,8 @@ AM_FCFLAGS=@AM_FCFLAGS@ @H5_FCFLAGS@
 AM_CXXFLAGS=@AM_CXXFLAGS@ @H5_CXXFLAGS@
 AM_CPPFLAGS=@AM_CPPFLAGS@ @H5_CPPFLAGS@
 
+ACLOCAL_AMFLAGS="-I m4"
+
 # The trace script; this is used on source files from the C library to
 # insert tracing macros.
 TRACE=perl $(top_srcdir)/bin/trace
@@ -83,7 +95,7 @@ ACLOCAL=/home1/packages/automake/automake-1.9.6/bin/aclocal-1.9 -I /afs/ncsa/pro
 # .chkexe files are used to mark tests that have run successfully.
 # .chklog files are output from those tests.
 # *.clog are from the MPE option.
-CHECK_CLEANFILES=*.chkexe *.chklog *.clog $(TEST_PROG) *.o *.exe
+CHECK_CLEANFILES=*.chkexe *.chklog *.clog
 
 # List all build rules defined by HDF5 Makefiles as "PHONY" targets here.
 # This tells the Makefiles that these targets are not files to be built but

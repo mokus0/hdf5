@@ -147,6 +147,58 @@ TOOLTEST1() {
 
 }
 
+# same as TOOLTEST1 but compares generated file to expected output
+#                   and compares the generated data file to the expected data file
+# used for the binary tests that expect a full path in -o without -b
+TOOLTEST2() {
+
+    expectdata="$srcdir/../testfiles/$1"
+    expect="$srcdir/../testfiles/`basename $1 .exp`.ddl"
+    actualdata="../testfiles/`basename $1 .exp`.txt"
+    actual="../testfiles/`basename $1 .exp`.out"
+    actual_err="../testfiles/`basename $1 .exp`.err"
+    shift
+
+    # Run test.
+    TESTING $DUMPER $@
+    (
+      
+      cd $srcdir/../testfiles
+      $RUNSERIAL $DUMPER_BIN $@
+    ) >$actual 2>$actual_err
+    cat $actual_err >> $actual
+
+    if [ ! -f $expect ]; then
+    # Create the expect file if it doesn't yet exist.
+     echo " CREATED"
+     cp $actual $expect
+    elif $CMP $expect $actual; then
+      if [ ! -f $expectdata ]; then
+      # Create the expect data file if it doesn't yet exist.
+        echo " CREATED"
+        cp $actualdata $expectdata
+      elif $CMP $expectdata $actualdata; then
+        echo " PASSED"
+      else
+        echo "*FAILED*"
+        echo "    Expected datafile (*.exp) differs from actual datafile (*.txt)"
+        nerrors="`expr $nerrors + 1`"
+        test yes = "$verbose" && $DIFF $expectdata $actualdata |sed 's/^/    /'
+      fi
+    else
+     echo "*FAILED*"
+     echo "    Expected result (*.ddl) differs from actual result (*.out)"
+     nerrors="`expr $nerrors + 1`"
+     test yes = "$verbose" && $DIFF $expect $actual |sed 's/^/    /'
+    fi
+    
+    # Clean up output file
+    if test -z "$HDF5_NOCLEANUP"; then
+     rm -f $actual $actualdata $actual_err
+    fi
+
+}
+
 
 # Print a "SKIP" message
 SKIP() {
@@ -389,6 +441,12 @@ TOOLTEST tindicessub3.ddl -d 3d -s 0,1,2 -S 1,3,3 -c 2,2,2  -k 1,2,2  taindices.
 # 4D case
 TOOLTEST tindicessub4.ddl -d 4d -s 0,0,1,2  -c 2,2,3,2 -S 1,1,3,3 -k 1,1,2,2  taindices.h5
 
+#Exceed the dimensions for subsetting
+TOOLTEST1 texceedsubstart.ddl -d 1d -s 1,3 taindices.h5
+TOOLTEST1 texceedsubcount.ddl -d 1d -c 1,3 taindices.h5
+TOOLTEST1 texceedsubstride.ddl -d 1d -S 1,3 taindices.h5
+TOOLTEST1 texceedsubblock.ddl -d 1d -k 1,3 taindices.h5
+
 
 # tests for filters
 # SZIP
@@ -493,6 +551,13 @@ TOOLTEST tdatareg.ddl tdatareg.h5
 TOOLTEST tdataregR.ddl -R tdatareg.h5
 TOOLTEST tattrreg.ddl tattrreg.h5
 TOOLTEST tattrregR.ddl -R tattrreg.h5
+
+TOOLTEST2   tbinregR.exp -d /Dataset1 -s 0 -R -y -o $TESTDIR/tbinregR.txt    tdatareg.h5
+
+# Clean up text output files
+if test -z "$HDF5_NOCLEANUP"; then
+ rm -f $TESTDIR/tbinregR.txt
+fi
 
 # tests for group creation order
 # "1" tracked, "2" name, root tracked

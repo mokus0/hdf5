@@ -22,7 +22,6 @@
 /* Public header files needed by this file */
 #include "H5public.h"
 #include "H5ACpublic.h"
-#include "H5Cpublic.h"
 #include "H5Ipublic.h"
 
 /* When this header is included from a private header, don't make calls to H5check() */
@@ -133,6 +132,10 @@ typedef enum H5F_libver_t {
     H5F_LIBVER_EARLIEST,        /* Use the earliest possible format for storing objects */
     H5F_LIBVER_LATEST           /* Use the latest possible format available for storing objects*/
 } H5F_libver_t;
+
+/* Define file format version for 1.8 to prepare for 1.10 release.  
+ * (Not used anywhere now)*/
+#define H5F_LIBVER_18 H5F_LIBVER_LATEST
 
 #ifdef __cplusplus
 extern "C" {

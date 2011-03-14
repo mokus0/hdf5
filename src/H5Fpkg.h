@@ -140,6 +140,8 @@ typedef struct H5F_meta_accum_t {
     haddr_t             loc;            /* File location (offset) of the accumulated metadata */
     size_t              size;           /* Size of the accumulated metadata buffer used (in bytes) */
     size_t              alloc_size;     /* Size of the accumulated metadata buffer allocated (in bytes) */
+    size_t              dirty_off;      /* Offset of the dirty region in the accumulator buffer */
+    size_t              dirty_len;      /* Length of the dirty region in the accumulator buffer */
     hbool_t             dirty;          /* Flag to indicate that the accumulated metadata is dirty */
 } H5F_meta_accum_t;
 
@@ -307,14 +309,14 @@ H5_DLL herr_t H5F_super_ext_write_msg(H5F_t *f, hid_t dxpl_id, void *mesg, unsig
 H5_DLL herr_t H5F_super_ext_close(H5F_t *f, H5O_loc_t *ext_ptr);
 
 /* Metadata accumulator routines */
-H5_DLL htri_t H5F_accum_read(const H5F_t *f, hid_t dxpl_id, H5FD_mem_t type,
+H5_DLL herr_t H5F_accum_read(const H5F_t *f, hid_t dxpl_id, H5FD_mem_t type,
     haddr_t addr, size_t size, void *buf);
-H5_DLL htri_t H5F_accum_write(const H5F_t *f, hid_t dxpl_id, H5FD_mem_t type,
+H5_DLL herr_t H5F_accum_write(const H5F_t *f, hid_t dxpl_id, H5FD_mem_t type,
     haddr_t addr, size_t size, const void *buf);
 H5_DLL herr_t H5F_accum_free(H5F_t *f, hid_t dxpl_id, H5FD_mem_t type,
     haddr_t addr, hsize_t size);
-H5_DLL herr_t H5F_accum_flush(H5F_t *f, hid_t dxpl_id);
-H5_DLL herr_t H5F_accum_reset(H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_accum_flush(const H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_accum_reset(const H5F_t *f, hid_t dxpl_id, hbool_t flush);
 
 /* Shared file list related routines */
 H5_DLL herr_t H5F_sfile_add(H5F_file_t *shared);

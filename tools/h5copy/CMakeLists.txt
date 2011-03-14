@@ -4,7 +4,7 @@ PROJECT (HDF5_TOOLS_H5COPY)
 #-----------------------------------------------------------------------------
 # Setup include Directories
 #-----------------------------------------------------------------------------
-INCLUDE_DIRECTORIES (${HDF5_TOOLS_SOURCE_DIR}/lib)
+INCLUDE_DIRECTORIES (${HDF5_TOOLS_SRC_DIR}/lib)
 INCLUDE_DIRECTORIES (${HDF5_PROJECT_DIR}/test)
 
 # --------------------------------------------------------------------
@@ -12,24 +12,30 @@ INCLUDE_DIRECTORIES (${HDF5_PROJECT_DIR}/test)
 # --------------------------------------------------------------------
 ADD_EXECUTABLE (h5copy ${HDF5_TOOLS_H5COPY_SOURCE_DIR}/h5copy.c)
 H5_NAMING (h5copy)
+TARGET_WIN_PROPERTIES (h5copy)
 TARGET_LINK_LIBRARIES (h5copy  ${HDF5_TOOLS_LIB_TARGET} ${HDF5_LIB_TARGET})
 
 SET (H5_DEP_EXECUTABLES h5copy)
 
+##############################################################################
+##############################################################################
+###           T E S T I N G                                                ###
+##############################################################################
+##############################################################################
+
 IF (BUILD_TESTING)
-  IF (NOT BUILD_SHARED_LIBS)
+  IF (HDF5_BUILD_GENERATORS AND NOT BUILD_SHARED_LIBS)
     ADD_EXECUTABLE (h5copygentest ${HDF5_TOOLS_H5COPY_SOURCE_DIR}/h5copygentest.c)
     H5_NAMING (h5copygentest)
+    TARGET_WIN_PROPERTIES (h5copygentest)
     TARGET_LINK_LIBRARIES (h5copygentest ${HDF5_LIB_TARGET} ${HDF5_TOOLS_LIB_TARGET})
 
     #ADD_TEST (NAME h5copygentest COMMAND $<TARGET_FILE:h5copygentest>)
-
-    SET (H5_DEP_EXECUTABLES ${H5_DEP_EXECUTABLES}
-        #h5copygentest
-    )
-  ENDIF (NOT BUILD_SHARED_LIBS)
+  ENDIF (HDF5_BUILD_GENERATORS AND NOT BUILD_SHARED_LIBS)
   
-  #-- Copy all the HDF5 files from the test directory into the source directory
+  # --------------------------------------------------------------------
+  # Copy all the HDF5 files from the test directory into the source directory
+  # --------------------------------------------------------------------
   SET (HDF5_REFERENCE_FILES
       h5copy_extlinks_src.out.ls
       h5copy_ref.out.ls
@@ -64,12 +70,12 @@ IF (BUILD_TESTING)
         ARGS       -E copy_if_different ${HDF5_TOOLS_H5COPY_SOURCE_DIR}/testfiles/${h5_file} ${dest}
     )
   ENDFOREACH (h5_file ${HDF5_REFERENCE_TEST_FILES})
-
-  # Test files
-  SET (HDF_FILE1 h5copytst)
-  SET (HDF_FILE2 h5copy_ref)
-  SET (HDF_EXT_SRC_FILE h5copy_extlinks_src)
-  SET (HDF_EXT_TRG_FILE h5copy_extlinks_trg)
+  
+##############################################################################
+##############################################################################
+###           T H E   T E S T S  M A C R O S                               ###
+##############################################################################
+##############################################################################
 
   MACRO (ADD_H5_TEST testname resultcode testfile vparam srcname dstname)
   
@@ -111,6 +117,20 @@ IF (BUILD_TESTING)
     )
   ENDMACRO (ADD_H5LS_TEST file)
 
+##############################################################################
+##############################################################################
+###           T H E   T E S T S                                            ###
+##############################################################################
+##############################################################################
+
+  # --------------------------------------------------------------------
+  # test file names 
+  # --------------------------------------------------------------------
+  SET (HDF_FILE1 h5copytst)
+  SET (HDF_FILE2 h5copy_ref)
+  SET (HDF_EXT_SRC_FILE h5copy_extlinks_src)
+  SET (HDF_EXT_TRG_FILE h5copy_extlinks_trg)
+
 ############# COPY OBJECTS ##############
 
   # Remove any output file left over from previous test run
@@ -146,17 +166,17 @@ IF (BUILD_TESTING)
   ADD_H5_TEST (simple_group 0 ${HDF_FILE1} v /grp_dsets/simple /grp_dsets/simple_group)
 
   # "Test copying & renaming group"
-  ADD_H5_TEST (grp_rename 1 ${HDF_FILE1} v grp_dsets grp_rename)
+  ADD_H5_TEST (grp_rename 0 ${HDF_FILE1} v grp_dsets grp_rename)
 
   # "Test copying 'full' group hierarchy into group in destination file"
-  ADD_H5_TEST (grp_dsets_rename 1 ${HDF_FILE1} v grp_dsets /grp_rename/grp_dsets)
+  ADD_H5_TEST (grp_dsets_rename 0 ${HDF_FILE1} v grp_dsets /grp_rename/grp_dsets)
 
   # "Test copying objects into group hier. that doesn't exist yet in destination file"
   ADD_H5_TEST (A_B1_simple 0 ${HDF_FILE1} vp simple /A/B1/simple)
   ADD_H5_TEST (A_B2_simple2 0 ${HDF_FILE1} vp simple /A/B2/simple2)
   ADD_H5_TEST (C_D_simple 0 ${HDF_FILE1} vp /grp_dsets/simple /C/D/simple)
-  ADD_H5_TEST (E_F_grp_dsets 1 ${HDF_FILE1} vp /grp_dsets /E/F/grp_dsets)
-  ADD_H5_TEST (G_H_grp_nested 1 ${HDF_FILE1} vp /grp_nested /G/H/grp_nested)
+  ADD_H5_TEST (E_F_grp_dsets 0 ${HDF_FILE1} vp /grp_dsets /E/F/grp_dsets)
+  ADD_H5_TEST (G_H_grp_nested 0 ${HDF_FILE1} vp /grp_nested /G/H/grp_nested)
 
   # Verify that the file created above is correct
   ADD_H5LS_TEST (${HDF_FILE1})
@@ -218,6 +238,12 @@ IF (BUILD_TESTING)
   
 ENDIF (BUILD_TESTING)
 
+##############################################################################
+##############################################################################
+###           I N S T A L L A T I O N                                      ###
+##############################################################################
+##############################################################################
+
 #-----------------------------------------------------------------------------
 # Rules for Installation of tools using make Install target
 #-----------------------------------------------------------------------------
@@ -225,5 +251,7 @@ INSTALL (
     TARGETS
         h5copy
     RUNTIME DESTINATION
-        bin/tools
+        ${HDF5_INSTALL_BIN_DIR}/tools
+    COMPONENT
+        toolsapplications
 )

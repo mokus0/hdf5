@@ -3,8 +3,8 @@
 ************************************************************************
 
 NOTE:
-We are no longer actively supporting MinGW as of this release, 1.8.5. 
-Below are the instructions from the last release.
+We are no longer actively supporting MinGW as of 1.8.5. 
+Below are the instructions from the 1.8.4 release.
 
 ************************************************************************
 ************************************************************************

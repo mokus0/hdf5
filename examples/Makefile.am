@@ -43,7 +43,8 @@ INSTALL_FILES = h5_write.c h5_read.c h5_extend_write.c h5_chunk_read.c   \
 
 INSTALL_SCRIPT_FILES = run-c-ex.sh
 
-INSTALL_TOP_SCRIPT_FILES = run-all-ex.sh
+INSTALL_TOP_SCRIPT_FILES = run-all-ex.sh 
+INSTALL_TOP_FILES = README
 
 # How to build examples, using installed version of h5cc
 if BUILD_PARALLEL_CONDITIONAL
@@ -69,6 +70,7 @@ $(EXTLINK_DIRS):
 CHECK_CLEANFILES+=$(EXTLINK_DIRS)
 
 # Example directory
+# Note: no '/' after DESTDIR.  Explanation in commence.am
 EXAMPLEDIR=${DESTDIR}$(exec_prefix)/share/hdf5_examples/c
 EXAMPLETOPDIR=${DESTDIR}$(exec_prefix)/share/hdf5_examples
 

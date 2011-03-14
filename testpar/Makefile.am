@@ -28,11 +28,12 @@ INCLUDES=-I$(top_srcdir)/src -I$(top_srcdir)/test
 TEST_PROG_PARA=t_mpi t_posix_compliant testphdf5 t_cache t_pflush1 t_pflush2
 TEST_SCRIPT_PARA=testph5.sh
 
-check_PROGRAMS = $(TEST_PROG_PARA)
+# t_shapesame is built but not tested automatically
+check_PROGRAMS = $(TEST_PROG_PARA) t_shapesame
 check_SCRIPTS= $(TEST_SCRIPT)
 
 testphdf5_SOURCES=testphdf5.c t_dset.c t_file.c t_mdset.c t_ph5basic.c \
-        t_coll_chunk.c t_span_tree.c t_chunk_alloc.c t_filter_read.c 
+        t_coll_chunk.c t_span_tree.c t_chunk_alloc.c t_filter_read.c
 
 # The tests all depend on the hdf5 library and the test library
 LDADD = $(LIBH5TEST) $(LIBHDF5)

@@ -10,14 +10,20 @@
  *		I didn't make them portable.
  */
 
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
+#define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
+
 #include <H5private.h>
 #include <H5Eprivate.h>
-#include <H5Sprivate.h>
+#include <H5Fpkg.h>         /* Ugly, but necessary for the MPIO I/O accesses */
+#include <H5Spkg.h>
 
-#ifndef HAVE_PARALLEL
+#include <H5FDmpio.h>		/*the MPIO file driver			*/
+
+#ifndef H5_HAVE_PARALLEL
 /* 
  * The H5S_mpio_xxxx functions are for parallel I/O only and are
- * valid only when HAVE_PARALLEL is #defined.  This empty #ifndef
+ * valid only when H5_HAVE_PARALLEL is #defined.  This empty #ifndef
  * body is used to allow this source file be included in the serial
  * distribution.
  * Some compilers/linkers may complain about "empty" object file.
@@ -25,7 +31,7 @@
  * them.
  */
 /* const hbool_t H5S_mpio_avail = FALSE; */
-#else /* HAVE_PARALLEL */
+#else /* H5_HAVE_PARALLEL */
 /* Interface initialization */
 #define PABLO_MASK      H5Sall_mask
 #define INTERFACE_INIT  NULL
@@ -54,7 +60,7 @@ H5S_mpio_spaces_xfer(H5F_t *f, const struct H5O_layout_t *layout,
                      const struct H5O_pline_t UNUSED *pline,
                      const struct H5O_efl_t UNUSED *efl, size_t elmt_size,
                      const H5S_t *file_space, const H5S_t *mem_space,
-                     const H5F_xfer_t *xfer_parms, void *buf/*out*/,
+                     hid_t dxpl_id, void *buf/*out*/,
 		     hbool_t *must_convert/*out*/, const hbool_t do_write);
 
 /*-------------------------------------------------------------------------
@@ -105,7 +111,8 @@ H5S_mpio_all_type( const H5S_t *space, const size_t elmt_size,
     fprintf(stdout, "Leave %s total_bytes=%Hu\n", FUNC, total_bytes );
 #endif
     FUNC_LEAVE (SUCCEED);
-} /* H5S_mpio_all_type() */
+}
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5S_mpio_hyper_type
@@ -122,6 +129,11 @@ H5S_mpio_all_type( const H5S_t *space, const size_t elmt_size,
  * Programmer:	rky 980813
  *
  * Modifications:  ppw 990401
+ *		rky, ppw 2000-09-26 Freed old type after creating struct type.
+ *		rky 2000-10-05 Changed displacements to be MPI_Aint.
+ *		rky 2000-10-06 Added code for cases of empty hyperslab.
+ *		akc, rky 2000-11-16 Replaced hard coded dimension size with
+ *		    H5S_MAX_RANK.
  *
  *-------------------------------------------------------------------------
  */
@@ -138,26 +150,31 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
 	hsize_t block;
 	hsize_t xtent;
 	hsize_t count;
-    } d[32];
+    } d[H5S_MAX_RANK];
 
-    int			i, j, err, new_rank, num_to_collapse, stride_bytes;
-    int			offset[32], max_xtent[32], block_length[2], displacement[2];
+    int			i, err, new_rank, num_to_collapse;
+    int			offset[H5S_MAX_RANK];
+    int			max_xtent[H5S_MAX_RANK];
     H5S_hyper_dim_t	*diminfo;		/* [rank] */
     intn		rank;
-    MPI_Datatype	inner_type, outer_type, old_type[32];
-    MPI_Aint            extent_len;
+    int			block_length[2];
+    MPI_Datatype	inner_type, outer_type, old_type[2];
+    MPI_Aint            extent_len, displacement[2];
 
     FUNC_ENTER (H5S_mpio_hyper_type, FAIL);
 
     /* Check and abbreviate args */
     assert (space);
+    assert(sizeof(MPI_Aint) >= sizeof(elmt_size));
     diminfo = space->select.sel_info.hslab.diminfo;
     assert (diminfo);
     rank = space->extent.u.simple.rank;
     assert (rank >= 0);
+    if (0==rank) goto empty;
+    if (0==elmt_size) goto empty;
 
     /* make a local copy of the dimension info so we can transform them */
-    assert(rank<=32);	/* within array bounds */
+    assert(rank<=H5S_MAX_RANK);	/* within array bounds */
     for ( i=0; i<rank; ++i) {
 	d[i].start = diminfo[i].start;
 	d[i].strid = diminfo[i].stride;
@@ -171,6 +188,9 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
 	if (i==0) fprintf(stdout, "  rank=%d\n", rank );
 	else	  fprintf(stdout, "\n" );
 #endif
+	if (0==d[i].block) goto empty;
+	if (0==d[i].count) goto empty;
+	if (0==d[i].xtent) goto empty;
     }
     
 /**********************************************************************
@@ -228,11 +248,11 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
     } /* end for */
     num_to_collapse = i;
     if (num_to_collapse == rank) num_to_collapse--;
-    printf ("num_to_collapse=%d\n", num_to_collapse);
 
     assert(0<=num_to_collapse && num_to_collapse<rank);
     new_rank = rank - num_to_collapse;
 #ifdef H5Smpi_DEBUG
+    fprintf(stdout, "num_to_collapse=%d\n", num_to_collapse);
     fprintf(stdout, "hyper_type: new_rank=%d\n", new_rank );
 #endif
 
@@ -289,7 +309,7 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
        ****************************************/
           err = MPI_Type_vector ( (int)(d[i].count),        /* count */
 		          	  (int)(d[i].block),        /* blocklength */
-				  (MPI_Aint)(d[i].strid),   /* stride */
+				  (int)(d[i].strid),   	    /* stride */
 				  inner_type,	            /* old type */
 				  &outer_type );            /* new type */
 
@@ -298,7 +318,7 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
     	      HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,"couldn't create MPI vector type");
 	  }
 
-          displacement[1] = elmt_size * max_xtent[i];
+          displacement[1] = (MPI_Aint)elmt_size * max_xtent[i];
           err = MPI_Type_extent(outer_type, &extent_len);
 
        /*************************************************
@@ -313,7 +333,7 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
 		"***displacements: 0, %d\n", i, displacement[1]);
 #endif
 
-#ifdef HAVE_MPI2  /*  have MPI-2  */
+#ifdef H5_HAVE_MPI2  /*  have MPI-2  */
             err = MPI_Type_create_resized
                                   ( outer_type,        /* old type  */
                                     0,                 /* blocklengths */
@@ -385,6 +405,10 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
       if (err) {
          HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,"couldn't create MPI struct type");
       }
+      MPI_Type_free (&old_type[0]);
+      if (err) {
+            HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,"couldn't resize MPI vector type");
+      }
     }
     else {
       *new_type = inner_type;
@@ -398,12 +422,21 @@ H5S_mpio_hyper_type( const H5S_t *space, const size_t elmt_size,
     /* fill in the remaining return values */
     *count = 1;			/* only have to move one of these suckers! */
     *is_derived_type = 1;
+    goto done;
 
+empty:
+    /* special case: empty hyperslab */
+    *new_type = MPI_BYTE;
+    *count = 0;
+    *is_derived_type = 0;
+
+done:
 #ifdef H5Smpi_DEBUG
-    fprintf(stdout, "Leave %s\n", FUNC );
+    HDfprintf(stdout, "Leave %s, count=%Hu  is_derived_type=%d\n",
+		FUNC, *count, *is_derived_type );
 #endif
     FUNC_LEAVE (SUCCEED);
-} /* H5S_mpio_hyper_type() */
+}
 
 
 /*-------------------------------------------------------------------------
@@ -488,7 +521,8 @@ H5S_mpio_space_type( const H5S_t *space, const size_t elmt_size,
     }
 
     FUNC_LEAVE (ret_value);
-} /* H5S_mpio_space_type() */
+}
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5S_mpio_spaces_xfer
@@ -497,32 +531,39 @@ H5S_mpio_space_type( const H5S_t *space, const size_t elmt_size,
  *		directly between app buffer and file.
  *
  * Return:	non-negative on success, negative on failure.
+ *		If MPI-IO is indeed used, must_convert is set to 0;
+ *		otherwise it is set to 1 with return code succeed (so that the
+ *		calling routine may try other means.)
  *
  * Programmer:	rky 980813
  *
  * Modifications:
+ *	rky 980918
+ *	Added must_convert parameter to let caller know we can't optimize
+ *	the xfer.
  *
- * rky 980918
- * Added must_convert parameter to let caller know we can't optimize the xfer.
+ *	Albert Cheng, 001123
+ *	Include the MPI_type freeing as part of cleanup code.
  *
  *-------------------------------------------------------------------------
  */
 herr_t
-H5S_mpio_spaces_xfer (H5F_t *f, const struct H5O_layout_t *layout,
+H5S_mpio_spaces_xfer(H5F_t *f, const struct H5O_layout_t *layout,
                      const struct H5O_pline_t UNUSED *pline,
                      const struct H5O_efl_t UNUSED *efl, size_t elmt_size,
                      const H5S_t *file_space, const H5S_t *mem_space,
-                     const H5F_xfer_t *xfer_parms, void *buf /*out*/,
+		     hid_t dxpl_id, void *buf /*out*/,
 		     hbool_t *must_convert /*out*/,
 		     const hbool_t do_write )
 {
     herr_t	 ret_value = SUCCEED;
     int		 err;
     haddr_t	 disp, addr;
-    size_t	 mpi_count;
+    hsize_t	 mpi_count;
     hsize_t	 mpi_buf_count, mpi_unused_count;
     MPI_Datatype mpi_buf_type, mpi_file_type;
-    hbool_t	 mbt_is_derived, mft_is_derived;
+    hbool_t	 mbt_is_derived=0,
+		 mft_is_derived=0;
 
     FUNC_ENTER (H5S_mpio_spaces_xfer, FAIL);
 
@@ -534,7 +575,7 @@ H5S_mpio_spaces_xfer (H5F_t *f, const struct H5O_layout_t *layout,
     assert (file_space);
     assert (mem_space);
     assert (buf);
-    assert (f->shared->access_parms->driver == H5F_LOW_MPIO);
+    assert (IS_H5FD_MPIO(f));
 
     /* INCOMPLETE!!!  rky 980816 */
     /* Currently can only handle H5D_CONTIGUOUS layout */
@@ -545,8 +586,36 @@ H5S_mpio_spaces_xfer (H5F_t *f, const struct H5O_layout_t *layout,
 	}
 #endif
 	*must_convert = 1;      /* can't do optimized xfer; do the old way */
-	goto done;
+	HGOTO_DONE(SUCCEED);
     }
+
+    /*
+     * For collective data transfer only since this would eventually
+     * call H5FD_mpio_setup to do setup to eveually call MPI_File_set_view
+     * in H5FD_mpio_read or H5FD_mpio_write.  MPI_File_set_view is a
+     * collective call.  Letting independent data transfer use this
+     * route would result in hanging.
+     */
+#if 0
+    /* For now, the checking is being done in
+     * H5D_write and H5D_read before it is called because
+     * the following block of code, though with the right idea, is not
+     * correct yet.
+     */
+    {   /* Get the transfer mode */
+        H5D_xfer_t *dxpl;
+        H5FD_mpio_dxpl_t *dx;
+
+        if (H5P_DEFAULT!=dxpl_id && (dxpl=H5I_object(dxpl_id)) &&
+                H5FD_MPIO==dxpl->driver_id && (dx=dxpl->driver_info) &&
+                H5FD_MPIO_COLLECTIVE==dx->xfer_mode) {
+	    /* let it fall through */
+	}else{
+	    *must_convert = 1;	/* can't do optimized xfer; do the old way */
+	    HGOTO_DONE(SUCCEED);
+	}
+    }
+#endif
 
     /* create the MPI buffer type */
     err = H5S_mpio_space_type( mem_space, elmt_size,
@@ -555,9 +624,7 @@ H5S_mpio_spaces_xfer (H5F_t *f, const struct H5O_layout_t *layout,
 			       &mpi_buf_count,
 			       &mbt_is_derived );
     if (MPI_SUCCESS != err)
-    	HRETURN_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't create MPI buf type");
-    /* pass the buf type to low-level write via access_parms */
-    f->shared->access_parms->u.mpio.btype = mpi_buf_type;
+    	HGOTO_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't create MPI buf type");
 
     /* create the MPI file type */
     err = H5S_mpio_space_type( file_space, elmt_size,
@@ -566,59 +633,62 @@ H5S_mpio_spaces_xfer (H5F_t *f, const struct H5O_layout_t *layout,
 			       &mpi_unused_count,
 			       &mft_is_derived );
     if (MPI_SUCCESS != err)
-    	HRETURN_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't create MPI file type");
-    /* pass the file type to low-level write via access_parms */
-    f->shared->access_parms->u.mpio.ftype = mpi_file_type;
+    	HGOTO_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't create MPI file type");
 
     /* calculate the absolute base addr (i.e., the file view disp) */
-    disp = f->shared->base_addr;
-    H5F_addr_add( &disp, &(layout->addr) );
-    f->shared->access_parms->u.mpio.disp = disp;
+    disp = f->shared->base_addr + layout->addr;
 #ifdef H5Smpi_DEBUG
-    fprintf(stdout, "spaces_xfer: disp=%Hu\n", disp.offset );
+    HDfprintf(stdout, "spaces_xfer: disp=%Hu\n", disp );
 #endif
 
     /* Effective address determined by base addr and the MPI file type */
-    H5F_addr_reset( &addr );	/* set to 0 */
+    addr = 0;
 
-    /* request a dataspace xfer (instead of an elementary byteblock xfer) */
-    f->shared->access_parms->u.mpio.use_types = 1;
+    /*
+     * Pass buf type, file type, and absolute base address (i.e., the file
+     * view disp) to the file driver. Request a dataspace transfer (instead
+     * of an elementary byteblock transfer).
+     */
+    H5FD_mpio_setup(f->shared->lf, mpi_buf_type, mpi_file_type, disp, 1);
 
     /* transfer the data */
     mpi_count = (size_t)mpi_buf_count;
-    if (mpi_count != mpi_buf_count)
-    	HRETURN_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"transfer size overflows size_t");
+    if (mpi_count != mpi_buf_count) {
+    	HGOTO_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,
+		      "transfer size overflows size_t");
+    }
     if (do_write) {
-    	err = H5F_low_write( f->shared->lf, f->shared->access_parms,
-			     xfer_parms, &addr, mpi_count, buf );
+    	err = H5FD_write(f->shared->lf, H5FD_MEM_DRAW, dxpl_id, addr, mpi_count, buf);
     	if (err) {
 	    HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL,"MPI write failed");
 	}
     } else {
-    	err = H5F_low_read ( f->shared->lf, f->shared->access_parms,
-			     xfer_parms, &addr, mpi_count, buf );
+    	err = H5FD_read (f->shared->lf, H5FD_MEM_DRAW, dxpl_id, addr, mpi_count, buf);
     	if (err) {
 	    HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL,"MPI read failed");
 	}
     }
 
+done:
     /* free the MPI buf and file types */
     if (mbt_is_derived) {
 	err = MPI_Type_free( &mpi_buf_type );
 	if (MPI_SUCCESS != err) {
-    	    HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,"couldn't free MPI file type");
+    	    HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,
+			  "unable to free MPI file type");
 	}
     }
     if (mft_is_derived) {
 	err = MPI_Type_free( &mpi_file_type );
 	if (MPI_SUCCESS != err) {
-    	    HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,"couldn't free MPI file type");
+    	    HRETURN_ERROR(H5E_DATASPACE, H5E_MPI, FAIL,
+			  "unable to free MPI file type");
 	}
     }
 
-    done:
     FUNC_LEAVE (ret_value);
-} /* H5S_mpio_spaces_xfer() */
+}
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5S_mpio_spaces_read
@@ -637,11 +707,11 @@ H5S_mpio_spaces_xfer (H5F_t *f, const struct H5O_layout_t *layout,
  *-------------------------------------------------------------------------
  */
 herr_t
-H5S_mpio_spaces_read (H5F_t *f, const struct H5O_layout_t *layout,
+H5S_mpio_spaces_read(H5F_t *f, const struct H5O_layout_t *layout,
                      const struct H5O_pline_t *pline,
                      const struct H5O_efl_t *efl, size_t elmt_size,
                      const H5S_t *file_space, const H5S_t *mem_space,
-                     const H5F_xfer_t *xfer_parms, void *buf/*out*/,
+                     hid_t dxpl_id, void *buf/*out*/,
 		     hbool_t *must_convert/*out*/)
 {
     herr_t ret_value = FAIL;
@@ -649,11 +719,12 @@ H5S_mpio_spaces_read (H5F_t *f, const struct H5O_layout_t *layout,
     FUNC_ENTER (H5S_mpio_spaces_read, FAIL);
 
     ret_value = H5S_mpio_spaces_xfer(f, layout, pline, efl, elmt_size,
-				     file_space, mem_space, xfer_parms,
+				     file_space, mem_space, dxpl_id,
 				     buf, must_convert/*out*/, 0/*read*/);
 
     FUNC_LEAVE (ret_value);
-} /* H5S_mpio_spaces_read() */
+}
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5S_mpio_spaces_write
@@ -673,22 +744,22 @@ H5S_mpio_spaces_read (H5F_t *f, const struct H5O_layout_t *layout,
  */
 herr_t
 H5S_mpio_spaces_write(H5F_t *f, const struct H5O_layout_t *layout,
-                     const struct H5O_pline_t *pline,
-                     const struct H5O_efl_t *efl, size_t elmt_size,
-                     const H5S_t *file_space, const H5S_t *mem_space,
-                     const H5F_xfer_t *xfer_parms, const void *buf,
-		     hbool_t *must_convert/*out*/)
+		      const struct H5O_pline_t *pline,
+		      const struct H5O_efl_t *efl, size_t elmt_size,
+		      const H5S_t *file_space, const H5S_t *mem_space,
+		      hid_t dxpl_id, const void *buf,
+		      hbool_t *must_convert/*out*/)
 {
     herr_t ret_value = FAIL;
 
     FUNC_ENTER (H5S_mpio_spaces_write, FAIL);
 
     ret_value = H5S_mpio_spaces_xfer(f, layout, pline, efl, elmt_size,
-				     file_space, mem_space, xfer_parms,
+				     file_space, mem_space, dxpl_id,
 				     (void*)buf, must_convert/*out*/,
 				     1/*write*/);
 
     FUNC_LEAVE (ret_value);
-} /* H5S_mpio_spaces_write() */
+}
 
-#endif  /* HAVE_PARALLEL */
+#endif  /* H5_HAVE_PARALLEL */

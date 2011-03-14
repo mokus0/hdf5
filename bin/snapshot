@@ -164,10 +164,18 @@ CONFIGURE="./configure $HDF4LIB $OP_CONFIGURE"
 # Execute the requests
 snapshot=yes
 
-H5VERSION=hdf5_1_2
+H5VERSION=hdf5
 BASEDIR=${HOME}/snapshots-${H5VERSION}
 CURRENT=${BASEDIR}/current
 PREVIOUS=${BASEDIR}/previous
+HOSTNAME=`hostname | cut -f1 -d.`	# no domain part
+
+# Try finding a version of diff that supports the -I option too.
+DIFF=diff
+for d in `echo $PATH | sed -e 's/:/ /g'` ; do
+    test -x $d/diff && $d/diff -I XYZ /dev/null /dev/null > /dev/null 2>&1 &&
+	DIFF=$d/diff && break
+done
 
 #=============================
 # Run CVS checkout
@@ -179,7 +187,7 @@ if [ "$cmd" = "all" -o -n "$cmdcheckout" ]; then
     test -d ${BASEDIR} || mkdir -p ${BASEDIR} || exit 1
 
     # Check out the current version from CVS
-    cvs -Q co -d ${CURRENT} -r ${H5VERSION} hdf5 || exit 1
+    cvs -Q co -d ${CURRENT} hdf5 || exit 1
 fi # Do CVS checkout
 
 
@@ -194,10 +202,10 @@ if [ "$cmd" = "all" -o -n "$cmdtest" ]; then
 	#create TESTDIR if not exist yet
 	case "$SRCDIRNAME" in
 	"")
-	    SRCDIRNAME=`hostname`
+	    SRCDIRNAME=$HOSTNAME
 	    ;;
 	-*)
-	    SRCDIRNAME="`hostname`$SRCDIRNAME"
+	    SRCDIRNAME="$HOSTNAME$SRCDIRNAME"
 	    ;;
 	esac
 	TESTDIR=${BASEDIR}/TestDir/${SRCDIRNAME}
@@ -215,10 +223,10 @@ if [ "$cmd" = "all" -o -n "$cmdtest" ]; then
     # Compare it with the previous version.  Compare only files listed in
     # the MANIFEST plus the MANIFEST itself.
     if [ -d ${PREVIOUS} ]; then
-	if (diff -c ${PREVIOUS}/MANIFEST ${CURRENT}/MANIFEST); then
+	if (${DIFF} -c ${PREVIOUS}/MANIFEST ${CURRENT}/MANIFEST); then
 	    snapshot=no
 	    for src in `grep '^\.' ${CURRENT}/MANIFEST|expand|cut -f1 -d' '`; do
-		diff -I H5_VERS_RELEASE -I " released on " \
+		${DIFF} -I H5_VERS_RELEASE -I " released on " \
 		    -I " currently under development" \
 		    ${PREVIOUS}/$src ${CURRENT}/$src || \
 		    snapshot=yes
@@ -246,11 +254,6 @@ fi # Test the HDF5 library
 # Run Release snapshot, update version, and commit to cvs and tag
 #=============================
 if [ "$cmd" = "all" -o -n "$cmdrel" ]; then
-    echo "Release is under construction.  No release done."
-    errcode=1
-    snapshot=no
-    break
-    exit $errcord
     if [ "$snapshot" = "yes" ]; then
 	(cd ${CURRENT}; ${MAKE} distclean)
 	(
@@ -285,10 +288,10 @@ if [ -n "$cmdclean" ]; then
     else
 	case "$SRCDIRNAME" in
 	"")
-	    SRCDIRNAME=`hostname`
+	    SRCDIRNAME=$HOSTNAME
 	    ;;
 	-*)
-	    SRCDIRNAME="`hostname`$SRCDIRNAME"
+	    SRCDIRNAME="$HOSTNAME$SRCDIRNAME"
 	    ;;
 	esac
 	TESTDIR=${BASEDIR}/TestDir/${SRCDIRNAME}

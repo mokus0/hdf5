@@ -11,10 +11,10 @@
  ****************************************************************************/
 
 #ifdef RCSID
-static char		RcsId[] = "$Revision: 1.1.2.2 $";
+static char		RcsId[] = "$Revision: 1.4 $";
 #endif
 
-/* $Id: titerate.c,v 1.1.2.2 2000/04/12 15:45:35 koziol Exp $ */
+/* $Id: titerate.c,v 1.4 2000/05/18 16:40:16 matzke Exp $ */
 
 /***********************************************************
 *
@@ -425,7 +425,7 @@ static void test_iter_group_large(void)
     hsize_t		dims[] = {SPACE1_DIM1};
     herr_t		ret;		/* Generic return value		*/
     char gname[20];         /* Temporary group name */
-    iter_info names[NGROUPS+2]={0}; /* Names of objects in the root group */
+    iter_info names[NGROUPS+2]; /* Names of objects in the root group */
     iter_info *curr_name;        /* Pointer to the current name in the root group */
     int                 i;
 
@@ -435,6 +435,8 @@ static void test_iter_group_large(void)
         unsigned int b;
         float c;
     } s1_t;
+
+    memset(names, 0, sizeof names);
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Large Group Iteration Functionality\n"));

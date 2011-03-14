@@ -11,9 +11,9 @@
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -42,8 +42,6 @@
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -71,7 +69,7 @@
       and a name which exists as a member of some other group. In this
       way, groups can be linked together to form a directed graph.
       One particular group is called the <em>Root Group</em> and is
-      the group to which the HDF5 file boot block points.  Its name is
+      the group to which the HDF5 file super block points.  Its name is
       "/" by convention.  The <em>full name</em> of an object is
       created by joining component names with slashes much like Unix.
 
@@ -179,6 +177,11 @@
 
 	</table>
       </center>
+
+    <p>Note, however, that object names within a group must be unique. 
+       For example, <code>H5Dcreate</code> returns an error if a 
+       dataset with the dataset name specified in the parameter list
+       already exists at the location specified in the parameter list.
 
 
     <h2>3. Creating, Opening, and Closing Groups</h2>
@@ -301,14 +304,41 @@
 	string is returned.
     </dl>
 
+    <a name="H5GUnlinkToCorrupt">
+    <h2>6. Unlinking Datasets with H5Gmove and H5Gunlink</h2>
+    </a>
+
+    <p>Exercise caution in the use of <code>H5Gmove</code> and 
+       <code>H5Gunlink</code>.
+
+    <p>Note that <code>H5Gmove</code> and <code>H5Gunlink</code>
+       each include a step that unlinks pointers to a set or group.
+       If the link that is removed is on the only path leading 
+       to a dataset or group, that dataset or group will become 
+       inaccessible in the file.
+
+    <p>Consider the following example.  Assume that the group
+       <code>group2</code> can only be accessed via the following path,
+       where <code>top_group</code> is a member of the file's root group:
+       <pre>
+              <code>/top_group/group1/group2/</code> </pre>
+       Using <code>H5Gmove</code>, <code>top_group</code> is renamed
+       to be a member of <code>group2</code>.  At this point, since 
+       <code>top_group</code> was the only route from the root group 
+       to <code>group1</code>, there is no longer a path by which 
+       one can access <code>group1</code>, <code>group2</code>, or 
+       any member datasets.
+       <code>top_group</code> and any member datasets have also 
+       become inaccessible.
+
 
 <hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -337,8 +367,6 @@
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -352,10 +380,12 @@
 
 <!-- Created: Tue Jan 27 09:11:27 EST 1998 -->
 <!-- hhmts start -->
-Last modified:  14 October 1999
+Last modified:  1 November 2000
 <!-- hhmts end -->
+
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Describes HDF5 Release 1.4, February 2001
+
 
   </body>
 </html>

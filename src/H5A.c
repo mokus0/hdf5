@@ -11,12 +11,13 @@
 ****************************************************************************/
 
 #ifdef RCSID
-static char		RcsId[] = "$Revision: 1.59.2.4 $";
+static char		RcsId[] = "$Revision: 1.65 $";
 #endif
 
-/* $Id: H5A.c,v 1.59.2.4 2000/05/18 18:08:01 matzke Exp $ */
+/* $Id: H5A.c,v 1.65 2001/01/09 22:18:35 koziol Exp $ */
 
 #define H5A_PACKAGE		/*suppress error about including H5Apkg	*/
+#define H5S_PACKAGE		/*suppress error about including H5Spkg	*/
 
 /* Private header files */
 #include <H5private.h>		/* Generic Functions			*/
@@ -29,6 +30,7 @@ static char		RcsId[] = "$Revision: 1.59.2.4 $";
 #include <H5MMprivate.h>	/* Memory management			*/
 #include <H5Pprivate.h>		/* Property lists			*/
 #include <H5Oprivate.h>     	/* Object Headers       		*/
+#include <H5Spkg.h>		    /* Data-space functions			  */
 #include <H5Apkg.h>		/* Attributes				*/
 
 #define PABLO_MASK	H5A_mask
@@ -254,8 +256,7 @@ H5A_create(const H5G_entry_t *ent, const char *name, const H5T_t *type,
 
     /* Compute the internal sizes */
     attr->dt_size=(H5O_DTYPE[0].raw_size)(attr->ent.file,type);
-    attr->ds_size=(H5O_SDSPACE[0].raw_size)(attr->ent.file,
-					    &(space->extent.u.simple));
+    attr->ds_size=(H5O_SDSPACE[0].raw_size)(attr->ent.file,&(space->extent.u.simple));
     attr->data_size=H5S_get_simple_extent_npoints(space)*H5T_get_size(type);
 
     /* Hold the symbol table entry (and file) open */
@@ -511,7 +512,8 @@ H5A_open(H5G_entry_t *ent, unsigned idx)
     assert(ent);
 
     /* Read in attribute with H5O_read() */
-    if (NULL==(attr=H5O_read(ent, H5O_ATTR, idx, attr))) {
+    H5_CHECK_OVERFLOW(idx,unsigned,int);
+    if (NULL==(attr=H5O_read(ent, H5O_ATTR, (int)idx, attr))) {
         HGOTO_ERROR(H5E_ATTR, H5E_CANTINIT, FAIL,
 		    "unable to load attribute info from dataset header");
     }
@@ -615,13 +617,13 @@ H5A_write(H5A_t *attr, const H5T_t *mem_type, void *buf)
 {
     uint8_t		*tconv_buf = NULL;	/* data type conv buffer */
     uint8_t		*bkg_buf = NULL;	/* temp conversion buffer */
-    size_t		nelmts;		    	/* elements in attribute */
+    hsize_t		nelmts;		    	/* elements in attribute */
     H5T_path_t		*tpath = NULL;		/* conversion information*/
     hid_t		src_id = -1, dst_id = -1;/* temporary type atoms */
     size_t		src_type_size;		/* size of source type	*/
     size_t		dst_type_size;		/* size of destination type*/
-    size_t		buf_size;		/* desired buffer size	*/
-    int         	idx;	      /* index of attribute in object header */
+    hsize_t		buf_size;		/* desired buffer size	*/
+    int         idx;	      /* index of attribute in object header */
     herr_t		ret_value = FAIL;
 
     FUNC_ENTER(H5A_write, FAIL);
@@ -639,15 +641,16 @@ H5A_write(H5A_t *attr, const H5T_t *mem_type, void *buf)
 
     /* Get the maximum buffer size needed and allocate it */
     buf_size = nelmts*MAX(src_type_size,dst_type_size);
-    if (NULL==(tconv_buf = H5MM_malloc (buf_size)) ||
-	NULL==(bkg_buf = H5MM_malloc(buf_size))) {
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
+    assert(buf_size==(hsize_t)((size_t)buf_size)); /*check for overflow*/
+    if (NULL==(tconv_buf = H5MM_malloc ((size_t)buf_size)) ||
+            NULL==(bkg_buf = H5MM_calloc((size_t)buf_size))) {
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		     "memory allocation failed");
     }
-    HDmemset(bkg_buf, 0, buf_size);
 
     /* Copy the user's data into the buffer for conversion */
-    HDmemcpy(tconv_buf,buf,src_type_size*nelmts);
+    assert((src_type_size*nelmts)==(hsize_t)((size_t)(src_type_size*nelmts))); /*check for overflow*/
+    HDmemcpy(tconv_buf,buf,(size_t)(src_type_size*nelmts));
 
     /* Convert memory buffer into disk buffer */
     /* Set up type conversion function */
@@ -667,7 +670,7 @@ H5A_write(H5A_t *attr, const H5T_t *mem_type, void *buf)
     /* Perform data type conversion */
     if (H5T_convert(tpath, src_id, dst_id, nelmts, 0, 0, tconv_buf, bkg_buf,
                     H5P_DEFAULT)<0) {
-	HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL,
+        HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL,
 		    "data type conversion failed");
     }
 
@@ -697,7 +700,7 @@ done:
     if (dst_id >= 0) 
         H5I_dec_ref(dst_id);
     if (bkg_buf)
-	H5MM_xfree(bkg_buf);
+        H5MM_xfree(bkg_buf);
 
     FUNC_LEAVE(ret_value);
 } /* H5A_write() */
@@ -777,12 +780,12 @@ H5A_read(H5A_t *attr, const H5T_t *mem_type, void *buf)
 {
     uint8_t		*tconv_buf = NULL;	/* data type conv buffer*/
     uint8_t		*bkg_buf = NULL;	/* background buffer */
-    size_t		nelmts;			/* elements in attribute*/
+    hsize_t		nelmts;			/* elements in attribute*/
     H5T_path_t		*tpath = NULL;		/* type conversion info	*/
     hid_t		src_id = -1, dst_id = -1;/* temporary type atoms*/
     size_t		src_type_size;		/* size of source type 	*/
     size_t		dst_type_size;		/* size of destination type */
-    size_t		buf_size;		/* desired buffer size	*/
+    hsize_t		buf_size;		/* desired buffer size	*/
     herr_t		ret_value = FAIL;
 
     FUNC_ENTER(H5A_read, FAIL);
@@ -799,21 +802,23 @@ H5A_read(H5A_t *attr, const H5T_t *mem_type, void *buf)
     dst_type_size = H5T_get_size(mem_type);
 
     /* Check if the attribute has any data yet, if not, fill with zeroes */
+    assert((dst_type_size*nelmts)==(hsize_t)((size_t)(dst_type_size*nelmts))); /*check for overflow*/
     if(attr->ent_opened && !attr->initialized) {
-        HDmemset(buf,0,dst_type_size*nelmts);
+        HDmemset(buf,0,(size_t)(dst_type_size*nelmts));
     }   /* end if */
     else {  /* Attribute exists and has a value */
         /* Get the maximum buffer size needed and allocate it */
         buf_size = nelmts*MAX(src_type_size,dst_type_size);
-        if (NULL==(tconv_buf = H5MM_malloc (buf_size)) ||
-	    NULL==(bkg_buf = H5MM_malloc(buf_size))) {
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
+        assert(buf_size==(hsize_t)((size_t)buf_size)); /*check for overflow*/
+        if (NULL==(tconv_buf = H5MM_malloc ((size_t)buf_size)) ||
+                NULL==(bkg_buf = H5MM_calloc((size_t)buf_size))) {
+            HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
                  "memory allocation failed");
         }
-	HDmemset(bkg_buf, 0, buf_size);
 
         /* Copy the attribute data into the buffer for conversion */
-        HDmemcpy(tconv_buf,attr->data,src_type_size*nelmts);
+        assert((src_type_size*nelmts)==(hsize_t)((size_t)(src_type_size*nelmts))); /*check for overflow*/
+        HDmemcpy(tconv_buf,attr->data,(size_t)(src_type_size*nelmts));
 
         /* Convert memory buffer into disk buffer */
         /* Set up type conversion function */
@@ -823,22 +828,22 @@ H5A_read(H5A_t *attr, const H5T_t *mem_type, void *buf)
         } else if (!H5T_IS_NOOP(tpath)) {
             if ((src_id = H5I_register(H5I_DATATYPE,
                        H5T_copy(attr->dt, H5T_COPY_ALL)))<0 ||
-            (dst_id = H5I_register(H5I_DATATYPE,
+                    (dst_id = H5I_register(H5I_DATATYPE,
                        H5T_copy(mem_type, H5T_COPY_ALL)))<0) {
                 HGOTO_ERROR(H5E_ATTR, H5E_CANTREGISTER, FAIL,
                 "unable to register types for conversion");
             }
         }
 
-    /* Perform data type conversion.  */
-    if (H5T_convert(tpath, src_id, dst_id, nelmts, 0, 0, tconv_buf, bkg_buf,
-                    H5P_DEFAULT)<0) {
-	HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL,
-		    "data type conversion failed");
-    }
+        /* Perform data type conversion.  */
+        if (H5T_convert(tpath, src_id, dst_id, nelmts, 0, 0, tconv_buf, bkg_buf,
+                        H5P_DEFAULT)<0) {
+            HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL,
+                "data type conversion failed");
+        }
 
         /* Copy the converted data into the user's buffer */
-        HDmemcpy(buf,tconv_buf,dst_type_size*nelmts);
+        HDmemcpy(buf,tconv_buf,(size_t)(dst_type_size*nelmts));
     } /* end else */
 
     ret_value=SUCCEED;
@@ -1156,7 +1161,7 @@ H5Aiterate(hid_t loc_id, unsigned *attr_num, H5A_operator_t op, void *op_data)
 {
     H5G_entry_t		*ent = NULL;	/*symtab ent of object to attribute */
     H5A_t          	found_attr;
-    intn	        ret_value = 0;
+    herr_t	        ret_value = 0;
     intn		idx;
 
     FUNC_ENTER(H5Aiterate, FAIL);

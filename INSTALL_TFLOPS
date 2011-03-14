@@ -4,6 +4,13 @@ FOR THE INTEL TFLOPS MACHINE:
 Below are the step-by-step procedures for building, testing, and
 installing both the sequential and parallel versions of the HDF5 library.
 
+-----------------
+Software locations
+------------------
+The zlib compression library is installed in /usr/community/hdf5/ZLIB.
+The mpich library, including mpi-io support, is in
+/usr/community/mpich/mpich-1.2.0.
+
 ---------------
 Sequential HDF5:
 ---------------
@@ -24,23 +31,26 @@ FROM SASN100,
 1) cd <hdf5>
 
 2) ./configure tflop
-2.1) Due to a bug, you must first edit the files, src/Makefile and
-     test/Makefile with the following shell commands before doing make.
+   Due to a bug, you need to patch up two Makefile, src/Makefile and
+   test/Makefile, before the next step.  You can use the following
+   shell commands.
 
 # Patch up various Makefile's.
 # patch up src/Makefile
+echo "patching src/Makefile"
 ed - src/Makefile <<'EOF'
 /^LT_RUN=.*/s//LT_RUN=$(RUNTEST)/
 w
 q
 EOF
+
 # patch up test/Makefile
+echo "patching test/Makefile"
 ed - test/Makefile <<'EOF'
 /^RUNTEST=$(LT_RUN)/s/^/#/
 w
 q
 EOF
-
 
 3) make H5detect
 
@@ -62,15 +72,13 @@ you can run the tests by
 FROM JANUS, 
 
 7) make check 
-   Note: Sometimes the "make check" fails in the sub-directories of test
-   or tools with a message as "print not found".  This is due to the
-   "make" of Janus thinking some binary code needs to be recompiled.
-   I suspect it may be due to file timestamp problems between SASN100
-   and JANUS.  The easiest way to fix it is
-
-   FROM SASN100
-   cd <hdf5>/test	# or cd <hdf5>/tools
-   make clean; make   # re-make all binary
+     Sometimes the "make check" fails in the sub-directories of test
+     or tools with a message as "print not found".  This is due to the
+     "make" of Janus thinking some binary code needs to be recompiled.
+     The easiest way to fix it is
+     FROM SASN100
+     cd <hdf5>/test	# or cd <hdf5>/tools
+     make clean; make   # re-make all binary
 
 
 Once satisfied with the test results, you can install
@@ -95,20 +103,22 @@ FROM SASN100,
 
 1) cd <hdf5>
 
-2) CC=/usr/community/mpich/mpich-1.1.2/bin/mpicc ./configure --enable-parallel 
-   /* If you want to use your own MPI and/or MPIO libraries, */
-   /* you may check the file bin/config_para_tflops.sh for details. */
-2.1) Due to a bug, you must first edit the files, src/Makefile and
-     test/Makefile with the following shell commands before doing make.
+2) CC=/usr/community/mpich/mpich-1.2.0/bin/mpicc ./configure tflop
+   Due to a bug, you need to patch up two Makefile, src/Makefile and
+   test/Makefile, before the next step.  You can use the following
+   shell commands.
 
 # Patch up various Makefile's.
 # patch up src/Makefile
+echo "patching src/Makefile"
 ed - src/Makefile <<'EOF'
 /^LT_RUN=.*/s//LT_RUN=$(RUNTEST)/
 w
 q
 EOF
+
 # patch up test/Makefile
+echo "patching test/Makefile"
 ed - test/Makefile <<'EOF'
 /^RUNTEST=$(LT_RUN)/s/^/#/
 w
@@ -135,15 +145,13 @@ When everything is finished compiling and linking,
 FROM JANUS, 
 
 7) make check 
-   Note: Sometimes the "make check" fails in the sub-directories of test
-   or tools with a message as "print not found".  This is due to the
-   "make" of Janus thinking some binary code needs to be recompiled.
-   I suspect it may be due to file timestamp problems between SASN100
-   and JANUS.  The easiest way to fix it is
-
-   FROM SASN100
-   cd <hdf5>/test	# or cd <hdf5>/tools
-   make clean; make   # re-make all binary
+     Sometimes the "make check" fails in the sub-directories of test
+     or tools with a message as "print not found".  This is due to the
+     "make" of Janus thinking some binary code needs to be recompiled.
+     The easiest way to fix it is
+     FROM SASN100
+     cd <hdf5>/test	# or cd <hdf5>/tools
+     make clean; make   # re-make all binary
 
 
 Once satisfied with the parallel test results, as long as you 

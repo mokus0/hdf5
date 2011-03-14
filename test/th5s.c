@@ -11,10 +11,10 @@
  ****************************************************************************/
 
 #ifdef RCSID
-static char		RcsId[] = "$Revision: 1.15.2.1 $";
+static char		RcsId[] = "$Revision: 1.19 $";
 #endif
 
-/* $Id: th5s.c,v 1.15.2.1 2000/04/12 22:08:11 koziol Exp $ */
+/* $Id: th5s.c,v 1.19 2001/01/19 19:47:24 koziol Exp $ */
 
 /***********************************************************
 *
@@ -31,6 +31,7 @@ static char		RcsId[] = "$Revision: 1.15.2.1 $";
 #include <H5Sprivate.h>
 #include <H5Pprivate.h>
 
+#define TESTFILE   "th5s.h5"
 #define FILE   "th5s1.h5"
 
 /* 3-D dataset with fixed dimensions */
@@ -101,10 +102,6 @@ test_h5s_basic(void)
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Dataspace Manipulation\n"));
 
-    /* Create file */
-    fid1 = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    CHECK(fid1, FAIL, "H5Fcreate");
-
     sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
     CHECK(sid1, FAIL, "H5Screate_simple");
 
@@ -147,10 +144,6 @@ test_h5s_basic(void)
     ret = H5Sclose(sid2);
     CHECK(ret, FAIL, "H5Sclose");
 
-    /* Close first file */
-    ret = H5Fclose(fid1);
-    CHECK(ret, FAIL, "H5Fclose");
-
     /*
      * Check to be sure we can't create a simple data space that has too many
      * dimensions.
@@ -163,13 +156,30 @@ test_h5s_basic(void)
     /*
      * Try reading a file that has been prepared that has a dataset with a
      * higher dimensionality than what the library can handle.
+     *
+     * If this test fails and the H5S_MAX_RANK variable has changed, follow
+     * the instructions in space_overflow.c for regenating the th5s.h5 file.
      */
-    fid1 = H5Fopen(FILE, H5F_ACC_RDONLY, H5P_DEFAULT);
+    {
+    char testfile[512]="";
+    char *srcdir = getenv("srcdir");
+    if (srcdir && ((strlen(srcdir) + strlen(TESTFILE) + 1) < sizeof(testfile))){
+	strcpy(testfile, srcdir);
+	strcat(testfile, "/");
+    }
+    strcat(testfile, TESTFILE);
+    fid1 = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
     CHECK_I(fid1, "H5Fopen");
-    dset1 = H5Dopen(fid1, "dset");
-    VERIFY(dset1, FAIL, "H5Dopen");
-    ret = H5Fclose(fid1);
-    CHECK_I(ret, "H5Fclose");
+    if (fid1 >= 0){
+	dset1 = H5Dopen(fid1, "dset");
+	VERIFY(dset1, FAIL, "H5Dopen");
+	ret = H5Fclose(fid1);
+	CHECK_I(ret, "H5Fclose");
+    }
+    else
+	printf("***cannot open the pre-created H5S_MAX_RANK test file (%s)\n",
+	    testfile);
+    }
 
     /* Verify that incorrect dimensions don't work */
     dims1[0]=0;

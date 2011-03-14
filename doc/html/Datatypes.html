@@ -11,9 +11,9 @@
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -42,8 +42,6 @@
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -610,34 +608,9 @@
 	respect to the beginning of the containing compound datum is
 	returned by this function.  A zero is returned on failure
 	which is also a valid offset, but this function is guaranteed
-	to succeed if a call to <code>H5Tget_member_dims()</code>
+	to succeed if a call to <code>H5Tget_member_class()</code>
 	succeeds when called with the same <em>type</em> and
 	<em>membno</em> arguments.
-
-	<br><br>
-      <dt><code>int H5Tget_member_dims (hid_t <em>type</em>, int
-	  <em>membno</em>, int <em>dims</em>[4], int
-	  <em>perm</em>[4])</code>
-      <dd>Each member can be a small array of up to four dimensions,
-	making it convenient to describe things like transposition
-	matrices.  The dimensionality of the member is returned (or
-	negative for failure) and the size in each dimension is
-	returned through the <em>dims</em> argument.  The
-	<em>perm</em> argument describes how the array's elements are
-	mapped to the linear address space of memory with respect to
-	some reference order (the reference order is specified in
-	natural language documentation which describes the compound
-	datatype). The application which "invented" the type will
-	often use the identity permutation and other applications will
-	use a permutation that causes the elements to be rearranged to
-	the desired order.  Only the first few elements of
-	<em>dims</em> and <em>perm</em> are initialized according to
-	the dimensionality of the member.  Scalar members have
-	dimensionality zero.
-
-	<b>The only permutations supported at this
-	  time are the identity permutation and the transpose
-	  permutation (in the 4d case, {0,1,2,3} and {3,2,1,0}).</b>
 
 	<br><br>
       <dt><code>hid_t H5Tget_member_type (hid_t <em>type</em>, int
@@ -652,6 +625,7 @@
       defined when the member is added to the compound type (see
       <code>H5Tinsert()</code>) and cannot be subsequently modified.
       This makes it imposible to define recursive data structures.
+
 
     <a name="DTypes-PredefinedAtomic">
     <h2>6. Predefined Atomic Datatypes</h2>
@@ -975,6 +949,9 @@ H5Tset_size (str80, 80);
 	</table>
       </center>
 
+    <p>A complete list of the datatypes predefined in HDF5 can be found in 
+      <a href="PredefDTypes.html"><cite>HDF5 Predefined Datatypes</cite></a>
+      in the <a href="RM_H5Front.html"><cite>HDF5 Reference Manual</cite></a>.
 
 
     <h2>7. Defining Compound Datatypes</h2>
@@ -2020,7 +1997,7 @@ struct for VL datatypes.
 VL strings may be created in one of two ways: by creating a VL datatype with
 a base type of <code>H5T_NATIVE_ASCII</code>, <code>H5T_NATIVE_UNICODE</code>, 
 etc., or by creating a string datatype and setting its length to 
-<code>H5T_STRING_VARIABLE</code>.  The second method is used to access 
+<code>H5T_VARIABLE</code>.  The second method is used to access 
 native VL strings in memory.  The library will convert between the two types, 
 but they are stored on disk using different datatypes and have different 
 memory representations.
@@ -2074,7 +2051,7 @@ to allocate to store VL data while reading the data, the
         <em>hid_t</em> <code>space_id</code>, 
         <em>hsize_t</em> *<code>size</code>) 
 </dl>
-        (This function is not implemented in Release 1.2.x)
+        (This function is not implemented in Release 1.2.)
 
 <p>
 This routine checks the number of bytes required to store the VL data from
@@ -2210,15 +2187,15 @@ reclaiming memory space.
   <tr>
     <td>
       <pre>
-#include <hdf5.h>
+#include &lt;hdf5.h&gt;
 
-#define FILE   "tvltypes.h5"
+#define FILE   "vltypes.h5"
 #define MAX(X,Y)        ((X)&gt;(Y)?(X):(Y))
 
 /* 1-D dataset with fixed dimensions */
-#define SPACE1_NAME  "Space1"
-#define SPACE1_RANK	1
-#define SPACE1_DIM1	4
+#define SPACE_NAME  "Space"
+#define SPACE_RANK	1
+#define SPACE_DIM	4
 
 void *vltypes_alloc_custom(size_t size, void *info);
 void vltypes_free_custom(void *mem, void *info);
@@ -2233,6 +2210,7 @@ void vltypes_free_custom(void *mem, void *info);
 ****************************************************************/
 void *vltypes_alloc_custom(size_t size, void *info)
 {
+
     void *ret_value=NULL;       /* Pointer to return */
     int *mem_used=(int *)info;  /* Get the pointer to the memory used */
     size_t extra;               /* Extra space needed */
@@ -2243,62 +2221,58 @@ void *vltypes_alloc_custom(size_t size, void *info)
      */
     extra=MAX(sizeof(void *),sizeof(int));
 
-    if((ret_value=malloc(extra+size))!=NULL) {
+    if((ret_value=(void *)malloc(extra+size))!=NULL) {
         *(int *)ret_value=size;
         *mem_used+=size;
     } /* end if */
     ret_value=((unsigned char *)ret_value)+extra;
     return(ret_value);
 }
-
-/****************************************************************
-**
+/******************************************************************
 **  vltypes_free_custom(): VL datatype custom memory
 **      allocation routine.  This routine just uses free to
 **      release the memory and decrements the amount of memory
 **      allocated.
-** 
-****************************************************************/
+** ****************************************************************/
 void vltypes_free_custom(void *_mem, void *info)
-{
+
+{  
     unsigned char *mem;
     int *mem_used=(int *)info;  /* Get the pointer to the memory used */
-    size_t extra;               /* Extra space needed */
-
+    size_t extra;               /* Extra space needed */    
     /*
      *  This weird contortion is required on the DEC Alpha to keep the
-     *  alignment correct. 
-     */
+     *  alignment correct.      
+     */ 
     extra=MAX(sizeof(void *),sizeof(int));
-
-    if(_mem!=NULL) {
+    if(_mem!=NULL) {        
         mem=((unsigned char *)_mem)-extra;
-        *mem_used-=*(int *)mem;
-        free(mem);
+       *mem_used-=*(int *)mem; 
+       free(mem); 
     } /* end if */
 }
 
 int main(void)
-{
-    hvl_t wdata[SPACE1_DIM1];   /* Information to write */
-    hvl_t rdata[SPACE1_DIM1];   /* Information read in */
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		dataset;	/* Dataset ID			*/
-    hid_t		sid1;       /* Dataspace ID			*/
-    hid_t		tid1;       /* Datatype ID			*/
+
+{   
+    hvl_t wdata[SPACE_DIM];   /* Information to write */
+    hvl_t rdata[SPACE_DIM];   /* Information read in */
+    hid_t		fid;	   /* HDF5 File IDs */  
+    hid_t		dataset;   /* Dataset ID */
+    hid_t		sid;       /* Dataspace ID */
+    hid_t		tid;       /* Datatype ID	   	 */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
-    hsize_t		dims1[] = {SPACE1_DIM1};
+    hsize_t		dims[] = {SPACE_DIM};
     uint       i,j;        /* counting variables */
     int         mem_used=0; /* Memory used during allocation */
-    herr_t		ret;		/* Generic return value		*/
-
+    herr_t		ret;		/* Generic return value	 */
 
     /*
      * Allocate and initialize VL data to write 
      */
-    for(i=0; i&lt;SPACE1_DIM1; i++) {
+    for(i=0; i&lt;SPACE_DIM; i++) {
 
-        wdata[i].p=malloc((i+1)*sizeof(unsigned int));
+        wdata[i].p= (unsigned int *)malloc((i+1)*sizeof(unsigned int));
         wdata[i].len=i+1;
         for(j=0; j&lt;(i+1); j++)
             ((unsigned int *)wdata[i].p)[j]=i*10+j;
@@ -2307,65 +2281,67 @@ int main(void)
     /* 
      * Create file. 
      */
-    fid1 = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    fid = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
     /* 
      * Create dataspace for datasets. 
      */
-    sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
+    sid = H5Screate_simple(SPACE_RANK, dims, NULL);
 
     /* 
      * Create a datatype to refer to. 
      */
-    tid1 = H5Tvlen_create (H5T_NATIVE_UINT);
+    tid = H5Tvlen_create (H5T_NATIVE_UINT);
 
     /* 
      * Create a dataset. 
      */
-    dataset=H5Dcreate(fid1,"Dataset1",tid1,sid1,H5P_DEFAULT);
+    dataset=H5Dcreate(fid, "Dataset", tid, sid, H5P_DEFAULT);
 
     /* 
      * Write dataset to disk. 
      */
-    ret=H5Dwrite(dataset,tid1,H5S_ALL,H5S_ALL,H5P_DEFAULT,wdata);
+    ret=H5Dwrite(dataset, tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, wdata);
 
     /* 
-     * Change to the custom memory allocation routines for reading VL data 
+     * Change to the custom memory allocation routines for reading 
+     * VL data 
      */
     xfer_pid=H5Pcreate(H5P_DATASET_XFER);
 
-    ret=H5Pset_vlen_mem_manager(xfer_pid,vltypes_alloc_custom,
-                                &mem_used,vltypes_free_custom,&mem_used);
+    ret=H5Pset_vlen_mem_manager(xfer_pid, vltypes_alloc_custom,
+                                &mem_used, vltypes_free_custom, 
+                                &mem_used);
 
     /* 
      * Read dataset from disk. vltypes_alloc_custom and
-     * will be used to manage memory. 
+     * will be used to manage memory.
      */
-    ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,xfer_pid,rdata);
+    ret=H5Dread(dataset, tid, H5S_ALL, H5S_ALL, xfer_pid, rdata);   
 
     /* 
      * Display data read in 
      */
-    for(i=0; i&lt;SPACE1_DIM1; i++) {
-        printf("%d-th element length is %d \n", i, (unsigned) rdata[i].len);
+    for(i=0; i&lt;SPACE_DIM; i++) {
+        printf("%d-th element length is %d \n", i, 
+                                   (unsigned) rdata[i].len);
         for(j=0; j&lt;rdata[i].len; j++) {
-            printf(" %d ",((unsigned int *)rdata[i].p)[j] ); 
-            } 
-        printf("\n");
+            printf(" %d ",((unsigned int *)rdata[i].p)[j] );   
+        } 
+        printf("\n"); 
     } /* end for */
 
     /* 
      * Reclaim the read VL data. vltypes_free_custom will be used 
      * to reclaim the space. 
      */
-    ret=H5Dvlen_reclaim(tid1,sid1,xfer_pid,rdata);
-
+    ret=H5Dvlen_reclaim(tid, sid, xfer_pid, rdata);
 
     /* 
-     * Reclaim the write VL data.  C language free function will be used 
-     * to reclaim space. 
+     * Reclaim the write VL data.  C language free function will be 
+     * used to reclaim space. 
      */
-    ret=H5Dvlen_reclaim(tid1,sid1,H5P_DEFAULT,wdata);
+    ret=H5Dvlen_reclaim(tid, sid, H5P_DEFAULT, wdata);
 
     /* 
      * Close Dataset 
@@ -2375,12 +2351,12 @@ int main(void)
     /* 
      * Close datatype 
      */
-    ret = H5Tclose(tid1);
+    ret = H5Tclose(tid);
 
     /* 
      * Close disk dataspace 
      */
-    ret = H5Sclose(sid1);
+    ret = H5Sclose(sid);
     
     /* 
      * Close dataset transfer property list 
@@ -2390,7 +2366,7 @@ int main(void)
     /* 
      * Close file 
      */
-    ret = H5Fclose(fid1);
+    ret = H5Fclose(fid);
 
 } 
       </pre>
@@ -2428,9 +2404,213 @@ in the HDF5 distribution.
 
 
 
-    <h2>10. Sharing Datatypes among Datasets</h2>
+<h2>10. Array Datatypes</h2>
 
-    <p>If a file has lots of datasets which have a common datatype, 
+The array class of datatypes, <code>H5T_ARRAY</code>, allows the 
+construction of true, homogeneous, multi-dimensional arrays.  
+Since these are homogeneous arrays, each element of the array will be 
+of the same datatype, designated at the time the array is created.
+
+<p>
+Arrays can be nested.
+Not only is an array datatype used as an element of an HDF5 dataset,
+but the elements of an array datatype may be of any datatype, 
+including another array datatype.
+
+<p>
+Array datatypes cannot be subdivided for I/O; the entire array must 
+be transferred from one dataset to another. 
+
+<p>
+Within the limitations outlined in the next paragraph, array datatypes 
+may be <em>N</em>-dimensional and of any dimension size.  
+Unlimited dimensions, however, are not supported. 
+Functionality similar to unlimited dimension arrays is available through 
+the use of variable-length datatypes.
+
+<p>
+The maximum number of dimensions, i.e., the maximum rank, of an array
+datatype is specified by the HDF5 library constant <code>H5S_MAX_RANK</code>.
+The minimum rank is 1 (one).
+All dimension sizes must be greater than 0 (zero). 
+
+<p>
+One array dataype may only be converted to another array datatype 
+if the number of dimensions and the sizes of the dimensions are equal 
+and the datatype of the first array's elements can be converted 
+to the datatype of the second array's elements.
+
+<h3>10.1 Array Datatype APIs</h2>
+
+The functions for creating and manipulating array datadypes are 
+as follows:
+
+<dir>
+<table>
+    <tr>
+        <td><code><b>H5Tarray_create</b></code>
+        </td><td>&nbsp;&nbsp;
+        </td><td>Creates an array datatype.
+        </td></tr><tr><td colspan=3><dir>
+            <em>hid_t</em> <code>H5Tarray_create</code>(
+                       <em>hid_t</em> <code>base</code>,
+                       <em>int</em> <code>rank</code>,
+                       <em>const hsize_t</em> <code>dims[/*rank*/]</code>,
+                       <em>const int</em> <code>perm[/*rank*/]</code>
+            )
+        </dir>
+    </td></tr><tr>
+        <td><code><b>H5Tget_array_ndims</b></code>
+        </td><td>&nbsp;&nbsp;
+        </td><td>Retrieves the rank of the array datatype.
+        </td></tr><tr><td colspan=3><dir>
+            <em>int</em> <code>H5Tget_array_ndims</code>(
+                       <em>hid_t</em> <code>adtype_id</code>
+            )
+        </dir>
+    </td></tr><tr>
+        <td><code><b>H5Tget_array_dims</b></code>
+        </td><td>&nbsp;&nbsp;
+        </td><td>Retrieves the dimension sizes of the array datatype.
+        </td></tr><tr><td colspan=3><dir>
+            <em>int</em> <code>H5Tget_array_dims</code>(
+                       <em>hid_t</em> <code>adtype_id</code>,
+                       <em>hsize_t *</em><code>dims[]</code>,
+                       <em>int *</em><code>perm[]</code>
+            )
+        </dir>
+    </td></tr>
+</table>
+</dir>
+
+
+<h3>10.2 Transition Issues in Adapting Existing Software<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+(Transition to HDF5 Release 1.4 Only)</h3>
+
+The array datatype class is new with Release 1.4;  
+prior releases included an array element for compound datatypes.
+<p>
+The use of the array datatype class will not interfere with the 
+use of existing compound datatypes.  Applications may continue to 
+read and write the older field arrays, but they will no longer be 
+able to create array fields in newly-defined compound datatypes.
+<p>
+Existing array fields will be transparently mapped to array datatypes
+when they are read in.
+
+
+<h3>10.3 Code Example</h3>
+
+The following example creates an array datatype and a dataset 
+containing elements of the array datatype in an HDF5 file.
+It then writes the dataset to the file.  
+<p>
+
+<center>
+<table border align=center width="100%">
+  <caption align=bottom><h4>Example: Array Datatype</h4></caption>
+  <tr>
+    <td>
+      <pre>
+#include &lt;hdf5.h&gt;
+
+#define FILE        "SDS_array_type.h5"
+#define DATASETNAME "IntArray" 
+#define ARRAY_DIM1     5                      /* array dimensions and rank */
+#define ARRAY_DIM2     4 
+#define ARRAY_RANK     2 
+#define SPACE_DIM     10                      /* dataset dimensions and rank */ 
+#define RANK  1 
+
+int
+main (void)
+{
+    hid_t       file, dataset;         /* file and dataset handles */
+    hid_t       datatype, dataspace;   /* handles */
+    hsize_t     sdims[] = {SPACE_DIM};              /* dataset dimensions */
+    hsize_t     adims[] = {ARRAY_DIM1, ARRAY_DIM2}; /* array dimensions */
+    hsize_t     adims_out[2]; 
+    herr_t      status;                             
+    int         data[SPACE_DIM][ARRAY_DIM1][ARRAY_DIM2];   /* data to write */
+    int         k, i, j;
+    int         array_rank_out; 
+
+    /* 
+     * Data  and output buffer initialization. 
+     */
+    for (k = 0; k &lt; SPACE_DIM; k++) {
+      for (j = 0; j &lt; ARRAY_DIM1; j++) {
+	for (i = 0; i &lt; ARRAY_DIM2; i++)
+               data[k][j][i] = k;
+      }
+    }     
+    /*
+     * Create a new file using H5F_ACC_TRUNC access,
+     * default file creation properties, and default file
+     * access properties.
+     */
+    file = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+    /*
+     * Describe the size of the array and create the data space for fixed
+     * size dataset. 
+     */
+    dataspace = H5Screate_simple(RANK, sdims, NULL); 
+
+    /* 
+     * Define array datatype for the data in the file.
+     */
+    datatype = H5Tarray_create(H5T_NATIVE_INT, ARRAY_RANK, adims, NULL);
+
+    /*
+     * Create a new dataset within the file using defined dataspace and
+     * datatype and default dataset creation properties.
+     */
+    dataset = H5Dcreate(file, DATASETNAME, datatype, dataspace,
+			H5P_DEFAULT);
+
+    /*
+     * Write the data to the dataset using default transfer properties.
+     */
+    status = H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL,
+		      H5P_DEFAULT, data);
+
+
+    /*
+     * Close/release resources.
+     */
+    H5Sclose(dataspace);
+    H5Tclose(datatype);
+    H5Dclose(dataset);
+    /*
+     * Reopen dataset, and return information about its datatype.
+     */
+    dataset = H5Dopen(file, DATASETNAME);
+    datatype = H5Dget_type(dataset);
+    array_rank_out = H5Tget_array_ndims(datatype);
+    status = H5Tget_array_dims(datatype, adims_out, NULL); 
+    printf(" Array datatype rank is %d \n", array_rank_out);
+    printf(" Array dimensions are %d x %d \n", (int)adims_out[0],   
+                                               (int)adims_out[1]);
+
+    H5Tclose(datatype);
+    H5Dclose(dataset);
+    H5Fclose(file);
+ 
+    return 0;
+}     
+      </pre>
+    </td>
+  </tr>
+</table>
+</center>
+
+
+
+    <h2>11. Sharing Datatypes among Datasets</h2>
+
+    <p>If a file has lots of datasets which have a common datatype,
       then the file could be made smaller by having all the datasets
       share a single datatype.  Instead of storing a copy of the 
       datatype in each dataset object header, a single datatype is stored
@@ -2445,7 +2625,7 @@ in the HDF5 distribution.
     <p>
       <center>
 	<table border align=center width="100%">
-	  <caption align=bottom><h4>Example: Shared Types</h4></caption>
+	  <caption align=bottom><h4>Example: Shared Datatypes</h4></caption>
 	  <tr>
 	    <td>
 	      <p>To create two datasets that share a common datatype
@@ -2473,8 +2653,11 @@ hid_t dset4 = H5Dcreate (file, "dset4", t2, space, H5P_DEFAULT);
 	</table>
       </center>
 
+
+
+
     <a name="Datatypes-DataConversion">
-    <h2>11. Data Conversion</h2>
+    <h2>12. Data Conversion</h2>
     </a>
 
     <p>The library is capable of converting data from one type to
@@ -2523,41 +2706,24 @@ hid_t dset4 = H5Dcreate (file, "dset4", t2, space, H5P_DEFAULT);
 
     <p>
       <code><pre>
-typedef herr_t (*H5T_conv_t) (hid_t <em>src_id</em>, 
-                              hid_t <em>dst_id</em>, 
-                              H5T_cdata_t *<em>cdata</em>,
-                              size_t <em>nelmts</em>, 
-                              size_t <em>buf_stride</em>, 
-                              size_t <em>bkg_stride</em>, 
-                              void *<em>buf</em>, 
-                              void *<em>bkg</em>,
-                              hid_t <em>dset_xfer_plist</em>);
+typedef herr_t (*H5T_conv_t)(hid_t <em>src_type</em>,
+                             hid_t <em>dest_type</em>,
+			     H5T_cdata_t *<em>cdata</em>,
+			     size_t <em>nelmts</em>,
+			     void *<em>buffer</em>,
+                             void *<em>background</em>);
     </pre></code>
 
     <p>The conversion function is called with the source and
-      destination datatypes (<em>src_type</em> and <em>dst_type</em>), 
-      path-constant data (<em>cdata</em>), 
-      the number of instances of the datatype to convert (<em>nelmts</em>), 
-      stride parameters for the buffer and temporary buffer 
-          (<em>buf_stride</em> and <em>bkg_stride</em>),
-      a buffer (<em>buf</em>) which initially contains an array of
-          data having the source type and on return will contain an array
-          of data having the destination type, 
-      a temporary or background buffer (<em>bkg</em>) 
-          which always has the destination type, and 
-      a transfer property list identifier (<em>dset_xfer_plist</em>).
-
-    <p>Normally, the data in <em>buf</em> and <em>bkg</em> are packed
-      and <em>buf_stride</em> and <em>bkg_stride</em> are both 
-      <code>0</code> (zero). 
-      If <em>buf_stride</em> and/or <em>bkg_stride</em> are non-zero, 
-      they indicate the number of bytes from the beginning of one element 
-      to the beginning of the next elelment of the array.
-      If <em>buf_stride</em> is non-zero, the value applies to both the 
-      input and output contents of <em>buf</em>.
-
-    <p>Functions return a negative value on failure and 
-      some other value on success.
+      destination datatypes (<em>src_type</em> and
+      <em>dst_type</em>), path-constant data (<em>cdata</em>), the
+      number of instances of the datatype to convert
+      (<em>nelmts</em>), a buffer which initially contains an array of
+      data having the source type and on return will contain an array
+      of data having the destination type (<em>buffer</em>), and a
+      temporary or background buffer (<em>background</em>).  Functions
+      return a negative value on failure and some other value on
+      success.
 
     <p>The <code>command</code> field of the <em>cdata</em> argument
       determines what happens within the conversion function.  It's
@@ -2854,9 +3020,9 @@ H5Tregister(H5T_PERS_SOFT, "cus2be",
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -2885,8 +3051,6 @@ H5Tregister(H5T_PERS_SOFT, "cus2be",
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -2899,10 +3063,12 @@ H5Tregister(H5T_PERS_SOFT, "cus2be",
 
 <!-- Created: Thu Dec  4 14:57:32 EST 1997 -->
 <!-- hhmts start -->
-Last modified:  9 June 2000
+Last modified:  16 February 2001
 <!-- hhmts end -->
+
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Describes HDF5 Release 1.4, February 2001
+
 
 
 </body>

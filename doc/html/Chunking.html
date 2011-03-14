@@ -11,9 +11,9 @@
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -42,8 +42,6 @@
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -211,7 +209,7 @@
       obvious way is to reduce the number of chunks by choosing a larger chunk
       size (doubling the chunk size will cut the number of B-tree nodes in
       half).  Another method is to adjust the split ratios for the B-tree by
-      calling <code>H5Pset_split_ratios()</code>, but this method typically
+      calling <code>H5Pset_btree_ratios()</code>, but this method typically
       results in only a slight improvement over the default settings.
       Finally, the out-degree of each node can be increased by calling
       <code>H5Pset_istore_k()</code> (increasing the out degree actually
@@ -231,9 +229,9 @@
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -262,8 +260,6 @@
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -277,10 +273,12 @@
 
 <!-- Created: Tue Oct 20 12:38:40 EDT 1998 -->
 <!-- hhmts start -->
-Last modified:  14 October 1999
+Last modified:  16 February 2001
 <!-- hhmts end -->
+
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Describes HDF5 Release 1.4, February 2001
+
 
 
   </body>

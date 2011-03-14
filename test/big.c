@@ -21,7 +21,7 @@ const char *FILENAME[] = {
 #if SIZEOF_LONG_LONG >= 8
 #   define GB8LL	((unsigned long_long)8*1024*1024*1024)
 #else
-#   define GB8LL	((unsigned long_long)0)	/*cannot do the test*/
+#   define GB8LL	0	/*cannot do the test*/
 #endif
 
 
@@ -77,13 +77,13 @@ is_sparse(void)
     struct stat	sb;
     
     if ((fd=open("x.h5", O_RDWR|O_TRUNC|O_CREAT, 0666))<0) return 0;
-    if (lseek(fd, 1024*1024, SEEK_SET)!=1024*1024) return 0;
+    if (lseek(fd, (off_t)(1024*1024), SEEK_SET)!=1024*1024) return 0;
     if (5!=write(fd, "hello", 5)) return 0;
     if (close(fd)<0) return 0;
     if (stat("x.h5", &sb)<0) return 0;
     if (unlink("x.h5")<0) return 0;
-#ifdef HAVE_STAT_ST_BLOCKS
-    return (sb.st_blocks*512 < (unsigned)sb.st_size);
+#ifdef H5_HAVE_STAT_ST_BLOCKS
+    return ((unsigned long)sb.st_blocks*512 < (unsigned long)sb.st_size);
 #else
     return (0);
 #endif
@@ -120,7 +120,11 @@ enough_room(hid_t fapl)
     for (i=0; i<NELMTS(fd); i++) fd[i] = -1;
 
     /* Get file name template */
+#ifdef H5_WANT_H5_V1_2_COMPAT
     assert(H5F_LOW_FAMILY==H5Pget_driver(fapl));
+#else /* H5_WANT_H5_V1_2_COMPAT */
+    assert(H5FD_FAMILY==H5Pget_driver(fapl));
+#endif /* H5_WANT_H5_V1_2_COMPAT */
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
 
     /* Create files */
@@ -187,9 +191,10 @@ writer (hid_t fapl, int wrt_n)
      * which is a family of files.  Each member of the family will be 1GB
      */
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
-    if ((file=H5Fcreate(filename, H5F_ACC_TRUNC|H5F_ACC_DEBUG, H5P_DEFAULT,
-			fapl))<0) goto error;
-
+    if ((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl))<0) {
+	goto error;
+    }
+    
     /* Create simple data spaces according to the size specified above. */
     if ((space1 = H5Screate_simple (4, size1, size1))<0 ||
 	(space2 = H5Screate_simple (1, size2, size2))<0) {
@@ -277,9 +282,7 @@ reader (hid_t fapl)
 
     /* Open HDF5 file */
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
-    if ((file=H5Fopen(filename, H5F_ACC_RDONLY|H5F_ACC_DEBUG, fapl))<0) {
-	goto error;
-    }
+    if ((file=H5Fopen(filename, H5F_ACC_RDONLY, fapl))<0) goto error;
 
     /* Open the dataset */
     if ((d2 = H5Dopen (file, "d2"))<0) goto error;
@@ -308,7 +311,7 @@ reader (hid_t fapl)
 	    else if (buf[j]!=i+1) wrong++;
 	}
 	if (zero) {
-	    FAILED();
+	    H5_FAILED();
 	    printf("    %d zero%s\n", zero, 1==zero?"":"s");
 	} else if (wrong) {
 	    SKIPPED();
@@ -367,16 +370,20 @@ main (void)
     fapl = h5_fileaccess();
 
     /* The file driver must be the family driver */
+#ifdef H5_WANT_H5_V1_2_COMPAT
     if (H5F_LOW_FAMILY!=H5Pget_driver(fapl)) {
+#else /* H5_WANT_H5_V1_2_COMPAT */
+    if (H5FD_FAMILY!=H5Pget_driver(fapl)) {
+#endif /* H5_WANT_H5_V1_2_COMPAT */
 	printf("Changing file drivers to the family driver, %lu bytes each\n",
 	       (unsigned long)FAMILY_SIZE);
-	if (H5Pset_family(fapl, FAMILY_SIZE, H5P_DEFAULT)<0) goto error;
-    } else if (H5Pget_family(fapl, &family_size, NULL)<0) {
+	if (H5Pset_fapl_family(fapl, (hsize_t)FAMILY_SIZE, H5P_DEFAULT)<0) goto error;
+    } else if (H5Pget_fapl_family(fapl, &family_size, NULL)<0) {
 	goto error;
     } else if (family_size!=FAMILY_SIZE) {
 	printf("Changing family member size from %lu to %lu\n",
 	       (unsigned long)family_size, (unsigned long)FAMILY_SIZE);
-	if (H5Pset_family(fapl, FAMILY_SIZE, H5P_DEFAULT)<0) goto error;
+	if (H5Pset_fapl_family(fapl, (hsize_t)FAMILY_SIZE, H5P_DEFAULT)<0) goto error;
     }
 
     /*
@@ -387,23 +394,23 @@ main (void)
     if (sizeof(long_long)<8 || 0==GB8LL) {
 	puts("Test skipped because sizeof(long_long) is too small. This");
 	puts("hardware apparently doesn't support 64-bit integer types.");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
 	exit(0);
     }
     if (!is_sparse()) {
 	puts("Test skipped because file system does not support holes.");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
 	exit(0);
     }
     if (!enough_room(fapl)) {
 	puts("Test skipped because of quota (file size or num open files).");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
 	exit(0);
     }
     if (sizeof(hsize_t)<=4) {
 	puts("Test skipped because the hdf5 library was configured with the");
 	puts("--disable-hsizet flag in order to work around a compiler bug.");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
 	exit(0);
     }
     
@@ -411,10 +418,11 @@ main (void)
     if (writer(fapl, WRT_N)) goto error;
     if (reader(fapl)) goto error;
     puts("All big tests passed.");
-    if (h5_cleanup(fapl)) remove(DNAME);
+    if (h5_cleanup(FILENAME, fapl)) remove(DNAME);
     return 0;
 
  error:
+    if (fapl>=0) H5Pclose(fapl);
     puts("*** TEST FAILED ***");
     return 1;
 }

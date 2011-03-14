@@ -1,4 +1,4 @@
-/* $Id: testphdf5.h,v 1.9.2.1 1999/07/12 17:37:24 acheng Exp $ */
+/* $Id: testphdf5.h,v 1.15 2000/12/13 00:12:57 acheng Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <hdf5.h>
+#include <h5test.h>
 
 /* Define some handy debugging shorthands, routines, ... */
 /* debugging tools */
@@ -20,14 +21,14 @@
 	}								      \
     }								      	      \
     else{								      \
+	printf("Proc %d: ", mpi_rank); \
         printf("*** PHDF5 Assertion failed (%s) at line %4d in %s\n",         \
 	    mesg, (int)__LINE__, __FILE__);     			      \
         nerrors++;                                                            \
-        H5Eprint (stdout);                                                    \
 	fflush(stdout);							      \
 	if (!verbose){							      \
-	    MPI_Finalize();						      \
-	    exit(nerrors);						      \
+	    printf("aborting MPI process\n"); \
+	    MPI_Finalize(); exit(nerrors); \
 	}								      \
     }                                                                         \
     H5Eclear();                                                               \
@@ -46,8 +47,8 @@
 /* End of Define some handy debugging shorthands, routines, ... */
 
 /* Constants definitions */
-#define DIM0		1024 	/* Default dataset sizes. */
-#define DIM1		1280	/* Values are from a monitor pixel sizes */
+#define DIM0		600 	/* Default dataset sizes. */
+#define DIM1		800	/* Values are from a monitor pixel sizes */
 #define RANK		2
 #define DATASETNAME1	"Data1"
 #define DATASETNAME2	"Data2"
@@ -55,17 +56,19 @@
 /* hyperslab layout styles */
 #define BYROW		1	/* divide into slabs of rows */
 #define BYCOL		2	/* divide into blocks of columns */
+#define ZROW		3	/* same as BYCOL except process 0 gets 0 rows */
+#define ZCOL		4	/* same as BYCOL except process 0 gets 0 columns */
 
 
 /* dataset data type.  Int's can be easily octo dumped. */
 typedef int DATATYPE;
 
 /* shared global variables */
-extern int dim0, dim1;				/* Dataset dimensions */
-extern int chunkdim0, chunkdim1;		/* Chunk dimensions */
-extern int nerrors;				/* errors count */
-extern int verbose;				/* verbose, default as no. */
-extern herr_t (*old_func)(void*);		/* previous error handler */
-extern void *old_client_data;			/* previous error handler arg.*/
+extern int dim0, dim1;				/*Dataset dimensions */
+extern int chunkdim0, chunkdim1;		/*Chunk dimensions */
+extern int nerrors;				/*errors count */
+extern int verbose;				/*verbose, default as no. */
+extern herr_t (*old_func)(void*);		/*previous error handler */
+extern void *old_client_data;			/*previous error handler arg.*/
 
 #endif /* PHDF5TEST_H */

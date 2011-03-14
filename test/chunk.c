@@ -14,7 +14,7 @@
 #undef NDEBUG
 #include <hdf5.h>
 
-#ifdef STDC_HEADERS
+#ifdef H5_STDC_HEADERS
 #   include <assert.h>
 #   include <stdio.h>
 #   include <stdlib.h>
@@ -22,7 +22,7 @@
 #endif
 
 
-#ifndef HAVE_ATTRIBUTE
+#ifndef H5_HAVE_ATTRIBUTE
 #   undef __attribute__
 #   define __attribute__(X) /*void*/
 #   define UNUSED /*void*/

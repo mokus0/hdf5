@@ -13,6 +13,11 @@
 #include <H5MMprivate.h>
 #include <H5Oprivate.h>
 
+#if defined WIN32
+#include <sys/types.h>
+#include <sys/timeb.h>
+#endif
+
 #define PABLO_MASK	H5O_mtime_mask
 
 static void *H5O_mtime_decode(H5F_t *f, const uint8_t *p, H5O_shared_t *sh);
@@ -112,16 +117,16 @@ H5O_mtime_decode(H5F_t UNUSED *f, const uint8_t *p,
 		      "badly formatted modification time message");
     }
 
-#if defined(HAVE_TM_GMTOFF)
+#if defined(H5_HAVE_TM_GMTOFF)
     /* FreeBSD, OSF 4.0 */
     the_time += tm.tm_gmtoff;
-#elif defined(HAVE___TM_GMTOFF)
+#elif defined(H5_HAVE___TM_GMTOFF)
     /* Linux libc-4 */
     the_time += tm.__tm_gmtoff;
-#elif defined(HAVE_TIMEZONE)
+#elif defined(H5_HAVE_TIMEZONE)
     /* Linux libc-5 */
     the_time -= timezone - (tm.tm_isdst?3600:0);
-#elif defined(HAVE_BSDGETTIMEOFDAY) && defined(HAVE_STRUCT_TIMEZONE)
+#elif defined(H5_HAVE_BSDGETTIMEOFDAY) && defined(H5_HAVE_STRUCT_TIMEZONE)
     /* Irix5.3 */
     {
 	struct timezone tz;
@@ -131,7 +136,7 @@ H5O_mtime_decode(H5F_t UNUSED *f, const uint8_t *p,
 	}
 	the_time -= tz.tz_minuteswest*60 - (tm.tm_isdst?3600:0);
     }
-#elif defined(HAVE_GETTIMEOFDAY) && defined(HAVE_STRUCT_TIMEZONE)
+#elif defined(H5_HAVE_GETTIMEOFDAY) && defined(H5_HAVE_STRUCT_TIMEZONE)
     {
 	struct timezone tz;
 	if (gettimeofday(NULL, &tz)<0) {
@@ -140,6 +145,19 @@ H5O_mtime_decode(H5F_t UNUSED *f, const uint8_t *p,
 	}
 	the_time -= tz.tz_minuteswest*60 - (tm.tm_isdst?3600:0);
     }
+#elif defined WIN32 
+	{
+
+   struct timeb timebuffer;
+   long  tz;
+   ftime( &timebuffer );
+
+   tz = timebuffer.timezone;
+  
+   the_time -=tz*60;
+
+   
+}
 #else
     /*
      * The catch-all.  If we can't convert a character string universal
@@ -232,8 +250,8 @@ H5O_mtime_copy(const void *_mesg, void *_dest)
 
     /* check args */
     assert(mesg);
-    if (!dest && NULL==(dest = H5FL_ALLOC(time_t,1))) {
-	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
+    if (!dest && NULL==(dest = H5FL_ALLOC(time_t,0))) {
+        HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		       "memory allocation failed");
     }
     

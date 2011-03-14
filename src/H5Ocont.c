@@ -17,6 +17,7 @@
  *
  *-------------------------------------------------------------------------
  */
+
 #include <H5private.h>
 #include <H5Eprivate.h>
 #include <H5MMprivate.h>
@@ -85,7 +86,7 @@ H5O_cont_decode(H5F_t *f, const uint8_t *p, H5O_shared_t UNUSED *sh)
 		       "memory allocation failed");
     }
     H5F_addr_decode(f, &p, &(cont->addr));
-    H5F_decode_length(f, p, cont->size);
+    H5F_DECODE_LENGTH(f, p, cont->size);
 
     FUNC_LEAVE((void *) cont);
 }
@@ -118,8 +119,8 @@ H5O_cont_encode(H5F_t *f, uint8_t *p, const void *_mesg)
     assert(cont);
 
     /* encode */
-    H5F_addr_encode(f, &p, &(cont->addr));
-    H5F_encode_length(f, p, cont->size);
+    H5F_addr_encode(f, &p, cont->addr);
+    H5F_ENCODE_LENGTH(f, p, cont->size);
 
     FUNC_LEAVE(SUCCEED);
 }
@@ -154,17 +155,15 @@ H5O_cont_debug(H5F_t UNUSED *f, const void *_mesg, FILE * stream,
     assert(indent >= 0);
     assert(fwidth >= 0);
 
-    fprintf(stream, "%*s%-*s ", indent, "", fwidth,
-            "Continuation address:");
-    H5F_addr_print(stream, &(cont->addr));
-    fprintf(stream, "\n");
+    HDfprintf(stream, "%*s%-*s %a\n", indent, "", fwidth,
+	      "Continuation address:", cont->addr);
 
-    fprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
-            "Continuation size in bytes:",
-            (unsigned long) (cont->size));
-    fprintf(stream, "%*s%-*s %d\n", indent, "", fwidth,
-            "Points to chunk number:",
-            (int) (cont->chunkno));
+    HDfprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
+	      "Continuation size in bytes:",
+	      (unsigned long) (cont->size));
+    HDfprintf(stream, "%*s%-*s %d\n", indent, "", fwidth,
+	      "Points to chunk number:",
+	      (int) (cont->chunkno));
 
     FUNC_LEAVE(SUCCEED);
 }

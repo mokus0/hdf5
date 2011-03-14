@@ -13,6 +13,7 @@
  *		pointed-to message and the pointed-to message is stored in
  *		the global heap.
  */
+
 #include <H5private.h>
 #include <H5Eprivate.h>
 #include <H5MMprivate.h>
@@ -150,7 +151,7 @@ H5O_shared_encode (H5F_t *f, uint8_t *buf/*out*/, const void *_mesg)
     *buf++ = 0; /*reserved 6*/
 
     if (mesg->in_gh) {
-	H5F_addr_encode (f, &buf, &(mesg->u.gh.addr));
+	H5F_addr_encode (f, &buf, mesg->u.gh.addr);
 	INT32ENCODE (buf, mesg->u.gh.idx);
     } else {
 	H5G_ent_encode (f, &buf, &(mesg->u.ent));
@@ -226,8 +227,8 @@ H5O_shared_debug (H5F_t UNUSED *f, const void *_mesg,
 		   "Sharing method",
 		   "Global heap");
 	HDfprintf (stream, "%*s%-*s %a\n", indent, "", fwidth,
-		 "Collection address:",
-		   &(mesg->u.gh.addr));
+		   "Collection address:",
+		   mesg->u.gh.addr);
 	HDfprintf (stream, "%*s%-*s %d\n", indent, "", fwidth,
 		   "Object ID within collection:",
 		   mesg->u.gh.idx);
@@ -235,7 +236,8 @@ H5O_shared_debug (H5F_t UNUSED *f, const void *_mesg,
 	HDfprintf (stream, "%*s%-*s %s\n", indent, "", fwidth,
 		   "Sharing method",
 		   "Obj Hdr");
-	H5G_ent_debug (f, &(mesg->u.ent), stream, indent, fwidth, NULL);
+	H5G_ent_debug (f, &(mesg->u.ent), stream, indent, fwidth,
+		       HADDR_UNDEF);
     }
     
     FUNC_LEAVE (SUCCEED);

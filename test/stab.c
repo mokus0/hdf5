@@ -66,7 +66,7 @@ test_misc(hid_t fapl)
     if ((g3=H5Gopen(file, "/test_1b"))<0) goto error;
     if (H5Gget_comment(g3, "././.", sizeof comment, comment)<0) goto error;
     if (strcmp(comment, "hello world")) {
-	FAILED();
+	H5_FAILED();
 	puts("    Read the wrong comment string from the group.");
 	printf("    got: \"%s\"\n    ans: \"hello world\"\n", comment);
 	goto error;
@@ -134,6 +134,9 @@ test_large(hid_t fapl)
     if ((cwg=H5Gcreate(file, "/big", (size_t)nsyms*16+2))<0) goto error;
     for (i=0; i<nsyms; i++) {
         sprintf(name, "%05d%05d", rand()%100000, i);
+#if 0
+	fprintf(stderr, "%s\n", name);
+#endif
 	if ((dir=H5Gcreate(cwg, name, 0))<0) goto error;
         if (H5Gclose(dir)<0) goto error;
     }
@@ -189,7 +192,7 @@ main(void)
 
     /* Cleanup */
     puts("All symbol table tests passed.");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
     return 0;
 
  error:

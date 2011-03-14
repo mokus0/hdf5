@@ -128,10 +128,11 @@ main (int argc, char *argv[])
     /* Other variables */
     unsigned int	i, j;
     hid_t		file, dataset, space, PRESERVE, fapl;
+    hid_t       array_dt;
     static hsize_t	dim[] = {NX, NY};
     hssize_t 		f_offset[2];	/*offset of hyperslab in file	*/
     hsize_t 		h_size[2];	/*size of hyperslab		*/
-    size_t		memb_size[1] = {4};
+    hsize_t		memb_size[1] = {4};
     char		filename[256];
 
     h5_reset();
@@ -148,9 +149,10 @@ main (int argc, char *argv[])
     /* Create the file */
     fapl = h5_fileaccess();
     h5_fixname(FILENAME[0], fapl, filename, sizeof(filename));
-    if ((file = H5Fcreate (filename, H5F_ACC_TRUNC|H5F_ACC_DEBUG,
-			   H5P_DEFAULT, fapl))<0) goto error;
-
+    if ((file = H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl))<0) {
+	goto error;
+    }
+    
     /* Create the data space */
     if ((space = H5Screate_simple (2, dim, NULL))<0) goto error;
 
@@ -177,15 +179,16 @@ main (int argc, char *argv[])
     }
 
     /* Create the memory data type */
-    if ((s1_tid = H5Tcreate (H5T_COMPOUND, sizeof(s1_t)))<0) goto error;
+    if ((s1_tid = H5Tcreate (H5T_COMPOUND, sizeof(s1_t)))<0)
+        goto error;
+    array_dt=H5Tarray_create(H5T_NATIVE_INT, 1, memb_size, NULL);
     if (H5Tinsert (s1_tid, "a", HOFFSET(s1_t,a), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s1_tid, "b", HOFFSET(s1_t,b), H5T_NATIVE_INT)<0 ||
-	H5Tinsert_array (s1_tid, "c", HOFFSET(s1_t,c), 1, memb_size, NULL,
-			 H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s1_tid, "d", HOFFSET(s1_t,d), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s1_tid, "e", HOFFSET(s1_t,e), H5T_NATIVE_INT)<0) {
-	goto error;
-    }
+            H5Tinsert (s1_tid, "b", HOFFSET(s1_t,b), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s1_tid, "c", HOFFSET(s1_t,c), array_dt)<0 ||
+            H5Tinsert (s1_tid, "d", HOFFSET(s1_t,d), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s1_tid, "e", HOFFSET(s1_t,e), H5T_NATIVE_INT)<0)
+        goto error;
+    H5Tclose(array_dt);
 
     /* Create the dataset */
     if ((dataset = H5Dcreate (file, "s1", s1_tid, space, H5P_DEFAULT))<0) {
@@ -207,15 +210,16 @@ main (int argc, char *argv[])
     TESTING("basic compound read");
     
     /* Create a data type for s2 */
-    if ((s2_tid = H5Tcreate (H5T_COMPOUND, sizeof(s2_t)))<0) goto error;
+    if ((s2_tid = H5Tcreate (H5T_COMPOUND, sizeof(s2_t)))<0)
+        goto error;
+    array_dt=H5Tarray_create(H5T_NATIVE_INT, 1, memb_size, NULL);
     if (H5Tinsert (s2_tid, "a", HOFFSET(s2_t,a), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s2_tid, "b", HOFFSET(s2_t,b), H5T_NATIVE_INT)<0 ||
-	H5Tinsert_array (s2_tid, "c", HOFFSET(s2_t,c), 1, memb_size, NULL,
-			 H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s2_tid, "d", HOFFSET(s2_t,d), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s2_tid, "e", HOFFSET(s2_t,e), H5T_NATIVE_INT)<0) {
-	goto error;
-    }
+            H5Tinsert (s2_tid, "b", HOFFSET(s2_t,b), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s2_tid, "c", HOFFSET(s2_t,c), array_dt)<0 ||
+            H5Tinsert (s2_tid, "d", HOFFSET(s2_t,d), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s2_tid, "e", HOFFSET(s2_t,e), H5T_NATIVE_INT)<0)
+        goto error;
+    H5Tclose(array_dt);
     
     /* Read the data */
     if (H5Dread (dataset, s2_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, s2)<0) {
@@ -232,7 +236,7 @@ main (int argc, char *argv[])
 	    s1[i].c[3]!=s2[i].c[3] ||
 	    s1[i].d!=s2[i].d ||
 	    s1[i].e!=s2[i].e) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Incorrect values read from the file");
 	    goto error;
 	}
@@ -248,15 +252,16 @@ main (int argc, char *argv[])
     TESTING("reversal of struct members");
     
     /* Create a data type for s3 */
-    if ((s3_tid = H5Tcreate (H5T_COMPOUND, sizeof(s3_t)))<0) goto error;
+    if ((s3_tid = H5Tcreate (H5T_COMPOUND, sizeof(s3_t)))<0)
+        goto error;
+    array_dt=H5Tarray_create(H5T_NATIVE_INT, 1, memb_size, NULL);
     if (H5Tinsert (s3_tid, "a", HOFFSET(s3_t,a), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s3_tid, "b", HOFFSET(s3_t,b), H5T_NATIVE_INT)<0 ||
-	H5Tinsert_array (s3_tid, "c", HOFFSET(s3_t,c), 1, memb_size, NULL,
-			 H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s3_tid, "d", HOFFSET(s3_t,d), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s3_tid, "e", HOFFSET(s3_t,e), H5T_NATIVE_INT)<0) {
-	goto error;
-    }
+            H5Tinsert (s3_tid, "b", HOFFSET(s3_t,b), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s3_tid, "c", HOFFSET(s3_t,c), array_dt)<0 ||
+            H5Tinsert (s3_tid, "d", HOFFSET(s3_t,d), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s3_tid, "e", HOFFSET(s3_t,e), H5T_NATIVE_INT)<0)
+        goto error;
+    H5Tclose(array_dt);
     
     /* Read the data */
     if (H5Dread (dataset, s3_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, s3)<0) {
@@ -273,7 +278,7 @@ main (int argc, char *argv[])
 	    s1[i].c[3]!=s3[i].c[3] ||
 	    s1[i].d!=s3[i].d ||
 	    s1[i].e!=s3[i].e) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Incorrect values read from the file");
 	    goto error;
 	}
@@ -301,7 +306,7 @@ main (int argc, char *argv[])
     for (i=0; i<NX*NY; i++) {
 	if (s1[i].b!=s4[i].b ||
 	    s1[i].d!=s4[i].d) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Incorrect values read from the file");
 	    goto error;
 	}
@@ -324,15 +329,16 @@ main (int argc, char *argv[])
     }
     
     /* Create a data type for s5 */
-    if ((s5_tid = H5Tcreate (H5T_COMPOUND, sizeof(s5_t)))<0) goto error;
+    if ((s5_tid = H5Tcreate (H5T_COMPOUND, sizeof(s5_t)))<0)
+        goto error;
+    array_dt=H5Tarray_create(H5T_NATIVE_INT, 1, memb_size, NULL);
     if (H5Tinsert (s5_tid, "a", HOFFSET(s5_t,a), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s5_tid, "b", HOFFSET(s5_t,b), H5T_NATIVE_INT)<0 ||
-	H5Tinsert_array (s5_tid, "c", HOFFSET(s5_t,c), 1, memb_size, NULL,
-			 H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s5_tid, "d", HOFFSET(s5_t,d), H5T_NATIVE_INT)<0 ||
-	H5Tinsert (s5_tid, "e", HOFFSET(s5_t,e), H5T_NATIVE_INT)) {
-	goto error;
-    }
+            H5Tinsert (s5_tid, "b", HOFFSET(s5_t,b), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s5_tid, "c", HOFFSET(s5_t,c), array_dt)<0 ||
+            H5Tinsert (s5_tid, "d", HOFFSET(s5_t,d), H5T_NATIVE_INT)<0 ||
+            H5Tinsert (s5_tid, "e", HOFFSET(s5_t,e), H5T_NATIVE_INT))
+        goto error;
+    H5Tclose(array_dt);
 	
     /* Read the data */
     if (H5Dread (dataset, s5_tid, H5S_ALL, H5S_ALL, PRESERVE, s5)<0) {
@@ -349,7 +355,7 @@ main (int argc, char *argv[])
 	    s1[i].c[3]!=s5[i].c[3] ||
 	    s1[i].d!=s5[i].d ||
 	    s1[i].e!=s5[i].e) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Incorrect values read from the file");
 	    goto error;
 	}
@@ -361,7 +367,7 @@ main (int argc, char *argv[])
 	    s5[i].mid1 != 1001+4*i ||
 	    s5[i].mid2 != 1002+4*i ||
 	    s5[i].post != 1003+4*i) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Memory values were clobbered");
 	    goto error;
 	}
@@ -402,7 +408,7 @@ main (int argc, char *argv[])
 	    s1[i].c[3] != 8*i+5 ||
 	    s1[i].d != 8*i+6 ||
 	    s1[i].e != 8*i+7) {
-	    FAILED();
+	    H5_FAILED();
 	    printf("    i==%u, row=%u, col=%u\n", i, i/NY, i%NY);
 	    printf("    got: {%7d,%7d,[%7d,%7d,%7d,%7d],%7d,%7d}\n",
 		   s1[i].a, s1[i].b, s1[i].c[0], s1[i].c[1], s1[i].c[2],
@@ -440,7 +446,7 @@ main (int argc, char *argv[])
 	    s2[i].c[3] != s1[i].c[3] ||
 	    s2[i].d != s1[i].d ||
 	    s2[i].e != s1[i].e) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Incorrect values read from file");
 	    goto error;
 	}
@@ -488,7 +494,7 @@ main (int argc, char *argv[])
 		ps8->c[3] != ps1->c[3] ||
 		ps8->d != ps1->d ||
 		ps8->e != ps1->e) {
-		FAILED();
+		H5_FAILED();
 		puts("    Incorrect values read from file");
 		goto error;
 	    }
@@ -535,7 +541,7 @@ main (int argc, char *argv[])
 		    ps2->c[3] != ps1->c[3] ||
 		    ps2->d != ps1->d ||
 		    ps2->e != ps1->e) {
-		    FAILED();
+		    H5_FAILED();
 		    puts("    Memory values clobbered");
 		    goto error;
 		}
@@ -548,7 +554,7 @@ main (int argc, char *argv[])
 		    ps2->c[3] != (unsigned)(-1) ||
 		    ps2->d != (unsigned)(-1) ||
 		    ps2->e != (unsigned)(-1)) {
-		    FAILED();
+		    H5_FAILED();
 		    puts("    Incorrect values read from file");
 		    goto error;
 		}
@@ -597,7 +603,7 @@ main (int argc, char *argv[])
 		    ps5->d != ps1->d ||
 		    ps5->e != ps1->e ||
 		    ps5->post != (unsigned)(-1)) {
-		    FAILED();
+		    H5_FAILED();
 		    puts("    Memory values clobbered");
 		    goto error;
 		}
@@ -614,7 +620,7 @@ main (int argc, char *argv[])
 		    ps5->d != (unsigned)(-1) ||
 		    ps5->e != (unsigned)(-1) ||
 		    ps5->post != (unsigned)(-1)) {
-		    FAILED();
+		    H5_FAILED();
 		    puts("    Incorrect values read from file");
 		    goto error;
 		}
@@ -666,7 +672,7 @@ main (int argc, char *argv[])
 		ps1->c[2] != 8*(i*NY+j)+4 ||
 		ps1->c[3] != 8*(i*NY+j)+5 ||
 		ps1->e != 8*(i*NY+j)+7) {
-		FAILED();
+		H5_FAILED();
 		puts("    Write clobbered values");
 		goto error;
 	    }
@@ -677,14 +683,14 @@ main (int argc, char *argv[])
 		(hsize_t)j<f_offset[1]+h_size[1]) {
 		if (ps1->b != (unsigned)(-1) ||
 		    ps1->d != (unsigned)(-1)) {
-		    FAILED();
+		    H5_FAILED();
 		    puts("    Wrong values written or read");
 		    goto error;
 		}
 	    } else {
 		if (ps1->b != 8*(i*NY+j)+1 ||
 		    ps1->d != 8*(i*NY+j)+6) {
-		    FAILED();
+		    H5_FAILED();
 		    puts("    Write clobbered values");
 		    goto error;
 		}
@@ -701,7 +707,7 @@ main (int argc, char *argv[])
     H5Dclose (dataset);
     H5Fclose (file);
 
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
     puts("All compound dataset tests passed.");
     return 0;
 

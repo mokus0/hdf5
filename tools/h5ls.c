@@ -16,18 +16,6 @@
 #include <h5tools.h>
 
 /*
- * File drivers
- */
-#if defined VERSION13
-#include <H5FDsec2.h>
-#include <H5FDmulti.h>
-#include <H5FDfamily.h>
-#elif defined VERSION12
-#include <H5Fpublic.h>
-#endif
-
-
-/*
  * If defined then include the file name as part of the object name when
  * printing full object names. Otherwise leave the file name off.
  */
@@ -122,7 +110,7 @@ usage: %s [OPTIONS] [OBJECTS...]\n\
    OBJECTS\n\
       Each object consists of an HDF5 file name optionally followed by a\n\
       slash and an object name within the file (if no object is specified\n\
-      within the file then the contents of the root group are dispalyed).\n\
+      within the file then the contents of the root group are displayed).\n\
       The file name may include a printf(3C) integer format such as\n\
       \"%%05d\" to open a file family.\n",
 	    progname);
@@ -718,9 +706,9 @@ display_cmpd_type(hid_t type, int ind)
 {
     char	*name=NULL;	/*member name				*/
     int		ndims;		/*dimensionality			*/
-    size_t	dims[8];	/*dimensions				*/
+    hsize_t	dims[H5S_MAX_RANK];	/*dimensions				*/
     size_t	size;		/*total size of type in bytes		*/
-    int		perm[8];	/*index permutation			*/
+    int		perm[H5S_MAX_RANK];	/*index permutation			*/
     hid_t	subtype;	/*member data type			*/
     int		i, j, n;	/*miscellaneous counters		*/
     
@@ -729,39 +717,47 @@ display_cmpd_type(hid_t type, int ind)
     printf("struct {");
     for (i=0; i<H5Tget_nmembers(type); i++) {
 
-	/* Name and offset */
-	name = H5Tget_member_name(type, i);
-	printf("\n%*s\"", ind+4, "");
-	n = display_string(stdout, name, FALSE);
-	printf("\"%*s +%-4lu ", MAX(0, 16-n), "",
-	       (unsigned long)H5Tget_member_offset(type, i));
-	free(name);
+        /* Name and offset */
+        name = H5Tget_member_name(type, i);
+        printf("\n%*s\"", ind+4, "");
+        n = display_string(stdout, name, FALSE);
+        printf("\"%*s +%-4lu ", MAX(0, 16-n), "",
+               (unsigned long)H5Tget_member_offset(type, i));
+        free(name);
 
-	/* Dimensions and permutation */
-	ndims = H5Tget_member_dims(type, i, dims, perm);
-	if (ndims>0) {
-	    printf("[");
-	    for (j=0; j<ndims; j++) {
-		printf("%s%lu", j?",":"", (unsigned long)(dims[j]));
-	    }
-	    printf("]");
-	    for (j=0; j<ndims; j++) {
-		if (perm[j]!=j) break;
-	    }
-	    if (j<ndims) {
-		printf("x[");
-		for (j=0; j<ndims; j++) {
-		    printf("%s%d", j?",":"", perm[j]);
-		}
-		printf("]");
-	    }
-	    printf(" ");
-	}
-	
-	/* Data type */
-	subtype = H5Tget_member_type(type, i);
-	display_type(subtype, ind+4);
-	H5Tclose(subtype);
+        /* Grab member's type */
+        subtype = H5Tget_member_type(type, i);
+
+        /* Dimensions and permutation */
+        if(H5Tget_class(subtype)==H5T_ARRAY) {
+            ndims = H5Tget_array_ndims(subtype);
+            H5Tget_array_dims(subtype, dims, perm);
+        } /* end if */
+        else
+            ndims=0;
+
+        if (ndims>0) {
+            printf("[");
+            for (j=0; j<ndims; j++)
+                printf("%s%lu", j?",":"", (unsigned long)(dims[j]));
+            printf("]");
+
+            for (j=0; j<ndims; j++)
+                if (perm[j]!=j)
+                    break;
+
+            if (j<ndims) {
+                printf("x[");
+                for (j=0; j<ndims; j++)
+                    printf("%s%d", j?",":"", perm[j]);
+                printf("]");
+            }
+            printf(" ");
+        }
+        
+        /* Data type */
+        display_type(subtype, ind+4);
+        H5Tclose(subtype);
     }
     size = H5Tget_size(type);
     printf("\n%*s} %lu byte%s",
@@ -825,15 +821,16 @@ display_enum_type(hid_t type, int ind)
     }
 
     /* Get the names and raw values of all members */
-    name = calloc(nmembs, sizeof(char*));
-    value = calloc(nmembs, MAX(H5Tget_size(type), dst_size));
+    assert(nmembs>0);
+    name = calloc((size_t)nmembs, sizeof(char*));
+    value = calloc((size_t)nmembs, MAX(H5Tget_size(type), dst_size));
     for (i=0; i<nmembs; i++) {
 	name[i] = H5Tget_member_name(type, i);
 	H5Tget_member_value(type, i, value+i*H5Tget_size(type));
     }
 
     /* Convert values to native data type */
-    if (native>0) H5Tconvert(super, native, nmembs, value, NULL, H5P_DEFAULT);
+    if (native>0) H5Tconvert(super, native, (hsize_t)nmembs, value, NULL, H5P_DEFAULT);
 
     /* Sort members by increasing value */
     /*not implemented yet*/
@@ -1029,6 +1026,35 @@ display_opaque_type(hid_t type, int ind)
     return TRUE;
 }
 
+/*-------------------------------------------------------------------------
+ * Function:    display_vlen_type
+ *
+ * Purpose:     Print information about a variable-length type
+ *
+ * Return:      Success:        TRUE
+ *
+ *              Failure:        FALSE
+ *
+ * Programmer:  Robb Matzke
+ *              Friday, December  1, 2000
+ *
+ * Modifications:
+ *-------------------------------------------------------------------------
+ */
+static hbool_t
+display_vlen_type(hid_t type, int ind)
+{
+    hid_t       super;
+    
+    if (H5T_VLEN!=H5Tget_class(type)) return FALSE;
+
+    printf("variable length of\n%*s", ind+4, "");
+    super = H5Tget_super(type);
+    display_type(super, ind+4);
+    H5Tclose(super);
+    return TRUE;
+}
+
 
 /*-------------------------------------------------------------------------
  * Function:	display_type
@@ -1082,6 +1108,7 @@ display_type(hid_t type, int ind)
 	display_enum_type(type, ind) ||
 	display_string_type(type, ind) ||
 	display_reference_type(type, ind) ||
+        display_vlen_type(type, ind) ||
 	display_opaque_type(type, ind)) {
 	return;
     }
@@ -1116,6 +1143,7 @@ dump_dataset_values(hid_t dset)
     size_t		size = H5Tget_size(f_type);
     h5dump_t		info;
     char		string_prefix[64];
+    static char         fmt_double[16], fmt_float[16];
 	
     /* Set to all default values and then override */
     memset(&info, 0, sizeof info);
@@ -1150,6 +1178,12 @@ dump_dataset_values(hid_t dset)
 	info.line_cont = "        %s  ";
 	info.str_repeat = 8;
     }
+
+    /* Floating point types should display full precision */
+    sprintf(fmt_float, "%%1.%dg", FLT_DIG);
+    info.fmt_float = fmt_float;
+    sprintf(fmt_double, "%%1.%dg", DBL_DIG);
+    info.fmt_double = fmt_double;
 
     info.dset_format =  "DSET-%lu:%lu:%lu:%lu-";
     info.dset_hidefileno = 0;
@@ -1283,7 +1317,7 @@ list_attr (hid_t obj, const char *attr_name, void UNUSED *op_data)
 	    buf = malloc(need);
 	    assert(buf);
 	    if (H5Aread(attr, p_type, buf)>=0) {
-		h5dump_mem(stdout, &info, p_type, space, buf,-1);
+		h5dump_mem(stdout, &info, attr, p_type, space, buf,-1);
 	    }
 	    free(buf);
 	    H5Tclose(p_type); 
@@ -1568,34 +1602,6 @@ datatype_list2(hid_t type, const char UNUSED *name)
 
 
 /*-------------------------------------------------------------------------
- * Function:	ragged_list2
- *
- * Purpose:	List information about a ragged array which should appear
- *		after information which is general to all objects.
- *
- * Return:	Success:	0
- *
- *		Failure:	-1
- *
- * Programmer:	Robb Matzke
- *              Thursday, November  5, 1998
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-ragged_list2(hid_t UNUSED ra, const char UNUSED *name)
-{
-    if (data_g) {
-	puts("    Data:      Not implemented yet (see values of member");
-	puts("               datasets `raw', `over', and `meta')");
-    }
-    return -1;
-}
-
-
-/*-------------------------------------------------------------------------
  * Function:	link_open
  *
  * Purpose:	This gets called to open a symbolic link.  Since symbolic
@@ -1834,35 +1840,37 @@ get_width(void)
 	width = (int)strtol(s, NULL, 0);
     }
 
-#if defined(HAVE_STRUCT_VIDEOCONFIG) && defined(HAVE__GETVIDEOCONFIG)
+#if defined(H5_HAVE_STRUCT_VIDEOCONFIG) && defined(H5_HAVE__GETVIDEOCONFIG)
     {
 	/* Microsoft C */
 	struct videoconfig w;
 	_getvideoconfig(&w);
 	width = w.numtextcols;
     }
-#elif defined(HAVE_STRUCT_TEXT_INFO) && defined(HAVE_GETTEXTINFO)
+#elif defined(H5_HAVE_STRUCT_TEXT_INFO) && defined(H5_HAVE_GETTEXTINFO)
     {
 	/* Borland C or DJGPPC */
 	struct text_info w;
 	gettextinfo(&w);
 	width = w.screenwidth;
     }
-#elif defined(HAVE_GETCONSOLESCREENBUFFERINFO)
+#elif defined(H5_HAVE_GETCONSOLESCREENBUFFERINFO)
     {
 	/* Win32 C */
 	CONSOLE_SCREEN_BUFFER_INFO scr;
 	GetConsoleScreenBufferInfo(con_out, &scr);
 	width = scr.srWindow.Right - scr.srWindow.Left + 1;
     }
-#elif defined(HAVE__SCRSIZE)
+#elif defined(H5_HAVE__SCRSIZE)
     {
 	/* OS/2 */
 	int w[2];
 	_scrsize(w);
 	width = w[0];
     }
-#elif defined(HAVE_TIOCGWINSZ) && defined(HAVE_IOCTL)
+#elif defined(H5_HAVE_TIOCGWINSZ) && defined(H5_HAVE_IOCTL)
+#ifndef __PUMAGON__
+/* the ioctl() call coredump on TFLOPS.  Turn it off for now. */
     {
 	/* Unix with ioctl(TIOCGWINSZ) */
 	struct winsize w;
@@ -1870,7 +1878,8 @@ get_width(void)
 	    width = w.ws_col;
 	}
     }
-#elif defined(HAVE_TIOCGETD) && defined(HAVE_IOCTL)
+#endif
+#elif defined(H5_HAVE_TIOCGETD) && defined(H5_HAVE_IOCTL)
     {
 	/* Unix with ioctl(TIOCGETD) */
 	struct uwdata w;
@@ -1907,16 +1916,17 @@ main (int argc, char *argv[])
 {
     hid_t	file=-1, root=-1;
     char	*fname=NULL, *oname=NULL, *x;
-    const char	*progname;
+    const char	*progname="h5ls";
     const char	*s = NULL;
     char	*rest, *container=NULL;
     int		argno;
     H5G_stat_t	sb;
     iter_t	iter;
     static char	root_name[] = "/";
-    char drivername[50];
-    memset(drivername, '\0',50);
+    char        drivername[50];
 
+    /* Initialize h5tools lib */
+    h5tools_init();
 
     /* Build display table */
     DISPATCH(H5G_DATASET, "Dataset", H5Dopen, H5Dclose,
@@ -1927,12 +1937,12 @@ main (int argc, char *argv[])
 	     NULL, datatype_list2);
     DISPATCH(H5G_LINK, "-> ", link_open, NULL,
 	     NULL, NULL);
-    DISPATCH(H5G_RAGGED, "Ragged Array", H5Gopen, H5Gclose,
-	     NULL, ragged_list2);
 
+#if 0
     /* Name of this program without the path */
     if ((progname=strrchr(argv[0], '/'))) progname++;
     else progname = argv[0];
+#endif
 
     /* Default output width */
     width_g = get_width();
@@ -1955,7 +1965,7 @@ main (int argc, char *argv[])
 	} else if (!strcmp(argv[argno], "--full")) {
 	    fullname_g = TRUE;
 	} else if (!strcmp(argv[argno], "--group")) {
-	    grp_literal_g = TRUE;
+	    grp_literal_g = TRUE; 
 	} else if (!strcmp(argv[argno], "--label")) {
 	    label_g = TRUE;
 	} else if (!strcmp(argv[argno], "--recursive")) {
@@ -2072,6 +2082,7 @@ main (int argc, char *argv[])
     /* Turn off HDF5's automatic error printing unless you're debugging h5ls */
     if (!show_errors_g) H5Eset_auto(NULL, NULL);
 
+
     /*
      * Each remaining argument is an hdf5 file followed by an optional slash
      * and object name.
@@ -2092,8 +2103,7 @@ main (int argc, char *argv[])
 	file = -1;
 
 	while (fname && *fname) {
-
-	    file = H5ToolsFopen(fname,drivername);
+            file = h5dump_fopen(fname, drivername, sizeof drivername);
 	    if (file>=0) {
 		if (verbose_g) {
 		    printf("Opened \"%s\" with %s driver.\n",
@@ -2111,6 +2121,7 @@ main (int argc, char *argv[])
 	}
 	if (file<0) {
 	    fprintf(stderr, "%s: unable to open file\n", argv[argno-1]);
+            continue;
 	}
 	if (oname) oname++;
 	if (!oname || !*oname) oname = root_name;
@@ -2149,6 +2160,7 @@ main (int argc, char *argv[])
 	}
 	H5Fclose(file);
     }
+    h5tools_close();
     
     return 0;
 }

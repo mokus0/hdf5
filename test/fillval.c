@@ -89,7 +89,7 @@ test_getset(void)
 	status = H5Pget_fill_value(dcpl, H5T_NATIVE_INT, &fill_i);
     } H5E_END_TRY;
     if (status>=0) {
-	FAILED();
+	H5_FAILED();
 	puts("    H5Pget_fill_value() should have been negative");
 	goto error;
     }
@@ -106,7 +106,7 @@ test_getset(void)
      */
     if (H5Pget_fill_value(dcpl, type_ss, &fill_ss_rd)<0) goto error;
     if (fill_ss.v1!=fill_ss_rd.v1 || fill_ss.v2!=fill_ss_rd.v2) {
-	FAILED();
+	H5_FAILED();
 	puts("    Failed to get fill value using same data type that was ");
 	puts("    used to set the fill value.");
 	goto error;
@@ -117,7 +117,7 @@ test_getset(void)
      */
     if (H5Pget_fill_value(dcpl, type_si, &fill_si)<0) goto error;
     if (fill_ss.v1!=fill_si.v1 || fill_ss.v2!=fill_si.v2) {
-	FAILED();
+	H5_FAILED();
 	puts("    Failed to get fill value using a data type other than what");
 	puts("    was used to set the fill value.");
 	goto error;
@@ -129,7 +129,7 @@ test_getset(void)
     if (H5Pset_fill_value(dcpl, type_si, &fill_si)<0) goto error;
     if (H5Pget_fill_value(dcpl, type_ss, &fill_ss)<0) goto error;
     if (fill_si.v1!=fill_ss.v1 || fill_si.v2!=fill_ss.v2) {
-	FAILED();
+	H5_FAILED();
 	puts("    Resetting the fill value was unsuccessful.");
 	goto error;
     }
@@ -237,7 +237,7 @@ test_create(hid_t fapl, const char *base_name, H5D_layout_t layout)
 #ifndef NO_FILLING
     if (H5Pget_fill_value(dcpl, H5T_NATIVE_SHORT, &rd_s)<0) goto error;
     if (rd_s!=fill_s) {
-	FAILED();
+	H5_FAILED();
 	puts("    Got a different fill value than what was set.");
 	printf("    Got %d, set %d\n", rd_s, fill_s);
 	goto error;
@@ -252,7 +252,7 @@ test_create(hid_t fapl, const char *base_name, H5D_layout_t layout)
 #ifndef NO_FILLING
     if (H5Pget_fill_value(dcpl, H5T_NATIVE_LONG, &rd_l)<0) goto error;
     if (rd_l!=fill_l) {
-	FAILED();
+	H5_FAILED();
 	puts("    Got a different fill value than what was set.");
 	printf("    Got %ld, set %ld\n", rd_l, fill_l);
 	goto error;
@@ -267,7 +267,7 @@ test_create(hid_t fapl, const char *base_name, H5D_layout_t layout)
 #ifndef NO_FILLING
     if (H5Pget_fill_value(dcpl, H5T_NATIVE_LONG, &rd_l)<0) goto error;
     if (rd_l!=fill_l) {
-	FAILED();
+	H5_FAILED();
 	puts("    Got a different fill value than what was set.");
 	printf("    Got %ld, set %ld\n", rd_l, fill_l);
 	goto error;
@@ -360,7 +360,7 @@ test_rdwr(hid_t fapl, const char *base_name, H5D_layout_t layout)
 	if (H5Dread(dset, H5T_NATIVE_INT, mspace, fspace, H5P_DEFAULT,
 		    &val_rd)<0) goto error;
 	if (val_rd!=fillval) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Value read was not a fill value.");
 	    printf("    Elmt={%ld,%ld,%ld,%ld,%ld}, read: %u, "
 		   "Fill value: %u\n",
@@ -380,7 +380,8 @@ test_rdwr(hid_t fapl, const char *base_name, H5D_layout_t layout)
 	nelmts *= hs_size[i];
     }
     if ((mspace=H5Screate_simple(5, hs_size, hs_size))<0) goto error;
-    buf = malloc(nelmts*sizeof(int));
+    assert((nelmts*sizeof(int))==(hssize_t)((size_t)(nelmts*sizeof(int)))); /*check for overflow*/
+    buf = malloc((size_t)(nelmts*sizeof(int)));
     for (i=0; i<nelmts; i++) buf[i] = 9999;
     if (H5Sselect_hyperslab(fspace, H5S_SELECT_SET, hs_offset, hs_stride,
 			    hs_size, NULL)<0) goto error;
@@ -404,7 +405,7 @@ test_rdwr(hid_t fapl, const char *base_name, H5D_layout_t layout)
 		    &val_rd)<0) goto error;
 
 	if (val_rd!=should_be) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Value read was not correct.");
 	    printf("    Elmt={%ld,%ld,%ld,%ld,%ld}, read: %u, "
 		   "should be: %u\n",
@@ -519,7 +520,7 @@ test_extend(hid_t fapl, const char *base_name, H5D_layout_t layout)
 	nelmts = max_size[0]*max_size[1]*max_size[2]*max_size[3]*max_size[4];
 	if ((fd=open(FILE_NAME_RAW, O_RDWR|O_CREAT|O_TRUNC, 0666))<0 ||
 	    close(fd)<0) goto error;
-	if (H5Pset_external(dcpl, FILE_NAME_RAW, 0, nelmts*sizeof(int))<0)
+	if (H5Pset_external(dcpl, FILE_NAME_RAW, (off_t)0, (hsize_t)nelmts*sizeof(int))<0)
 	    goto error;
     }
 #endif
@@ -557,7 +558,7 @@ test_extend(hid_t fapl, const char *base_name, H5D_layout_t layout)
 	if (H5Dread(dset, H5T_NATIVE_INT, mspace, fspace, H5P_DEFAULT,
 		    &val_rd)<0) goto error;
 	if (val_rd!=fillval) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Value read was not a fill value.");
 	    printf("    Elmt={%ld,%ld,%ld,%ld,%ld}, read: %u, "
 		   "Fill value: %u\n",
@@ -577,7 +578,8 @@ test_extend(hid_t fapl, const char *base_name, H5D_layout_t layout)
 	nelmts *= hs_size[i];
     }
     if ((mspace=H5Screate_simple(5, hs_size, hs_size))<0) goto error;
-    buf = malloc(nelmts*sizeof(int));
+    assert((nelmts*sizeof(int))==(hssize_t)((size_t)(nelmts*sizeof(int)))); /*check for overflow*/
+    buf = malloc((size_t)(nelmts*sizeof(int)));
     for (i=0; i<nelmts; i++) buf[i] = 9999;
     if (H5Sselect_hyperslab(fspace, H5S_SELECT_SET, hs_offset, hs_stride,
 			    hs_size, NULL)<0) goto error;
@@ -601,7 +603,7 @@ test_extend(hid_t fapl, const char *base_name, H5D_layout_t layout)
 		    &val_rd)<0) goto error;
 
 	if (val_rd!=should_be) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Value read was not correct.");
 	    printf("    Elmt={%ld,%ld,%ld,%ld,%ld}, read: %u, "
 		   "should be: %u\n",
@@ -637,7 +639,7 @@ test_extend(hid_t fapl, const char *base_name, H5D_layout_t layout)
 		    &val_rd)<0) goto error;
 
 	if (val_rd!=should_be) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Value read was not correct.");
 	    printf("    Elmt={%ld,%ld,%ld,%ld,%ld}, read: %u, "
 		   "should be: %u\n",
@@ -736,7 +738,7 @@ main(int argc, char *argv[])
     
     if (nerrors) goto error;
     puts("All fill value tests passed.");
-    if (h5_cleanup(fapl)) remove(FILE_NAME_RAW);
+    if (h5_cleanup(FILENAME, fapl)) remove(FILE_NAME_RAW);
     return 0;
 
  error:

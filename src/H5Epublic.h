@@ -46,6 +46,28 @@
     H5Eset_auto (H5E_saved_efunc, H5E_saved_edata);			      \
 }
 
+/*
+ * Public API Convenience Macros for Error reporting - Documented
+ */
+/* Use the Standard C __FILE__ & __LINE__ macros instead of typing them in */
+#define H5Epush_sim(func,maj,min,str) H5Epush(__FILE__,func,__LINE__,maj,min,str)
+
+/*
+ * Public API Convenience Macros for Error reporting - Undocumented
+ */
+/* Use the Standard C __FILE__ & __LINE__ macros instead of typing them in */
+/*  And return after pushing error onto stack */
+#define H5Epush_ret(func,maj,min,str,ret) {         \
+    H5Epush(__FILE__,func,__LINE__,maj,min,str);    \
+    return(ret);                                    \
+}
+
+/* Use the Standard C __FILE__ & __LINE__ macros instead of typing them in */
+/*  And goto a label after pushing error onto stack */
+#define H5Epush_goto(func,maj,min,str,label) {      \
+    H5Epush(__FILE__,func,__LINE__,maj,min,str);    \
+    goto label;                                   \
+}
 
 /*
  * Declare an enumerated type which holds all the valid major HDF error codes.
@@ -74,8 +96,9 @@ typedef enum H5E_major_t {
     H5E_ATTR,                   /*Attribute                                  */
     H5E_PLINE,                  /*Data filters                               */
     H5E_EFL,                    /*External file list                         */
-    H5E_RAGGED,                 /*Ragged arrays                              */
-    H5E_REFERENCE               /*References                                 */
+    H5E_REFERENCE,              /*References                                 */
+    H5E_VFL,			/*Virtual File Layer			     */
+    H5E_TBBT 		        /*Threaded, Balanced, Binary Trees           */
 } H5E_major_t;
 
 /* Declare an enumerated type which holds all the valid minor HDF error codes */
@@ -99,6 +122,7 @@ typedef enum H5E_minor_t {
     H5E_FILEOPEN,               /*file already open                          */
     H5E_CANTCREATE,             /*Can't create file                          */
     H5E_CANTOPENFILE,           /*Can't open file                            */
+    H5E_CANTCLOSEFILE,          /*Can't close file			     */
     H5E_NOTHDF5,                /*not an HDF5 format file                    */
     H5E_BADFILE,                /*bad file ID accessed                       */
     H5E_TRUNCATED,              /*file has been truncated                    */
@@ -148,6 +172,9 @@ typedef enum H5E_minor_t {
     H5E_LINK,                   /*link count failure                         */
     H5E_SLINK,			/*symbolic link error			     */
 
+    /* Datatype conversion errors */
+    H5E_CANTCONVERT,            /*Can't convert datatypes */
+
     /* Parallel errors */
     H5E_MPI			/*some MPI function failed		     */
 } H5E_minor_t;
@@ -185,6 +212,8 @@ __DLL__ herr_t H5Ewalk (H5E_direction_t direction, H5E_walk_t func,
 __DLL__ herr_t H5Ewalk_cb (int n, H5E_error_t *err_desc, void *client_data);
 __DLL__ const char *H5Eget_major (H5E_major_t major_number);
 __DLL__ const char *H5Eget_minor (H5E_minor_t minor_number);
+__DLL__ herr_t H5Epush(const char *file, const char *func,
+            unsigned line, H5E_major_t maj, H5E_minor_t min, const char *str);
 
 #ifdef __cplusplus
 }

@@ -10,13 +10,12 @@
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
 </td>
 <td>&nbsp;</td>
 <td valign=top align=right>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
-<a href="ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
 <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
 </td></tr>
 </table>
@@ -113,6 +112,7 @@
     </td><td>&nbsp;</td></tr>
     </table>
 
+
     <P>The format of an HDF5 file on disk encompasses several
       key ideas of the HDF4 and AIO file formats as well as
       addressing some shortcomings therein.  The new format is
@@ -136,6 +136,7 @@
          <li>A super block
          <li>B-tree nodes (containing either symbol nodes or raw data chunks)
          <li>Object headers
+
          <li>Collections
          <li>Local heaps
          <li>Free space
@@ -279,7 +280,7 @@ Elena>               "Free-space object"
 	</tr>
 
 	<tr align=center>
-	  <td colspan=4>Reserved Address</td>
+	  <td colspan=4>Driver Information Block Address</td>
 	</tr>
 
 	<tr align=center>
@@ -507,12 +508,14 @@ Elena>               "Free-space object"
 		    used.</td>
 		</tr>
 
-		<tr valign=top>
-		  <td>Reserved Address</td>
-		  <td>This address field is present for alignment purposes and 
-		    is always set to the undefined address value (all bits
-		    set).</td>
-		</tr>
+                <tr valign=top>
+                  <td>Driver Information Block Address</td>
+                  <td>This is the relative file address of the file driver
+                    information block which contains driver-specific
+                    information needed to reopen the file. If there is no
+                    driver information block then this entry should be the
+                    undefined address (all bits set).</td>
+                </tr>
 
 		<tr valign=top>
 		  <td>Root Group Address</td>
@@ -523,6 +526,97 @@ Elena>               "Free-space object"
 	      </table>
 	    </center>
 
+
+    <p>The <em>file driver information block</em> is an optional region of the
+      file which contains information needed by the file driver in
+      order to reopen a file.  The format of the file driver information
+      block is:
+ 
+    <p>
+    <center>
+      <table border align=center cellpadding=4 width="80%">
+        <caption align=top>
+          <B>Driver Information Block</B>
+        </caption>
+ 
+        <tr align=center>
+          <th width="25%">byte</th>
+          <th width="25%">byte</th>
+          <th width="25%">byte</th>
+          <th width="25%">byte</th>
+	</tr>  
+ 
+        <tr align=center>
+          <td>Version</td>
+          <td colspan=3>Reserved (zero)</td>
+        </tr>
+
+        <tr align=center>
+          <td colspan=4>Driver Information Size (4 bytes)</td>
+        </tr>
+
+        <tr align=center>
+          <td colspan=4><br>Driver Identification (8 bytes)<br><br></td>
+        </tr>
+
+        <tr align=center>
+          <td colspan=4><br><br>Driver Information<br><br><br></td>
+        </tr>
+      </table>
+    </center>
+
+    <p>
+    <center>
+      <table align=center width="80%">
+       <tr>
+         <th width="30%">Field Name</th>
+         <th width="70%">Description</th>
+        </tr>
+
+        <tr valign=top>
+          <td>Version</td>
+          <td>The version number of the driver information block. The
+            file format documented here is version zero.</td>
+        </tr>
+
+        <tr valign=top>
+          <td>Driver Information Size</td>
+          <td>The size in bytes of the Driver Information part of this 
+            structure.</td>
+        </tr>
+
+        <tr valign=top>
+          <td>Driver Identification</td>
+          <td>This is an eight-byte ASCII string without null
+            termination which identifies the driver and version number 
+            of the Driver Information block. The predefined drivers
+            supplied with the HDF5 library are identified by the
+            letters <code>NCSA</code> followed by the first four characters of
+            the driver name. If the Driver Information block is not
+            the original version then the last letter(s) of the
+            identification will be replaced by a version number in
+            ASCII.  
+            For example, the various versions of the <em>family driver</em> 
+            will be identified by <code>NCSAfami</code>, <code>NCSAfam0</code>,
+            <code>NCSAfam1</code>, etc. 
+            (<code>NCSAfami</code> is simply <code>NCSAfamily</code> truncated 
+            to eight characters.  Subsequent identifiers will be created by
+            substituting sequential numerical values for the final character, 
+            starting with zero.)
+            <p>
+            Identification for user-defined drivers 
+            is arbitrary but should be unique.</td>
+        </tr>
+
+        <tr valign=top>
+          <td>Driver Information</td>
+          <td>Driver information is stored in a format defined by the
+            file driver and encoded/decoded by the driver callbacks
+            invoked from the <code>H5FD_sb_encode</code> and
+            <code>H5FD_sb_decode</code> functions.</td>
+        </tr>
+      </table>
+    </center>
 
 
 	<br><br>
@@ -1423,7 +1517,7 @@ Elena>               "Free-space object"
 	      any file objects.  
 
 	    <p>The super block contains a pointer to root of the free-space description;
-	      that pointer is currently (i.e., in HDF5 Release 1.2.x) required
+	      that pointer is currently (i.e., in HDF5 Release 1.2) required
 	      to be the undefined address <code>0xfff...ff</code>.
 
 	    <p>The free-sapce index is not otherwise publicly defined at this time.
@@ -1742,7 +1836,7 @@ Elena>               "Free-space object"
       must use the <em>Complex Dataspace</em> message for expressing 
       the space the dataset inhabits.  
       <i>(Note: The <em>Complex Dataspace</em> functionality is 
-      not yet implemented (as of HDF5 Release 1.2.x).  It is not described 
+      not yet implemented (as of HDF5 Release 1.2).  It is not described 
       in this document.)</i>
 
     <p>
@@ -3853,13 +3947,12 @@ in the structure, with each item formatted according to its datatype.
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
 </td>
 <td>&nbsp;</td>
 <td valign=top align=right>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
-<a href="ADGuide.html">HDF5 Application Developer's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
 <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
 </td></tr>
 </table>
@@ -3870,15 +3963,13 @@ in the structure, with each item formatted according to its datatype.
 <address><a href="mailto:koziol@ncsa.uiuc.edu">Quincey Koziol</a></address>
 <address><a href="mailto:matzke@llnl.gov">Robb Matzke</a></address>
 -->
-<address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
-</address>
-
+<address><a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a></address>
 <!-- hhmts start -->
-Last modified: 7 April 2000
+Last modified: 8 March 2000
 <!-- hhmts end -->
+
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Describes HDF5 Release 1.4, February 2001
 
 </body>
 </html>

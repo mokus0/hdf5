@@ -11,12 +11,13 @@
 ****************************************************************************/
 
 #ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.16.2.1 $";
+static char             RcsId[] = "@(#)$Revision: 1.20 $";
 #endif
 
-/* $Id: H5Oattr.c,v 1.16.2.1 2000/04/04 20:58:46 koziol Exp $ */
+/* $Id: H5Oattr.c,v 1.20 2000/10/10 07:43:25 koziol Exp $ */
 
-#define H5A_PACKAGE             /*prevent warning from including H5Tpkg.h */
+#define H5A_PACKAGE         /*prevent warning from including H5Tpkg.h */
+#define H5S_PACKAGE		    /*suppress error about including H5Spkg	  */
 
 #include <H5private.h>
 #include <H5Eprivate.h>
@@ -25,6 +26,7 @@ static char             RcsId[] = "@(#)$Revision: 1.16.2.1 $";
 #include <H5MMprivate.h>
 #include <H5Oprivate.h>
 #include <H5Apkg.h>
+#include <H5Spkg.h>         /* Data spaces */
 
 #define PABLO_MASK      H5O_attr_mask
 
@@ -423,7 +425,8 @@ H5O_attr_debug(H5F_t *f, const void *_mesg, FILE * stream, intn indent,
 	    "Opened:",
 	    (unsigned int)mesg->ent_opened);
     fprintf(stream, "%*sSymbol table entry...\n", indent, "");
-    H5G_ent_debug(f, &(mesg->ent), stream, indent+3, MAX(0, fwidth-3), NULL);
+    H5G_ent_debug(f, &(mesg->ent), stream, indent+3, MAX(0, fwidth-3),
+		  HADDR_UNDEF);
     
     fprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
 	    "Data type size:",

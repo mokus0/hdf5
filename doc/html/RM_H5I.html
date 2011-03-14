@@ -10,9 +10,9 @@ HDF5/H5I API Specification
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -28,14 +28,14 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 H5I&nbsp;&nbsp;
-<br>
 <a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
-<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
+<a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -49,12 +49,47 @@ H5I&nbsp;&nbsp;
 <h2>Identifier API Functions</h2>
 
 This function provides a tool for working with object identifiers.
+
+
 <p>
+<strong>The C Interface:</strong>
 
 <table border=0>
 <tr><td valign=top>
 <ul>
     <li><a href="#Identify-GetType">H5Iget_type</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    &nbsp;
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    &nbsp;
+</ul>
+</td></tr>
+</table>
+
+
+<p>
+<strong>The FORTRAN90 Interface:</strong>
+
+<br>
+<font size=-1>
+<i>In general, each FORTRAN90 subroutine performs exactly the same task 
+as the corresponding C function.  The links below go to the C function 
+descriptions, which serve as general descriptions for both.  A button, 
+under <strong>Non-C API(s)</strong> at the end of the C function description,
+opens an external browser window displaying the FORTRAN90-specific 
+information.  You will probably want to adjust the size and location of 
+this external window so that both browser windows are visible and to 
+facilitate moving easily between them.</i>
+</font>
+
+<table border=0>
+<tr><td valign=top>
+<ul>
+    <li><a href="#Identify-GetType">h5iget_type_f</a>
 </ul>
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
@@ -113,6 +148,13 @@ This function provides a tool for working with object identifiers.
 <dt><strong>Returns:</strong>
     <dd>Returns the object type if successful;
         otherwise <code>H5I_BADID</code>.
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5i_FORTRAN.html#h5iget_type_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -120,9 +162,9 @@ This function provides a tool for working with object identifiers.
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -138,14 +180,14 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 H5I&nbsp;&nbsp;
-<br>
 <a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
-<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
+<a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -154,11 +196,11 @@ H5I&nbsp;&nbsp;
 
 <address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
-</address>
 
-Last modified:  30 October 1998
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Last modified:  14 July 2000
+<br>
+Describes HDF5 Release 1.4, February 2001
 
 </body>
 </html>

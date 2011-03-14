@@ -7,8 +7,14 @@
 /* Define if we have parallel support */
 #undef HAVE_PARALLEL
 
+/* Define if we have thread safe support */
+#undef HAVE_THREADSAFE
+
 /* Define if it's safe to use `long long' for hsize_t and hssize_t */
 #undef HAVE_LARGE_HSIZET
+
+/* Define if the HDF5 v1.2 compatibility functions are to be compiled in */
+#undef WANT_H5_V1_2_COMPAT
 
 /* Width for printf() for type `long long' or `__int64', us. `ll' */
 #undef PRINTF_LL_WIDTH
@@ -39,3 +45,18 @@
 
 /* Define if the ioctl TIOCGWINSZ is defined */
 #undef HAVE_TIOCGWINSZ
+
+/* Define if the Globus GASS is defined */
+#undef HAVE_GASS
+
+/* Define if the SRB is defined */
+#undef HAVE_SRB
+
+/* Define if the Grid Storage is defined */
+#undef HAVE_GRIDSTORAGE
+
+/* Define if the stream virtual file driver should be compiled */
+#undef HAVE_STREAM
+
+/* Define if `socklen_t' is defined */
+#undef HAVE_SOCKLEN_T

@@ -18,13 +18,19 @@
  *
  *-------------------------------------------------------------------------
  */
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
+
 #include <H5private.h>			/*library		  	*/
 #include <H5ACprivate.h>		/*cache				*/
 #include <H5Eprivate.h>			/*error handling	  	*/
-#include <H5Fprivate.h>			/*file access                   */
+#include <H5Fpkg.h>			/*file access                   */
+#include <H5FLprivate.h>	/*Free Lists	  */
 #include <H5HLprivate.h>		/*self				*/
-#include <H5MFprivate.h>		/*file memory management  	*/
+#include <H5MFprivate.h>		/*file memory management	*/
 #include <H5MMprivate.h>		/*core memory management  	*/
+#include <H5Pprivate.h>			/*property lists		*/
+
+#include <H5FDmpio.h>			/*for H5FD_mpio_tas_allsame()	*/
 
 #define H5HL_FREE_NULL	1		/*end of free list on disk	*/
 #define PABLO_MASK	H5HL_mask
@@ -37,6 +43,8 @@ typedef struct H5HL_free_t {
 } H5HL_free_t;
 
 typedef struct H5HL_t {
+    H5AC_info_t cache_info; /* Information for H5AC cache functions, _must_ be */
+                            /* first field in structure */
     intn		    dirty;
     haddr_t		    addr;	/*address of data		*/
     size_t		    disk_alloc;	/*data bytes allocated on disk	*/
@@ -46,23 +54,31 @@ typedef struct H5HL_t {
 } H5HL_t;
 
 /* PRIVATE PROTOTYPES */
-static H5HL_t *H5HL_load(H5F_t *f, const haddr_t *addr, const void *udata1,
+static H5HL_t *H5HL_load(H5F_t *f, haddr_t addr, const void *udata1,
 			 void *udata2);
-static herr_t H5HL_flush(H5F_t *f, hbool_t dest, const haddr_t *addr,
-			 H5HL_t *heap);
+static herr_t H5HL_flush(H5F_t *f, hbool_t dest, haddr_t addr, H5HL_t *heap);
 
 /*
  * H5HL inherits cache-like properties from H5AC
  */
 static const H5AC_class_t H5AC_LHEAP[1] = {{
     H5AC_LHEAP_ID,
-    (void *(*)(H5F_t*, const haddr_t*, const void*, void*))H5HL_load,
-    (herr_t (*)(H5F_t*, hbool_t, const haddr_t*, void*))H5HL_flush,
+    (void *(*)(H5F_t*, haddr_t, const void*, void*))H5HL_load,
+    (herr_t (*)(H5F_t*, hbool_t, haddr_t, void*))H5HL_flush,
 }};
 
 /* Interface initialization */
 static intn interface_initialize_g = 0;
 #define INTERFACE_INIT NULL
+
+/* Declare a free list to manage the H5HL_free_t struct */
+H5FL_DEFINE_STATIC(H5HL_free_t);
+
+/* Declare a free list to manage the H5HL_t struct */
+H5FL_DEFINE_STATIC(H5HL_t);
+
+/* Declare a PQ free list to manage the heap chunk information */
+H5FL_BLK_DEFINE_STATIC(heap_chunk);
 
 
 /*-------------------------------------------------------------------------
@@ -93,17 +109,17 @@ static intn interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 herr_t
-H5HL_create(H5F_t *f, size_t size_hint, haddr_t *addr/*out*/)
+H5HL_create(H5F_t *f, size_t size_hint, haddr_t *addr_p/*out*/)
 {
     H5HL_t	*heap = NULL;
-    size_t	total_size;		/*total heap size on disk	*/
+    hsize_t	total_size;		/*total heap size on disk	*/
     herr_t	ret_value = FAIL;
 
     FUNC_ENTER(H5HL_create, FAIL);
 
     /* check arguments */
     assert(f);
-    assert(addr);
+    assert(addr_p);
 
     if (size_hint && size_hint < H5HL_SIZEOF_FREE(f)) {
 	size_hint = H5HL_SIZEOF_FREE(f);
@@ -112,29 +128,27 @@ H5HL_create(H5F_t *f, size_t size_hint, haddr_t *addr/*out*/)
 
     /* allocate file version */
     total_size = H5HL_SIZEOF_HDR(f) + size_hint;
-    if (H5MF_alloc(f, H5MF_META, (hsize_t)total_size, addr/*out*/) < 0) {
-	H5F_addr_undef (addr);
+    if (HADDR_UNDEF==(*addr_p=H5MF_alloc(f, H5FD_MEM_LHEAP, total_size))) {
 	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		      "unable to allocate file memory");
     }
 
     /* allocate memory version */
-    if (NULL==(heap = H5MM_calloc(sizeof(H5HL_t)))) {
+    if (NULL==(heap = H5FL_ALLOC(H5HL_t,1))) {
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		     "memory allocation failed");
     }
-    heap->addr = *addr;
-    H5F_addr_inc(&(heap->addr), (hsize_t)H5HL_SIZEOF_HDR(f));
+    heap->addr = *addr_p + (hsize_t)H5HL_SIZEOF_HDR(f);
     heap->disk_alloc = size_hint;
     heap->mem_alloc = size_hint;
-    if (NULL==(heap->chunk = H5MM_calloc(H5HL_SIZEOF_HDR(f) + size_hint))) {
+    if (NULL==(heap->chunk = H5FL_BLK_ALLOC(heap_chunk,(hsize_t)(H5HL_SIZEOF_HDR(f) + size_hint),1))) {
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		     "memory allocation failed");
     }
 
     /* free list */
     if (size_hint) {
-	if (NULL==(heap->freelist = H5MM_malloc(sizeof(H5HL_free_t)))) {
+	if (NULL==(heap->freelist = H5FL_ALLOC(H5HL_free_t,0))) {
 	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 			 "memory allocation failed");
 	}
@@ -147,7 +161,7 @@ H5HL_create(H5F_t *f, size_t size_hint, haddr_t *addr/*out*/)
 
     /* add to cache */
     heap->dirty = 1;
-    if (H5AC_set(f, H5AC_LHEAP, addr, heap) < 0) {
+    if (H5AC_set(f, H5AC_LHEAP, *addr_p, heap) < 0) {
 	HGOTO_ERROR(H5E_HEAP, H5E_CANTINIT, FAIL,
 		    "unable to cache heap");
     }
@@ -155,13 +169,13 @@ H5HL_create(H5F_t *f, size_t size_hint, haddr_t *addr/*out*/)
 
  done:
     if (ret_value<0) {
-	if (H5F_addr_defined (addr)) {
-	    H5MF_xfree (f, addr, total_size);
+	if (H5F_addr_defined(*addr_p)) {
+	    H5MF_xfree(f, H5FD_MEM_LHEAP, *addr_p, total_size);
 	}
 	if (heap) {
-	    H5MM_xfree (heap->chunk);
-	    H5MM_xfree (heap->freelist);
-	    H5MM_xfree (heap);
+	    H5FL_BLK_FREE (heap_chunk,heap->chunk);
+	    H5FL_FREE (H5HL_free_t,heap->freelist);
+	    H5FL_FREE (H5HL_t,heap);
 	}
     }
     FUNC_LEAVE(ret_value);
@@ -181,11 +195,12 @@ H5HL_create(H5F_t *f, size_t size_hint, haddr_t *addr/*out*/)
  *		Jul 17 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 static H5HL_t *
-H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
+H5HL_load(H5F_t *f, haddr_t addr, const void UNUSED *udata1,
 	  void UNUSED *udata2)
 {
     uint8_t		hdr[52];
@@ -199,18 +214,18 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
     assert(H5HL_SIZEOF_HDR(f) <= sizeof hdr);
     assert(!udata1);
     assert(!udata2);
 
-    if (H5F_block_read(f, addr, (hsize_t)H5HL_SIZEOF_HDR(f),
-		       &H5F_xfer_dflt, hdr) < 0) {
+    if (H5F_block_read(f, H5FD_MEM_LHEAP, addr, (hsize_t)H5HL_SIZEOF_HDR(f), H5P_DEFAULT,
+		       hdr) < 0) {
 	HRETURN_ERROR(H5E_HEAP, H5E_READERROR, NULL,
 		      "unable to read heap header");
     }
     p = hdr;
-    if (NULL==(heap = H5MM_calloc(sizeof(H5HL_t)))) {
+    if (NULL==(heap = H5FL_ALLOC(H5HL_t,1))) {
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		     "memory allocation failed");
     }
@@ -226,11 +241,11 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
     p += 4;
 
     /* heap data size */
-    H5F_decode_length(f, p, heap->disk_alloc);
+    H5F_DECODE_LENGTH(f, p, heap->disk_alloc);
     heap->mem_alloc = heap->disk_alloc;
 
     /* free list head */
-    H5F_decode_length(f, p, free_block);
+    H5F_DECODE_LENGTH(f, p, free_block);
     if (free_block != H5HL_FREE_NULL && free_block >= heap->disk_alloc) {
 	HGOTO_ERROR(H5E_HEAP, H5E_CANTLOAD, NULL,
 		    "bad heap free list");
@@ -238,14 +253,14 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
 
     /* data */
     H5F_addr_decode(f, &p, &(heap->addr));
-    heap->chunk = H5MM_calloc(H5HL_SIZEOF_HDR(f) + heap->mem_alloc);
+    heap->chunk = H5FL_BLK_ALLOC(heap_chunk,(hsize_t)(H5HL_SIZEOF_HDR(f) + heap->mem_alloc),1);
     if (NULL==heap->chunk) {
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		     "memory allocation failed");
     }
     if (heap->disk_alloc &&
-	H5F_block_read(f, &(heap->addr), (hsize_t)(heap->disk_alloc),
-		       &H5F_xfer_dflt, heap->chunk + H5HL_SIZEOF_HDR(f)) < 0) {
+	H5F_block_read(f, H5FD_MEM_LHEAP, heap->addr, (hsize_t)(heap->disk_alloc),
+		       H5P_DEFAULT, heap->chunk + H5HL_SIZEOF_HDR(f)) < 0) {
 	HGOTO_ERROR(H5E_HEAP, H5E_CANTLOAD, NULL,
 		    "unable to read heap data");
     }
@@ -256,7 +271,7 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
 	    HGOTO_ERROR(H5E_HEAP, H5E_CANTLOAD, NULL,
 			"bad heap free list");
 	}
-	if (NULL==(fl = H5MM_malloc(sizeof(H5HL_free_t)))) {
+	if (NULL==(fl = H5FL_ALLOC(H5HL_free_t,0))) {
 	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 			 "memory allocation failed");
 	}
@@ -268,8 +283,8 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
 	if (!heap->freelist) heap->freelist = fl;
 
 	p = heap->chunk + H5HL_SIZEOF_HDR(f) + free_block;
-	H5F_decode_length(f, p, free_block);
-	H5F_decode_length(f, p, fl->size);
+	H5F_DECODE_LENGTH(f, p, free_block);
+	H5F_DECODE_LENGTH(f, p, fl->size);
 
 	if (fl->offset + fl->size > heap->disk_alloc) {
 	    HGOTO_ERROR(H5E_HEAP, H5E_CANTLOAD, NULL,
@@ -281,12 +296,13 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
 
   done:
     if (!ret_value && heap) {
-	heap->chunk = H5MM_xfree(heap->chunk);
-	H5MM_xfree(heap);
-	for (fl = heap->freelist; fl; fl = tail) {
-	    tail = fl->next;
-	    H5MM_xfree(fl);
-	}
+        if(heap->chunk)
+            heap->chunk = H5FL_BLK_FREE(heap_chunk,heap->chunk);
+        for (fl = heap->freelist; fl; fl = tail) {
+            tail = fl->next;
+            H5FL_FREE(H5HL_free_t,fl);
+        }
+        H5FL_FREE(H5HL_t,heap);
     }
     FUNC_LEAVE(ret_value);
 }
@@ -304,12 +320,15 @@ H5HL_load(H5F_t *f, const haddr_t *addr, const void UNUSED *udata1,
  *		Jul 17 1997
  *
  * Modifications:
- *              rky 980828 Only p0 writes metadata to disk.
+ *              rky, 1998-08-28
+ *		Only p0 writes metadata to disk.
  *
+ * 		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
+H5HL_flush(H5F_t *f, hbool_t destroy, haddr_t addr, H5HL_t *heap)
 {
     uint8_t	*p = heap->chunk;
     H5HL_free_t	*fl = heap->freelist;
@@ -319,7 +338,7 @@ H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
     assert(heap);
 
     if (heap->dirty) {
@@ -330,13 +349,13 @@ H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
 	 */
 	if (heap->mem_alloc > heap->disk_alloc) {
 	    haddr_t old_addr = heap->addr, new_addr;
-	    if (H5MF_alloc(f, H5MF_META, (hsize_t)(heap->mem_alloc),
-			   &new_addr/*out*/)<0) {
+	    if (HADDR_UNDEF==(new_addr=H5MF_alloc(f, H5FD_MEM_LHEAP,
+						  (hsize_t)heap->mem_alloc))) {
 		HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
 			      "unable to allocate file space for heap");
 	    }
 	    heap->addr = new_addr;
-	    H5MF_xfree(f, &old_addr, (hsize_t)(heap->disk_alloc));
+	    H5MF_xfree(f, H5FD_MEM_LHEAP, old_addr, (hsize_t)heap->disk_alloc);
 	    H5E_clear(); /*don't really care if the free failed */
 	    heap->disk_alloc = heap->mem_alloc;
 	}
@@ -350,9 +369,9 @@ H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
 	*p++ = 0;	/*reserved*/
 	*p++ = 0;	/*reserved*/
 	*p++ = 0;	/*reserved*/
-	H5F_encode_length(f, p, heap->mem_alloc);
-	H5F_encode_length(f, p, fl ? fl->offset : H5HL_FREE_NULL);
-	H5F_addr_encode(f, &p, &(heap->addr));
+	H5F_ENCODE_LENGTH(f, p, heap->mem_alloc);
+	H5F_ENCODE_LENGTH(f, p, fl ? fl->offset : H5HL_FREE_NULL);
+	H5F_addr_encode(f, &p, heap->addr);
 
 	/*
 	 * Write the free list.
@@ -361,44 +380,46 @@ H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
 	    assert (fl->offset == H5HL_ALIGN (fl->offset));
 	    p = heap->chunk + H5HL_SIZEOF_HDR(f) + fl->offset;
 	    if (fl->next) {
-		H5F_encode_length(f, p, fl->next->offset);
+		H5F_ENCODE_LENGTH(f, p, fl->next->offset);
 	    } else {
-		H5F_encode_length(f, p, H5HL_FREE_NULL);
+		H5F_ENCODE_LENGTH(f, p, H5HL_FREE_NULL);
 	    }
-	    H5F_encode_length(f, p, fl->size);
+	    H5F_ENCODE_LENGTH(f, p, fl->size);
 	    fl = fl->next;
 	}
 
 	/*
 	 * Copy buffer to disk.
 	 */
-	hdr_end_addr = *addr;
-	H5F_addr_inc(&hdr_end_addr, (hsize_t)H5HL_SIZEOF_HDR(f));
-	if (H5F_addr_eq(&(heap->addr), &hdr_end_addr)) {
+	hdr_end_addr = addr + (hsize_t)H5HL_SIZEOF_HDR(f);
+	if (H5F_addr_eq(heap->addr, hdr_end_addr)) {
 	    /* The header and data are contiguous */
-#ifdef HAVE_PARALLEL
-	    H5F_mpio_tas_allsame( f->shared->lf, TRUE ); /* only p0 writes */
-#endif /* HAVE_PARALLEL */
-	    if (H5F_block_write(f, addr,
+#ifdef H5_HAVE_PARALLEL
+	    if (IS_H5FD_MPIO(f))
+		H5FD_mpio_tas_allsame( f->shared->lf, TRUE ); /* only p0 writes */
+#endif /* H5_HAVE_PARALLEL */
+	    if (H5F_block_write(f, H5FD_MEM_LHEAP, addr,
 				(hsize_t)(H5HL_SIZEOF_HDR(f)+heap->disk_alloc),
-				&H5F_xfer_dflt, heap->chunk) < 0) {
+				H5P_DEFAULT, heap->chunk) < 0) {
 		HRETURN_ERROR(H5E_HEAP, H5E_WRITEERROR, FAIL,
 			    "unable to write heap header and data to file");
 	    }
 	} else {
-#ifdef HAVE_PARALLEL
-	    H5F_mpio_tas_allsame( f->shared->lf, TRUE ); /* only p0 writes */
-#endif /* HAVE_PARALLEL */
-	    if (H5F_block_write(f, addr, (hsize_t)H5HL_SIZEOF_HDR(f),
-				&H5F_xfer_dflt, heap->chunk)<0) {
+#ifdef H5_HAVE_PARALLEL
+	    if (IS_H5FD_MPIO(f))
+		H5FD_mpio_tas_allsame( f->shared->lf, TRUE ); /* only p0 writes */
+#endif /* H5_HAVE_PARALLEL */
+	    if (H5F_block_write(f, H5FD_MEM_LHEAP, addr, (hsize_t)H5HL_SIZEOF_HDR(f),
+				H5P_DEFAULT, heap->chunk)<0) {
 		HRETURN_ERROR(H5E_HEAP, H5E_WRITEERROR, FAIL,
 			      "unable to write heap header to file");
 	    }
-#ifdef HAVE_PARALLEL
-	    H5F_mpio_tas_allsame( f->shared->lf, TRUE ); /* only p0 writes */
-#endif /* HAVE_PARALLEL */
-	    if (H5F_block_write(f, &(heap->addr), (hsize_t)(heap->disk_alloc),
-				&H5F_xfer_dflt,
+#ifdef H5_HAVE_PARALLEL
+	    if (IS_H5FD_MPIO(f))
+		H5FD_mpio_tas_allsame( f->shared->lf, TRUE ); /* only p0 writes */
+#endif /* H5_HAVE_PARALLEL */
+	    if (H5F_block_write(f, H5FD_MEM_LHEAP, heap->addr, (hsize_t)(heap->disk_alloc),
+				H5P_DEFAULT,
 				heap->chunk + H5HL_SIZEOF_HDR(f)) < 0) {
 		HRETURN_ERROR(H5E_HEAP, H5E_WRITEERROR, FAIL,
 			      "unable to write heap data to file");
@@ -412,13 +433,13 @@ H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
      * Should we destroy the memory version?
      */
     if (destroy) {
-	heap->chunk = H5MM_xfree(heap->chunk);
-	while (heap->freelist) {
-	    fl = heap->freelist;
-	    heap->freelist = fl->next;
-	    H5MM_xfree(fl);
-	}
-	H5MM_xfree(heap);
+        heap->chunk = H5FL_BLK_FREE(heap_chunk,heap->chunk);
+        while (heap->freelist) {
+            fl = heap->freelist;
+            heap->freelist = fl->next;
+            H5FL_FREE(H5HL_free_t,fl);
+        }
+        H5FL_FREE(H5HL_t,heap);
     }
     FUNC_LEAVE(SUCCEED);
 }
@@ -446,11 +467,12 @@ H5HL_flush(H5F_t *f, hbool_t destroy, const haddr_t *addr, H5HL_t *heap)
  *		Jul 16 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 void *
-H5HL_read(H5F_t *f, const haddr_t *addr, size_t offset, size_t size, void *buf)
+H5HL_read(H5F_t *f, haddr_t addr, size_t offset, size_t size, void *buf)
 {
     H5HL_t	*heap = NULL;
 
@@ -458,7 +480,7 @@ H5HL_read(H5F_t *f, const haddr_t *addr, size_t offset, size_t size, void *buf)
 
     /* check arguments */
     assert(f);
-    assert (addr && H5F_addr_defined(addr));
+    assert (H5F_addr_defined(addr));
 
     if (NULL == (heap = H5AC_find(f, H5AC_LHEAP, addr, NULL, NULL))) {
 	HRETURN_ERROR(H5E_HEAP, H5E_CANTLOAD, NULL,
@@ -503,11 +525,12 @@ H5HL_read(H5F_t *f, const haddr_t *addr, size_t offset, size_t size, void *buf)
  *		Jul 16 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 const void *
-H5HL_peek(H5F_t *f, const haddr_t *addr, size_t offset)
+H5HL_peek(H5F_t *f, haddr_t addr, size_t offset)
 {
     H5HL_t		*heap = NULL;
     const void		*retval = NULL;
@@ -516,7 +539,7 @@ H5HL_peek(H5F_t *f, const haddr_t *addr, size_t offset)
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
 
     if (NULL == (heap = H5AC_find(f, H5AC_LHEAP, addr, NULL, NULL))) {
 	HRETURN_ERROR(H5E_HEAP, H5E_CANTLOAD, NULL, "unable to load heap");
@@ -550,7 +573,7 @@ H5HL_remove_free(H5HL_t *heap, H5HL_free_t *fl)
     if (fl->next) fl->next->prev = fl->prev;
 
     if (!fl->prev) heap->freelist = fl->next;
-    return H5MM_xfree(fl);
+    return H5FL_FREE(H5HL_free_t,fl);
 }
 
 /*-------------------------------------------------------------------------
@@ -567,11 +590,12 @@ H5HL_remove_free(H5HL_t *heap, H5HL_free_t *fl)
  *		Jul 17 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 size_t
-H5HL_insert(H5F_t *f, const haddr_t *addr, size_t buf_size, const void *buf)
+H5HL_insert(H5F_t *f, haddr_t addr, size_t buf_size, const void *buf)
 {
     H5HL_t	*heap = NULL;
     H5HL_free_t	*fl = NULL, *max_fl = NULL;
@@ -583,7 +607,7 @@ H5HL_insert(H5F_t *f, const haddr_t *addr, size_t buf_size, const void *buf)
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
     assert(buf_size > 0);
     assert(buf);
     if (0==(f->intent & H5F_ACC_RDWR)) {
@@ -666,7 +690,7 @@ H5HL_insert(H5F_t *f, const haddr_t *addr, size_t buf_size, const void *buf)
 	     */
 	    offset = heap->mem_alloc;
 	    if (need_more - need_size >= H5HL_SIZEOF_FREE(f)) {
-		if (NULL==(fl = H5MM_malloc(sizeof(H5HL_free_t)))) {
+		if (NULL==(fl = H5FL_ALLOC(H5HL_free_t,0))) {
 		    HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, (size_t)(-1),
 				   "memory allocation failed");
 		}
@@ -697,8 +721,8 @@ H5HL_insert(H5F_t *f, const haddr_t *addr, size_t buf_size, const void *buf)
 #endif
 	old_size = heap->mem_alloc;
 	heap->mem_alloc += need_more;
-	heap->chunk = H5MM_realloc(heap->chunk,
-				   H5HL_SIZEOF_HDR(f) + heap->mem_alloc);
+	heap->chunk = H5FL_BLK_REALLOC(heap_chunk,heap->chunk,
+				   (hsize_t)(H5HL_SIZEOF_HDR(f) + heap->mem_alloc));
 	if (NULL==heap->chunk) {
 	    HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, (size_t)(-1),
 			   "memory allocation failed");
@@ -732,12 +756,12 @@ H5HL_insert(H5F_t *f, const haddr_t *addr, size_t buf_size, const void *buf)
  *		Jul 16 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 herr_t
-H5HL_write(H5F_t *f, const haddr_t *addr, size_t offset, size_t size,
-	  const void *buf)
+H5HL_write(H5F_t *f, haddr_t addr, size_t offset, size_t size, const void *buf)
 {
     H5HL_t *heap = NULL;
 
@@ -745,7 +769,7 @@ H5HL_write(H5F_t *f, const haddr_t *addr, size_t offset, size_t size,
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
     assert(buf);
     assert (offset==H5HL_ALIGN (offset));
     if (0==(f->intent & H5F_ACC_RDWR)) {
@@ -789,11 +813,12 @@ H5HL_write(H5F_t *f, const haddr_t *addr, size_t offset, size_t size,
  *		Jul 16 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 herr_t
-H5HL_remove(H5F_t *f, const haddr_t *addr, size_t offset, size_t size)
+H5HL_remove(H5F_t *f, haddr_t addr, size_t offset, size_t size)
 {
     H5HL_t		*heap = NULL;
     H5HL_free_t		*fl = NULL, *fl2 = NULL;
@@ -802,7 +827,7 @@ H5HL_remove(H5F_t *f, const haddr_t *addr, size_t offset, size_t size)
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
     assert(size > 0);
     assert (offset==H5HL_ALIGN (offset));
     if (0==(f->intent & H5F_ACC_RDWR)) {
@@ -881,7 +906,7 @@ H5HL_remove(H5F_t *f, const haddr_t *addr, size_t offset, size_t size)
     /*
      * Add an entry to the free list.
      */
-    if (NULL==(fl = H5MM_malloc(sizeof(H5HL_free_t)))) {
+    if (NULL==(fl = H5FL_ALLOC(H5HL_free_t,0))) {
 	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		       "memory allocation failed");
     }
@@ -909,12 +934,12 @@ H5HL_remove(H5F_t *f, const haddr_t *addr, size_t offset, size_t size)
  *		Aug  1 1997
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-28
+ *		The ADDR argument is passed by value.
  *-------------------------------------------------------------------------
  */
 herr_t
-H5HL_debug(H5F_t *f, const haddr_t *addr, FILE * stream, intn indent,
-	  intn fwidth)
+H5HL_debug(H5F_t *f, haddr_t addr, FILE * stream, intn indent, intn fwidth)
 {
     H5HL_t		*h = NULL;
     int			i, j, overlap;
@@ -927,7 +952,7 @@ H5HL_debug(H5F_t *f, const haddr_t *addr, FILE * stream, intn indent,
 
     /* check arguments */
     assert(f);
-    assert(addr && H5F_addr_defined(addr));
+    assert(H5F_addr_defined(addr));
     assert(stream);
     assert(indent >= 0);
     assert(fwidth >= 0);
@@ -936,10 +961,16 @@ H5HL_debug(H5F_t *f, const haddr_t *addr, FILE * stream, intn indent,
 	HRETURN_ERROR(H5E_HEAP, H5E_CANTLOAD, FAIL,
 		      "unable to load heap");
     }
-    fprintf(stream, "%*sHeap...\n", indent, "");
+    fprintf(stream, "%*sLocal Heap...\n", indent, "");
     fprintf(stream, "%*s%-*s %d\n", indent, "", fwidth,
 	    "Dirty:",
 	    (int) (h->dirty));
+    fprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
+	    "Header size (in bytes):",
+	    (unsigned long) H5HL_SIZEOF_HDR(f));
+    HDfprintf(stream, "%*s%-*s %a\n", indent, "", fwidth,
+	      "Address of heap data:",
+	      h->addr);
     fprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
 	    "Data bytes allocated on disk:",
 	    (unsigned long) (h->disk_alloc));

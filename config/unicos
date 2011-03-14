@@ -100,7 +100,7 @@ case $CC_BASENAME in
 
     cc)
 	CFLAGS="$CFLAGS"
-	DEBUG_CFLAGS="-g -h zero"
+	DEBUG_CFLAGS="-g -h zero -h scalar0"
 	DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
     PROD_CFLAGS="-O2 -h scalar0"
 	PROD_CPPFLAGS=

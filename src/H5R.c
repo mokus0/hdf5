@@ -11,16 +11,18 @@
 ****************************************************************************/
 
 #ifdef RCSID
-static char		RcsId[] = "@(#)$Revision: 1.37 $";
+static char		RcsId[] = "@(#)$Revision: 1.45 $";
 #endif
 
-/* $Id: H5R.c,v 1.37 1999/06/25 19:36:52 koziol Exp $ */
+/* $Id: H5R.c,v 1.45 2001/01/09 22:20:04 koziol Exp $ */
+
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 
 #include <H5private.h>		/* Generic Functions */
 #include <H5Iprivate.h>		/* ID Functions */
 #include <H5Dprivate.h>		/* Datasets */
 #include <H5Eprivate.h>		/* Error handling */
-#include <H5Fprivate.h>		/* Files */
+#include <H5Fpkg.h>		/* Files */
 #include <H5Gprivate.h>		/* Groups */
 #include <H5HGprivate.h>    /* Global Heaps */
 #include <H5MMprivate.h>    /* Memory Management */
@@ -159,7 +161,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             /* Set information for reference */
             p=(uint8_t *)ref->oid;
             H5F_addr_pack(loc->file,&addr,&sb.objno[0]);
-            H5F_addr_encode(loc->file,&p,&addr);
+            H5F_addr_encode(loc->file,&p,addr);
             break;
         }
 
@@ -177,7 +179,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             /* Set up information for dataset region */
 
             /* Return any previous heap block to the free list if we are garbage collecting */
-            if(loc->file->shared->access_parms->gc_ref) {
+            if(loc->file->shared->gc_ref) {
                 /* Check for an existing heap ID in the reference */
                 for(u=0, heapid_found=0; u<H5R_DSET_REG_REF_BUF_SIZE; u++)
                     if(ref->heapid[u]!=0) {
@@ -202,7 +204,8 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             buf_size+=sizeof(haddr_t);
 
             /* Allocate the space to store the serialized information */
-            if (NULL==(buf = H5MM_malloc(buf_size))) {
+            assert(buf_size==(hssize_t)((size_t)buf_size)); /*check for overflow*/
+            if (NULL==(buf = H5MM_malloc((size_t)buf_size))) {
                 HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
                        "memory allocation failed");
             }
@@ -210,7 +213,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             /* Serialize information for dataset OID */
             p=(uint8_t *)buf;
             H5F_addr_pack(loc->file,&addr,&sb.objno[0]);
-            H5F_addr_encode(loc->file,&p,&addr);
+            H5F_addr_encode(loc->file,&p,addr);
 
             /* Serialize the selection */
             if (H5S_select_serialize(space,p) < 0)
@@ -218,13 +221,14 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
                   "Unable to serialize selection");
 
             /* Save the serialized buffer for later */
-            if(H5HG_insert(loc->file,buf_size,buf,&hobjid)<0)
+            assert(buf_size==(hssize_t)((size_t)buf_size)); /*check for overflow*/
+            if(H5HG_insert(loc->file,(size_t)buf_size,buf,&hobjid)<0)
                 HGOTO_ERROR(H5E_REFERENCE, H5E_WRITEERROR, FAIL,
                   "Unable to serialize selection");
 
             /* Serialize the heap ID and index for storage in the file */
             p=(uint8_t *)ref->heapid;
-            H5F_addr_encode(loc->file,&p,&hobjid.addr);
+            H5F_addr_encode(loc->file,&p,hobjid.addr);
             INT32ENCODE(p,hobjid.idx);
 
             /* Free the buffer we serialized data in */
@@ -407,6 +411,10 @@ H5R_dereference(H5F_t *file, H5R_type_t ref_type, void *_ref)
                   "internal error (unknown reference type)");
     } /* end switch */
 
+    /* Check to make certain that this object hasn't been deleted since the reference was created */
+    if(H5O_link(&ent,0)<=0)
+        HRETURN_ERROR(H5E_REFERENCE, H5E_LINKCOUNT, FAIL, "dereferencing deleted object");
+
     /* Open the dataset object */
     oid_type=H5G_get_type(&ent);
     switch(oid_type) {
@@ -452,7 +460,6 @@ H5R_dereference(H5F_t *file, H5R_type_t ref_type, void *_ref)
         default:
             HGOTO_ERROR(H5E_REFERENCE, H5E_BADTYPE, FAIL,
                   "can't identify type of object referenced");
-            break;
      } /* end switch */
 
 done:
@@ -486,7 +493,6 @@ hid_t
 H5Rdereference(hid_t id, H5R_type_t ref_type, void *_ref)
 {
     H5G_entry_t *loc = NULL;    /* Symbol table entry */
-    H5D_t *dset = NULL;     /* dataset object */
     H5F_t *file=NULL;       /* File object */
     hid_t ret_value = FAIL;
 
@@ -494,19 +500,15 @@ H5Rdereference(hid_t id, H5R_type_t ref_type, void *_ref)
     H5TRACE3("i","iRtx",id,ref_type,_ref);
 
     /* Check args */
-    if (H5I_DATASET == H5I_get_type(id)) {
-        if(NULL == (dset = H5I_object(id)))
-            HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataset");
-        file=H5D_get_file(dset);
-    } else {
-        if (NULL == (loc = H5G_loc(id)))
-            HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
-        file=loc->file;
-    }
+    if (NULL == (loc = H5G_loc(id)))
+        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if(ref_type<=H5R_BADTYPE || ref_type>=H5R_MAXTYPE)
         HRETURN_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid reference type");
     if(_ref==NULL)
         HRETURN_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid reference pointer");
+
+    /* Get the file pointer from the entry */
+    file=loc->file;
 
     /* Create reference */
     if ((ret_value=H5R_dereference(file, ref_type, _ref))<0)
@@ -630,7 +632,6 @@ hid_t
 H5Rget_region(hid_t id, H5R_type_t ref_type, void *_ref)
 {
     H5G_entry_t *loc = NULL;    /* Symbol table entry */
-    H5D_t *dset = NULL;     /* dataset object */
     H5S_t *space = NULL;    /* dataspace object */
     H5F_t *file=NULL;       /* File object */
     hid_t ret_value = FAIL;
@@ -639,19 +640,15 @@ H5Rget_region(hid_t id, H5R_type_t ref_type, void *_ref)
     H5TRACE3("i","iRtx",id,ref_type,_ref);
 
     /* Check args */
-    if (H5I_DATASET == H5I_get_type(id)) {
-        if(NULL == (dset = H5I_object(id)))
-            HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataset");
-        file=H5D_get_file(dset);
-    } else {
-        if (NULL == (loc = H5G_loc(id)))
-            HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
-        file=loc->file;
-    }
+    if (NULL == (loc = H5G_loc(id)))
+        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if(ref_type!=H5R_DATASET_REGION)
         HRETURN_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid reference type");
     if(_ref==NULL)
         HRETURN_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid reference pointer");
+
+    /* Get the file pointer from the entry */
+    file=loc->file;
 
     /* Get the dataspace with the correct region selected */
     if ((space=H5R_get_region(file,ref_type,_ref))==NULL)
@@ -744,7 +741,6 @@ int
 H5Rget_object_type(hid_t id, void *_ref)
 {
     H5G_entry_t *loc = NULL;    /* Symbol table entry */
-    H5D_t *dset = NULL;     /* dataset object */
     H5F_t *file=NULL;       /* File object */
     hid_t ret_value = H5G_UNKNOWN;
 
@@ -752,18 +748,14 @@ H5Rget_object_type(hid_t id, void *_ref)
     H5TRACE2("Is","ix",id,_ref);
 
     /* Check args */
-    if (H5I_DATASET == H5I_get_type(id)) {
-        if(NULL == (dset = H5I_object(id)))
-            HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataset");
-        file=H5D_get_file(dset);
-    } else {
-        if (NULL == (loc = H5G_loc(id)))
-            HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
-        file=loc->file;
-    }
+    if (NULL == (loc = H5G_loc(id)))
+        HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if(_ref==NULL)
         HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, H5G_UNKNOWN,
 		     "invalid reference pointer");
+
+    /* Get the file pointer from the entry */
+    file=loc->file;
 
     /* Get the object information */
     if ((ret_value=H5R_get_object_type(file,_ref))<0) {

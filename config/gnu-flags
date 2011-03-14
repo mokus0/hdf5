@@ -50,14 +50,16 @@ EOF
 # Current EGCS compilers have problems with `long long' and register
 # allocation when optimizations are turned on for x86 systems.
 elif test egcs = $cc_vendor -a $cc_vers_all -le 2091066; then
-    cat <<EOF
+    if test "$HSIZET" != "large"; then
+       cat <<EOF
     **
     ** This compiler may have problems allocating registers when
     ** optimizations are enabled on some platforms. Specifying
     ** --disable-hsizet usually avoids the bug.
     **
 EOF
-    sleep 5
+       sleep 5
+    fi
 
 # All current versions of PGCC have problems also.
 elif test pgcc = $cc_vendor -a $cc_vers_all -le 2091066; then	    
@@ -75,25 +77,61 @@ EOF
 fi
 
 # Architecture-specific flags
-case "$host_cpu" in
-    i686)
-	ARCH=${ARCH:="-mcpu=pentiumpro -march=pentiumpro -malign-double"}
-	;;
+case "$host_os-$host_cpu" in
+    # FreeBSD sets the information from "hostname -m" to the general machine
+    # architecture, not the specific CPU for the machine, so even our
+    # Pentium II Xeon server is set to "i386".  Once we know we are on a FreeBSD
+    # machine, use the "sysctl" command to get the CPU hardware model.
+    freebsd*)
+        host_cpu_model=`sysctl -n hw.model`
+        case "$host_cpu_model" in
+            # Hmm.. this might not catch Celerons, but it won't hurt them either...
+            *Pro*|*II*)
+                # This check should be kept in sync with the *-i686 check below
+                case "$cc_vendor-$cc_version" in
+                    gcc-2.95*)
+                        ARCH=${ARCH:="-march=i686 -malign-double"}
+                        ;;
+                    gcc-*|egcs-*|pgcc-*)
+                        ARCH=${ARCH:="-mcpu=pentiumpro -march=pentiumpro -malign-double"}
+                        ;;
+                esac
+            ;;
+        esac
+        ;;
+
+    *-i686)
+        case "$cc_vendor-$cc_version" in
+            gcc-2.95*)
+                ARCH=${ARCH:="-march=i686 -malign-double"}
+                ;;
+            gcc-*|egcs-*|pgcc-*)
+                ARCH=${ARCH:="-mcpu=pentiumpro -march=pentiumpro -malign-double"}
+                ;;
+        esac
+        ;;
+esac
+
+# Host-specific flags
+case "`hostname`" in
+    hawkwind.ncsa.uiuc.edu)
+        ARCH="$ARCH -pipe"
+        ;;
 esac
 
 # Compiler flags
 case "$cc_vendor-$cc_version" in
     gcc-2.7*)
 	# General
-	CFLAGS="$CFLAGS -ansi"
+	CFLAGS="$CFLAGS $ARCH -ansi"
 
 	# Production
-	PROC_CFLAGS="-O3 $NOFP -finline-functions -Wno-shadow"
+	PROC_CFLAGS="-O3 $NOFP -finline-functions"
 	PROD_CPPFLAGS=
 
 	# Debug
-	DEBUG_CFLAGS="-g -fverbose-asm -Wno-shadow"
-	DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+	DEBUG_CFLAGS="-g -fverbose-asm"
+	DEBUG_CPPFLAGS=
 
 	# Profile
 	PROFILE_CFLAGS=-pg
@@ -105,15 +143,35 @@ case "$cc_vendor-$cc_version" in
 
     gcc-2.8.*)
         # General
-        CFLAGS="$CFLAGS -Wsign-compare"
+        CFLAGS="$CFLAGS $ARCH -Wsign-compare"
 
 	# Production
-	PROD_CFLAGS="$ARCH -O3 $NOFP -finline-functions -fschedule-insns2 -Wno-shadow"
+	PROD_CFLAGS="-O3 $NOFP -finline-functions -fschedule-insns2"
 	PROD_CPPFLAGS=
 
 	# Debug
-	DEBUG_CFLAGS="-g -fverbose-asm -Wno-shadow"
-	DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+	DEBUG_CFLAGS="-g -fverbose-asm"
+	DEBUG_CPPFLAGS=
+
+	# Profile
+	PROFILE_CFLAGS=-pg
+	PROFILE_CPPFLAGS=
+
+	# Flags are set
+	cc_flags_set=yes
+	;;
+
+    gcc-2.95*)
+	# General
+	CFLAGS="$CFLAGS $ARCH -Wsign-compare"
+
+	# Production
+	PROD_CFLAGS="-O2 $NOFP"
+	PROD_CPPFLAGS=
+
+	# Debug
+	DEBUG_CFLAGS="-g -fverbose-asm"
+	DEBUG_CPPFLAGS=
 
 	# Profile
 	PROFILE_CFLAGS=-pg
@@ -125,15 +183,15 @@ case "$cc_vendor-$cc_version" in
 
     egcs-2.*|pgcc-2.*)
 	# General
-	CFLAGS="$CFLAGS -Wsign-compare"
+	CFLAGS="$CFLAGS $ARCH -Wsign-compare"
 
 	# Production
-	PROD_CFLAGS="$ARCH -O6 $NOFP -Wno-shadow"
+	PROD_CFLAGS="-O6 $NOFP"
 	PROD_CPPFLAGS=
 
 	# Debug
-	DEBUG_CFLAGS="-g -fverbose-asm -Wno-shadow"
-	DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+	DEBUG_CFLAGS="-g -fverbose-asm"
+	DEBUG_CPPFLAGS=
 
 	# Profile
 	PROFILE_CFLAGS=-pg
@@ -153,7 +211,7 @@ case "$cc_vendor-$cc_version" in
 
 	# Debug
 	DEBUG_CFLAGS=-g
-	DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+	DEBUG_CPPFLAGS=
 
 	# Profile
 	PROFILE_CFLAGS=-pg

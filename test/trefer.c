@@ -11,10 +11,10 @@
  ****************************************************************************/
 
 #ifdef RCSID
-static char		RcsId[] = "$Revision: 1.16.2.1 $";
+static char		RcsId[] = "$Revision: 1.21 $";
 #endif
 
-/* $Id: trefer.c,v 1.16.2.1 1999/09/24 18:15:23 koziol Exp $ */
+/* $Id: trefer.c,v 1.21 2001/01/09 22:21:53 koziol Exp $ */
 
 /***********************************************************
 *
@@ -30,6 +30,7 @@ static char		RcsId[] = "$Revision: 1.16.2.1 $";
 
 #define FILE1   "trefer1.h5"
 #define FILE2	"trefer2.h5"
+#define FILE3	"trefer3.h5"
 
 /* 1-D dataset with fixed dimensions */
 #define SPACE1_NAME  "Space1"
@@ -72,7 +73,7 @@ test_reference_obj(void)
     hobj_ref_t      *wbuf,      /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temp. buffer read from disk */
-    uintn   *tu32;      /* Temporary pointer to uintn data */
+    uintn      *tu32;      /* Temporary pointer to uint32 data */
     intn        i;          /* counting variables */
     const char *write_comment="Foo!"; /* Comments for group */
     char read_comment[10];
@@ -95,7 +96,7 @@ test_reference_obj(void)
     CHECK(sid1, FAIL, "H5Screate_simple");
 
     /* Create a group */
-    group=H5Gcreate(fid1,"Group1",-1);
+    group=H5Gcreate(fid1,"Group1",(size_t)-1);
     CHECK(group, FAIL, "H5Gcreate");
 
     /* Set group's comment */
@@ -357,8 +358,8 @@ test_reference_region(void)
     /* Select 6x6 hyperslab for first reference */
     start[0]=2; start[1]=2;
     stride[0]=1; stride[1]=1;
-    count[0]=6; count[1]=6;
-    block[0]=1; block[1]=1;
+    count[0]=1; count[1]=1;
+    block[0]=6; block[1]=6;
     ret = H5Sselect_hyperslab(sid2,H5S_SELECT_SET,start,stride,count,block);
     CHECK(ret, FAIL, "H5Sselect_hyperslab");
 
@@ -426,6 +427,10 @@ test_reference_region(void)
     dset2 = H5Rdereference(dset1,H5R_DATASET_REGION,&rbuf[0]);
     CHECK(dset2, FAIL, "H5Rdereference");
 
+    /* Check what H5Rget_object_type function returns */
+    ret = H5Rget_object_type(dset1, &rbuf[0]);
+    VERIFY(ret, H5G_UNKNOWN, "H5Rget_object_type");
+
     /* Check information in referenced dataset */
     sid1 = H5Dget_space(dset2);
     CHECK(sid1, FAIL, "H5Dget_space");
@@ -450,7 +455,7 @@ test_reference_region(void)
     ret = H5Sget_select_hyper_nblocks(sid2);
     VERIFY(ret, 1, "H5Sget_select_hyper_nblocks");
     coords=HDmalloc(ret*SPACE2_RANK*sizeof(hsize_t)*2); /* allocate space for the hyperslab blocks */
-    ret = H5Sget_select_hyper_blocklist(sid2,0,ret,coords);
+    ret = H5Sget_select_hyper_blocklist(sid2,(hsize_t)0,(hsize_t)ret,coords);
     CHECK(ret, FAIL, "H5Sget_select_hyper_blocklist");
     VERIFY(coords[0], 2, "Hyperslab Coordinates");
     VERIFY(coords[1], 2, "Hyperslab Coordinates");
@@ -478,7 +483,7 @@ test_reference_region(void)
     ret = H5Sget_select_elem_npoints(sid2);
     VERIFY(ret, 10, "H5Sget_select_elem_npoints");
     coords=HDmalloc(ret*SPACE2_RANK*sizeof(hsize_t)); /* allocate space for the element points */
-    ret = H5Sget_select_elem_pointlist(sid2,0,ret,coords);
+    ret = H5Sget_select_elem_pointlist(sid2,(hsize_t)0,(hsize_t)ret,coords);
     CHECK(ret, FAIL, "H5Sget_select_elem_pointlist");
     VERIFY((hssize_t)coords[0], coord1[0][0], "Element Coordinates");
     VERIFY((hssize_t)coords[1], coord1[0][1], "Element Coordinates");
@@ -537,6 +542,100 @@ test_reference_region(void)
 
 /****************************************************************
 **
+**  test_reference_obj_deleted(): Test H5R (reference) object reference code.
+**      Tests for correct failures for deleted and non-existent objects
+** 
+****************************************************************/
+static void 
+test_reference_obj_deleted(void)
+{
+    hid_t		fid1;		/* HDF5 File IDs		*/
+    hid_t		dataset,	/* Dataset ID			*/
+                dset2;      /* Dereferenced dataset ID */
+    hid_t		sid1;       /* Dataspace ID			*/
+    hobj_ref_t  oref;       /* Object Reference to test */
+    herr_t		ret;		/* Generic return value		*/
+
+    /* Create file */
+    fid1 = H5Fcreate(FILE3, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    /* Create scalar dataspace for datasets */
+    sid1 = H5Screate_simple(0, NULL, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    /* Create a dataset to reference (deleted later) */
+    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_INT,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
+
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Create a dataset */
+    dataset=H5Dcreate(fid1,"Dataset2",H5T_STD_REF_OBJ,sid1,H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate");
+
+    /* Create reference to dataset */
+    ret = H5Rcreate(&oref,fid1,"/Dataset1",H5R_OBJECT,-1);
+    CHECK(ret, FAIL, "H5Rcreate");
+    ret = H5Rget_object_type(dataset,&oref);
+    VERIFY(ret, H5G_DATASET, "H5Rget_object_type");
+
+    /* Write selection to disk */
+    ret=H5Dwrite(dataset,H5T_STD_REF_OBJ,H5S_ALL,H5S_ALL,H5P_DEFAULT,&oref);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Delete referenced dataset */
+    ret = H5Gunlink(fid1,"/Dataset1");
+    CHECK(ret, FAIL, "H5Gunlink");
+
+    /* Close disk dataspace */
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Re-open the file */
+    fid1 = H5Fopen(FILE3, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fopen");
+
+    /* Open the dataset */
+    dataset=H5Dopen(fid1,"/Dataset2");
+    CHECK(ret, FAIL, "H5Dcreate");
+
+    /* Read selection from disk */
+    memset(&oref,0,sizeof(hobj_ref_t));
+    ret=H5Dread(dataset,H5T_STD_REF_OBJ,H5S_ALL,H5S_ALL,H5P_DEFAULT,&oref);
+    CHECK(ret, FAIL, "H5Dread");
+
+    /* Open deleted dataset object */
+    dset2 = H5Rdereference(dataset,H5R_OBJECT,&oref);
+    VERIFY(dset2, FAIL, "H5Rdereference");
+
+    /* Open nonsense reference */
+    memset(&oref,0,sizeof(hobj_ref_t));
+    dset2 = H5Rdereference(dataset,H5R_OBJECT,&oref);
+    VERIFY(dset2, FAIL, "H5Rdereference");
+
+    /* Close Dataset */
+    ret = H5Dclose(dataset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+}   /* test_reference_obj_deleted() */
+
+/****************************************************************
+**
 **  test_reference(): Main H5R reference testing routine.
 ** 
 ****************************************************************/
@@ -546,9 +645,9 @@ test_reference(void)
     /* Output message about test being performed */
     MESSAGE(5, ("Testing References\n"));
 
-    /* These next tests use the same file */
     test_reference_obj();       /* Test basic H5R object reference code */
     test_reference_region();    /* Test basic H5R dataset region reference code */
+    test_reference_obj_deleted(); /* Test H5R object reference code for deleted objects */
 
 }   /* test_reference() */
 
@@ -572,5 +671,6 @@ cleanup_reference(void)
 {
     remove(FILE1);
     remove(FILE2);
+    remove(FILE3);
 }
 

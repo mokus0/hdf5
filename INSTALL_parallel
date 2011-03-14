@@ -8,7 +8,7 @@ HDF5.  Platforms supported by this release are SGI Origin 2000,
 IBM SP2, and the Intel TFLOP.  The steps are kind of unnatural and
 will be more automized in the next release.   If you have difficulties
 installing the software in your system, please send mail to
-	hdfhelp@ncsa.uiuc.edu
+	hdfparallel@ncsa.uiuc.edu
 In your mail, please enclose the output of "uname -a".  Also attach the
 content of "config.log" if you have run the "configure" command.
 
@@ -26,38 +26,65 @@ configure for a few machines we tested.  If your particular platform
 is not shown or somehow the steps do not work for yours, please go
 to the next section for more detail explanations.
 
-2.1. IBM SP2
-------------
-Follow the instructions in bin/config_para_ibm_sp.sh.
+------
+TFLOPS
+------
+follow the instuctions in INSTALL_TFLOPS.
 
-2.2. TFLOPS
------------
-Follow the instuctions in INSTALL_TFLOPS.
+-------
+IBM SP2
+-------
+First of all, make sure your environment variables are set correctly
+to compile and execute single process mpi applications for the SP2
+machine.  They should be the same or comparable to the following.
 
-2.3. SGI/CRAY (Origin 2000, T3E)
---------------------------------
-For SGI/CRAY systems in which MPI-IO is part of system MPI library
-such as mpt 1.3, use the following steps.
+    setenv CC              mpcc_r
+    setenv MP_PROCS         1
+    setenv MP_NODES         1
+    setenv MP_LABELIO       no
+    setenv MP_RMPOOL        0
+    setenv RUNPARALLEL      "MP_PROCS=2 MP_TASKS_PER_NODE=2 poe"
+    setenv LLNL_COMPILE_SINGLE_THREADED TRUE
 
-./configure --enable-parallel --prefix=$PWD/installdir
+The shared library configuration for this version is broken.
+So, only static library is supported.
+An error for powerpc-ibm-aix4.3.2.0 (LLNL Blue) about install method
+is discovered after code freeze.  You need to remove the following
+line from config/powerpc-ibm-aix4.3.2.0 before configuration.
+    ac_cv_path_install=${ac_cv_path_install='cp -r'}
+
+Then do the following steps:
+
+./configure --disable-shared --prefix=<install-directory>
+make		# build the library
+make check	# verify the correctness
+make install
+
+
+---------------
+SGI Origin 2000
+Cray T3E
+(where MPI-IO is part of system MPI library such as mpt 1.3)
+---------------
+
+#!/bin/sh
+
+RUNPARALLEL="mpirun -np 2"
+export RUNPARALLEL
+LIBS="-lmpi"
+export LIBS
+./configure --enable-parallel --disable-shared --prefix=$PWD/installdir
 make
 make check
 make install
 
 
-2.4. MPICH systems
-------------------
-For systems in which the latest MPICH library with ROMIO is installed,
-use the following steps.
-
-CC=mpicc ./configure --prefix=$PWD/installdir
-
-
-2.5. Other machines
--------------------
-For systems in which MPI and/or MPI-IO are not part of system library
-or I want to use my own version of MPI or MPIO libraries, use the
-following steps.
+---------------
+SGI Origin 2000
+Cray T3E
+(where MPI-IO is not part of system MPI library or I want to
+use my own version of MPIO)
+---------------
 
 
 mpi1_inc=""                                     #mpi-1 include
@@ -68,19 +95,17 @@ mpio_lib="-L$HOME/ROMIO/lib/IRIX64"             #mpio library
 MPI_INC="$mpio_inc $mpi1_inc"
 MPI_LIB="$mpio_lib $mpi1_lib"
 
-# Specify where to find the MPI and/or MPI-IO headers and libraries
+#for version 1.1
 CPPFLAGS=$MPI_INC
 export CPPFLAGS
 LDFLAGS=$MPI_LIB
 export LDFLAGS
+RUNPARALLEL="mpirun -np 2"
+export RUNPARALLEL
 LIBS="-lmpio -lmpi"
 export LIBS
 
-# Specify how to run MPI parallel jobs
-RUNPARALLEL="mpirun -np 2"
-export RUNPARALLEL
-
-./configure --enable-parallel --prefix=$PWD/installdir
+./configure --enable-parallel --disable-shared --prefix=$PWD/installdir
 make
 make check
 make install

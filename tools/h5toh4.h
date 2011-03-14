@@ -1,9 +1,3 @@
-#ifndef _H5TOH4_H
-#define _H5TOH4_H
-
-#include <mfhdf.h>
-#include <hdf5.h>
-
 /*
  * Copyright © 1998 NCSA
  *                  All rights reserved.
@@ -14,6 +8,16 @@
  * Purpose:	Convert H5 files to H4 files.
  */
 
+#ifndef _H5TOH4_H
+#define _H5TOH4_H
+
+#include "hdf.h"
+#include "mfhdf.h"
+#include "hdf5.h"
+
+#ifdef H5_HAVE_SYS_STAT_H
+#   include <sys/stat.h>
+#endif
 
 typedef struct op_data_t {
     /*

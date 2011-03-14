@@ -23,25 +23,24 @@
 
 
 /*
- * This array should contain a list of file base names created by the test.
- * The base name is a word like `test' which will have a prefix and suffix
- * added to result in something like `ufs:/u/matzke/test.h5'
+ * This contains the filename prefix specificied as command line option for
+ * the parallel test files. 
  */
-extern const char *FILENAME[];
+extern char *paraprefix;
 
 /*
  * The name of the test is printed by saying TESTING("something") which will
  * result in the string `Testing something' being flushed to standard output.
- * If a test passes, fails, or is skipped then the PASSED(), FAILED(), or
- * SKIPPED() macro should be called.  After FAILED() or SKIPPED() the caller
+ * If a test passes, fails, or is skipped then the PASSED(), H5_FAILED(), or
+ * SKIPPED() macro should be called.  After H5_FAILED() or SKIPPED() the caller
  * should print additional information to stdout indented by at least four
  * spaces.  If the h5_errors() is used for automatic error handling then
- * the FAILED() macro is invoked automatically when an API function fails.
+ * the H5_FAILED() macro is invoked automatically when an API function fails.
  */
 #define TESTING(WHAT)	{printf("%-70s", "Testing " WHAT); fflush(stdout);}
-#define PASSED()	puts(" PASSED")
-#define FAILED()	puts("*FAILED*")
-#define SKIPPED()	puts(" -SKIP-")
+#define PASSED()	{puts(" PASSED");fflush(stdout);}
+#define H5_FAILED()	{puts("*FAILED*");fflush(stdout);}
+#define SKIPPED()	{puts(" -SKIP-");fflush(stdout);}
 
 /*
  * Print the current location on the standard output stream.
@@ -54,7 +53,7 @@ extern const char *FILENAME[];
 extern "C" {
 #endif
 
-int h5_cleanup(hid_t fapl);
+int h5_cleanup(const char *base_name[], hid_t fapl);
 herr_t h5_errors(void *client_data);
 char *h5_fixname(const char *base_name, hid_t fapl, char *fullname,
 		 size_t size);

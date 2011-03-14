@@ -7,10 +7,13 @@
  *
  * Purpose:	"None" selection data space I/O functions.
  */
+
+#define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
+
 #include <H5private.h>
 #include <H5Eprivate.h>
 #include <H5Iprivate.h>
-#include <H5Sprivate.h>
+#include <H5Spkg.h>
 #include <H5Vprivate.h>
 #include <H5Dprivate.h>
 
@@ -205,7 +208,7 @@ done:
  REVISION LOG
 --------------------------------------------------------------------------*/
 herr_t
-H5S_none_select_iterate(void *buf, hid_t type_id, H5S_t *space, H5D_operator_t op,
+H5S_none_select_iterate(void UNUSED *buf, hid_t UNUSED type_id, H5S_t UNUSED *space, H5D_operator_t UNUSED op,
         void UNUSED *operator_data)
 {
     herr_t ret_value=SUCCEED;      /* return value */

@@ -8,12 +8,14 @@
  * Purpose:	Dataspace functions.
  */
 
+#define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
+
 #include <H5private.h>
 #include <H5Eprivate.h>
 #include <H5FLprivate.h>	/*Free Lists	  */
 #include <H5Iprivate.h>
 #include <H5MMprivate.h>
-#include <H5Sprivate.h>
+#include <H5Spkg.h>
 #include <H5Vprivate.h>
 
 /* Interface initialization */
@@ -67,7 +69,7 @@ H5S_select_copy (H5S_t *dst, const H5S_t *src)
 /* Need to copy order information still */
 
     /* Copy offset information */
-    if (NULL==(dst->select.offset = H5FL_ARR_ALLOC(hssize_t, src->extent.u.simple.rank,1))) {
+    if (NULL==(dst->select.offset = H5FL_ARR_ALLOC(hssize_t,(hsize_t)src->extent.u.simple.rank,1))) {
         HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		       "memory allocation failed");
     }
@@ -167,6 +169,7 @@ H5S_select_release (H5S_t *space)
 
     FUNC_LEAVE (ret_value);
 }   /* H5S_select_release() */
+
 
 /*--------------------------------------------------------------------------
  NAME
@@ -560,8 +563,7 @@ H5S_select_deserialize (H5S_t *space, const uint8_t *buf)
             ret_value=H5S_none_select_deserialize(space,buf);
             break;
 
-        case H5S_SEL_ERROR:
-        case H5S_SEL_N:
+        default:
             break;
     }
 
@@ -589,12 +591,28 @@ static hssize_t
 H5S_get_select_hyper_nblocks(H5S_t *space)
 {
     hssize_t ret_value=FAIL;        /* return value */
+    uintn u;                    /* Counter */
 
     FUNC_ENTER (H5S_get_select_hyper_nblocks, FAIL);
 
     assert(space);
 
-    ret_value = space->select.sel_info.hslab.hyper_lst->count;
+    /* Check for a "regular" hyperslab selection */
+    if(space->select.sel_info.hslab.diminfo != NULL) {
+
+#ifdef QAK
+{
+H5S_hyper_dim_t *diminfo=space->select.sel_info.hslab.diminfo;
+for(u=0; u<space->extent.u.simple.rank; u++)
+    printf("%s: (%u) start=%d, stride=%d, count=%d, block=%d\n",FUNC,u,(int)diminfo[u].start,(int)diminfo[u].stride,(int)diminfo[u].count,(int)diminfo[u].block);
+}
+#endif /*QAK */
+        /* Check each dimension */
+        for(ret_value=1,u=0; u<space->extent.u.simple.rank; u++)
+            ret_value*=space->select.sel_info.hslab.app_diminfo[u].count;
+    } /* end if */
+    else 
+        ret_value = (hssize_t)space->select.sel_info.hslab.hyper_lst->count;
 
     FUNC_LEAVE (ret_value);
 }   /* H5Sget_select_hyper_nblocks() */
@@ -741,8 +759,17 @@ H5Sget_select_elem_npoints(hid_t spaceid)
 static herr_t
 H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock, hsize_t numblocks, hsize_t *buf)
 {
+    H5S_hyper_dim_t *diminfo;               /* Alias for dataspace's diminfo information */
+    hsize_t tmp_count[H5O_LAYOUT_NDIMS];    /* Temporary hyperslab counts */
+    hssize_t offset[H5O_LAYOUT_NDIMS];      /* Offset of element in dataspace */
+    hssize_t temp_off;            /* Offset in a given dimension */
     H5S_hyper_node_t *node;     /* Hyperslab node */
     intn rank;                  /* Dataspace rank */
+    intn i;                     /* Counter */
+    intn fast_dim;      /* Rank of the fastest changing dimension for the dataspace */
+    intn temp_dim;      /* Temporary rank holder */
+    intn ndims;         /* Rank of the dataspace */
+    intn done;          /* Whether we are done with the iteration */
     herr_t ret_value=SUCCEED;   /* return value */
 
     FUNC_ENTER (H5S_get_select_hyper_blocklist, FAIL);
@@ -753,24 +780,111 @@ H5S_get_select_hyper_blocklist(H5S_t *space, hsize_t startblock, hsize_t numbloc
     /* Get the dataspace extent rank */
     rank=space->extent.u.simple.rank;
 
-    /* Get the head of the hyperslab list */
-    node=space->select.sel_info.hslab.hyper_lst->head;
+    /* Check for a "regular" hyperslab selection */
+    if(space->select.sel_info.hslab.diminfo != NULL) {
+        /* Set some convienence values */
+        ndims=space->extent.u.simple.rank;
+        fast_dim=ndims-1;
+        /*
+         * Use the "application dimension information" to pass back to the user
+         * the blocks they set, not the optimized, internal information.
+         */
+        diminfo=space->select.sel_info.hslab.app_diminfo;
 
-    /* Get to the correct first node to give back to the user */
-    while(node!=NULL && startblock>0) {
-        startblock--;
-        node=node->next;
-      } /* end while */
-    
-    /* Iterate through the node, copying each hyperslab's information */
-    while(node!=NULL && numblocks>0) {
-        HDmemcpy(buf,node->start,sizeof(hsize_t)*rank);
-        buf+=rank;
-        HDmemcpy(buf,node->end,sizeof(hsize_t)*rank);
-        buf+=rank;
-        numblocks--;
-        node=node->next;
-      } /* end while */
+        /* Build the tables of count sizes as well as the initial offset */
+        for(i=0; i<ndims; i++) {
+            tmp_count[i]=diminfo[i].count;
+            offset[i]=diminfo[i].start;
+        } /* end for */
+
+        /* We're not done with the iteration */
+        done=0;
+
+        /* Go iterate over the hyperslabs */
+        while(done==0 && numblocks>0) {
+            /* Iterate over the blocks in the fastest dimension */
+            while(tmp_count[fast_dim]>0 && numblocks>0) {
+
+                /* Check if we should copy this block information */
+                if(startblock==0) {
+                    /* Copy the starting location */
+                    HDmemcpy(buf,offset,sizeof(hsize_t)*ndims);
+                    buf+=ndims;
+
+                    /* Compute the ending location */
+                    HDmemcpy(buf,offset,sizeof(hsize_t)*ndims);
+                    for(i=0; i<ndims; i++)
+                        buf[i]+=(diminfo[i].block-1);
+                    buf+=ndims;
+
+                    /* Decrement the number of blocks to retrieve */
+                    numblocks--;
+                } /* end if */
+                else
+                    startblock--;
+
+                /* Move the offset to the next sequence to start */
+                offset[fast_dim]+=diminfo[fast_dim].stride;
+
+                /* Decrement the block count */
+                tmp_count[fast_dim]--;
+            } /* end while */
+
+            /* Work on other dimensions if necessary */
+            if(fast_dim>0 && numblocks>0) {
+                /* Reset the block counts */
+                tmp_count[fast_dim]=diminfo[fast_dim].count;
+
+                /* Bubble up the decrement to the slower changing dimensions */
+                temp_dim=fast_dim-1;
+                while(temp_dim>=0 && done==0) {
+                    /* Decrement the block count */
+                    tmp_count[temp_dim]--;
+
+                    /* Check if we have more blocks left */
+                    if(tmp_count[temp_dim]>0)
+                        break;
+
+                    /* Check for getting out of iterator */
+                    if(temp_dim==0)
+                        done=1;
+
+                    /* Reset the block count in this dimension */
+                    tmp_count[temp_dim]=diminfo[temp_dim].count;
+                
+                    /* Wrapped a dimension, go up to next dimension */
+                    temp_dim--;
+                } /* end while */
+            } /* end if */
+
+            /* Re-compute offset array */
+            for(i=0; i<ndims; i++) {
+                temp_off=diminfo[i].start
+                    +diminfo[i].stride*(diminfo[i].count-tmp_count[i]);
+                offset[i]=temp_off;
+            } /* end for */
+        } /* end while */
+    } /* end if */
+    else {
+        /* Get the head of the hyperslab list */
+        node=space->select.sel_info.hslab.hyper_lst->head;
+
+        /* Get to the correct first node to give back to the user */
+        while(node!=NULL && startblock>0) {
+            startblock--;
+            node=node->next;
+          } /* end while */
+        
+        /* Iterate through the node, copying each hyperslab's information */
+        while(node!=NULL && numblocks>0) {
+            HDmemcpy(buf,node->start,sizeof(hsize_t)*rank);
+            buf+=rank;
+            HDmemcpy(buf,node->end,sizeof(hsize_t)*rank);
+            buf+=rank;
+            numblocks--;
+            node=node->next;
+          } /* end while */
+    } /* end else */
 
     FUNC_LEAVE (ret_value);
 }   /* H5Sget_select_hyper_blocklist() */
@@ -1123,7 +1237,7 @@ H5S_select_contiguous(const H5S_t *space)
  PURPOSE
     Iterate over the selected elements in a memory buffer.
  USAGE
-    herr_t H5S_select_iterate(buf, type_id, space, op, operator_data)
+    herr_t H5S_select_iterate(buf, type_id, space, operator, operator_data)
         void *buf;      IN/OUT: Buffer containing elements to iterate over
         hid_t type_id;  IN: Datatype ID of BUF array.
         H5S_t *space;   IN: Dataspace object containing selection to iterate over

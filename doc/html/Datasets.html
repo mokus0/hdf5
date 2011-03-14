@@ -10,9 +10,9 @@
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -41,8 +41,6 @@
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -174,7 +172,6 @@
       properties of that layout.  Currently, the only layout that has
       user-settable properties is the <code>H5D_CHUNKED</code> layout,
       which needs to know the dimensionality and chunk size.
-
     <dl>
       <dt><code>herr_t H5Pset_chunk (hid_t <em>plist_id</em>, int
 	  <em>ndims</em>, hsize_t <em>dim</em>[])</code>
@@ -451,11 +448,15 @@ H5Pset_external (plist, "scan3.data", 0, 16);
 	  *<em>name</em>, hid_t <em>type_id</em>, hid_t
 	  <em>space_id</em>, hid_t <em>create_plist_id</em>)</code>
       <dd>A dataset is created by calling <code>H5Dcreate</code> with
-	a file identifier, a dataset name, a datatype, a data space,
-	and constant properties.  The datatype and data space are the
+	a file identifier, a dataset name, a datatype, a dataspace,
+	and constant properties.  The datatype and dataspace are the
 	type and space of the dataset as it will exist in the file,
-	which may be different than in application memory.  The
-	<em>create_plist_id</em> is a <code>H5P_DATASET_CREATE</code>
+	which may be different than in application memory.  
+        Dataset names within a group must be unique: 
+        <code>H5Dcreate</code> returns an error if a dataset with the
+        name specified in <code><em>name</em></code> already exists 
+        at the location specified in <code><em>file_id</em></code>.
+        The <em>create_plist_id</em> is a <code>H5P_DATASET_CREATE</code>
 	property list created with <code>H5Pcreate()</code> and
 	initialized with the various functions described above.
 	<code>H5Dcreate()</code> returns a dataset handle for success
@@ -539,9 +540,9 @@ H5Pset_external (plist, "scan3.data", 0, 16);
 
     <dl>
       <dt><code>herr_t H5Pset_buffer (hid_t <em>xfer_plist</em>,
-	  size_t <em>max_buf_size</em>, void *<em>tconv_buf</em>, void
+	  hsize_t <em>max_buf_size</em>, void *<em>tconv_buf</em>, void
 	  *<em>bkg_buf</em>)</code>
-      <dt><code>size_t H5Pget_buffer (hid_t <em>xfer_plist</em>, void
+      <dt><code>hsize_t H5Pget_buffer (hid_t <em>xfer_plist</em>, void
 	  **<em>tconv_buf</em>, void **<em>bkg_buf</em>)</code>
       <dd>Sets or retrieves the maximum size in bytes of the temporary
 	buffer used for datatype conversion in the I/O pipeline.  An
@@ -883,9 +884,9 @@ H5Pset_external (plist, "scan3.data", 0, 16);
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-   <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
    <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
    <a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;<br>
+   <a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
    <!--
    <a href="Glossary.html">Glossary</a><br>
    -->
@@ -914,8 +915,6 @@ H5Pset_external (plist, "scan3.data", 0, 16);
       <a href="Debugging.html">Debugging</a>&nbsp;&nbsp;
       <a href="Environment.html">Environment</a>&nbsp;&nbsp;
       <a href="ddl.html">DDL</a>&nbsp;&nbsp;
-      <br>
-      <a href="Ragged.html">Ragged Arrays</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -931,8 +930,10 @@ H5Pset_external (plist, "scan3.data", 0, 16);
 <!-- hhmts start -->
 Last modified:  7 April 2000
 <!-- hhmts end -->
+
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Describes HDF5 Release 1.4, February 2001
+
 
   </body>
 </html>

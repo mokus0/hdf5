@@ -9,8 +9,9 @@
 /* See H5private.h for how to include headers */
 #undef NDEBUG
 #include <hdf5.h>
+#include <H5private.h>
 
-#ifdef STDC_HEADERS
+#ifdef H5_STDC_HEADERS
 #   include <assert.h>
 #   include <fcntl.h>
 #   include <stdio.h>
@@ -18,29 +19,29 @@
 #   include <stdlib.h>
 #endif
 
-#ifdef HAVE_UNISTD_H
+#ifdef H5_HAVE_UNISTD_H
 #   include <sys/types.h>
 #   include <unistd.h>
 #endif
 
-#if defined(TIME_WITH_SYS_TIME)
+#if defined(H5_TIME_WITH_SYS_TIME)
 #   include <sys/time.h>
 #   include <time.h>
-#elif defined(HAVE_SYS_TIME_H)
+#elif defined(H5_HAVE_SYS_TIME_H)
 #   include <sys/time.h>
 #else
 #   include <time.h>
 #endif
 
-#ifdef HAVE_SYS_RESOURCE_H
+#ifdef H5_HAVE_SYS_RESOURCE_H
 #   include <sys/resource.h>
 #endif
 
-#ifdef HAVE_WINSOCK_H
+#ifdef H5_HAVE_WINSOCK_H
 #include <Winsock.h>
 #endif
 
-#ifdef HAVE_SYS_TIMEB 
+#ifdef H5_HAVE_SYS_TIMEB 
 #include <sys/timeb.h>
 #endif
 
@@ -79,22 +80,22 @@
  *
  *-------------------------------------------------------------------------
  */
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
 static void
 print_stats (const char *prefix,
 	     struct rusage *r_start, struct rusage *r_stop,
 	     struct timeval *t_start, struct timeval *t_stop,
 	     size_t nbytes)
-#else /* HAVE_GETRUSAGE */
+#else /* H5_HAVE_GETRUSAGE */
 static void
 print_stats (const char *prefix,
 	     struct timeval *r_start, struct timeval *r_stop,
 	     struct timeval *t_start, struct timeval *t_stop,
 	     size_t nbytes)
-#endif /* HAVE_GETRUSAGE */
+#endif /* H5_HAVE_GETRUSAGE */
 {
     double	e_time, bw;
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     double	u_time, s_time;
 
     u_time = ((double)(r_stop->ru_utime.tv_sec)+
@@ -107,7 +108,7 @@ print_stats (const char *prefix,
 	     ((double)(r_start->ru_stime.tv_sec)+
 	      (double)(r_start->ru_stime.tv_usec)/1000000.0);
 #endif
-#ifndef HAVE_SYS_TIMEB
+#ifndef H5_HAVE_SYS_TIMEB
     e_time = ((double)(t_stop->tv_sec)+
 	      (double)(t_stop->tv_usec)/1000000.0) -
 	     ((double)(t_start->tv_sec)+
@@ -120,7 +121,7 @@ print_stats (const char *prefix,
 #endif
     bw = (double)nbytes / e_time;
     
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     printf (HEADING "%1.2fuser %1.2fsystem %1.2felapsed %1.2fMB/s\n", 
 	    prefix, u_time, s_time, e_time, bw/(1024*1024));
 #else
@@ -148,7 +149,7 @@ print_stats (const char *prefix,
 static void
 synchronize (void)
 {
-#ifdef HAVE_SYSTEM
+#ifdef H5_HAVE_SYSTEM
 #ifdef WIN32
 	_flushall();
 #else
@@ -192,7 +193,7 @@ main (void)
     unsigned char	*the_data = NULL;
     hid_t		file, dset, file_space=-1;
     herr_t		status;
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     struct rusage	r_start, r_stop;
 #else 
     struct timeval r_start, r_stop;
@@ -205,7 +206,7 @@ main (void)
     hsize_t		count[2];
 
 
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	struct _timeb *tbstart = malloc(sizeof(struct _timeb));
 	struct _timeb *tbstop = malloc(sizeof(struct _timeb));
 #endif
@@ -220,7 +221,7 @@ main (void)
     /* Open the files */
     file = H5Fcreate (HDF5_FILE_NAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     assert (file>=0);
-    fd = open (RAW_FILE_NAME, O_RDWR|O_CREAT|O_TRUNC, 0666);
+    fd = HDopen (RAW_FILE_NAME, O_RDWR|O_CREAT|O_TRUNC, 0666);
     assert (fd>=0);
     
     /* Create the dataset */
@@ -234,13 +235,14 @@ main (void)
 
     /* Fill raw */
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
+printf("Before getrusage() call\n");
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else 
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif
 #endif   
@@ -250,13 +252,13 @@ main (void)
 	fflush (stderr);
 	memset (the_data, 0xAA, (size_t)(size[0]*size[1]));
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -272,13 +274,13 @@ main (void)
 
     /* Fill hdf5 */
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif
 #endif 
@@ -290,13 +292,13 @@ main (void)
 			  H5P_DEFAULT, the_data);
 	assert (status>=0);
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -311,13 +313,13 @@ main (void)
     
     /* Write the raw dataset */
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif
 #endif 
@@ -330,13 +332,13 @@ main (void)
 	n = write (fd, the_data, (size_t)(size[0]*size[1]));
 	assert (n>=0 && (size_t)n==size[0]*size[1]);
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -351,13 +353,13 @@ main (void)
 
     /* Write the hdf5 dataset */
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif
 #endif 
@@ -369,13 +371,13 @@ main (void)
 			   H5P_DEFAULT, the_data);
 	assert (status>=0);
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -390,13 +392,13 @@ main (void)
 
     /* Read the raw dataset */
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif
 #endif 
@@ -409,13 +411,13 @@ main (void)
 	n = read (fd, the_data, (size_t)(size[0]*size[1]));
 	assert (n>=0 && (size_t)n==size[0]*size[1]);
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -431,13 +433,13 @@ main (void)
 
     /* Read the hdf5 dataset */
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif	
 #endif 
@@ -449,13 +451,13 @@ main (void)
 			  H5P_DEFAULT, the_data);
 	assert (status>=0);
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -475,13 +477,13 @@ main (void)
     status = H5Sselect_hyperslab (file_space, H5S_SELECT_SET, start, NULL, count, NULL);
     assert (status>=0);
     synchronize ();
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_start);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_start, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstart);
 #endif	
 #endif 
@@ -493,13 +495,13 @@ main (void)
 			  H5P_DEFAULT, the_data);
 	assert (status>=0);
     }
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &r_stop);
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&t_stop, NULL);
 #else
-#ifdef HAVE_SYS_TIMEB
+#ifdef H5_HAVE_SYS_TIMEB
 	_ftime(tbstop);
 	t_start.tv_sec = tbstart->time;
 	t_start.tv_usec = tbstart->millitm;
@@ -515,7 +517,7 @@ main (void)
 
     
     /* Close everything */
-    close (fd);
+    HDclose (fd);
     H5Dclose (dset);
     H5Sclose (file_space);
     H5Fclose (file);

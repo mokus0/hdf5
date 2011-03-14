@@ -45,6 +45,7 @@ const H5O_class_t H5O_PLINE[1] = {{
     H5O_pline_debug,		/* debug the message		*/
 }};
 
+
 /* Declare a free list to manage the H5O_pline_t struct */
 H5FL_DEFINE(H5O_pline_t);
 
@@ -142,14 +143,14 @@ H5O_pline_decode(H5F_t UNUSED *f, const uint8_t *p,
 
  done:
     if (NULL==ret_value && pline) {
-	if (pline->filter) {
-	    for (i=0; i<pline->nfilters; i++) {
-		H5MM_xfree(pline->filter[i].name);
-		H5MM_xfree(pline->filter[i].cd_values);
-	    }
-	    H5MM_xfree(pline->filter);
-	}
-	H5FL_FREE(H5O_pline_t,pline);
+        if (pline->filter) {
+            for (i=0; i<pline->nfilters; i++) {
+                H5MM_xfree(pline->filter[i].name);
+                H5MM_xfree(pline->filter[i].cd_values);
+            }
+            H5MM_xfree(pline->filter);
+        }
+        H5FL_FREE(H5O_pline_t,pline);
     }
     FUNC_LEAVE(ret_value);
 }
@@ -255,7 +256,7 @@ H5O_pline_copy (const void *_src, void *_dst/*out*/)
     FUNC_ENTER (H5O_pline_copy, NULL);
 
     if (!dst && NULL==(dst = H5FL_ALLOC (H5O_pline_t,0))) {
-        HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
+	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		       "memory allocation failed");
     }
 
@@ -384,8 +385,8 @@ H5O_pline_reset (void *mesg)
 
     assert (pline);
     for (i=0; i<pline->nfilters; i++) {
-	H5MM_xfree(pline->filter[i].name);
-	H5MM_xfree(pline->filter[i].cd_values);
+        H5MM_xfree(pline->filter[i].name);
+        H5MM_xfree(pline->filter[i].cd_values);
     }
     H5MM_xfree(pline->filter);
     HDmemset(pline, 0, sizeof *pline);

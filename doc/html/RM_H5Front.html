@@ -5,13 +5,15 @@ HDF5 API Specification
 <body bgcolor="#FFFFFF">
 
 
-<hr>
+<a name="TopofRM">
+<hr></a>
+
 <center>
 <table cellspacing=0 cellpadding=0 border=0 width=98%>
-<tr><td valign=top aliOther gn=left>
+<tr><td valign=top align=left>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -28,14 +30,14 @@ HDF5 Reference Manual&nbsp;&nbsp;
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<br>
 <a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
-<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
+<a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 -->
 </td></tr>
 </table>
@@ -45,17 +47,18 @@ HDF5 Reference Manual&nbsp;&nbsp;
 
 <center>
 <h1>HDF5: API Specification<br>Reference Manual</h1>
+
+
 </center>
-
-<center>
-<table border=0 width=85%>
-
-<tr><td valign=top colspan=3>
 The HDF5 library provides several interfaces, each of which provides the 
 tools required to meet specific aspects of the HDF5 data-handling requirements.
-<br>
-<br>
-</td></tr>
+<p>
+See <a href="#F90andCPPlus">below</a> for the FORTRAN90 and C++ APIs.
+<p>
+
+<center>
+<table border=0>
+
 <tr><td valign=top><a href="RM_H5.html">Library Functions</a>
     </td><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>The general-purpose <strong>H5</strong> functions.
 </td></tr>
@@ -94,19 +97,72 @@ tools required to meet specific aspects of the HDF5 data-handling requirements.
 </td></tr>
 <tr><td valign=top><a href="Tools.html">Tools</a>
     </td><td></td><td valign=top>Interactive tools for the examination of existing HDF5 files.
+</td></tr>
+<tr><td valign=top><a href="PredefDTypes.html">Predefined Datatypes</a>
+    </td><td></td><td valign=top>Predefined datatypes in HDF5.
 <!--
 </td></tr>
 <tr><td valign=top><a href="Glossary.html">Glossary</a>
     </td><td></td><td valign=top>A glossary of data-types used in the APIs.
 -->
 </td></tr>
-<tr><td valign=top><hr noshade size=1>Experimental interface:<br><a href="RM_H5RA.html">Ragged Arrays</a>&nbsp;&nbsp;
-    </td><td></td><td valign=top><hr noshade size=1><br>The <strong>H5RA</strong> API for ragged arrays.
+<tr><td valign=top><hr noshade size=1><b>Ragged Arrays</b>&nbsp;&nbsp;
+    </td><td></td><td valign=top><hr noshade size=1>The <strong>H5RA</strong> API for ragged arrays was removed from the HDF5 library at Release 1.4.
 
 
 </td></tr>
 </table>
 </center>
+
+<a name="F90andCPPlus">
+<hr>
+<p align=right>To top of <a href="#TopofRM"><cite>Reference Manual</cite></a>.
+<h3>The Fortran90 and C++ APIs to HDF5</h3>
+</a>
+
+The HDF5 Library distribution now includes FORTRAN90 and C++ APIs.
+These APIs are described in the following documents.
+
+<p>
+<strong>Fortran90 API</strong>
+    <dir>
+    <a href="fortran/F90UserNotes.html" target="External">
+    <cite>HDF5 FORTRAN90 User's Notes</cite></a>
+    contains general information regarding the API.
+    Specific information on each API call is found in the 
+    <cite>Reference Manual</cite>.
+    <p>
+    <u>Fortran90 APIs in the <cite>Reference Manual</cite>:</u>
+    The current version of the <cite>HDF5 Reference Manual</cite> includes 
+    a description of the FORTRAN90 API to HDF5.
+    Fortran subroutines exist in the H5A, H5D, H5E, H5F, H5G, H5I, H5P, 
+    H5R, H5S, and H5T interfaces and are described on those pages.
+    <p>  
+    In general, each Fortran subroutine performs exactly the same task 
+    as the corresponding C function.  The links at the top of each reference 
+    manual section go to the C function descriptions, which serve as general 
+    descriptions for both the C and Fortran APIs.  A button, under 
+    <strong>Non-C API(s)</strong> at the end of the C function description,
+    opens an external browser window displaying the Fortran-specific 
+    information.  You will probably want to adjust the size and location of 
+    this external window so that both browser windows are visible and to 
+    facilitate moving easily between them.
+    <p>
+    <a href="fortran/F90Flags.html" target="External">
+    <cite>HDF5 Fortran90 Flags and Datatypes</cite></a>
+    lists the flags employed in the Fortran90 interface and 
+    contains a pointer to the HDF5 Fortran90 datatypes.
+    </dir>
+
+<strong>C++ API</strong>
+    <dir>
+    <a href="cpplus/CppUserNotes.pdf" target="External">
+    <cite>HDF5 C++ User's Notes</cite></a>
+    <p>
+    <a href="cpplus/CppInterfaces.html" target="External">
+    <cite>HDF5 C++ Interfaces</cite></a>
+    </dir>
+
 
 <br><br>
 
@@ -114,9 +170,9 @@ tools required to meet specific aspects of the HDF5 data-handling requirements.
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -133,14 +189,14 @@ HDF5 Reference Manual&nbsp;&nbsp;
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<br>
 <a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
-<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
+<a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 -->
 </td></tr>
 </table>
@@ -153,12 +209,12 @@ HDF5 Reference Manual&nbsp;&nbsp;
 <tr><td align=left valign=top>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Last modified:  2 June 2000
+Last modified:  19 January 2001
+<br>
+Describes HDF5 Release 1.4, February 2001
 
 </td><td align=right valign=top>
 <a href="Copyright.html">Copyright</a>&nbsp;&nbsp;
-<br>
-Describes HDF5 Release 1.2.2, June 2000
 </td></tr>
 </table>
 

@@ -82,7 +82,7 @@ test_create(hid_t file)
 			    H5P_DEFAULT);
     } H5E_END_TRY;
     if (dataset >= 0) {
-	FAILED();
+	H5_FAILED();
 	puts("    Library allowed overwrite of existing dataset.");
 	goto error;
     }
@@ -103,7 +103,7 @@ test_create(hid_t file)
 	dataset = H5Dopen(file, "does_not_exist");
     } H5E_END_TRY;
     if (dataset >= 0) {
-	FAILED();
+	H5_FAILED();
 	puts("    Opened a non-existent dataset.");
 	goto error;
     }
@@ -114,6 +114,22 @@ test_create(hid_t file)
      */
     create_parms = H5Pcreate(H5P_DATASET_CREATE);
     assert(create_parms >= 0);
+
+    /* Attempt to create a dataset with invalid chunk sizes */
+    csize[0] = dims[0]*2;
+    csize[1] = dims[1]*2;
+    status = H5Pset_chunk(create_parms, 2, csize);
+    assert(status >= 0);
+    H5E_BEGIN_TRY {
+        dataset = H5Dcreate(file, DSET_CHUNKED_NAME, H5T_NATIVE_DOUBLE, space,
+			create_parms);
+    } H5E_END_TRY;
+    if (dataset >= 0) {
+	H5_FAILED();
+	puts("    Opened a dataset with incorrect chunking parameters.");
+	goto error;
+    }
+
     csize[0] = 5;
     csize[1] = 100;
     status = H5Pset_chunk(create_parms, 2, csize);
@@ -182,7 +198,7 @@ test_simple_io(hid_t file)
     tconv_buf = malloc (1000);
     xfer = H5Pcreate (H5P_DATASET_XFER);
     assert (xfer>=0);
-    if (H5Pset_buffer (xfer, 1000, tconv_buf, NULL)<0) goto error;
+    if (H5Pset_buffer (xfer, (hsize_t)1000, tconv_buf, NULL)<0) goto error;
 
     /* Create the dataset */
     if ((dataset = H5Dcreate(file, DSET_SIMPLE_IO_NAME, H5T_NATIVE_INT, space,
@@ -200,7 +216,7 @@ test_simple_io(hid_t file)
     for (i = 0; i < 100; i++) {
 	for (j = 0; j < 200; j++) {
 	    if (points[i][j] != check[i][j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read different values than written.\n");
 		printf("    At index %d,%d\n", i, j);
 		goto error;
@@ -279,7 +295,7 @@ test_tconv(hid_t file)
 	    in[4*i+1]!=out[4*i+2] ||
 	    in[4*i+2]!=out[4*i+1] ||
 	    in[4*i+3]!=out[4*i+0]) {
-	    FAILED();
+	    H5_FAILED();
 	    puts("    Read with byte order conversion failed.");
 	    goto error;
 	}
@@ -368,7 +384,7 @@ test_compression(hid_t file)
      */
     if ((xfer = H5Pcreate (H5P_DATASET_XFER))<0) goto error;
     tconv_buf = malloc (1000);
-    if (H5Pset_buffer (xfer, 1000, tconv_buf, NULL)<0) goto error;
+    if (H5Pset_buffer (xfer, (hsize_t)1000, tconv_buf, NULL)<0) goto error;
 
     /* Use chunked storage with compression */
     if ((dc = H5Pcreate (H5P_DATASET_CREATE))<0) goto error;
@@ -378,7 +394,7 @@ test_compression(hid_t file)
     /* Create the dataset */
     if ((dataset = H5Dcreate(file, DSET_COMPRESS_NAME, H5T_NATIVE_INT, space,
 			     dc))<0) goto error;
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -397,7 +413,7 @@ test_compression(hid_t file)
     for (i=0; i<size[0]; i++) {
 	for (j=0; j<size[1]; j++) {
 	    if (0!=check[i][j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read a non-zero value.\n");
 		printf("    At index %lu,%lu\n",
 		       (unsigned long)i, (unsigned long)j);
@@ -405,7 +421,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -427,7 +443,7 @@ test_compression(hid_t file)
 
     if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer, points)<0)
 	goto error;
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -448,7 +464,7 @@ test_compression(hid_t file)
     for (i=0; i<size[0]; i++) {
 	for (j=0; j<size[1]; j++) {
 	    if (points[i][j] != check[i][j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read different values than written.\n");
 		printf("    At index %lu,%lu\n",
 		       (unsigned long)i, (unsigned long)j);
@@ -456,7 +472,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -488,7 +504,7 @@ test_compression(hid_t file)
     for (i=0; i<size[0]; i++) {
 	for (j=0; j<size[1]; j++) {
 	    if (points[i][j] != check[i][j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read different values than written.\n");
 		printf("    At index %lu,%lu\n",
 		       (unsigned long)i, (unsigned long)j);
@@ -496,7 +512,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -520,7 +536,7 @@ test_compression(hid_t file)
     for (i=0; i<size[0]; i++) {
 	for (j=0; j<size[1]; j++) {
 	    if (points[i][j] != check[i][j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read different values than written.\n");
 		printf("    At index %lu,%lu\n",
 		       (unsigned long)i, (unsigned long)j);
@@ -528,7 +544,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -561,7 +577,7 @@ test_compression(hid_t file)
 	for (j=0; j<hs_size[1]; j++) {
 	    if (points[hs_offset[0]+i][hs_offset[1]+j] !=
 		check[hs_offset[0]+i][hs_offset[1]+j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read different values than written.\n");
 		printf("    At index %lu,%lu\n",
 		       (unsigned long)(hs_offset[0]+i),
@@ -574,7 +590,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#ifdef HAVE_COMPRESS2
+#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
     PASSED();
 #else
     SKIPPED();
@@ -604,7 +620,7 @@ test_compression(hid_t file)
     for (i=0; i<size[0]; i++) {
 	for (j=0; j<size[1]; j++) {
 	    if (points[i][j] != check[i][j]) {
-		FAILED();
+		H5_FAILED();
 		printf("    Read different values than written.\n");
 		printf("    At index %lu,%lu\n",
 		       (unsigned long)i, (unsigned long)j);
@@ -677,7 +693,7 @@ test_multiopen (hid_t file)
     if ((space = H5Dget_space (dset2))<0) goto error;
     if (H5Sget_simple_extent_dims (space, tmp_size, NULL)<0) goto error;
     if (cur_size[0]!=tmp_size[0]) {
-	FAILED();
+	H5_FAILED();
 	printf ("    Got %d instead of %d!\n",
 		(int)tmp_size[0], (int)cur_size[0]);
 	goto error;
@@ -734,7 +750,7 @@ test_types(hid_t file)
 	(space=H5Screate_simple(1, &nelmts, NULL))<0 ||
 	(dset=H5Dcreate(grp, "bitfield_1", type, space, H5P_DEFAULT))<0)
 	goto error;
-    for (i=0; i<sizeof buf; i++) buf[i] = 0xff ^ i;
+    for (i=0; i<sizeof buf; i++) buf[i] = (unsigned char)0xff ^ (unsigned char)i;
     if (H5Dwrite(dset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)<0)
 	goto error;
     if (H5Sclose(space)<0) goto error;
@@ -747,7 +763,7 @@ test_types(hid_t file)
 	(space=H5Screate_simple(1, &nelmts, NULL))<0 ||
 	(dset=H5Dcreate(grp, "bitfield_2", type, space, H5P_DEFAULT))<0)
 	goto error;
-    for (i=0; i<sizeof buf; i++) buf[i] = 0xff ^ i;
+    for (i=0; i<sizeof buf; i++) buf[i] = (unsigned char)0xff ^ (unsigned char)i;
     if (H5Dwrite(dset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)<0)
 	goto error;
     if (H5Sclose(space)<0) goto error;
@@ -761,7 +777,7 @@ test_types(hid_t file)
 	(space=H5Screate_simple(1, &nelmts, NULL))<0 ||
 	(dset=H5Dcreate(grp, "opaque_1", type, space, H5P_DEFAULT))<0)
 	goto error;
-    for (i=0; i<sizeof buf; i++) buf[i] = 0xff ^ i;
+    for (i=0; i<sizeof buf; i++) buf[i] = (unsigned char)0xff ^ (unsigned char)i;
     if (H5Dwrite(dset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)<0)
 	goto error;
     if (H5Sclose(space)<0) goto error;
@@ -775,7 +791,7 @@ test_types(hid_t file)
 	(space=H5Screate_simple(1, &nelmts, NULL))<0 ||
 	(dset=H5Dcreate(grp, "opaque_2", type, space, H5P_DEFAULT))<0)
 	goto error;
-    for (i=0; i<sizeof buf; i++) buf[i] = 0xff ^ i;
+    for (i=0; i<sizeof buf; i++) buf[i] = (unsigned char)0xff ^ (unsigned char)i;
     if (H5Dwrite(dset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)<0)
 	goto error;
     if (H5Sclose(space)<0) goto error;
@@ -834,9 +850,10 @@ main(void)
 #endif
     
     h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
-    if ((file=H5Fcreate(filename, H5F_ACC_TRUNC|H5F_ACC_DEBUG,
-			H5P_DEFAULT, fapl))<0) goto error;
-
+    if ((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl))<0) {
+	goto error;
+    }
+    
     /* Cause the library to emit initial messages */
     if ((grp = H5Gcreate (file, "emit diagnostics", 0))<0) goto error;
     if (H5Gset_comment(grp, ".", "Causes diagnostic messages to be emitted")<0)
@@ -853,7 +870,7 @@ main(void)
     if (H5Fclose(file)<0) goto error;
     if (nerrors) goto error;
     printf("All dataset tests passed.\n");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
     return 0;
 
  error:

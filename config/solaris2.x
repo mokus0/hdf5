@@ -17,9 +17,9 @@ fi
 
 # Try solaris native compiler flags
 if test "X-" = "X-$cc_flags_set"; then
-    CFLAGS="-erroff=%none"
+    CFLAGS="-erroff=%none -DBSD_COMP"
     DEBUG_CFLAGS=-g
-    DEBUG_CPPFLAGS="-DH5F_LOW_DFLT=H5F_LOW_SEC2"
+    DEBUG_CPPFLAGS=
     PROD_CFLAGS="-O -s"
     PROD_CPPFLAGS=
     PROFILE_CFLAGS=-xpg
@@ -30,3 +30,6 @@ if test "X-" = "X-$cc_flags_set"; then
     ($CC -V 2>&1) | grep -s 'cc: .* C 4\.' >/dev/null 2>&1 \
 	&& PROD_CFLAGS="`echo $PROD_CFLAGS | sed -e 's/-O//'`"
 fi
+
+# Add socket lib for the Stream Virtual File Driver
+LIBS="$LIBS -lsocket"

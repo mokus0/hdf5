@@ -11,10 +11,10 @@
  ****************************************************************************/
 
 #ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.202.2.14 $";
+static char             RcsId[] = "@(#)$Revision: 1.262.2.1 $";
 #endif
 
-/* $Id: H5public.h,v 1.202.2.14 2000/06/09 19:38:12 epourmal Exp $ */
+/* $Id: H5public.h,v 1.262.2.1 2001/02/10 02:21:53 koziol Exp $ */
 
 
 /*
@@ -23,66 +23,40 @@ static char             RcsId[] = "@(#)$Revision: 1.202.2.14 $";
 #ifndef _H5public_H
 #define _H5public_H
 
-/*
- * Undefine things that might get redefined in the H5config.h file if hdf5 is
- * being included by other packages that use autoconf. The problem is that
- * if the C preprocessor emits warning messages about redefinitions then
- * autoconf will become confused and think that the hdf5 header file doesn't
- * exist.
- */
-#undef SIZEOF_INT8_T
-#undef SIZEOF_INT_FAST8_T
-#undef SIZEOF_INT_LEAST8_T
-#undef SIZEOF_UINT8_T
-#undef SIZEOF_UINT_FAST8_T
-#undef SIZEOF_UINT_LEAST8_T
-
-#undef SIZEOF_INT16_T
-#undef SIZEOF_INT_FAST16_T
-#undef SIZEOF_INT_LEAST16_T
-#undef SIZEOF_UINT16_T
-#undef SIZEOF_UINT_FAST16_T
-#undef SIZEOF_UINT_LEAST16_T
-
-#undef SIZEOF_INT32_T
-#undef SIZEOF_INT_FAST32_T
-#undef SIZEOF_INT_LEAST32_T
-#undef SIZEOF_UINT32_T
-#undef SIZEOF_UINT_FAST32_T
-#undef SIZEOF_UINT_LEAST32_T
-
-#undef SIZEOF_INT64_T
-#undef SIZEOF_INT_FAST64_T
-#undef SIZEOF_INT_LEAST64_T
-#undef SIZEOF_UINT64_T
-#undef SIZEOF_UINT_FAST64_T
-#undef SIZEOF_UINT_LEAST64_T
-
-#undef SIZEOF_LONG_DOUBLE
-#undef SIZEOF___INT64_T
-
-
-#include <H5config.h>           /*from configure                             */
+/* Include files for public use... */
+#include <H5pubconf.h>		/*from configure                             */
 #include <sys/types.h>
-#ifdef STDC_HEADERS
+#ifdef H5_STDC_HEADERS
 #   include <limits.h>		/*for H5T_NATIVE_CHAR defn in H5Tpublic.h    */
 #endif
-
-#ifdef HAVE_STDDEF_H
+#ifdef H5_HAVE_STDINT_H
+#   include <stdint.h>		/*for C9x types				     */
+#endif
+#ifdef H5_HAVE_STDDEF_H
 #   include <stddef.h>
 #endif
-#ifdef HAVE_PARALLEL
+#ifdef H5_HAVE_PARALLEL
 #   include <mpi.h>
-#ifndef MPI_FILE_NULL		/*MPIO may be defined in mpi.h already*/
+#ifndef MPI_FILE_NULL		/*MPIO may be defined in mpi.h already       */
 #   include <mpio.h>
 #endif
 #endif
+
+#ifdef H5_HAVE_GASS             /*for Globus GASS I/O                        */
+#include "globus_common.h"
+#include "globus_gass_file.h"
+#endif
+
+#ifdef H5_HAVE_SRB              /*for SRB I/O                                */
+#include <srbClient.h>
+#endif
+
 #include <H5api_adpt.h>
 
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
-#define H5_VERS_MINOR	2	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	2	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
+#define H5_VERS_RELEASE	0	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
 
@@ -126,11 +100,11 @@ typedef int htri_t;
  * sizes are enabled then use a 64-bit data type, otherwise use the size of
  * memory objects.
  */
-#ifdef HAVE_LARGE_HSIZET
-#   if SIZEOF_LONG_LONG>=8
+#ifdef H5_HAVE_LARGE_HSIZET
+#   if H5_SIZEOF_LONG_LONG>=8
 typedef unsigned long long 	hsize_t;
 typedef signed long long	hssize_t;
-#   elif SIZEOF___INT64>=8
+#   elif H5_SIZEOF___INT64>=8
 typedef unsigned __int64	hsize_t;
 typedef signed __int64		hssize_t;
 #   endif
@@ -139,47 +113,41 @@ typedef size_t			hsize_t;
 typedef ssize_t			hssize_t;
 #endif
 
+/*
+ * File addresses have there own types.
+ */
+#if H5_SIZEOF_UINT64_T>=8
+    typedef uint64_t		haddr_t;
+#   define HADDR_UNDEF		((haddr_t)(int64_t)(-1))
+#elif H5_SIZEOF_INT>=8
+    typedef unsigned		haddr_t;
+#   define HADDR_UNDEF		((haddr_t)(-1))
+#elif H5_SIZEOF_LONG>=8
+    typedef unsigned long	haddr_t;
+#   define HADDR_UNDEF		((haddr_t)(long)(-1))
+#elif H5_SIZEOF_LONG_LONG>=8
+    typedef unsigned long long	haddr_t;
+#   define HADDR_UNDEF		((haddr_t)(long long)(-1))
+#elif H5_SIZEOF___INT64>=8
+    typedef unsigned __int64	haddr_t;
+#   define HADDR_UNDEF		((haddr_t)(__int64)(-1))
+#else
+#   error "nothing appropriate for haddr_t"
+#endif
+#define HADDR_MAX		(HADDR_UNDEF-1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Clean up all these symbols */
-#undef SIZEOF_INT8_T
-#undef SIZEOF_INT_FAST8_T
-#undef SIZEOF_INT_LEAST8_T
-#undef SIZEOF_UINT8_T
-#undef SIZEOF_UINT_FAST8_T
-#undef SIZEOF_UINT_LEAST8_T
-
-#undef SIZEOF_INT16_T
-#undef SIZEOF_INT_FAST16_T
-#undef SIZEOF_INT_LEAST16_T
-#undef SIZEOF_UINT16_T
-#undef SIZEOF_UINT_FAST16_T
-#undef SIZEOF_UINT_LEAST16_T
-
-#undef SIZEOF_INT32_T
-#undef SIZEOF_INT_FAST32_T
-#undef SIZEOF_INT_LEAST32_T
-#undef SIZEOF_UINT32_T
-#undef SIZEOF_UINT_FAST32_T
-#undef SIZEOF_UINT_LEAST32_T
-
-#undef SIZEOF_INT64_T
-#undef SIZEOF_INT_FAST64_T
-#undef SIZEOF_INT_LEAST64_T
-#undef SIZEOF_UINT64_T
-#undef SIZEOF_UINT_FAST64_T
-#undef SIZEOF_UINT_LEAST64_T
-
-#undef SIZEOF_LONG_DOUBLE
-#undef SIZEOF___INT64_T
 
 /* Functions in H5.c */
 __DLL__ herr_t H5open(void);
 __DLL__ herr_t H5close(void);
 __DLL__ herr_t H5dont_atexit(void);
 __DLL__ herr_t H5garbage_collect(void);
+__DLL__ herr_t H5set_free_list_limits (int reg_global_lim, int reg_list_lim,
+                int arr_global_lim, int arr_list_lim, int blk_global_lim,
+                int blk_list_lim);
 __DLL__ herr_t H5get_libversion(unsigned *majnum, unsigned *minnum,
 				unsigned *relnum);
 __DLL__ herr_t H5check_version(unsigned majnum, unsigned minnum,

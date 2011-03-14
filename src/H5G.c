@@ -71,7 +71,10 @@
  *
  *-------------------------------------------------------------------------
  */
+
 #define H5G_PACKAGE /*suppress error message about including H5Gpkg.h */
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
+
 
 /* Packages needed by this file... */
 #include <H5private.h>
@@ -79,12 +82,13 @@
 #include <H5Bprivate.h>
 #include <H5Dprivate.h>
 #include <H5Eprivate.h>
+#include <H5Fpkg.h>         /*file access                             */
+#include <H5FLprivate.h>	/*Free Lists	  */
 #include <H5Gpkg.h>
 #include <H5HLprivate.h>
 #include <H5Iprivate.h>
 #include <H5MMprivate.h>
 #include <H5Oprivate.h>
-#include <H5RAprivate.h>
 
 #define H5G_INIT_HEAP		8192
 #define H5G_RESERVED_ATOMS	0
@@ -97,6 +101,9 @@ static herr_t H5G_init_interface(void);
 static H5G_typeinfo_t *H5G_type_g = NULL;	/*object typing info	*/
 static size_t H5G_ntypes_g = 0;			/*entries in type table	*/
 static size_t H5G_atypes_g = 0;			/*entries allocated	*/
+
+/* Declare a free list to manage the H5G_t struct */
+H5FL_DEFINE(H5G_t);
 
 
 /*-------------------------------------------------------------------------
@@ -321,9 +328,10 @@ H5Giterate(hid_t loc_id, const char *name, int *idx,
 
     /* Iterate over the group members */
     if ((ret_value = H5B_iterate (H5G_fileof(udata.group), H5B_SNODE,
-              &(udata.group->ent.cache.stab.btree_addr), &udata))<0) {
+              udata.group->ent.cache.stab.btree_addr, &udata))<0) {
         HERROR (H5E_SYM, H5E_CANTINIT, "iteration operator failed");
     }
+
     /* Set the index we stopped at */
     *idx=udata.final_ent;
 
@@ -700,7 +708,6 @@ H5G_init_interface(void)
     H5G_register_type(H5G_TYPE,    H5T_isa,  "data type");
     H5G_register_type(H5G_GROUP,   H5G_isa,  "group");
     H5G_register_type(H5G_DATASET, H5D_isa,  "dataset");
-    H5G_register_type(H5G_RAGGED,  H5RA_isa, "ragged array");
 
     FUNC_LEAVE(SUCCEED);
 }
@@ -1015,7 +1022,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	*obj_ent = *loc_ent;
     }
     HDmemset(grp_ent, 0, sizeof(H5G_entry_t));
-    H5F_addr_undef(&(grp_ent->header));
+    grp_ent->header = HADDR_UNDEF;
 
     /* traverse the name */
     while ((name = H5G_component(name, &nchars)) && *name) {
@@ -1045,7 +1052,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
 	 */
 	*grp_ent = *obj_ent;
 	HDmemset(obj_ent, 0, sizeof(H5G_entry_t));
-	H5F_addr_undef(&(obj_ent->header));
+	obj_ent->header = HADDR_UNDEF;
 
 	if (H5G_stab_find(grp_ent, comp, obj_ent/*out*/)<0) {
 	    /*
@@ -1129,7 +1136,7 @@ H5G_traverse_slink (H5G_entry_t *grp_ent/*in,out*/,
 	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL,
 		     "unable to determine local heap address");
     }
-    if (NULL==(clv=H5HL_peek (grp_ent->file, &(stab_mesg.heap_addr),
+    if (NULL==(clv=H5HL_peek (grp_ent->file, stab_mesg.heap_addr,
 			      obj_ent->cache.slink.lval_offset))) {
 	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL,
 		     "unable to read symbolic link value");
@@ -1188,7 +1195,7 @@ H5G_mkroot (H5F_t *f, H5G_entry_t *ent)
      */
     if (!ent) {
 	ent = &new_root;
-	if (H5G_stab_create (f, 16, ent/*out*/)<0) {
+	if (H5G_stab_create (f, 256, ent/*out*/)<0) {
 	    HRETURN_ERROR (H5E_SYM, H5E_CANTINIT, FAIL,
 			   "unable to create root group");
 	}
@@ -1217,7 +1224,7 @@ H5G_mkroot (H5F_t *f, H5G_entry_t *ent)
      * don't count the root group as an open object.  The root group will
      * never be closed.
      */
-    if (NULL==(f->shared->root_grp = H5MM_calloc (sizeof(H5G_t)))) {
+    if (NULL==(f->shared->root_grp = H5FL_ALLOC (H5G_t,1))) {
 	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,
 		       "memory allocation failed");
     }
@@ -1273,7 +1280,7 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint)
 	HRETURN_ERROR(H5E_SYM, H5E_EXISTS, NULL, "already exists");
     }
     H5E_clear(); /*it's OK that we didn't find it */
-    assert(H5F_addr_defined(&(grp_ent.header)));
+    assert(H5F_addr_defined(grp_ent.header));
 
     /* should be one null-terminated component left */
     rest = H5G_component(rest, &nchars);
@@ -1293,12 +1300,12 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint)
     }
     
     /* create an open group */
-    if (NULL==(grp = H5MM_calloc(sizeof(H5G_t)))) {
+    if (NULL==(grp = H5FL_ALLOC(H5G_t,1))) {
 	HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		       "memory allocation failed");
     }
     if (H5G_stab_create(grp_ent.file, size_hint, &(grp->ent)/*out*/) < 0) {
-	grp = H5MM_xfree(grp);
+	grp = H5FL_FREE(H5G_t,grp);
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, NULL, "can't create grp");
     }
     
@@ -1308,7 +1315,7 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint)
     }
     if (H5G_stab_insert(&grp_ent, rest, &(grp->ent)) < 0) {
 	H5O_close(&(grp->ent));
-	grp = H5MM_xfree(grp);
+	grp = H5FL_FREE(H5G_t,grp);
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, NULL, "can't insert");
     }
     grp->nref = 1;
@@ -1394,7 +1401,7 @@ H5G_open(H5G_entry_t *loc, const char *name)
 
 done:
     if (!ret_value && grp) {
-        H5MM_xfree(grp);
+        H5FL_FREE(H5G_t,grp);
     }
     FUNC_LEAVE(ret_value);
 }
@@ -1430,7 +1437,7 @@ H5G_open_oid(H5G_entry_t *ent)
     assert(ent);
 
     /* Open the object, making sure it's a group */
-    if (NULL==(grp = H5MM_calloc(sizeof(H5G_t)))) {
+    if (NULL==(grp = H5FL_ALLOC(H5G_t,1))) {
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
 		     "memory allocation failed");
     }
@@ -1451,7 +1458,7 @@ H5G_open_oid(H5G_entry_t *ent)
 
  done:
     if (!ret_value && grp) {
-        H5MM_xfree(grp);
+        H5FL_FREE(H5G_t,grp);
     }
     FUNC_LEAVE(ret_value);
 }
@@ -1516,7 +1523,7 @@ H5G_close(H5G_t *grp)
 	    HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close");
 	}
 	grp->nref = 0;
-	H5MM_xfree (grp);
+	H5FL_FREE (H5G_t,grp);
     } else {
 	--grp->nref;
     }
@@ -1744,7 +1751,6 @@ H5G_loc (hid_t loc_id)
     H5T_t	*dt=NULL;
     H5D_t	*dset=NULL;
     H5A_t	*attr=NULL;
-    H5RA_t	*ra=NULL;
 
     FUNC_ENTER (H5G_loc, NULL);
 
@@ -1767,9 +1773,9 @@ H5G_loc (hid_t loc_id)
     case H5I_TEMPLATE_5:
     case H5I_TEMPLATE_6:
     case H5I_TEMPLATE_7:
-#ifndef NDEBUG
     case H5I_TEMPLATE_MAX:
-#endif
+    case H5I_GENPROP_CLS:
+    case H5I_GENPROP_LST:
 	HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, NULL,
 		      "unable to get symbol table entry of property list");
 
@@ -1822,21 +1828,11 @@ H5G_loc (hid_t loc_id)
 	HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, NULL,
 		      "unable to get symbol table entry of buffer");
     
-    case H5I_RAGGED:
-	if (NULL==(ra=H5I_object(loc_id))) {
-	    HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, NULL,
-			  "invalid ragged array ID");
-	}
-	if (NULL==(ret_value=H5RA_entof(ra))) {
-	    HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, NULL,
-			  "unable to get symbol table entry of ragged array");
-	}
-	break;
-	
     case H5I_NGROUPS:
     case H5I_BADID:
     case H5I_FILE_CLOSING:
     case H5I_REFERENCE:
+    case H5I_VFL:
 	HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "invalid object ID");
     }
 
@@ -1918,7 +1914,7 @@ H5G_link (H5G_entry_t *loc, H5G_link_t type, const char *cur_name,
 			   "unable to determine local heap address");
 	}
 	if ((size_t)(-1)==(offset=H5HL_insert (grp_ent.file,
-					       &(stab_mesg.heap_addr),
+					       stab_mesg.heap_addr,
 					       HDstrlen(cur_name)+1,
 					       cur_name))) {
 	    HRETURN_ERROR (H5E_SYM, H5E_CANTINIT, FAIL,
@@ -1931,7 +1927,7 @@ H5G_link (H5G_entry_t *loc, H5G_link_t type, const char *cur_name,
 	 * undefined and the cache contains the link-value offset.
 	 */
 	HDmemset (&cur_obj, 0, sizeof cur_obj);
-	H5F_addr_undef (&(cur_obj.header));
+	cur_obj.header = HADDR_UNDEF;
 	cur_obj.file = grp_ent.file;
 	cur_obj.type = H5G_CACHED_SLINK;
 	cur_obj.cache.slink.lval_offset = offset;
@@ -2045,7 +2041,7 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 
     /* Find the object's symbol table entry */
     if (H5G_namei (loc, name, NULL, &grp_ent/*out*/, &obj_ent/*out*/,
-		   follow_link?H5G_TARGET_NORMAL:H5G_TARGET_SLINK, NULL)<0) {
+		   (uintn)(follow_link?H5G_TARGET_NORMAL:H5G_TARGET_SLINK), NULL)<0) {
 	HRETURN_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to stat object");
     }
 
@@ -2058,7 +2054,7 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 	if (H5G_CACHED_SLINK==obj_ent.type) {
 	    /* Named object is a symbolic link */
 	    if (NULL==H5O_read (&grp_ent, H5O_STAB, 0, &stab_mesg) ||
-		NULL==(s=H5HL_peek (grp_ent.file, &(stab_mesg.heap_addr), 
+		NULL==(s=H5HL_peek (grp_ent.file, stab_mesg.heap_addr, 
 				    obj_ent.cache.slink.lval_offset))) {
 		HRETURN_ERROR (H5E_SYM, H5E_CANTINIT, FAIL,
 			       "unable to read symbolic link value");
@@ -2071,9 +2067,9 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
 	    
 	} else {
 	    /* Some other type of object */
-	    statbuf->objno[0] = (unsigned long)(obj_ent.header.offset);
+	    statbuf->objno[0] = (unsigned long)(obj_ent.header);
 #if SIZEOF_UINT64_T>SIZEOF_LONG
-	    statbuf->objno[1] = (unsigned long)(obj_ent.header.offset >>
+	    statbuf->objno[1] = (unsigned long)(obj_ent.header >>
 						8*sizeof(long));
 #else
 	    statbuf->objno[1] = 0;
@@ -2144,7 +2140,7 @@ H5G_linkval (H5G_entry_t *loc, const char *name, size_t size, char *buf/*out*/)
 	HRETURN_ERROR (H5E_SYM, H5E_CANTINIT, FAIL,
 		       "unable to determine local heap address");
     }
-    if (NULL==(s=H5HL_peek (grp_ent.file, &(stab_mesg.heap_addr),
+    if (NULL==(s=H5HL_peek (grp_ent.file, stab_mesg.heap_addr,
 			    obj_ent.cache.slink.lval_offset))) {
 	HRETURN_ERROR (H5E_SYM, H5E_CANTINIT, FAIL,
 		       "unable to read symbolic link value");
@@ -2282,7 +2278,7 @@ H5G_unlink(H5G_entry_t *loc, const char *name)
 		  H5G_TARGET_SLINK|H5G_TARGET_MOUNT, NULL)<0) {
 	HRETURN_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "object not found");
     }
-    if (!H5F_addr_defined(&(grp_ent.header))) {
+    if (!H5F_addr_defined(grp_ent.header)) {
 	HRETURN_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL,
 		      "no containing group specified");
     }

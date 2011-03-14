@@ -10,9 +10,9 @@ HDF5/H5F API Specification
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -28,14 +28,14 @@ And in this document, the
 H5F&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<br>
 <a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
-<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
+<a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -51,6 +51,9 @@ H5F&nbsp;&nbsp;
 These functions are designed to provide file-level access to HDF5 files.
 Further manipulation of objects inside a file is performed through one of APIs
 documented below.
+
+<p>
+<strong>The C Interfaces:</strong>
 
 <table border=0>
 <tr><td valign=top>
@@ -71,6 +74,47 @@ documented below.
 <ul>
     <li><a href="#File-GetCreatePlist">H5Fget_create_plist</a>
     <li><a href="#File-GetAccessPlist">H5Fget_access_plist</a>
+</ul>
+</td></tr>
+</table>
+
+<p>
+<strong>The FORTRAN90 Interfaces:</strong>
+
+<br>
+<font size=-1>
+<i>In general, each FORTRAN90 subroutine performs exactly the same task 
+as the corresponding C function.  The links below go to the C function 
+descriptions, which serve as general descriptions for both.  A button, 
+under <strong>Non-C API(s)</strong> at the end of the C function description,
+opens an external browser window displaying the FORTRAN90-specific 
+information.  You will probably want to adjust the size and location of 
+this external window so that both browser windows are visible and to 
+facilitate moving easily between them.</i>
+</font>
+
+<table border=0>
+<tr><td valign=top>
+<ul>
+    <li><a href="#File-Create">h5fcreate_f</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#File-Open">h5fopen_f</a>
+<!--<li><a href="#File-Reopen">h5freopen_f</a>                        -->
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#File-Close">h5fclose_f</a>
+<!--<li><a href="#File-Flush">h5fflush_f</a>                          -->
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#File-IsHDF5">h5fis_hdf5_f</a>
+<!--<li><a href="#File-Mount">h5fmount_f</a>                          -->
+<!--<li><a href="#File-Unmount">h5funmount_f</a>                      -->
+<!--<li><a href="#File-GetCreatePlist">h5fget_create_plist_f</a>      -->
+<!--<li><a href="#File-GetAccessPlist">h5fget_access_plist_f</a>      -->
 </ul>
 </td></tr>
 </table>
@@ -124,8 +168,8 @@ documented below.
                 </dl></ul>
                 <li><code>H5F_ACC_RDWR</code> and <code>H5F_ACC_RDONLY</code> 
                 are mutually exclusive; use exactly one.
-                <li>An additional flag, <code>H5F_ACC_DEBUG</code>, prints debug 
-                information.  This flag is used only by HDF5 library 
+                <li>An additional flag, <code>H5F_ACC_DEBUG</code>, prints 
+                debug information.  This flag is used only by HDF5 library 
                 developers; it is neither tested nor supported
                 for use in applications.
         <dt><em>hid_t</em> <code>access_id</code>
@@ -138,6 +182,13 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a file identifier if successful;
         otherwise returns a negative value.
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fopen_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -166,7 +217,7 @@ documented below.
             are controlled through the file-creation and file-access
             property lists.  The value of <code>H5P_DEFAULT</code> for 
             a property list value indicates that the library should use
-            the default values for the appropriate property list.  
+            the default values for the appropriate property list.
 <dt><strong>Parameters:</strong>
     <dl>
         <dt><em>const char *</em><code>name</code>
@@ -182,9 +233,9 @@ documented below.
                 </dl></ul>
                 <li><code>H5F_ACC_TRUNC</code> and <code>H5F_ACC_EXCL</code> 
                 are mutually exclusive; use exactly one.
-                <li>An additional flag, <code>H5F_ACC_DEBUG</code>, prints debug 
-                information.  This flag is used only by HDF5 library 
-                developers; it is neither tested nor supported
+                <li>An additional flag, <code>H5F_ACC_DEBUG</code>, prints 
+                debug information.  This flag is used only by HDF5 library 
+                developers; <i>it is neither tested nor supported</i> 
                 for use in applications.
         <dt><em>hid_t</em> <code>create_id</code>
             <dd>File creation property list identifier, used when modifying
@@ -200,6 +251,13 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a file identifier if successful;
         otherwise returns a negative value.
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fcreate_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -243,6 +301,14 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fflush_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -266,6 +332,13 @@ documented below.
     <dd>When successful, returns a positive value, for <code>TRUE</code>,
         or <code>0</code> (zero), for <code>FALSE</code>.
         Otherwise returns a negative value.
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fis_hdf5_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -298,6 +371,14 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a file creation property list identifier if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fget_create_plist_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -327,6 +408,14 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a file access property list identifier if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fget_access_plist_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -339,7 +428,9 @@ documented below.
 <dt><strong>Purpose:</strong>
         <dd>Terminates access to an HDF5 file.  
 <dt><strong>Description:</strong>
-        <dd><code>H5Fclose</code> terminates access to an HDF5 file.  
+        <dd><code>H5Fclose</code> terminates access to an HDF5 file
+            by flushing all data to storage and terminating access
+            to the file through <code>file_id</code>.  
             <p>
             If this is the last file identifier open for the file 
             and no other access identifier is open (e.g., a dataset 
@@ -361,6 +452,13 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fclose_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+        <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -400,6 +498,14 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5fmount_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -438,6 +544,14 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5funmount_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -475,6 +589,14 @@ documented below.
 <dt><strong>Returns:</strong>
     <dd>Returns a new file identifier if successful;
         otherwise returns a negative value.
+<!--
+<dt><strong>Non-C API(s):</strong>
+    <dd><a href="fortran/h5f_FORTRAN.html#h5freopen_f" 
+        target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
+-->     <!--
+        <img src="Graphics/Java.gif"> 
+        <img src="Graphics/C++.gif">
+        -->
 </dl>
 
 
@@ -482,9 +604,9 @@ documented below.
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
-<a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="H5.user.html">HDF5 User's Guide</a>&nbsp;<br>
+<a href="H5.user.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="index.html">Other HDF5 documents and links</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -500,14 +622,14 @@ And in this document, the
 H5F&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<br>
 <a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
+<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
-<a href="RM_H5RA.html">H5RA</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
+<a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 </table>
 </center>
@@ -516,11 +638,11 @@ H5F&nbsp;&nbsp;
 
 <address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
-</address>
 
-Last modified:  2 June 2000
 <br>
-Describes HDF5 Release 1.2.2, June 2000
+Last modified:  12 October 2000
+<br>
+Describes HDF5 Release 1.4, February 2001
 
 </body>
 </html>

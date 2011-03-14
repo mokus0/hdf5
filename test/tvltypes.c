@@ -11,10 +11,10 @@
  ****************************************************************************/
 
 #ifdef RCSID
-static char		RcsId[] = "$Revision: 1.2.2.6 $";
+static char		RcsId[] = "$Revision: 1.13 $";
 #endif
 
-/* $Id: tvltypes.c,v 1.2.2.6 2000/05/30 16:34:04 ptlu Exp $ */
+/* $Id: tvltypes.c,v 1.13 2000/11/28 00:01:45 koziol Exp $ */
 
 /***********************************************************
 *
@@ -62,10 +62,10 @@ void *test_vltypes_alloc_custom(size_t size, void *info)
      *  This weird contortion is required on the DEC Alpha to keep the
      *  alignment correct - QAK
      */
-    extra=MAX(sizeof(void *),sizeof(int));
+    extra=MAX(sizeof(void *),sizeof(size_t));
 
     if((ret_value=HDmalloc(extra+size))!=NULL) {
-        *(int *)ret_value=size;
+        *(size_t *)ret_value=size;
         *mem_used+=size;
     } /* end if */
     ret_value=((unsigned char *)ret_value)+extra;
@@ -90,11 +90,11 @@ void test_vltypes_free_custom(void *_mem, void *info)
      *  This weird contortion is required on the DEC Alpha to keep the
      *  alignment correct - QAK
      */
-    extra=MAX(sizeof(void *),sizeof(int));
+    extra=MAX(sizeof(void *),sizeof(size_t));
 
     if(_mem!=NULL) {
         mem=((unsigned char *)_mem)-extra;
-        *mem_used-=*(int *)mem;
+        *mem_used-=*(size_t *)mem;
         HDfree(mem);
     } /* end if */
 }
@@ -116,6 +116,7 @@ test_vltypes_vlen_atomic(void)
     hid_t		tid1;       /* Datatype ID			*/
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
+    hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j;        /* counting variables */
     int         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
@@ -158,13 +159,20 @@ test_vltypes_vlen_atomic(void)
     ret=H5Pset_vlen_mem_manager(xfer_pid,test_vltypes_alloc_custom,&mem_used,test_vltypes_free_custom,&mem_used);
     CHECK(ret, FAIL, "H5Pset_vlen_mem_manager");
 
+    /* Make certain the correct amount of memory will be used */
+    ret=H5Dvlen_get_buf_size(dataset,tid1,sid1,&size);
+    CHECK(ret, FAIL, "H5Dvlen_get_buf_size");
+
+    /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
+    VERIFY(size,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dvlen_get_buf_size");
+
     /* Read dataset from disk */
     ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,xfer_pid,rdata);
     CHECK(ret, FAIL, "H5Dread");
 
     /* Make certain the correct amount of memory has been used */
     /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
-    VERIFY(mem_used,10*sizeof(unsigned int),"H5Dread");
+    VERIFY(mem_used,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dread");
 
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
@@ -236,6 +244,7 @@ test_vltypes_vlen_compound(void)
     hid_t		tid1, tid2; /* Datatype IDs         */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
+    hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j;        /* counting variables */
     int         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
@@ -290,13 +299,20 @@ test_vltypes_vlen_compound(void)
     ret=H5Pset_vlen_mem_manager(xfer_pid,test_vltypes_alloc_custom,&mem_used,test_vltypes_free_custom,&mem_used);
     CHECK(ret, FAIL, "H5Pset_vlen_mem_manager");
 
+    /* Make certain the correct amount of memory will be used */
+    ret=H5Dvlen_get_buf_size(dataset,tid1,sid1,&size);
+    CHECK(ret, FAIL, "H5Dvlen_get_buf_size");
+
+    /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
+    VERIFY(size,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(s1),"H5Dvlen_get_buf_size");
+
     /* Read dataset from disk */
     ret=H5Dread(dataset,tid1,H5S_ALL,H5S_ALL,xfer_pid,rdata);
     CHECK(ret, FAIL, "H5Dread");
 
     /* Make certain the correct amount of memory has been used */
     /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
-    VERIFY(mem_used,10*sizeof(s1),"H5Dread");
+    VERIFY(mem_used,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(s1),"H5Dread");
 
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
@@ -378,6 +394,7 @@ test_vltypes_compound_vlen_atomic(void)
     hid_t		tid1, tid2; /* Datatype IDs         */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
+    hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j;        /* counting variables */
     int         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
@@ -434,13 +451,20 @@ test_vltypes_compound_vlen_atomic(void)
     ret=H5Pset_vlen_mem_manager(xfer_pid,test_vltypes_alloc_custom,&mem_used,test_vltypes_free_custom,&mem_used);
     CHECK(ret, FAIL, "H5Pset_vlen_mem_manager");
 
+    /* Make certain the correct amount of memory will be used */
+    ret=H5Dvlen_get_buf_size(dataset,tid2,sid1,&size);
+    CHECK(ret, FAIL, "H5Dvlen_get_buf_size");
+
+    /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
+    VERIFY(size,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dvlen_get_buf_size");
+
     /* Read dataset from disk */
     ret=H5Dread(dataset,tid2,H5S_ALL,H5S_ALL,xfer_pid,rdata);
     CHECK(ret, FAIL, "H5Dread");
 
     /* Make certain the correct amount of memory has been used */
     /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
-    VERIFY(mem_used,10*sizeof(unsigned int),"H5Dread");
+    VERIFY(mem_used,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dread");
 
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {
@@ -511,6 +535,26 @@ test_vltypes_compound_vlen_atomic(void)
 **      Tests VL datatype with VL datatypes of atomic datatypes.
 ** 
 ****************************************************************/
+static unsigned long vlen_size_func(unsigned long n)
+{
+    unsigned long u=1;
+    unsigned long tmp=1;
+    unsigned long result=1;
+
+    while(u<n) {
+        u++;
+        tmp+=u;
+        result+=tmp;
+    }
+    return(result);
+}
+
+/****************************************************************
+**
+**  test_vltypes_vlen_vlen_atomic(): Test basic VL datatype code.
+**      Tests VL datatype with VL datatypes of atomic datatypes.
+** 
+****************************************************************/
 static void 
 test_vltypes_vlen_vlen_atomic(void)
 {
@@ -523,6 +567,7 @@ test_vltypes_vlen_vlen_atomic(void)
     hid_t		tid1, tid2; /* Datatype IDs         */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
+    hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j,k;      /* counting variables */
     int         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
@@ -533,9 +578,19 @@ test_vltypes_vlen_vlen_atomic(void)
     /* Allocate and initialize VL data to write */
     for(i=0; i<SPACE1_DIM1; i++) {
         wdata[i].p=malloc((i+1)*sizeof(hvl_t));
+        if(wdata[i].p==NULL) {
+            printf("Cannot allocate memory for VL data! i=%u\n",i);
+            num_errs++;
+            return;
+        } /* end if */
         wdata[i].len=i+1;
         for(t1=wdata[i].p,j=0; j<(i+1); j++, t1++) {
             t1->p=malloc((j+1)*sizeof(unsigned int));
+            if(t1->p==NULL) {
+                printf("Cannot allocate memory for VL data! i=%u, j=%u\n",i,j);
+                num_errs++;
+                return;
+            } /* end if */
             t1->len=j+1;
             for(k=0; k<(j+1); k++)
                 ((unsigned int *)t1->p)[k]=i*100+j*10+k;
@@ -613,6 +668,14 @@ test_vltypes_vlen_vlen_atomic(void)
     ret=H5Pset_vlen_mem_manager(xfer_pid,test_vltypes_alloc_custom,&mem_used,test_vltypes_free_custom,&mem_used);
     CHECK(ret, FAIL, "H5Pset_vlen_mem_manager");
 
+    /* Make certain the correct amount of memory was used */
+    ret=H5Dvlen_get_buf_size(dataset,tid2,sid1,&size);
+    CHECK(ret, FAIL, "H5Dvlen_get_buf_size");
+
+    /* 10 hvl_t elements allocated = 1 + 2 + 3 + 4 elements for each array position */
+    /* 20 unsigned int elements allocated = 1 + 3 + 6 + 10 elements */
+    VERIFY(size,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(hvl_t)+vlen_size_func(SPACE1_DIM1)*sizeof(unsigned int),"H5Dvlen_get_buf_size");
+
     /* Read dataset from disk */
     ret=H5Dread(dataset,tid2,H5S_ALL,H5S_ALL,xfer_pid,rdata);
     CHECK(ret, FAIL, "H5Dread");
@@ -620,7 +683,7 @@ test_vltypes_vlen_vlen_atomic(void)
     /* Make certain the correct amount of memory has been used */
     /* 10 hvl_t elements allocated = 1 + 2 + 3 + 4 elements for each array position */
     /* 20 unsigned int elements allocated = 1 + 3 + 6 + 10 elements */
-    VERIFY(mem_used,10*sizeof(hvl_t)+20*sizeof(unsigned int),"H5Dread");
+    VERIFY(mem_used,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(hvl_t)+vlen_size_func(SPACE1_DIM1)*sizeof(unsigned int),"H5Dread");
 
     /* Compare data read in */
     for(i=0; i<SPACE1_DIM1; i++) {

@@ -7,12 +7,14 @@
  *
  * Purpose:	Tests various aspects of indexed raw data storage.
  */
+#define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
+
 #include <h5test.h>
 #include <H5private.h>
 #include <H5Dprivate.h>
 #include <H5Iprivate.h>
 #include <H5Pprivate.h>
-#include <H5Fprivate.h>
+#include <H5Fpkg.h>
 #include <H5Gprivate.h>
 #include <H5MMprivate.h>
 #include <H5Oprivate.h>
@@ -90,14 +92,14 @@ print_array(uint8_t *array, size_t nx, size_t ny, size_t nz)
  *-------------------------------------------------------------------------
  */
 static int
-new_object(H5F_t *f, const char *name, intn ndims, H5G_entry_t *ent/*out*/)
+new_object(H5F_t *f, const char *name, uintn ndims, H5G_entry_t *ent/*out*/)
 {
     H5O_layout_t	    layout;
-    intn		    i;
+    uintn		    u;
 
     /* Create the object header */
     if (H5O_create(f, 64, ent)) {
-	FAILED();
+	H5_FAILED();
 	puts("    H5O_create() = NULL");
 	goto error;
     }
@@ -105,23 +107,23 @@ new_object(H5F_t *f, const char *name, intn ndims, H5G_entry_t *ent/*out*/)
     /* create chunked storage */
     layout.type = H5D_CHUNKED;
     layout.ndims = ndims;
-    for (i = 0; i < ndims; i++) {
-	if (i < (int)NELMTS(align_g)) {
-	    layout.dim[i] = align_g[i];
+    for (u = 0; u < ndims; u++) {
+	if (u < (int)NELMTS(align_g)) {
+	    layout.dim[u] = align_g[u];
 	} else {
-	    layout.dim[i] = 2;
+	    layout.dim[u] = 2;
 	}
     }
     H5F_arr_create(f, &layout/*in,out*/);
     if (H5O_modify(ent, H5O_LAYOUT, H5O_NEW_MESG, 0, &layout) < 0) {
-	FAILED();
+	H5_FAILED();
 	puts("    H5O_modify istore message failure.");
 	goto error;
     }
 
     /* Give the object header a name */
     if (H5G_insert(H5G_entof(H5G_rootof(f)), name, ent) < 0) {
-	FAILED();
+	H5_FAILED();
 	printf("    H5G_insert(f, name=\"%s\", ent) failed\n", name);
 	goto error;
     }
@@ -156,14 +158,14 @@ static herr_t
 test_create(H5F_t *f, const char *prefix)
 {
     H5G_entry_t		    handle;
-    intn		    i;
+    uintn		    u;
     char		    name[256];
 
     TESTING("istore create");
 
-    for (i = 1; i <= H5O_LAYOUT_NDIMS; i++) {
-	HDsnprintf(name, sizeof name, "%s_%02d", prefix, i);
-	if (new_object(f, name, i, &handle) < 0)
+    for (u = 1; u <= H5O_LAYOUT_NDIMS; u++) {
+	HDsnprintf(name, sizeof name, "%s_%02u", prefix, u);
+	if (new_object(f, name, u, &handle) < 0)
 	    return FAIL;
     }
 
@@ -196,7 +198,7 @@ test_extend(H5F_t *f, const char *prefix,
 {
     H5G_entry_t		handle;
     hsize_t		i, j, k, ctr;
-    int			ndims;
+    uintn			ndims;
     uint8_t		*buf = NULL, *check = NULL, *whole = NULL;
     char		dims[64], s[256], name[256];
     hssize_t		offset[3];
@@ -231,16 +233,16 @@ test_extend(H5F_t *f, const char *prefix,
     /* Build the new empty object */
     sprintf(name, "%s_%s", prefix, dims);
     if (new_object(f, name, ndims, &handle) < 0) {
-	printf("    Cannot create %d-d object `%s'\n", ndims, name);
+	printf("    Cannot create %u-d object `%s'\n", ndims, name);
 	goto error;
     }
     if (NULL == H5O_read(&handle, H5O_LAYOUT, 0, &layout)) {
-	FAILED();
+	H5_FAILED();
 	puts("    Unable to read istore message.");
 	goto error;
     }
     if (ndims != layout.ndims) {
-	FAILED();
+	H5_FAILED();
 	printf("    Header read error: istore.ndims != %d\n", ndims);
 	goto error;
     }
@@ -297,23 +299,23 @@ test_extend(H5F_t *f, const char *prefix,
 	memset(buf, (signed)(128+ctr), (size_t)nelmts);
 
 	/* Write to disk */
-	if (H5F_arr_write(f, &H5F_xfer_dflt, &layout, NULL, NULL, NULL, size,
+	if (H5F_arr_write(f, H5P_DEFAULT, &layout, NULL, NULL, NULL, size,
 			  size, zero, offset, buf)<0) {
-	    FAILED();
+	    H5_FAILED();
 	    printf("    Write failed: ctr=%lu\n", (unsigned long)ctr);
 	    goto error;
 	}
 
 	/* Read from disk */
 	memset(check, 0xff, (size_t)nelmts);
-	if (H5F_arr_read(f, &H5F_xfer_dflt, &layout, NULL, NULL, NULL, size,
+	if (H5F_arr_read(f, H5P_DEFAULT, &layout, NULL, NULL, NULL, size,
 			 size, zero, offset, check)<0) {
-	    FAILED();
+	    H5_FAILED();
 	    printf("    Read failed: ctr=%lu\n", (unsigned long)ctr);
 	    goto error;
 	}
 	if (memcmp(buf, check, (size_t)nelmts)) {
-	    FAILED();
+	    H5_FAILED();
 	    printf("    Read check failed: ctr=%lu\n", (unsigned long)ctr);
 	    printf("    Wrote:\n");
 	    print_array(buf, (size_t)size[0], (size_t)size[1],
@@ -337,9 +339,9 @@ test_extend(H5F_t *f, const char *prefix,
 
     /* Now read the entire array back out and check it */
     memset(buf, 0xff, nx * ny * nz);
-    if (H5F_arr_read(f, &H5F_xfer_dflt, &layout, NULL, NULL, NULL, whole_size,
+    if (H5F_arr_read(f, H5P_DEFAULT, &layout, NULL, NULL, NULL, whole_size,
 		     whole_size, zero, zero, buf)<0) {
-	FAILED();
+	H5_FAILED();
 	puts("    Read failed for whole array.");
 	goto error;
     }
@@ -347,7 +349,7 @@ test_extend(H5F_t *f, const char *prefix,
 	for (j=0; j<ny; j++) {
 	    for (k=0; k<nz; k++) {
 		if (whole[i*ny*nz + j*nz + k] != buf[i*ny*nz + j*nz + k]) {
-		    FAILED();
+		    H5_FAILED();
 		    printf("    Check failed at i=%lu", (unsigned long)i);
 		    if (ndims > 1) {
 			printf(", j=%lu", (unsigned long)j);
@@ -400,7 +402,7 @@ static herr_t
 test_sparse(H5F_t *f, const char *prefix, size_t nblocks,
 	    size_t nx, size_t ny, size_t nz)
 {
-    intn		ndims;
+    uintn		ndims;
     hsize_t		ctr;
     char		dims[64], s[256], name[256];
     hssize_t		offset[3];
@@ -432,11 +434,11 @@ test_sparse(H5F_t *f, const char *prefix, size_t nblocks,
     /* Build the new empty object */
     sprintf(name, "%s_%s", prefix, dims);
     if (new_object(f, name, ndims, &handle) < 0) {
-	printf("    Cannot create %d-d object `%s'\n", ndims, name);
+	printf("    Cannot create %u-d object `%s'\n", ndims, name);
 	goto error;
     }
     if (NULL == H5O_read(&handle, H5O_LAYOUT, 0, &layout)) {
-	FAILED();
+	H5_FAILED();
 	printf("    Unable to read istore message\n");
 	goto error;
     }
@@ -450,9 +452,9 @@ test_sparse(H5F_t *f, const char *prefix, size_t nblocks,
 	memset(buf, (signed)(128+ctr), nx * ny * nz);
 
 	/* write to disk */
-	if (H5F_arr_write(f, &H5F_xfer_dflt, &layout, NULL, NULL, NULL, size,
+	if (H5F_arr_write(f, H5P_DEFAULT, &layout, NULL, NULL, NULL, size,
 			  size, zero, offset, buf)<0) {
-	    FAILED();
+	    H5_FAILED();
 	    printf("    Write failed: ctr=%lu\n", (unsigned long)ctr);
 	    printf("    offset=(%lu", (unsigned long) (offset[0]));
 	    if (ndims > 1)
@@ -560,10 +562,17 @@ main(int argc, char *argv[])
      * For testing file families, fool the library into thinking it already
      * allocated a whole bunch of data.
      */
+#ifdef H5_WANT_H5_V1_2_COMPAT
     if (H5F_LOW_FAMILY==H5Pget_driver(fapl)) {
+#else /* H5_WANT_H5_V1_2_COMPAT */
+    if (H5FD_FAMILY==H5Pget_driver(fapl)) {
+#endif /* H5_WANT_H5_V1_2_COMPAT */
 	haddr_t addr;
-	addr.offset = 8 * ((uint64_t)1<<30);	/*8 GB */
-	H5F_low_seteof(f->shared->lf, &addr);
+	addr = 8 * ((uint64_t)1<<30);	/*8 GB */
+	if (H5FDset_eoa(f->shared->lf, addr)<0) {
+	    printf("Cannot create large file family\n");
+	    exit(1);
+	}
     }
 
     /*
@@ -621,6 +630,6 @@ main(int argc, char *argv[])
     }
 
     printf("All i-store tests passed.\n");
-    h5_cleanup(fapl);
+    h5_cleanup(FILENAME, fapl);
     return 0;
 }

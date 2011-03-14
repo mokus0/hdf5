@@ -1,41 +1,57 @@
 /****************************************************************************
-* NCSA HDF                                                                 *
-* Software Development Group                                               *
-* National Center for Supercomputing Applications                          *
-* University of Illinois at Urbana-Champaign                               *
-* 605 E. Springfield, Champaign IL 61820                                   *
-*                                                                          *
-* For conditions of distribution and use, see the accompanying             *
-* hdf/COPYING file.                                                        *
-*                                                                          *
-****************************************************************************/
+ * NCSA HDF                                                                 *
+ * Software Development Group                                               *
+ * National Center for Supercomputing Applications                          *
+ * University of Illinois at Urbana-Champaign                               *
+ * 605 E. Springfield, Champaign IL 61820                                   *
+ *                                                                          *
+ * For conditions of distribution and use, see the accompanying             *
+ * hdf/COPYING file.                                                        *
+ *                                                                          *
+ ****************************************************************************/
 
 #ifdef RCSID
-static char             RcsId[] = "@(#)$Revision: 1.75.2.3 $";
+static char             RcsId[] = "@(#)$Revision: 1.99 $";
 #endif
 
-/* $Id: H5.c,v 1.75.2.3 2000/04/15 20:28:31 koziol Exp $ */
+/* $Id: H5.c,v 1.99 2001/01/19 00:29:24 koziol Exp $ */
 
 /* private headers */
 #include <H5private.h>          /*library                 		*/
-#include <H5ACprivate.h>        /*cache                           	*/
 #include <H5Bprivate.h>         /*B-link trees                    	*/
+#include <H5Dprivate.h>         /*datasets          		    */
 #include <H5Eprivate.h>         /*error handling          		*/
+#include <H5FDprivate.h>	/*file driver				*/
 #include <H5FLprivate.h>	/*Free Lists	  */
 #include <H5Iprivate.h>		/*atoms					*/
 #include <H5MMprivate.h>        /*memory management               	*/
 #include <H5Pprivate.h>		/*property lists			*/
 #include <H5Rpublic.h>		/*references				*/
 #include <H5Sprivate.h>		/*data spaces				*/
-#include <H5Tprivate.h>     /*data types                      	*/
+#include <H5Tprivate.h>         /*data types                      	*/
 #include <H5Zprivate.h>		/*filters				*/
+
+/* datatypes of predefined drivers needed by H5_trace() */
+#include <H5FDmpio.h>
+
+/* we need this for the struct rusage declaration */
+#if defined(H5_HAVE_GETRUSAGE) && defined(linux)
+#include <sys/resource.h>
+#endif
 
 /* We need this on Irix64 even though we've included stdio.h as documented */
 FILE *fdopen(int fd, const char *mode);
 
 #define PABLO_MASK      H5_mask
 
-hbool_t                 H5_libinit_g = FALSE;
+/* statically initialize block for pthread_once call used in initializing */
+/* the first global mutex                                                 */
+#ifdef H5_HAVE_THREADSAFE
+H5_api_t H5_g;
+#else
+hbool_t H5_libinit_g = FALSE;
+#endif
+
 hbool_t                 dont_atexit_g = FALSE;
 H5_debug_t		H5_debug_g;		/*debugging info	*/
 static void		H5_debug_mask(const char*);
@@ -45,17 +61,19 @@ static intn          	interface_initialize_g = 0;
 #define INTERFACE_INIT 	NULL
 
 /*--------------------------------------------------------------------------
-NAME
-   H5_init_library -- Initialize library-global information
-USAGE
-    herr_t H5_init_library()
-   
-RETURNS
-    Non-negative on success/Negative on failure
-DESCRIPTION
-    Initializes any library-global data or routines.
-
---------------------------------------------------------------------------*/
+ * NAME
+ *   H5_init_library -- Initialize library-global information
+ * USAGE
+ *    herr_t H5_init_library()
+ *   
+ * RETURNS
+ *    Non-negative on success/Negative on failure
+ *
+ * DESCRIPTION
+ *    Initializes any library-global data or routines.
+ *
+ *--------------------------------------------------------------------------
+ */
 herr_t 
 H5_init_library(void)
 {
@@ -97,11 +115,25 @@ H5_init_library(void)
 
     /*
      * Initialize interfaces that might not be able to initialize themselves
-     * soon enough.
+     * soon enough.  The file & dataset interfaces must be initialized because
+     * calling H5Pcreate() might require the file/dataset property classes to be
+     * initialized.
      */
+    if (H5F_init()<0) {
+        HRETURN_ERROR(H5E_FUNC, H5E_CANTINIT, FAIL,
+                  "unable to initialize file interface");
+    }
     if (H5T_init()<0) {
         HRETURN_ERROR(H5E_FUNC, H5E_CANTINIT, FAIL,
-                      "unable to initialize type interface");
+              "unable to initialize type interface");
+    }
+    if (H5D_init()<0) {
+        HRETURN_ERROR(H5E_FUNC, H5E_CANTINIT, FAIL,
+                  "unable to initialize dataset interface");
+    }
+    if (H5P_init()<0) {
+        HRETURN_ERROR(H5E_FUNC, H5E_CANTINIT, FAIL,
+                  "unable to initialize property list interface");
     }
 
     /* Debugging? */
@@ -137,7 +169,18 @@ H5_term_library(void)
     H5E_auto_t func;
     
     /* Don't do anything if the library is already closed */
-    if (!H5_libinit_g) return;
+#ifdef H5_HAVE_THREADSAFE
+
+    /* explicit locking of the API */
+    pthread_once(&H5TS_first_init_g, H5TS_first_thread_init);
+    H5TS_mutex_lock(&H5_g.init_lock);
+
+    if (!H5_g.H5_libinit_g)
+	return;
+#else
+    if (!H5_libinit_g)
+	return;
+#endif
 
     /* Check if we should display error output */
     H5Eget_auto(&func,NULL);
@@ -153,13 +196,12 @@ H5_term_library(void)
       at += strlen(loop+at),						      \
       n):0)
     
-
     do {
 	pending = 0;
 	pending += DOWN(F);
+	pending += DOWN(FD);
 	pending += DOWN(D);
 	pending += DOWN(Z);
-	pending += DOWN(RA);
 	pending += DOWN(G);
 	pending += DOWN(FL);
 	pending += DOWN(R);
@@ -169,7 +211,8 @@ H5_term_library(void)
 	pending += DOWN(A);
 	pending += DOWN(P);
 	pending += DOWN(I);
-    } while (pending && ntries++<100);
+    } while (pending && ntries++ < 100);
+
     if (pending) {
         /* Only display the error message if the user is interested in them. */
         if (func) {
@@ -179,7 +222,12 @@ H5_term_library(void)
     }
     
     /* Mark library as closed */
+#ifdef H5_HAVE_THREADSAFE
+    H5_g.H5_libinit_g = FALSE;
+    H5TS_mutex_unlock(&H5_g.init_lock);
+#else
     H5_libinit_g = FALSE;
+#endif
 }
 
 
@@ -212,10 +260,22 @@ herr_t
 H5dont_atexit(void)
 {
     /* FUNC_ENTER_INIT() should not be called */
+
+  /* locking code explicitly since FUNC_ENTER is not called */
+#ifdef H5_HAVE_THREADSAFE
+    pthread_once(&H5TS_first_init_g, H5TS_first_thread_init);
+    H5TS_mutex_lock(&H5_g.init_lock);
+#endif
     H5_trace(FALSE, "H5dont_atexit", "");
-    if (dont_atexit_g) return FAIL;
+
+    if (dont_atexit_g)
+	    return FAIL;
+
     dont_atexit_g = TRUE;
     H5_trace(TRUE, NULL, "e", SUCCEED);
+#ifdef H5_HAVE_THREADSAFE
+    H5TS_mutex_unlock(&H5_g.init_lock);
+#endif
     return(SUCCEED);
 }
 
@@ -254,6 +314,50 @@ H5garbage_collect(void)
 
     FUNC_LEAVE(ret_value);
 }   /* end H5garbage_collect() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5set_free_list_limits
+ *
+ * Purpose:	Sets limits on the different kinds of free lists.  Setting a value
+ *      of -1 for a limit means no limit of that type.  These limits are global
+ *      for the entire library.  Each "global" limit only applies to free lists
+ *      of that type, so if an application sets a limit of 1 MB on each of the
+ *      global lists, up to 3 MB of total storage might be allocated (1MB on
+ *      each of regular, array and block type lists).
+ *
+ * Parameters:
+ *  int reg_global_lim;  IN: The limit on all "regular" free list memory used
+ *  int reg_list_lim;    IN: The limit on memory used in each "regular" free list
+ *  int arr_global_lim;  IN: The limit on all "array" free list memory used
+ *  int arr_list_lim;    IN: The limit on memory used in each "array" free list
+ *  int blk_global_lim;  IN: The limit on all "block" free list memory used
+ *  int blk_list_lim;    IN: The limit on memory used in each "block" free list
+ *
+ * Return:	Success:	non-negative
+ *
+ *		Failure:	negative
+ *
+ * Programmer:	Quincey Koziol
+ *              Wednesday, August 2, 2000
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t 
+H5set_free_list_limits(int reg_global_lim, int reg_list_lim, int arr_global_lim,
+    int arr_list_lim, int blk_global_lim, int blk_list_lim)
+{
+    herr_t                  ret_value = SUCCEED;
+
+    FUNC_ENTER(H5set_free_list_limits, FAIL);
+
+    /* Call the free list function to actually set the limits */
+    H5FL_set_free_list_limits(reg_global_lim, reg_list_lim, arr_global_lim, arr_list_lim, blk_global_lim, blk_list_lim);
+
+    FUNC_LEAVE(ret_value);
+}   /* end H5set_free_list_limits() */
 
 
 /*-------------------------------------------------------------------------
@@ -468,12 +572,22 @@ H5close (void)
      * thing just to release it all right away.  It is safe to call this
      * function for an uninitialized library.
      */
+#ifdef H5_HAVE_THREADSAFE
+    /* Explicitly lock the call since FUNC_ENTER is not called */
+    pthread_once(&H5TS_first_init_g, H5TS_first_thread_init);
+    H5TS_mutex_lock(&H5_g.init_lock);
+#endif
+
     H5_term_library();
+
+#ifdef H5_HAVE_THREADSAFE
+    H5TS_mutex_unlock(&H5_g.init_lock);
+#endif
     return SUCCEED;
 }
 
 
-#ifndef HAVE_SNPRINTF
+#ifndef H5_HAVE_SNPRINTF
 /*-------------------------------------------------------------------------
  * Function:	HDsnprintf
  *
@@ -513,11 +627,10 @@ HDsnprintf(char *buf, size_t UNUSED size, const char *fmt, ...)
     va_end(ap);
     return n;
 }
-#endif /* HAVE_SNPRINTF */
+#endif /* H5_HAVE_SNPRINTF */
 
-#ifndef HAVE_VSNPRINTF
 
-
+#ifndef H5_HAVE_VSNPRINTF
 /*-------------------------------------------------------------------------
  * Function:	HDvsnprintf
  *
@@ -547,8 +660,7 @@ HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 {
     return vsprintf(buf, fmt, ap);
 }
-#endif /* HAVE_VSNPRINTF */
-
+#endif /* H5_HAVE_VSNPRINTF */
 
 
 /*-------------------------------------------------------------------------
@@ -563,10 +675,7 @@ HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
  *		prints an `hsize_t' value as a hex number right justified and
  *		zero filled in an 18-character field.
  *
- *		The conversion `a' refers to an `haddr_t*' type.
- *
- * Bugs:	Return value will be incorrect if `%a' appears in the format
- *		string.
+ *		The conversion `a' refers to an `haddr_t' type.
  *
  * Return:	Success:	Number of characters printed
  *
@@ -576,7 +685,9 @@ HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
  *              Thursday, April  9, 1998
  *
  * Modifications:
- *
+ *		Robb Matzke, 1999-07-27
+ *		The `%a' format refers to an argument of `haddr_t' type
+ *		instead of `haddr_t*' and the return value is correct.
  *-------------------------------------------------------------------------
  */
 int
@@ -776,8 +887,8 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 
 	    case 'a':
 		if (1) {
-		    haddr_t *x = va_arg (ap, haddr_t*);
-		    if (x && H5F_addr_defined(x)) {
+		    haddr_t x = va_arg (ap, haddr_t);
+		    if (H5F_addr_defined(x)) {
 			sprintf(template, "%%%s%s%s%s%s",
 				leftjust?"-":"", plussign?"+":"",
 				ldspace?" ":"", prefix?"#":"",
@@ -785,15 +896,15 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 			if (fwidth>0) {
 			    sprintf(template+HDstrlen(template), "%d", fwidth);
 			}
-			if (sizeof(x->offset)==SIZEOF_INT) {
+			if (sizeof(x)==SIZEOF_INT) {
 			    HDstrcat(template, "d");
-			} else if (sizeof(x->offset)==SIZEOF_LONG) {
+			} else if (sizeof(x)==SIZEOF_LONG) {
 			    HDstrcat(template, "ld");
-			} else if (sizeof(x->offset)==SIZEOF_LONG_LONG) {
+			} else if (sizeof(x)==SIZEOF_LONG_LONG) {
 			    HDstrcat(template, PRINTF_LL_WIDTH);
 			    HDstrcat(template, "d");
 			}
-			n = fprintf(stream, template, x->offset);
+			n = fprintf(stream, template, x);
 		    } else {
 			HDstrcpy(template, "%");
 			if (leftjust) HDstrcat(template, "-");
@@ -801,7 +912,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 			    sprintf(template+HDstrlen(template), "%d", fwidth);
 			}
 			HDstrcat(template, "s");
-			fprintf(stream, template, x?"UNDEF":"NULL");
+			fprintf(stream, template, "UNDEF");
 		    }
 		}
 		break;
@@ -1001,16 +1112,16 @@ H5_timer_reset (H5_timer_t *timer)
 void
 H5_timer_begin (H5_timer_t *timer)
 {
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     struct rusage	rusage;
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     struct timeval	etime;
 #endif
 
     assert (timer);
 
-#ifdef HAVE_GETRUSAGE
+#ifdef H5_HAVE_GETRUSAGE
     getrusage (RUSAGE_SELF, &rusage);
     timer->utime = (double)rusage.ru_utime.tv_sec +
                    (double)rusage.ru_utime.tv_usec/1e6;
@@ -1020,14 +1131,13 @@ H5_timer_begin (H5_timer_t *timer)
     timer->utime = 0.0;
     timer->stime = 0.0;
 #endif
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef H5_HAVE_GETTIMEOFDAY
     gettimeofday (&etime, NULL);
     timer->etime = (double)etime.tv_sec + (double)etime.tv_usec/1e6;
 #else
     timer->etime = 0.0;
 #endif
 }
-
 
 
 /*-------------------------------------------------------------------------
@@ -1169,7 +1279,13 @@ H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds)
  *              Tuesday, June 16, 1998
  *
  * Modifications:
+ * 		Robb Matzke, 1999-08-02
+ *		Added the `a' type letter for haddr_t arguments and `Mt' for
+ *		H5FD_mem_t arguments.
  *
+ * 		Robb Matzke, 1999-10-25
+ *		The `Ej' and `En' types are H5E_major_t and H5E_minor_t error
+ *		types. We only print the integer value here.
  *-------------------------------------------------------------------------
  */
 void
@@ -1178,7 +1294,7 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
     va_list		ap;
     char		buf[64], *rest;
     const char		*argname;
-    intn		argno=0, ptr, n, asize_idx;
+    intn		argno=0, ptr, asize_idx;
     hssize_t		asize[16];
     hssize_t		i;
     void		*vp = NULL;
@@ -1224,7 +1340,7 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 	 */
 	argname = va_arg (ap, char*);
 	if (argname) {
-	    n = MAX (0, (int)HDstrlen(argname)-3);
+	    unsigned n = MAX (0, (int)HDstrlen(argname)-3);
 	    if (!HDstrcmp (argname+n, "_id")) {
 		HDstrncpy (buf, argname, MIN ((int)sizeof(buf)-1, n));
 		buf[MIN((int)sizeof(buf)-1, n)] = '\0';
@@ -1238,6 +1354,19 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 	/* The value */
 	if (ptr) vp = va_arg (ap, void*);
 	switch (type[0]) {
+	case 'a':
+	    if (ptr) {
+		if (vp) {
+		    fprintf(out, "0x%lx", (unsigned long)vp);
+		} else {
+		    fprintf(out, "NULL");
+		}
+	    } else {
+		haddr_t addr = va_arg(ap, haddr_t);
+		HDfprintf(out, "%a", addr);
+	    }
+	    break;
+
 	case 'b':
 	    if (ptr) {
 		if (vp) {
@@ -1305,16 +1434,13 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 			fprintf(out, "NULL");
 		    }
 		} else {
-		    H5D_transfer_t transfer = va_arg (ap, H5D_transfer_t);
+		    H5FD_mpio_xfer_t transfer = va_arg(ap, H5FD_mpio_xfer_t);
 		    switch (transfer) {
-		    case H5D_XFER_INDEPENDENT:
-			fprintf (out, "H5D_XFER_INDEPENDENT");
+		    case H5FD_MPIO_INDEPENDENT:
+			fprintf (out, "H5FD_MPIO_INDEPENDENT");
 			break;
-		    case H5D_XFER_COLLECTIVE:
-			fprintf (out, "H5D_XFER_COLLECTIVE");
-			break;
-		    case H5D_XFER_DFLT:
-			fprintf (out, "H5D_XFER_DFLT");
+		    case H5FD_MPIO_COLLECTIVE:
+			fprintf (out, "H5FD_MPIO_COLLECTIVE");
 			break;
 		    default:
 			fprintf (out, "%ld", (long)transfer);
@@ -1381,6 +1507,32 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 		    fprintf (out, "0x%lx", (unsigned long)error);
 		}
 		break;
+
+	    case 'j':
+		if (ptr) {
+		    if (vp) {
+			fprintf(out, "0x%lx", (unsigned long)vp);
+		    } else {
+			fprintf(out, "NULL");
+		    }
+		} else {
+		    H5E_major_t emaj = va_arg(ap, H5E_major_t);
+		    fprintf(out, "%d", (int)emaj);
+		}
+		break;
+
+	    case 'n':
+		if (ptr) {
+		    if (vp) {
+			fprintf(out, "0x%lx", (unsigned long)vp);
+		    } else {
+			fprintf(out, "NULL");
+		    }
+		} else {
+		    H5E_minor_t emin = va_arg(ap, H5E_minor_t);
+		    fprintf(out, "%d", (int)emin);
+		}
+		break;
 		
 	    default:
 		fprintf (out, "BADTYPE(E%c)", type[1]);
@@ -1390,44 +1542,6 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 
 	case 'F':
 	    switch (type[1]) {
-	    case 'd':
-		if (ptr) {
-		    if (vp) {
-			fprintf(out, "0x%lx", (unsigned long)vp);
-		    } else {
-			fprintf(out, "NULL");
-		    }
-		} else {
-		    H5F_driver_t driver = va_arg(ap, H5F_driver_t);
-		    switch (driver) {
-		    case H5F_LOW_ERROR:
-			fprintf(out, "H5F_LOW_ERROR");
-			break;
-		    case H5F_LOW_STDIO:
-			fprintf(out, "H5F_LOW_STDIO");
-			break;
-		    case H5F_LOW_SEC2:
-			fprintf(out, "H5F_LOW_SEC2");
-			break;
-		    case H5F_LOW_MPIO:
-			fprintf(out, "H5F_LOW_MPIO");
-			break;
-		    case H5F_LOW_CORE:
-			fprintf(out, "H5F_LOW_CORE");
-			break;
-		    case H5F_LOW_SPLIT:
-			fprintf(out, "H5F_LOW_SPLIT");
-			break;
-		    case H5F_LOW_FAMILY:
-			fprintf(out, "H5F_LOW_FAMILY");
-			break;
-		    default:
-			fprintf(out, "%ld", (long)driver);
-			break;
-		    }
-		}
-		break;
-
 	    case 's':
 		if (ptr) {
 		    if (vp) {
@@ -1574,7 +1688,7 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 		}
 	    } else {
 		hid_t obj = va_arg (ap, hid_t);
-		if (-2 == obj) {
+		if (H5P_DEFAULT == obj) {
 		    fprintf (out, "H5P_DEFAULT");
 		} else if (obj<0) {
 		    fprintf (out, "FAIL");
@@ -1710,8 +1824,8 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 			/*Save the rank of simple data spaces for arrays*/
 			{
 			    H5S_t *space = H5I_object(obj);
-			    if (H5S_SIMPLE==space->extent.type) {
-				asize[argno] = space->extent.u.simple.rank;
+			    if (H5S_SIMPLE==H5S_get_simple_extent_type(space)) {
+				asize[argno] = H5S_get_simple_extent_ndims(space);
 			    }
 			}
 			break;
@@ -1733,11 +1847,11 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 			    fprintf(out, " (tbuf");
 			}
 			break;
-		    case H5I_RAGGED:
-			fprintf(out, "%ld", (long)obj);
-			if (HDstrcmp(argname, "array")) {
-			    fprintf(out, " (array)");
-			}
+		    case H5I_REFERENCE:
+			fprintf(out, "%ld (reference)", (long)obj);
+			break;
+		    case H5I_VFL:
+			fprintf(out, "%ld (file driver)", (long)obj);
 			break;
 		    default:
 			fprintf(out, "%ld", (long)obj);
@@ -1858,9 +1972,6 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 		    case H5I_TEMPBUF:
 			fprintf (out, "H5I_TEMPBUF");
 			break;
-		    case H5I_RAGGED:
-			fprintf (out, "H5I_RAGGED");
-			break;
 		    case H5I_REFERENCE:
 			fprintf (out, "H5I_REFERENCE");
 			break;
@@ -1890,7 +2001,7 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 			fprintf(out, "NULL");
 		    }
 		} else {
-#ifdef HAVE_PARALLEL
+#ifdef H5_HAVE_PARALLEL
 		    MPI_Comm comm = va_arg (ap, MPI_Comm);
 		    fprintf (out, "%ld", (long)comm);
 #endif
@@ -1904,12 +2015,53 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
 			fprintf(out, "NULL");
 		    }
 		} else {
-#ifdef HAVE_PARALLEL
+#ifdef H5_HAVE_PARALLEL
 		    MPI_Info info = va_arg (ap, MPI_Info);
 		    fprintf (out, "%ld", (long)info);
 #endif
 		}
 		break;
+	    case 't':
+		if (ptr) {
+		    if (vp) {
+			fprintf(out, "0x%lx", (unsigned long)vp);
+		    } else {
+			fprintf(out, "NULL");
+		    }
+		} else {
+		    H5FD_mem_t mt = va_arg(ap, H5FD_mem_t);
+		    switch (mt) {
+		    case H5FD_MEM_NOLIST:
+			fprintf(out, "H5FD_MEM_NOLIST");
+			break;
+		    case H5FD_MEM_DEFAULT:
+			fprintf(out, "H5FD_MEM_DEFAULT");
+			break;
+		    case H5FD_MEM_SUPER:
+			fprintf(out, "H5FD_MEM_SUPER");
+			break;
+		    case H5FD_MEM_BTREE:
+			fprintf(out, "H5FD_MEM_BTREE");
+			break;
+		    case H5FD_MEM_DRAW:
+			fprintf(out, "H5FD_MEM_DRAW");
+			break;
+		    case H5FD_MEM_GHEAP:
+			fprintf(out, "H5FD_MEM_GHEAP");
+			break;
+		    case H5FD_MEM_LHEAP:
+			fprintf(out, "H5FD_MEM_LHEAP");
+			break;
+		    case H5FD_MEM_OHDR:
+			fprintf(out, "H5FD_MEM_OHDR");
+			break;
+		    default:
+			fprintf(out, "%lu", (unsigned long)mt);
+			break;
+		    }
+		}
+		break;
+
 	    default:
 		goto error;
 	    }
@@ -2454,5 +2606,3 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
     HDfflush (out);
     return;
 }
-
-    

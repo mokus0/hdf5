@@ -34,8 +34,9 @@ typedef enum H5T_class_t {
     H5T_OPAQUE           = 5,   /*opaque types                               */
     H5T_COMPOUND         = 6,   /*compound types                             */
     H5T_REFERENCE        = 7,   /*reference types                            */
-    H5T_ENUM		     = 8,	/*enumeration types                          */
-    H5T_VLEN		     = 9,	/*Variable-Length types                      */
+    H5T_ENUM		 = 8,	/*enumeration types                          */
+    H5T_VLEN		 = 9,	/*Variable-Length types                      */
+    H5T_ARRAY	         = 10,	/*Array types                                */
 
     H5T_NCLASSES                /*this must be last                          */
 } H5T_class_t;
@@ -150,17 +151,20 @@ typedef enum H5T_pers_t {
     H5T_PERS_SOFT	= 1 	/*soft conversion function		     */
 } H5T_pers_t;
 
-/* Variable Length Datatype struct */
+/* Variable Length Datatype struct in memory */
+/* (This is only used for VL sequences, not VL strings, which are stored in char *'s) */
 typedef struct {
     size_t len; /* Length of VL data (in base type units) */
     void *p;    /* Pointer to VL data */
 } hvl_t;
 
+/* Variable Length String information */
+#define H5T_VARIABLE    ((size_t)(-1))  /* Indicate that a string is variable length (null-terminated in C, instead of fixed length) */
+
 /* All data type conversion functions are... */
 typedef herr_t (*H5T_conv_t) (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
-			      size_t nelmts, size_t buf_stride,
-                              size_t bkg_stride, void *buf, void *bkg,
-                              hid_t dset_xfer_plist);
+      hsize_t nelmts, size_t buf_stride, size_t bkg_stride, void *buf,
+      void *bkg, hid_t dset_xfer_plist);
 
 /*
  * If an error occurs during a data type conversion then the function
@@ -358,6 +362,7 @@ __DLLVAR__ hid_t H5T_FORTRAN_S1_g;
 #define H5T_NATIVE_B32		(H5open(), H5T_NATIVE_B32_g)
 #define H5T_NATIVE_B64		(H5open(), H5T_NATIVE_B64_g)
 #define H5T_NATIVE_OPAQUE       (H5open(), H5T_NATIVE_OPAQUE_g)
+#define H5T_NATIVE_HADDR	(H5open(), H5T_NATIVE_HADDR_g)
 #define H5T_NATIVE_HSIZE	(H5open(), H5T_NATIVE_HSIZE_g)
 #define H5T_NATIVE_HSSIZE	(H5open(), H5T_NATIVE_HSSIZE_g)
 #define H5T_NATIVE_HERR		(H5open(), H5T_NATIVE_HERR_g)
@@ -380,6 +385,7 @@ __DLLVAR__ hid_t H5T_NATIVE_B16_g;
 __DLLVAR__ hid_t H5T_NATIVE_B32_g;
 __DLLVAR__ hid_t H5T_NATIVE_B64_g;
 __DLLVAR__ hid_t H5T_NATIVE_OPAQUE_g;
+__DLLVAR__ hid_t H5T_NATIVE_HADDR_g;
 __DLLVAR__ hid_t H5T_NATIVE_HSIZE_g;
 __DLLVAR__ hid_t H5T_NATIVE_HSSIZE_g;
 __DLLVAR__ hid_t H5T_NATIVE_HERR_g;
@@ -451,9 +457,11 @@ __DLL__ htri_t H5Tcommitted(hid_t type_id);
 /* Operations defined on compound data types */
 __DLL__ herr_t H5Tinsert(hid_t parent_id, const char *name, size_t offset,
 			 hid_t member_id);
+#if defined(WANT_H5_V1_2_COMPAT) || defined(H5_WANT_H5_V1_2_COMPAT)
 __DLL__ herr_t H5Tinsert_array(hid_t parent_id, const char *name,
 			       size_t offset, int ndims, const size_t dim[],
 			       const int *perm, hid_t member_id);
+#endif /* WANT_H5_V1_2_COMPAT */
 __DLL__ herr_t H5Tpack(hid_t type_id);
 
 /* Operations defined on enumeration data types */
@@ -467,6 +475,12 @@ __DLL__ herr_t H5Tenum_valueof(hid_t type, const char *name,
 /* Operations defined on variable-length data types */
 __DLL__ hid_t H5Tvlen_create(hid_t base_id);
 
+/* Operations defined on array data types */
+__DLL__ hid_t H5Tarray_create(hid_t base_id, int ndims,
+            const hsize_t dim[/* ndims */], const int perm[/* ndims */]);
+__DLL__ int H5Tget_array_ndims(hid_t type_id);
+__DLL__ herr_t H5Tget_array_dims(hid_t type_id, hsize_t dims[], int perm[]);
+
 /* Operations defined on opaque data types */
 __DLL__ herr_t H5Tset_tag(hid_t type, const char *tag);
 __DLL__ char *H5Tget_tag(hid_t type);
@@ -474,10 +488,11 @@ __DLL__ char *H5Tget_tag(hid_t type);
 /* Querying property values */
 __DLL__ hid_t H5Tget_super(hid_t type);
 __DLL__ H5T_class_t H5Tget_class(hid_t type_id);
+__DLL__ htri_t H5Tdetect_class(hid_t type_id, H5T_class_t cls);
 __DLL__ size_t H5Tget_size(hid_t type_id);
 __DLL__ H5T_order_t H5Tget_order(hid_t type_id);
 __DLL__ size_t H5Tget_precision(hid_t type_id);
-__DLL__ size_t H5Tget_offset(hid_t type_id);
+__DLL__ int H5Tget_offset(hid_t type_id);
 __DLL__ herr_t H5Tget_pad(hid_t type_id, H5T_pad_t *lsb/*out*/,
 			  H5T_pad_t *msb/*out*/);
 __DLL__ H5T_sign_t H5Tget_sign(hid_t type_id);
@@ -491,8 +506,11 @@ __DLL__ H5T_str_t H5Tget_strpad(hid_t type_id);
 __DLL__ int H5Tget_nmembers(hid_t type_id);
 __DLL__ char *H5Tget_member_name(hid_t type_id, int membno);
 __DLL__ size_t H5Tget_member_offset(hid_t type_id, int membno);
+#if defined(WANT_H5_V1_2_COMPAT) || defined(H5_WANT_H5_V1_2_COMPAT)
 __DLL__ int H5Tget_member_dims(hid_t type_id, int membno, size_t dims[]/*out*/,
 			       int perm[]/*out*/);
+#endif /* WANT_H5_V1_2_COMPAT */
+__DLL__ H5T_class_t H5Tget_member_class(hid_t type_id, int membno);
 __DLL__ hid_t H5Tget_member_type(hid_t type_id, int membno);
 __DLL__ herr_t H5Tget_member_value(hid_t type_id, int membno,
 				   void *value/*out*/);
@@ -519,7 +537,7 @@ __DLL__ herr_t H5Tregister(H5T_pers_t pers, const char *name, hid_t src_id,
 __DLL__ herr_t H5Tunregister(H5T_pers_t pers, const char *name, hid_t src_id,
 			     hid_t dst_id, H5T_conv_t func);
 __DLL__ H5T_conv_t H5Tfind(hid_t src_id, hid_t dst_id, H5T_cdata_t **pcdata);
-__DLL__ herr_t H5Tconvert(hid_t src_id, hid_t dst_id, size_t nelmts,
+__DLL__ herr_t H5Tconvert(hid_t src_id, hid_t dst_id, hsize_t nelmts,
 			  void *buf, void *background, hid_t plist_id);
 __DLL__ H5T_overflow_t H5Tget_overflow(void);
 __DLL__ herr_t H5Tset_overflow(H5T_overflow_t func);

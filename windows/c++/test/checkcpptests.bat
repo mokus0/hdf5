@@ -82,19 +82,17 @@ rem Also make sure to add *.bat to batch scripts, as the above functions rely
 rem on it for sending parameters.  --SJW 9/6/07
 :main
 
-    call :add_test dsets_cpp%2 .\dsets_cpp%2\%1
     call :add_test testhdf5_cpp%2 .\testhdf5_cpp%2\%1
     
     
     rem Run the tests, passing in which version to run
     call :run_tests %*
-
+        
     if "%nerrors%"=="0" (
 		echo.All C++ library tests passed.
 	) else (
-        echo.** FAILED C++ Library tests.
+        echo.** FAILED C++ library tests.
     )
-        
+
     popd
     endlocal & exit /b %nerrors%
-    

@@ -22,6 +22,7 @@
 *************************************************************/
 
 #include "testhdf5.h"
+#include "H5srcdir.h"
 
 #include "hdf5.h"
 
@@ -44,15 +45,8 @@
 #define ARRAY3_DIM2 3
 
 /* 1-D dataset with fixed dimensions */
-#define SPACE1_NAME  "Space1"
 #define SPACE1_RANK	1
 #define SPACE1_DIM1	4
-
-/* 2-D dataset with fixed dimensions */
-#define SPACE2_NAME  "Space2"
-#define SPACE2_RANK	2
-#define SPACE2_DIM1	10
-#define SPACE2_DIM2	10
 
 /****************************************************************
 **

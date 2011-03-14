@@ -211,7 +211,7 @@ done:
  */
 herr_t
 H5Dwrite(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
-	 hid_t file_space_id, hid_t plist_id, const void *buf)
+	 hid_t file_space_id, hid_t dxpl_id, const void *buf)
 {
     H5D_t		   *dset = NULL;
     const H5S_t		   *mem_space = NULL;
@@ -221,7 +221,7 @@ H5Dwrite(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
 
     FUNC_ENTER_API(H5Dwrite, FAIL)
     H5TRACE6("e", "iiiii*x", dset_id, mem_type_id, mem_space_id, file_space_id,
-             plist_id, buf);
+             dxpl_id, buf);
 
     /* check arguments */
     if(NULL == (dset = (H5D_t *)H5I_object_verify(dset_id, H5I_DATASET)))
@@ -246,10 +246,10 @@ H5Dwrite(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
     } /* end if */
 
     /* Get the default dataset transfer property list if the user didn't provide one */
-    if(H5P_DEFAULT == plist_id)
-        plist_id= H5P_DATASET_XFER_DEFAULT;
+    if(H5P_DEFAULT == dxpl_id)
+        dxpl_id= H5P_DATASET_XFER_DEFAULT;
     else
-        if(TRUE != H5P_isa_class(plist_id, H5P_DATASET_XFER))
+        if(TRUE != H5P_isa_class(dxpl_id, H5P_DATASET_XFER))
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not xfer parms")
     if(!buf && (NULL == file_space || H5S_GET_SELECT_NPOINTS(file_space) != 0))
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no output buffer")
@@ -262,7 +262,7 @@ H5Dwrite(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
         buf = &fake_char;
 
     /* write raw data */
-    if(H5D_write(dset, mem_type_id, mem_space, file_space, plist_id, buf) < 0)
+    if(H5D_write(dset, mem_type_id, mem_space, file_space, dxpl_id, buf) < 0)
 	HGOTO_ERROR(H5E_DATASET, H5E_WRITEERROR, FAIL, "can't write data")
 
 done:
@@ -312,7 +312,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
     if(!mem_space)
         mem_space = file_space;
     if((snelmts = H5S_GET_SELECT_NPOINTS(mem_space)) < 0)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "src dataspace has invalid selection")
+	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "dst dataspace has invalid selection")
     H5_ASSIGN_OVERFLOW(nelmts,snelmts,hssize_t,hsize_t);
 
     /* Fill the DXPL cache values for later use */
@@ -485,7 +485,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
         /* If MPI based VFD is used, no VL datatype support yet. */
         /* This is because they use the global heap in the file and we don't */
         /* support parallel access of that yet */
-        if(H5T_detect_class(type_info.mem_type, H5T_VLEN) > 0)
+        if(H5T_detect_class(type_info.mem_type, H5T_VLEN, FALSE) > 0)
             HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "Parallel IO does not support writing VL datatypes yet")
 
         /* If MPI based VFD is used, no VL datatype support yet. */
@@ -543,13 +543,13 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
             HGOTO_ERROR(H5E_DATASET, H5E_BADVALUE, FAIL, "can't retrieve number of elements in file dataset")
 
         /* Always allow fill values to be written if the dataset has a VL datatype */
-        if(H5T_detect_class(dataset->shared->type, H5T_VLEN))
+        if(H5T_detect_class(dataset->shared->type, H5T_VLEN, FALSE))
             full_overwrite = FALSE;
         else
             full_overwrite = (hbool_t)((hsize_t)file_nelmts == nelmts ? TRUE : FALSE);
 
  	/* Allocate storage */
-        if(H5D_alloc_storage(dataset, dxpl_id, H5D_ALLOC_WRITE, full_overwrite) < 0)
+        if(H5D_alloc_storage(dataset, dxpl_id, H5D_ALLOC_WRITE, full_overwrite, NULL) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to initialize storage")
     } /* end if */
 
@@ -583,6 +583,9 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
  * independent access, causing the metadata cache to get corrupted. Its been
  * disabled for all types of access (serial as well as parallel) to make the
  * modification time consistent for all programs. -QAK
+ *
+ * We should set a value in the dataset's shared information instead and flush
+ * it to the file when the dataset is being closed. -QAK
  */
     /*
      * Update modification time.  We have to do this explicitly because
@@ -751,7 +754,7 @@ H5D_typeinfo_init(const H5D_t *dset, const H5D_dxpl_cache_t *dxpl_cache,
         type_info->cmpd_subset = H5T_path_compound_subset(type_info->tpath);
 
         /* Check if we need a background buffer */
-        if(do_write && H5T_detect_class(dset->shared->type, H5T_VLEN))
+        if(do_write && H5T_detect_class(dset->shared->type, H5T_VLEN, FALSE))
             type_info->need_bkg = H5T_BKG_YES;
         else {
             H5T_bkg_t path_bkg;     /* Type conversion's background info */

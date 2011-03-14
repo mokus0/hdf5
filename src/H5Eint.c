@@ -225,6 +225,7 @@ H5E_walk1_cb(int n, H5E_error1_t *err_desc, void *client_data)
     const char		*maj_str = "No major description";      /* Major error description */
     const char		*min_str = "No minor description";      /* Minor error description */
     unsigned            have_desc = 1;  /* Flag to indicate whether the error has a "real" description */
+    herr_t              ret_value = SUCCEED;
 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5E_walk1_cb)
 
@@ -240,7 +241,11 @@ H5E_walk1_cb(int n, H5E_error1_t *err_desc, void *client_data)
     /* Get descriptions for the major and minor error numbers */
     maj_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->maj_num, H5I_ERROR_MSG);
     min_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->min_num, H5I_ERROR_MSG);
-    HDassert(maj_ptr && min_ptr);
+
+    /* Check for bad pointer(s), but can't issue error, just leave */
+    if(!maj_ptr || !min_ptr)
+        HGOTO_DONE(FAIL)
+
     if(maj_ptr->msg)
         maj_str = maj_ptr->msg;
     if(min_ptr->msg)
@@ -269,7 +274,7 @@ H5E_walk1_cb(int n, H5E_error1_t *err_desc, void *client_data)
 	    MPI_Initialized(&mpi_initialized);
 	    if(mpi_initialized) {
 	        MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-	        fprintf (stream, "MPI-process %d", mpi_rank);
+	        fprintf(stream, "MPI-process %d", mpi_rank);
 	    } /* end if */
             else
 	        fprintf(stream, "thread 0");
@@ -294,7 +299,8 @@ H5E_walk1_cb(int n, H5E_error1_t *err_desc, void *client_data)
     fprintf(stream, "%*smajor: %s\n", (H5E_INDENT * 2), "", maj_str);
     fprintf(stream, "%*sminor: %s\n", (H5E_INDENT * 2), "", min_str);
 
-    FUNC_LEAVE_NOAPI(SUCCEED)
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5E_walk1_cb() */
 #endif /* H5_NO_DEPRECATED_SYMBOLS */
 
@@ -341,6 +347,7 @@ H5E_walk2_cb(unsigned n, const H5E_error2_t *err_desc, void *client_data)
     const char		*maj_str = "No major description";      /* Major error description */
     const char		*min_str = "No minor description";      /* Minor error description */
     unsigned            have_desc = 1;  /* Flag to indicate whether the error has a "real" description */
+    herr_t              ret_value = SUCCEED;
 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5E_walk2_cb)
 
@@ -356,7 +363,11 @@ H5E_walk2_cb(unsigned n, const H5E_error2_t *err_desc, void *client_data)
     /* Get descriptions for the major and minor error numbers */
     maj_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->maj_num, H5I_ERROR_MSG);
     min_ptr = (H5E_msg_t *)H5I_object_verify(err_desc->min_num, H5I_ERROR_MSG);
-    HDassert(maj_ptr && min_ptr);
+
+    /* Check for bad pointer(s), but can't issue error, just leave */
+    if(!maj_ptr || !min_ptr)
+        HGOTO_DONE(FAIL)
+
     if(maj_ptr->msg)
         maj_str = maj_ptr->msg;
     if(min_ptr->msg)
@@ -411,7 +422,8 @@ H5E_walk2_cb(unsigned n, const H5E_error2_t *err_desc, void *client_data)
     fprintf(stream, "%*smajor: %s\n", (H5E_INDENT * 2), "", maj_str);
     fprintf(stream, "%*sminor: %s\n", (H5E_INDENT * 2), "", min_str);
 
-    FUNC_LEAVE_NOAPI(SUCCEED)
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5E_walk2_cb() */
 
 
@@ -658,6 +670,107 @@ H5E_set_auto(H5E_t *estack, const H5E_auto_op_t *op, void *client_data)
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5E_set_auto() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5E_printf_stack
+ *
+ * Purpose:	Printf-like wrapper around H5E_push_stack.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *		Tuesday, August 12, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5E_printf_stack(H5E_t *estack, const char *file, const char *func, unsigned line,
+    hid_t cls_id, hid_t maj_id, hid_t min_id, const char *fmt, ...)
+{
+    va_list     ap;                     /* Varargs info */
+#ifndef H5_HAVE_VASPRINTF
+    int         tmp_len;        /* Current size of description buffer */
+    int         desc_len;       /* Actual length of description when formatted */
+#endif /* H5_HAVE_VASPRINTF */
+    char        *tmp = NULL;      /* Buffer to place formatted description in */
+    herr_t	ret_value = SUCCEED;    /* Return value */
+
+    /*
+     * WARNING: We cannot call HERROR() from within this function or else we
+     *		could enter infinite recursion.  Furthermore, we also cannot
+     *		call any other HDF5 macro or function which might call
+     *		HERROR().  HERROR() is called by HRETURN_ERROR() which could
+     *		be called by FUNC_ENTER().
+     */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5E_printf_stack)
+
+    /* Sanity check */
+    HDassert(cls_id > 0);
+    HDassert(maj_id > 0);
+    HDassert(min_id > 0);
+    HDassert(fmt);
+
+/* Note that the variable-argument parsing for the format is identical in
+ *      the H5Epush2() routine - correct errors and make changes in both
+ *      places. -QAK
+ */
+
+    /* Start the variable-argument parsing */
+    va_start(ap, fmt);
+
+#ifdef H5_HAVE_VASPRINTF
+    /* Use the vasprintf() routine, since it does what we're trying to do below */
+    if(HDvasprintf(&tmp, fmt, ap) < 0)
+        HGOTO_DONE(FAIL)
+#else /* H5_HAVE_VASPRINTF */
+    /* Allocate space for the formatted description buffer */
+    tmp_len = 128;
+    if(NULL == (tmp = H5MM_malloc((size_t)tmp_len)))
+        HGOTO_DONE(FAIL)
+
+    /* If the description doesn't fit into the initial buffer size, allocate more space and try again */
+    while((desc_len = HDvsnprintf(tmp, (size_t)tmp_len, fmt, ap))
+#ifdef H5_VSNPRINTF_WORKS
+            >
+#else /* H5_VSNPRINTF_WORKS */
+            >=
+#endif /* H5_VSNPRINTF_WORKS */
+            (tmp_len - 1)
+#ifndef H5_VSNPRINTF_WORKS
+            || (desc_len < 0)
+#endif /* H5_VSNPRINTF_WORKS */
+            ) {
+        /* shutdown & restart the va_list */
+        va_end(ap);
+        va_start(ap, fmt);
+
+        /* Release the previous description, it's too small */
+        H5MM_xfree(tmp);
+
+        /* Allocate a description of the appropriate length */
+#ifdef H5_VSNPRINTF_WORKS
+        tmp_len = desc_len + 1;
+#else /* H5_VSNPRINTF_WORKS */
+        tmp_len = 2 * tmp_len;
+#endif /* H5_VSNPRINTF_WORKS */
+        if(NULL == (tmp = H5MM_malloc((size_t)tmp_len)))
+            HGOTO_DONE(FAIL)
+    } /* end while */
+#endif /* H5_HAVE_VASPRINTF */
+
+    va_end(ap);
+
+    /* Push the error on the stack */
+    if(H5E_push_stack(estack, file, func, line, cls_id, maj_id, min_id, tmp) < 0)
+        HGOTO_DONE(FAIL)
+
+done:
+    if(tmp)
+        H5MM_xfree(tmp);
+
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5E_printf_stack() */
 
 
 /*-------------------------------------------------------------------------

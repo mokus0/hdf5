@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 18305 2010-02-22 21:45:48Z mamcgree $)
+AC_REVISION($Id: configure.in 18921 2010-05-28 14:00:26Z mamcgree $)
 AC_PREREQ([2.53])
 
 dnl AC_INIT takes the name of the package, the version number, and an
@@ -26,7 +26,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.8.4-patch1], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.5], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AM_CONFIG_HEADER([src/H5config.h])
 
@@ -157,7 +157,7 @@ dnl HDF_CXX: whether C++ is enabled. Default no.
 dnl CXX: C++ compiler.
 dnl HDF5_HL: whether high-level library is enabled. Default is yes.
 dnl GPFS: whether gpfs is enabled. Default no.
-dnl LINUX_LFS: whether LINUX_LFS is enabled. Default no.
+dnl LARGEFILE: whether largefile support is enabled. Default yes.
 dnl INSTRUMENT: whether INSTRUMENT is enabled. No default set here.
 dnl CODESTACK: whether CODESTACK is enabled. Default no.
 dnl HAVE_DMALLOC: whether system has dmalloc support. Default no.
@@ -167,6 +167,7 @@ dnl STATIC_SHARED: whether static and/or shared libraries are requested.
 dnl enable_shared: whether shared lib is enabled.
 dnl enable_static: whether static lib is enabled.
 dnl UNAME_INFO: System information.
+dnl PACKED_BITS: H5dump packed bits feature is enabled.
 
 AC_SUBST(EXTERNAL_FILTERS)
 AC_SUBST(MPE) MPE=no
@@ -177,7 +178,7 @@ AC_SUBST(HDF_CXX) HDF_CXX=no
 AC_SUBST(CXX) HDF_CXX=no
 AC_SUBST(HDF5_HL) HDF5_HL=yes
 AC_SUBST(GPFS) GPFS=no
-AC_SUBST(LINUX_LFS) LINUX_LFS=no
+AC_SUBST(LARGEFILE) LARGEFILE=yes
 AC_SUBST(INSTRUMENT)
 AC_SUBST(CODESTACK) CODESTACK=no
 AC_SUBST(HAVE_DMALLOC) HAVE_DMALLOC=no
@@ -187,6 +188,7 @@ AC_SUBST(STATIC_SHARED)
 AC_SUBST(enable_shared)
 AC_SUBST(enable_static)
 AC_SUBST(UNAME_INFO) UNAME_INFO=`uname -a`
+AC_SUBST(PACKED_BITS) PACKED_BITS=yes
 
 dnl ----------------------------------------------------------------------
 dnl Some platforms have broken basename, and/or xargs programs. Check
@@ -959,8 +961,15 @@ fi
 
 dnl ----------------------------------------------------------------------
 dnl Shared libraries are not currently supported under Cygwin.
+dnl
+dnl The GCC compiler on Cygwin running on Windows XP has rounding problem
+dnl in the data conversion dt_arith.c from unsigned long long to long 
+dnl double (see bug #1813).  I define a macro here to skip the test for
+dnl Cygwin.  I'll come back and figure out the problem once I'm available.
+dnl 2010/5/5 - SLU
 case "`uname`" in
   CYGWIN*)
+    AC_DEFINE([CYGWIN_ULLONG_TO_LDOUBLE_ROUND_PROBLEM], [1], [Define a macro for Cygwin (on XP only) where the compiler has rounding problem converting from unsigned long long to long double])
     if test "X${enable_shared}" = "Xyes"; then
       echo '    warning: shared libraries are not supported on Cygwin!'
       echo '    disabling shared libraries'
@@ -1260,42 +1269,127 @@ case "$host" in
 esac
 
 dnl ----------------------------------------------------------------------
-dnl Test for 64bit stuff before the data types and their sizes. The
-dnl result could effect the outcome of the sizeof macros below.
+dnl Test for Largefile support.
+dnl
+AC_MSG_CHECKING([if configure should try to set up large file support])
+
+AC_ARG_ENABLE([largefile],
+           [AC_HELP_STRING([--disable-largefile],
+                           [omit support for large files])])
+
+dnl The linux-lfs option is deprecated, but if it is used to disable
+dnl largefile support on linux and the largefile option is not specified,
+dnl then go ahead and disable large-file support.
+case "$host_cpu-$host_vendor-$host_os" in
+  *linux*)
+    AC_ARG_ENABLE([linux-lfs],
+                  [AC_HELP_STRING([--disable-linux-lfs],
+                                  [Disable support for large (64-bit)
+                                   files on Linux. This option is 
+                                   deprecated in favor of
+                                   --disable-largefile.])])
+
+    if test "$enable_linux_lfs" = no; then
+      if test "$enable_largefile" != yes; then
+        enable_largefile=no
+      fi
+    fi
+    ;;
+esac
+
+dnl If largefile support is enabled, then set up appropriate compiler options.
+if test "$enable_largefile" != no; then
+  AC_MSG_RESULT(yes)
+
+  dnl Check for needed compiler options. This check is pulled drectly 
+  dnl from autoconf's AC_SYS_LARGEFILE macro, as of Autoconf v2.65.
+  AC_CACHE_CHECK([for special C compiler options needed for large files],
+    ac_cv_sys_largefile_CC,
+    [ac_cv_sys_largefile_CC=no
+     if test "$GCC" != yes; then
+       ac_save_CC=$CC
+       while :; do
+     # IRIX 6.2 and later do not support large files by default,
+     # so use the C compiler's -n32 option if that helps.
+     AC_LANG_CONFTEST([AC_LANG_PROGRAM([_AC_SYS_LARGEFILE_TEST_INCLUDES])])
+     AC_COMPILE_IFELSE([], [break])
+     CC="$CC -n32"
+     AC_COMPILE_IFELSE([], [ac_cv_sys_largefile_CC=' -n32'; break])
+     break
+       done
+       CC=$ac_save_CC
+       rm -f conftest.$ac_ext
+    fi])
+  if test "$ac_cv_sys_largefile_CC" != no; then
+    CC=$CC$ac_cv_sys_largefile_CC
+  fi
+
+  dnl Use the macro _AC_SYS_LARGEFILE_MACRO_VALUE to test defines
+  dnl that might need to be set for largefile support to behave 
+  dnl correctly. This macro is defined in acsite.m4 and overrides
+  dnl the version provided by Autoconf (as of v2.65). The custom
+  dnl macro additionally adds the appropriate defines to AM_CPPFLAGS 
+  dnl so that later configure checks have them visible. 
+
+  dnl Check for _FILE_OFFSET_BITS
+  _AC_SYS_LARGEFILE_MACRO_VALUE(_FILE_OFFSET_BITS, 64,
+    ac_cv_sys_file_offset_bits,
+    [Number of bits in a file offset, on hosts where this is settable.],
+    [_AC_SYS_LARGEFILE_TEST_INCLUDES])
+
+  dnl Check for _LARGE_FILES
+  if test $ac_cv_sys_file_offset_bits = unknown; then
+    _AC_SYS_LARGEFILE_MACRO_VALUE(_LARGE_FILES, 1,
+      ac_cv_sys_large_files,
+      [Define for large files, on AIX-style hosts.],
+      [_AC_SYS_LARGEFILE_TEST_INCLUDES])
+  fi
+
+  dnl Now actually test to see if we can create large files after we've
+  dnl checked for any needed defines.
+  AC_MSG_CHECKING([if large (64-bit) files are supported on this system.])
+  AC_CACHE_VAL([hdf5_cv_have_lfs],
+    [AC_TRY_RUN([
+      #include <stdio.h>
+      #include <unistd.h>
+      #include <stdlib.h>
+      #include <fcntl.h>
+      #define BIG_FILE (off_t)0x80000000UL 
+      int main(void) {
+        int fd;
+        if ((fd=open("test.conf", O_RDWR|O_TRUNC|O_CREAT, 0666)) < 0) exit(1);
+        if (lseek(fd, BIG_FILE, SEEK_SET)!=BIG_FILE) exit(1);
+        if (5!=write(fd, "hello", (size_t)5)) exit(1);
+        if (lseek(fd, 2*BIG_FILE, SEEK_SET) != 2*BIG_FILE) exit(1);
+        if (5!=write(fd, "hello", (size_t)5)) exit(1);
+        if (unlink("test.conf") < 0) exit(1);
+        exit(0);
+      }
+    ],[hdf5_cv_have_lfs=yes],[hdf5_cv_have_lfs=no],)])
+
+  if test "X${hdf5_cv_have_lfs}" = "Xyes"; then
+    AC_MSG_RESULT([yes])
+    LARGEFILE="yes"
+  fi 
+  if test "X${hdf5_cv_have_lfs}" = "Xno"; then
+    AC_MSG_RESULT([no])
+    LARGEFILE="no"
+  fi 
+
+else
+  LARGEFILE="no"
+  AC_MSG_RESULT(no)
+fi
+
+dnl ----------------------------------------------------------------------
+dnl Add necessary defines for Linux Systems.
 dnl
 case "$host_cpu-$host_vendor-$host_os" in
   *linux*)
-    dnl ----------------------------------------------------------------------
-    dnl Enable large file support on linux? Store the result in the LINUX_LFS
-    dnl variable for posterity
-    AC_ARG_ENABLE([linux-lfs],
-                  [AC_HELP_STRING([--enable-linux-lfs],
-                                  [Enable support for large (64-bit)
-                                   files on Linux. [default=check]])])
-
-    LINUX_LFS="no"
-    case "X-$enable_linux_lfs" in
-      X-yes)
-        LINUX_LFS=yes
-        ;;
-      X-no)
-        ;;
-      X-|*)
-        MAJOR_VER="`uname -r | cut -d '.' -f1`"
-        MINOR_VER="`uname -r | cut -d '.' -f2`"
-
-        if test ${MAJOR_VER} -gt 2 -o ${MAJOR_VER} -eq 2 -a ${MINOR_VER} -ge 4; then
-          LINUX_LFS="yes"
-        fi
-        ;;
-    esac
-
-    AC_MSG_CHECKING([for large file support mode on Linux])
-    if test "X$LINUX_LFS" = "Xyes"; then
-      AC_MSG_RESULT([enabled])
-      AM_CPPFLAGS="-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE $AM_CPPFLAGS"
-    else
-      AC_MSG_RESULT([disabled])
+    dnl If largefile support is enabled, then make available various
+    dnl LFS-related routines using the following _LARGEFILE*_SOURCE macros.
+    if test "X$LARGEFILE" != "Xno"; then
+        AM_CPPFLAGS="-D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE $AM_CPPFLAGS"
     fi
 
     dnl Add POSIX support on Linux systems, so <features.h> defines
@@ -1333,6 +1427,7 @@ dnl
 AC_TYPE_OFF_T
 AC_CHECK_TYPE([size_t], [unsigned long])
 AC_CHECK_TYPE([ssize_t], [long])
+AC_CHECK_TYPE([ptrdiff_t], [long])
 AC_C_BIGENDIAN
 AC_CHECK_SIZEOF([char], [1])
 AC_CHECK_SIZEOF([short], [2])
@@ -1389,6 +1484,7 @@ AC_CHECK_SIZEOF( uint_fast64_t, [8])
 
 AC_CHECK_SIZEOF([size_t], [4])
 AC_CHECK_SIZEOF([ssize_t], [4])
+AC_CHECK_SIZEOF([ptrdiff_t], [4])
 
 cat >>confdefs.h <<\EOF
 #include <sys/types.h> /*for off_t definition*/
@@ -1879,6 +1975,7 @@ AC_MSG_RESULT([no]))
 dnl Check whether the global variable `timezone' is defined.
 AC_MSG_CHECKING([for global timezone variable])
 
+
 case "`uname`" in
   CYGWIN*)
     AC_MSG_RESULT([disabled in CYGWIN])
@@ -1985,13 +2082,13 @@ AC_MSG_RESULT([no]))
 
 dnl ----------------------------------------------------------------------
 dnl Check for functions.
-dnl tmpfile needed by h5pdiff.
 dnl
-AC_CHECK_FUNCS(alarm fork frexpf frexpl gethostname getpwuid getrusage)
-AC_CHECK_FUNCS(BSDgettimeofday siglongjmp longjmp setsysinfo sigaction)
-AC_CHECK_FUNCS(signal snprintf vasprintf strdup system waitpid)
-AC_CHECK_FUNCS(rand_r random srandom)
-AC_CHECK_FUNCS(tmpfile)
+AC_CHECK_FUNCS(alarm BSDgettimeofday fork frexpf frexpl)
+AC_CHECK_FUNCS(gethostname getpwuid getrusage lstat)
+AC_CHECK_FUNCS(rand_r random setsysinfo)
+AC_CHECK_FUNCS(signal longjmp setjmp siglongjmp sigsetjmp sigprocmask)
+AC_CHECK_FUNCS(snprintf srandom strdup symlink system)
+AC_CHECK_FUNCS(tmpfile vasprintf waitpid)
 
 dnl Check for vsnprintf() separately, so we can detect situations where it
 dnl doesn't return the correct size for formatted strings that are too large
@@ -3414,6 +3511,9 @@ if test ${ac_cv_sizeof_long_double} = 0; then
 else
    AC_CACHE_VAL([hdf5_cv_ullong_to_ldouble_precision],
         [AC_TRY_RUN([
+        #include <stdlib.h>
+        #include <string.h>
+
         int main(void)
         {
             /* General variables */
@@ -3728,8 +3828,46 @@ else
     fi
   done
 fi
-if test -n "$cc_vendor" && test -n "$cc_version"; then
-  CC_VERSION="$CC_VERSION ($cc_vendor-$cc_version)"
+if test -n "$cc_version_info"; then
+  CC_VERSION="$CC_VERSION ( $cc_version_info)"
+fi
+
+AC_SUBST([FC_VERSION])
+dnl Strip anything that looks like a flag off of $CC
+FC_NOFLAGS=`echo $FC | sed 's/ -.*//'`
+
+if `echo $FC_NOFLAGS | grep ^/ >/dev/null 2>&1`; then
+  FC_VERSION="$FC"
+else
+  FC_VERSION="$FC";
+  for x in `echo $PATH | sed -e 's/:/ /g'`; do
+    if test -x $x/$FC_NOFLAGS; then
+      FC_VERSION="$x/$FC"
+      break
+    fi
+  done
+fi
+if test -n "$fc_version_info"; then
+  FC_VERSION="$FC_VERSION ( $fc_version_info)"
+fi
+
+AC_SUBST([CXX_VERSION])
+dnl Strip anything that looks like a flag off of $CC
+CXX_NOFLAGS=`echo $CXX | sed 's/ -.*//'`
+
+if `echo $CXX_NOFLAGS | grep ^/ >/dev/null 2>&1`; then
+  CXX_VERSION="$CXX"
+else
+  CXX_VERSION="$FC";
+  for x in `echo $PATH | sed -e 's/:/ /g'`; do
+    if test -x $x/$CXX_NOFLAGS; then
+      CXX_VERSION="$x/$CXX"
+      break
+    fi
+  done
+fi
+if test -n "$cxx_version_info"; then
+  CXX_VERSION="$CXX_VERSION ( $cxx_version_info)"
 fi
 
 dnl ----------------------------------------------------------------------
@@ -3942,6 +4080,26 @@ AC_ARG_ENABLE([embedded-libinfo],
 
 
 dnl ----------------------------------------------------------------------
+dnl Enable h5dump packed bits feature
+dnl
+AC_MSG_CHECKING([Whether to enable the h5dump packed bits feature])
+AC_ARG_ENABLE([h5dump-packed-bits],
+    [AC_HELP_STRING([--enable-h5dump-packed-bits],
+	[Enable h5dump packed bits feature [default=yes]])],
+	[enable_h5dump_packed_bits=$enableval],
+	[enable_h5dump_packed_bits=yes])
+
+   if test "${enable_h5dump_packed_bits}" = "yes"; then
+      AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE_H5DUMP_PACKED_BITS], [1],
+                [Define if h5dump packed bits feature is enabled])
+   else
+      AC_MSG_RESULT([no])
+      PACKED_BITS=no
+    fi
+
+
+dnl ----------------------------------------------------------------------
 dnl Check if pointer alignments are enforced
 dnl
 AC_MSG_CHECKING([if alignment restrictions are strictly enforced])
@@ -4059,6 +4217,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  test/Makefile
                  test/testcheck_version.sh
                  test/testerror.sh
+                 test/H5srcdir_str.h
                  test/testlibinfo.sh
                  testpar/Makefile
                  testpar/testph5.sh
@@ -4083,12 +4242,15 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/h5stat/testh5stat.sh
                  tools/h5stat/Makefile
                  examples/Makefile
+                 examples/run-c-ex.sh
                  examples/testh5cc.sh
                  c++/Makefile
                  c++/src/Makefile
                  c++/src/h5c++
                  c++/test/Makefile
+                 c++/test/H5srcdir_str.h
                  c++/examples/Makefile
+                 c++/examples/run-c++-ex.sh
                  c++/examples/testh5c++.sh
                  fortran/Makefile
                  fortran/src/h5fc
@@ -4096,21 +4258,26 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  fortran/test/Makefile
                  fortran/testpar/Makefile
                  fortran/examples/Makefile
+                 fortran/examples/run-fortran-ex.sh
                  fortran/examples/testh5fc.sh
                  hl/Makefile
                  hl/src/Makefile
                  hl/test/Makefile
+                 hl/test/H5srcdir_str.h
                  hl/tools/Makefile
                  hl/tools/gif2h5/Makefile
                  hl/examples/Makefile
+                 hl/examples/run-hlc-ex.sh
                  hl/c++/Makefile
                  hl/c++/src/Makefile
                  hl/c++/test/Makefile
                  hl/c++/examples/Makefile
+                 hl/c++/examples/run-hlc++-ex.sh
                  hl/fortran/Makefile
                  hl/fortran/src/Makefile
                  hl/fortran/test/Makefile
-                 hl/fortran/examples/Makefile])
+                 hl/fortran/examples/Makefile
+                 hl/fortran/examples/run-hlfortran-ex.sh])
 
 AC_OUTPUT
 no_create=$saved_no_create

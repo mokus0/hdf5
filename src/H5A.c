@@ -29,11 +29,11 @@
 /***********/
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Apkg.h"		/* Attributes				*/
-#include "H5Opkg.h"		/* Object headers			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5FLprivate.h"	/* Free Lists				*/
 #include "H5Iprivate.h"		/* IDs			  		*/
 #include "H5MMprivate.h"	/* Memory management			*/
+#include "H5Opkg.h"		/* Object headers			*/
 #include "H5Sprivate.h"		/* Dataspace functions			*/
 #include "H5SMprivate.h"	/* Shared Object Header Messages	*/
 
@@ -1034,9 +1034,9 @@ done:
     if(dst_id >= 0)
         (void)H5I_dec_ref(dst_id, FALSE);
     if(tconv_buf && !tconv_owned)
-        (void)H5FL_BLK_FREE(attr_buf, tconv_buf);
+        tconv_buf = H5FL_BLK_FREE(attr_buf, tconv_buf);
     if(bkg_buf)
-        (void)H5FL_BLK_FREE(attr_buf, bkg_buf);
+        bkg_buf = H5FL_BLK_FREE(attr_buf, bkg_buf);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5A_write() */
@@ -1180,9 +1180,9 @@ done:
     if(dst_id >= 0)
         (void)H5I_dec_ref(dst_id, FALSE);
     if(tconv_buf)
-        (void)H5FL_BLK_FREE(attr_buf, tconv_buf);
+        tconv_buf = H5FL_BLK_FREE(attr_buf, tconv_buf);
     if(bkg_buf)
-	(void)H5FL_BLK_FREE(attr_buf, bkg_buf);
+	bkg_buf = H5FL_BLK_FREE(attr_buf, bkg_buf);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5A_read() */
@@ -2442,7 +2442,7 @@ H5A_close(H5A_t *attr)
         HGOTO_ERROR(H5E_ATTR, H5E_CANTRELEASE, FAIL, "can't release group hier. path")
 
     attr->shared = NULL;
-    (void)H5FL_FREE(H5A_t, attr);
+    attr = H5FL_FREE(H5A_t, attr);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)

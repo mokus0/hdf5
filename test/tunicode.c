@@ -779,13 +779,12 @@ void dump_string(const char * string)
   unsigned int length;
   unsigned int x;
 
-  printf("The string was:\n");
-  printf(string);
+  printf("The string was:\n %s", string);
   printf("Or in hex:\n");
 
   length = strlen(string);
 
-    for(x=0; x<length; x++)
+  for(x=0; x<length; x++)
     printf("%x ", string[x] & (0x000000FF));
 
   printf("\n");
@@ -808,7 +807,7 @@ void test_unicode(void)
   MESSAGE(5, ("Testing UTF-8 Encoding\n"));
 
   /* Create a random string with length NUM_CHARS */
-  HDsrandom((unsigned long)HDtime(NULL));
+  HDsrandom((unsigned)HDtime(NULL));
 
   HDmemset(test_string, 0, sizeof(test_string));
   for(x=0; x<NUM_CHARS; x++)

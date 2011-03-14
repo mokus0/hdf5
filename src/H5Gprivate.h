@@ -141,6 +141,11 @@ typedef struct {
     H5G_name_t *path;                   /* Group hierarchy path              */
 } H5G_loc_t;
 
+/* Callback information for copying groups */
+typedef struct H5G_copy_file_ud_t {
+    H5O_copy_file_ud_common_t common;   /* Shared information (must be first) */
+} H5G_copy_file_ud_t;
+
 typedef struct H5G_t H5G_t;
 typedef struct H5G_shared_t H5G_shared_t;
 typedef struct H5G_entry_t H5G_entry_t;
@@ -179,9 +184,8 @@ H5_DLL herr_t H5G_node_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream
 /*
  * These functions operate on group object locations.
  */
-H5_DLL herr_t H5G_ent_encode(const H5F_t *f, uint8_t **pp,
-    const H5G_entry_t *ent);
-H5_DLL herr_t H5G_ent_decode(H5F_t *f, const uint8_t **pp, H5G_entry_t *ent/*out*/);
+H5_DLL herr_t H5G_ent_encode(const H5F_t *f, uint8_t **pp, const H5G_entry_t *ent);
+H5_DLL herr_t H5G_ent_decode(const H5F_t *f, const uint8_t **pp, H5G_entry_t *ent);
 
 /*
  * These functions operate on group hierarchy names.
@@ -206,6 +210,8 @@ H5_DLL herr_t H5G_loc_find(const H5G_loc_t *loc, const char *name,
 H5_DLL herr_t H5G_loc_find_by_idx(H5G_loc_t *loc, const char *group_name,
     H5_index_t idx_type, H5_iter_order_t order, hsize_t n,
     H5G_loc_t *obj_loc/*out*/, hid_t lapl_id, hid_t dxpl_id);
+H5_DLL htri_t H5G_loc_exists(const H5G_loc_t *loc, const char *name,
+    hid_t lapl_id, hid_t dxpl_id);
 H5_DLL herr_t H5G_loc_info(H5G_loc_t *loc, const char *name,
     hbool_t want_ih_info, H5O_info_t *oinfo/*out*/, hid_t lapl_id,
     hid_t dxpl_id);

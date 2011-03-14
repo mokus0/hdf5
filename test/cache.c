@@ -19,6 +19,7 @@
  *		This file contains tests for the cache implemented in
  *		H5C.c
  */
+#include "H5private.h"          /* Put this first, so H5open() isn't invoked in public macros */
 #include "h5test.h"
 #include "H5Iprivate.h"
 #include "H5ACprivate.h"
@@ -40,20 +41,20 @@ static unsigned smoke_check_10(void);
 static unsigned write_permitted_check(void);
 static unsigned check_insert_entry(void);
 static unsigned check_flush_cache(void);
-static void check_flush_cache__empty_cache(H5C_t * cache_ptr);
-static void check_flush_cache__multi_entry(H5C_t * cache_ptr);
-static void check_flush_cache__multi_entry_test(H5C_t * cache_ptr,
+static void check_flush_cache__empty_cache(H5F_t * file_ptr);
+static void check_flush_cache__multi_entry(H5F_t * file_ptr);
+static void check_flush_cache__multi_entry_test(H5F_t * file_ptr,
                                           int test_num,
                                           unsigned int flush_flags,
                                           int spec_size,
                                           struct flush_cache_test_spec spec[]);
-static void check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
+static void check_flush_cache__pe_multi_entry_test(H5F_t * file_ptr,
                                         int test_num,
                                         unsigned int flush_flags,
                                         int spec_size,
                                         struct pe_flush_cache_test_spec spec[]);
-static void check_flush_cache__single_entry(H5C_t * cache_ptr);
-static void check_flush_cache__single_entry_test(H5C_t * cache_ptr,
+static void check_flush_cache__single_entry(H5F_t * file_ptr);
+static void check_flush_cache__single_entry_test(H5F_t * file_ptr,
                                                  int test_num,
                                                  int entry_type,
                                                  int entry_idx,
@@ -65,7 +66,7 @@ static void check_flush_cache__single_entry_test(H5C_t * cache_ptr,
                                                  hbool_t expected_cleared,
                                                  hbool_t expected_flushed,
                                                  hbool_t expected_destroyed);
-static void check_flush_cache__pinned_single_entry_test(H5C_t * cache_ptr,
+static void check_flush_cache__pinned_single_entry_test(H5F_t * file_ptr,
                                                  int test_num,
                                                  int entry_type,
                                                  int entry_idx,
@@ -79,8 +80,8 @@ static void check_flush_cache__pinned_single_entry_test(H5C_t * cache_ptr,
                                                  hbool_t expected_cleared,
                                                  hbool_t expected_flushed,
                                                  hbool_t expected_destroyed);
-static void check_flush_cache__flush_ops(H5C_t * cache_ptr);
-static void check_flush_cache__flush_op_test(H5C_t * cache_ptr,
+static void check_flush_cache__flush_ops(H5F_t * file_ptr);
+static void check_flush_cache__flush_op_test(H5F_t * file_ptr,
                                         int test_num,
                                         unsigned int flush_flags,
                                         int spec_size,
@@ -91,21 +92,21 @@ static void check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 				        size_t expected_index_size,
 					int check_size,
                                         struct fo_flush_entry_check check[]);
-static void check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr);
+static void check_flush_cache__flush_op_eviction_test(H5F_t * file_ptr);
 static unsigned check_flush_protected_err(void);
 static unsigned check_get_entry_status(void);
 static unsigned check_expunge_entry(void);
 static unsigned check_multiple_read_protect(void);
-static unsigned check_rename_entry(void);
-static void check_rename_entry__run_test(H5C_t * cache_ptr, int test_num,
-                                      struct rename_entry_test_spec * spec_ptr);
+static unsigned check_move_entry(void);
+static void check_move_entry__run_test(H5F_t * file_ptr, int test_num,
+                                      struct move_entry_test_spec * spec_ptr);
 static unsigned check_pin_protected_entry(void);
 static unsigned check_resize_entry(void);
 static unsigned check_evictions_enabled(void);
 static unsigned check_destroy_pinned_err(void);
 static unsigned check_destroy_protected_err(void);
 static unsigned check_duplicate_insert_err(void);
-static unsigned check_rename_err(void);
+static unsigned check_move_err(void);
 static unsigned check_double_pin_err(void);
 static unsigned check_double_unpin_err(void);
 static unsigned check_pin_entry_errs(void);
@@ -134,7 +135,7 @@ static unsigned check_metadata_blizzard_absence(hbool_t fill_via_insertion);
 /*-------------------------------------------------------------------------
  * Function:	smoke_check_1()
  *
- * Purpose:	A basic functional test, inserts, destroys, and renames in
+ * Purpose:	A basic functional test, inserts, destroys, and moves in
  *              the mix, along with repeated protects and unprotects.
  *		All entries are marked as clean.
  *
@@ -163,7 +164,7 @@ smoke_check_1(void)
     hbool_t display_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("smoke check #1 -- all clean, ins, dest, ren, 4/2 MB cache");
 
@@ -185,14 +186,14 @@ smoke_check_1(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(4 * 1024 * 1024),
+    file_ptr = setup_cache((size_t)(4 * 1024 * 1024),
                             (size_t)(2 * 1024 * 1024));
 
     if ( show_progress ) /* 3 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -200,8 +201,8 @@ smoke_check_1(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -211,7 +212,7 @@ smoke_check_1(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -219,8 +220,8 @@ smoke_check_1(void)
                             /* display_detailed_stats */ TRUE,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ dirty_inserts,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ dirty_destroys,
@@ -230,7 +231,7 @@ smoke_check_1(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -238,8 +239,8 @@ smoke_check_1(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -251,7 +252,7 @@ smoke_check_1(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr            */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -260,7 +261,7 @@ smoke_check_1(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -276,7 +277,7 @@ smoke_check_1(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr            */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -285,7 +286,7 @@ smoke_check_1(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -299,7 +300,7 @@ smoke_check_1(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -325,7 +326,7 @@ smoke_check_1(void)
  * Function:	smoke_check_2()
  *
  * Purpose:	A basic functional test, with inserts, destroys, and
- *		renames in the mix, along with some repeated protects
+ *		moves in the mix, along with some repeated protects
  *		and unprotects.  About half the entries are marked as
  *		dirty.
  *
@@ -354,7 +355,7 @@ smoke_check_2(void)
     hbool_t display_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("smoke check #2 -- ~1/2 dirty, ins, dest, ren, 4/2 MB cache");
 
@@ -376,14 +377,14 @@ smoke_check_2(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(4 * 1024 * 1024),
+    file_ptr = setup_cache((size_t)(4 * 1024 * 1024),
                             (size_t)(2 * 1024 * 1024));
 
     if ( show_progress ) /* 3 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -391,8 +392,8 @@ smoke_check_2(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -402,7 +403,7 @@ smoke_check_2(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -410,8 +411,8 @@ smoke_check_2(void)
                             /* display_detailed_stats */ TRUE,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ dirty_inserts,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ dirty_destroys,
@@ -421,7 +422,7 @@ smoke_check_2(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -429,8 +430,8 @@ smoke_check_2(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -442,7 +443,7 @@ smoke_check_2(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -451,7 +452,7 @@ smoke_check_2(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -467,7 +468,7 @@ smoke_check_2(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr            */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -476,7 +477,7 @@ smoke_check_2(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -490,7 +491,7 @@ smoke_check_2(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -516,7 +517,7 @@ smoke_check_2(void)
  * Function:	smoke_check_3()
  *
  * Purpose:	A basic functional test on a tiny cache, with inserts,
- *		destroys, and renames in the mix, along with repeated
+ *		destroys, and moves in the mix, along with repeated
  *		protects and unprotects.  All entries are marked as clean.
  *
  * Return:	void
@@ -544,7 +545,7 @@ smoke_check_3(void)
     hbool_t display_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("smoke check #3 -- all clean, ins, dest, ren, 2/1 KB cache");
 
@@ -566,14 +567,14 @@ smoke_check_3(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(2 * 1024),
+    file_ptr = setup_cache((size_t)(2 * 1024),
                             (size_t)(1 * 1024));
 
     if ( show_progress ) /* 3 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -581,8 +582,8 @@ smoke_check_3(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -592,7 +593,7 @@ smoke_check_3(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -600,8 +601,8 @@ smoke_check_3(void)
                             /* display_detailed_stats */ TRUE,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ dirty_inserts,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ dirty_destroys,
@@ -611,7 +612,7 @@ smoke_check_3(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -619,8 +620,8 @@ smoke_check_3(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -632,7 +633,7 @@ smoke_check_3(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -641,7 +642,7 @@ smoke_check_3(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -657,7 +658,7 @@ smoke_check_3(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -666,7 +667,7 @@ smoke_check_3(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -680,7 +681,7 @@ smoke_check_3(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -706,7 +707,7 @@ smoke_check_3(void)
  * Function:	smoke_check_4()
  *
  * Purpose:	A basic functional test on a tiny cache, with inserts,
- *	 	destroys, and renames in the mix, along with repeated
+ *	 	destroys, and moves in the mix, along with repeated
  *		protects and unprotects.  About half the entries are
  *		marked as dirty.
  *
@@ -735,7 +736,7 @@ smoke_check_4(void)
     hbool_t display_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("smoke check #4 -- ~1/2 dirty, ins, dest, ren, 2/1 KB cache");
 
@@ -757,14 +758,14 @@ smoke_check_4(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(2 * 1024),
+    file_ptr = setup_cache((size_t)(2 * 1024),
                             (size_t)(1 * 1024));
 
     if ( show_progress ) /* 3 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -772,8 +773,8 @@ smoke_check_4(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -783,7 +784,7 @@ smoke_check_4(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -791,8 +792,8 @@ smoke_check_4(void)
                             /* display_detailed_stats */ TRUE,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ dirty_inserts,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ dirty_destroys,
@@ -802,7 +803,7 @@ smoke_check_4(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -810,8 +811,8 @@ smoke_check_4(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -823,7 +824,7 @@ smoke_check_4(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -832,7 +833,7 @@ smoke_check_4(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -848,7 +849,7 @@ smoke_check_4(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -857,7 +858,7 @@ smoke_check_4(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -871,7 +872,7 @@ smoke_check_4(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -926,6 +927,7 @@ smoke_check_5(void)
     hbool_t display_stats = FALSE;
     int32_t max_index = 1024;
     int mile_stone = 1;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -957,8 +959,8 @@ smoke_check_5(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__threshold,
@@ -1004,8 +1006,9 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(2 * 1024),
+    file_ptr = setup_cache((size_t)(2 * 1024),
                             (size_t)(1 * 1024));
+    cache_ptr = file_ptr->shared->cache;
 
     if ( pass ) {
 
@@ -1022,7 +1025,7 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1035,7 +1038,7 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1048,7 +1051,7 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1063,7 +1066,7 @@ smoke_check_5(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1072,7 +1075,7 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1088,7 +1091,7 @@ smoke_check_5(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1097,7 +1100,7 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1111,7 +1114,7 @@ smoke_check_5(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -1166,6 +1169,7 @@ smoke_check_6(void)
     hbool_t display_stats = FALSE;
     int mile_stone = 1;
     int32_t max_index = 1024;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -1197,8 +1201,8 @@ smoke_check_6(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__threshold,
@@ -1241,8 +1245,9 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(2 * 1024),
+    file_ptr = setup_cache((size_t)(2 * 1024),
                             (size_t)(1 * 1024));
+    cache_ptr = file_ptr->shared->cache;
 
     if ( pass ) {
 
@@ -1259,7 +1264,7 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1272,7 +1277,7 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1285,7 +1290,7 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1300,7 +1305,7 @@ smoke_check_6(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1309,7 +1314,7 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1325,7 +1330,7 @@ smoke_check_6(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1334,7 +1339,7 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1348,7 +1353,7 @@ smoke_check_6(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -1403,6 +1408,7 @@ smoke_check_7(void)
     hbool_t display_stats = FALSE;
     int mile_stone = 1;
     int32_t max_index = 1024;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -1434,8 +1440,8 @@ smoke_check_7(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */
@@ -1479,8 +1485,9 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(2 * 1024),
+    file_ptr = setup_cache((size_t)(2 * 1024),
                             (size_t)(1 * 1024));
+    cache_ptr = file_ptr->shared->cache;
 
     if ( pass ) {
 
@@ -1497,7 +1504,7 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1510,7 +1517,7 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1523,7 +1530,7 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1538,7 +1545,7 @@ smoke_check_7(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1547,7 +1554,7 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1563,7 +1570,7 @@ smoke_check_7(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1572,7 +1579,7 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1586,7 +1593,7 @@ smoke_check_7(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -1641,6 +1648,7 @@ smoke_check_8(void)
     hbool_t display_stats = FALSE;
     int mile_stone = 1;
     int32_t max_index = 1024;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -1672,8 +1680,8 @@ smoke_check_8(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */
@@ -1717,8 +1725,8 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(2 * 1024),
-                            (size_t)(1 * 1024));
+    file_ptr = setup_cache((size_t)(2 * 1024), (size_t)(1 * 1024));
+    cache_ptr = file_ptr->shared->cache;
 
     if ( pass ) {
 
@@ -1735,7 +1743,7 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1748,7 +1756,7 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1761,7 +1769,7 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_row_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1776,7 +1784,7 @@ smoke_check_8(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1785,7 +1793,7 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_forward(/* file_ptr              */ file_ptr,
                               /* max_index              */ max_index,
                               /* verbose                */ FALSE,
                               /* reset_stats            */ TRUE,
@@ -1801,7 +1809,7 @@ smoke_check_8(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -1810,7 +1818,7 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    hl_col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    hl_col_major_scan_backward(/* file_ptr              */ file_ptr,
                                /* max_index              */ max_index,
                                /* verbose                */ FALSE,
                                /* reset_stats            */ TRUE,
@@ -1824,7 +1832,7 @@ smoke_check_8(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 11 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -1853,7 +1861,7 @@ smoke_check_8(void)
  * 		part of the time.
  *
  * 		Recall that smoke check 1 is a basic functional test,
- * 		with inserts, destroys, and renames in the mix, along
+ * 		with inserts, destroys, and moves in the mix, along
  * 		with repeated protects and unprotects.  All entries are
  * 		marked as clean.
  *
@@ -1882,6 +1890,7 @@ smoke_check_9(void)
     hbool_t display_detailed_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
 
     TESTING("smoke check #9 -- all clean, ins, dest, ren, 4/2 MB, corked");
@@ -1904,8 +1913,9 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(4 * 1024 * 1024),
+    file_ptr = setup_cache((size_t)(4 * 1024 * 1024),
                             (size_t)(2 * 1024 * 1024));
+    cache_ptr = file_ptr->shared->cache;
 
     /* disable evictions */
 
@@ -1928,7 +1938,7 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions disabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -1936,8 +1946,8 @@ smoke_check_9(void)
                            /* display_detailed_stats */ display_detailed_stats,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -1964,7 +1974,7 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions enabled \n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -1972,8 +1982,8 @@ smoke_check_9(void)
                             /* display_detailed_stats */ display_detailed_stats,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ dirty_inserts,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ dirty_destroys,
@@ -1998,7 +2008,7 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions disabled \n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2006,8 +2016,8 @@ smoke_check_9(void)
                            /* display_detailed_stats */ display_detailed_stats,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -2034,7 +2044,7 @@ smoke_check_9(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -2058,7 +2068,7 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions disabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2074,7 +2084,7 @@ smoke_check_9(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -2098,7 +2108,7 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions enabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -2128,7 +2138,7 @@ smoke_check_9(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions disabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 18 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -2157,7 +2167,7 @@ smoke_check_9(void)
  * 		part of the time.
  *
  * 		Recall that smoke check 2 is a basic functional test,
- * 		with inserts, destroys, and renames in the mix, along
+ * 		with inserts, destroys, and moves in the mix, along
  * 		with some repeated protects and unprotects.  About half
  * 		the entries are marked as dirty.
  *
@@ -2186,6 +2196,7 @@ smoke_check_10(void)
     hbool_t display_detailed_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
 
     TESTING("smoke check #10 -- ~1/2 dirty, ins, dest, ren, 4/2 MB, corked");
@@ -2208,14 +2219,15 @@ smoke_check_10(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(4 * 1024 * 1024),
+    file_ptr = setup_cache((size_t)(4 * 1024 * 1024),
                             (size_t)(2 * 1024 * 1024));
+    cache_ptr = file_ptr->shared->cache;
 
     if ( show_progress ) /* 3 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions enabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2223,8 +2235,8 @@ smoke_check_10(void)
                            /* display_detailed_stats */ display_detailed_stats,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -2249,7 +2261,7 @@ smoke_check_10(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions disabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -2257,8 +2269,8 @@ smoke_check_10(void)
                             /* display_detailed_stats */ display_detailed_stats,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ dirty_inserts,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ dirty_destroys,
@@ -2283,7 +2295,7 @@ smoke_check_10(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions enabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2291,8 +2303,8 @@ smoke_check_10(void)
                            /* display_detailed_stats */ display_detailed_stats,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ dirty_inserts,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ dirty_destroys,
@@ -2319,7 +2331,7 @@ smoke_check_10(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -2343,7 +2355,7 @@ smoke_check_10(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions enabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2374,7 +2386,7 @@ smoke_check_10(void)
 
     /* flush all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ FALSE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -2398,7 +2410,7 @@ smoke_check_10(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions enabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -2427,7 +2439,7 @@ smoke_check_10(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d -- evictions disabled\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 18 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -2479,7 +2491,7 @@ write_permitted_check(void)
     hbool_t display_stats = FALSE;
     int32_t lag = 10;
     int mile_stone = 1;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
 #endif /* H5C_MAINTAIN_CLEAN_AND_DIRTY_LRU_LISTS */
 
@@ -2499,14 +2511,14 @@ write_permitted_check(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    cache_ptr = setup_cache((size_t)(1 * 1024 * 1024),
+    file_ptr = setup_cache((size_t)(1 * 1024 * 1024),
                             (size_t)(0));
 
     if ( show_progress ) /* 3 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2514,8 +2526,8 @@ write_permitted_check(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ TRUE,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ TRUE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ TRUE,
@@ -2527,7 +2539,7 @@ write_permitted_check(void)
 
     write_permitted = FALSE;
 
-    row_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -2535,8 +2547,8 @@ write_permitted_check(void)
                             /* display_detailed_stats */ TRUE,
                             /* do_inserts             */ FALSE,
                             /* dirty_inserts          */ FALSE,
-                            /* do_renames             */ TRUE,
-                            /* rename_to_main_addr    */ TRUE,
+                            /* do_moves             */ TRUE,
+                            /* move_to_main_addr    */ TRUE,
                             /* do_destroys            */ FALSE,
 			    /* do_mult_ro_protects    */ TRUE,
                             /* dirty_destroys         */ FALSE,
@@ -2548,7 +2560,7 @@ write_permitted_check(void)
 
     write_permitted = TRUE;
 
-    row_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    row_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2556,8 +2568,8 @@ write_permitted_check(void)
                            /* display_detailed_stats */ TRUE,
                            /* do_inserts             */ TRUE,
                            /* dirty_inserts          */ TRUE,
-                           /* do_renames             */ TRUE,
-                           /* rename_to_main_addr    */ FALSE,
+                           /* do_moves             */ TRUE,
+                           /* move_to_main_addr    */ FALSE,
                            /* do_destroys            */ FALSE,
 			   /* do_mult_ro_protects    */ TRUE,
                            /* dirty_destroys         */ TRUE,
@@ -2569,7 +2581,7 @@ write_permitted_check(void)
 
     /* flush and destroy all entries in the cache: */
 
-    flush_cache(/* cache_ptr           */ cache_ptr,
+    flush_cache(/* file_ptr           */ file_ptr,
                 /* destroy_entries     */ TRUE,
                 /* dump_stats          */ FALSE,
                 /* dump_detailed_stats */ FALSE);
@@ -2578,7 +2590,7 @@ write_permitted_check(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    col_major_scan_forward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_forward(/* file_ptr              */ file_ptr,
                            /* lag                    */ lag,
                            /* verbose                */ FALSE,
                            /* reset_stats            */ TRUE,
@@ -2594,7 +2606,7 @@ write_permitted_check(void)
 
     write_permitted = FALSE;
 
-    col_major_scan_backward(/* cache_ptr              */ cache_ptr,
+    col_major_scan_backward(/* file_ptr              */ file_ptr,
                             /* lag                    */ lag,
                             /* verbose                */ FALSE,
                             /* reset_stats            */ TRUE,
@@ -2610,7 +2622,7 @@ write_permitted_check(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    takedown_cache(cache_ptr, display_stats, TRUE);
+    takedown_cache(file_ptr, display_stats, TRUE);
 
     if ( show_progress ) /* 10 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -2673,6 +2685,7 @@ check_insert_entry(void)
     hbool_t                    is_protected;
     hbool_t                    is_pinned;
     size_t                     entry_size;
+    H5F_t *                    file_ptr = NULL;
     H5C_t *                    cache_ptr = NULL;
     test_entry_t *             base_addr;
     test_entry_t *             entry_ptr;
@@ -2697,18 +2710,17 @@ check_insert_entry(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( pass ) {
 
-        insert_entry(cache_ptr, entry_type, 0, TRUE, H5C__NO_FLAGS_SET);
-        insert_entry(cache_ptr, entry_type, 1, TRUE,
-                     H5C__SET_FLUSH_MARKER_FLAG);
-        insert_entry(cache_ptr, entry_type, 2, TRUE, H5C__PIN_ENTRY_FLAG);
-        insert_entry(cache_ptr, entry_type, 3, TRUE,
-		     (H5C__SET_FLUSH_MARKER_FLAG | H5C__PIN_ENTRY_FLAG));
+        insert_entry(file_ptr, entry_type, 0, TRUE, H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, entry_type, 1, TRUE, H5C__SET_FLUSH_MARKER_FLAG);
+        insert_entry(file_ptr, entry_type, 2, TRUE, H5C__PIN_ENTRY_FLAG);
+        insert_entry(file_ptr, entry_type, 3, TRUE, (H5C__SET_FLUSH_MARKER_FLAG | H5C__PIN_ENTRY_FLAG));
     }
 
 
@@ -2722,14 +2734,14 @@ check_insert_entry(void)
 
 	/* Start by checking everything we can via H5C_get_entry_status() */
 
-	result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+	result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
 			              &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
         if ( result < 0 ) {
 
             pass = FALSE;
-            failure_mssg = "H5AC_get_entry_status() reports failure.";
+            failure_mssg = "H5C_get_entry_status() reports failure.";
         }
 
 	if ( pass ) {
@@ -2765,7 +2777,7 @@ check_insert_entry(void)
             }
 	}
 
-	/* Thats all we can get from H5AC_get_entry_status().
+	/* Thats all we can get from H5C_get_entry_status().
 	 * Now start looking at the cache data structures directly.
 	 */
 
@@ -2920,13 +2932,13 @@ check_insert_entry(void)
 
     if ( pass ) {
 
-        unpin_entry(cache_ptr, entry_type, 2);
-	unpin_entry(cache_ptr, entry_type, 3);
+        unpin_entry(entry_type, 2);
+	unpin_entry(entry_type, 3);
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -2963,7 +2975,7 @@ check_flush_cache(void)
 {
     const char * fcn_name = "check_flush_cache";
     hbool_t      show_progress = FALSE;
-    H5C_t *      cache_ptr = NULL;
+    H5F_t *      file_ptr = NULL;
 
     TESTING("H5C_flush_cache() functionality");
 
@@ -2983,7 +2995,7 @@ check_flush_cache(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
     }
 
@@ -2995,11 +3007,11 @@ check_flush_cache(void)
 
 	if ( show_progress ) {
 
-	    HDfprintf(stdout, "%s: calling check_flush_cache__empty_cache().\n", 
+	    HDfprintf(stdout, "%s: calling check_flush_cache__empty_cache().\n",
 		      fcn_name);
 	}
 
-        check_flush_cache__empty_cache(cache_ptr);
+        check_flush_cache__empty_cache(file_ptr);
     }
 
     /* now do a series of similar tests with a cache with a single entry.
@@ -3014,7 +3026,7 @@ check_flush_cache(void)
 		      fcn_name);
 	}
 
-        check_flush_cache__single_entry(cache_ptr);
+        check_flush_cache__single_entry(file_ptr);
     }
 
     if ( pass ) {
@@ -3025,7 +3037,7 @@ check_flush_cache(void)
 		      fcn_name);
 	}
 
-        check_flush_cache__multi_entry(cache_ptr);
+        check_flush_cache__multi_entry(file_ptr);
     }
 
     if ( pass ) {
@@ -3036,7 +3048,7 @@ check_flush_cache(void)
 		      fcn_name);
 	}
 
-	check_flush_cache__flush_ops(cache_ptr);
+	check_flush_cache__flush_ops(file_ptr);
     }
 
     if ( pass ) {
@@ -3047,7 +3059,7 @@ check_flush_cache(void)
 		      fcn_name);
 	}
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -3080,9 +3092,10 @@ check_flush_cache(void)
  */
 
 static void
-check_flush_cache__empty_cache(H5C_t * cache_ptr)
+check_flush_cache__empty_cache(H5F_t * file_ptr)
 {
     /* const char * fcn_name = "check_flush_cache__empty_cache"; */
+    H5C_t * cache_ptr = file_ptr->shared->cache;
     herr_t	 result;
 
     if ( cache_ptr == NULL ) {
@@ -3104,7 +3117,8 @@ check_flush_cache__empty_cache(H5C_t * cache_ptr)
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr, H5C__NO_FLAGS_SET);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                H5C__NO_FLAGS_SET);
 
         if ( result < 0 ) {
 
@@ -3115,7 +3129,7 @@ check_flush_cache__empty_cache(H5C_t * cache_ptr)
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
@@ -3127,7 +3141,7 @@ check_flush_cache__empty_cache(H5C_t * cache_ptr)
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_CLEAR_ONLY_FLAG);
 
         if ( result < 0 ) {
@@ -3140,7 +3154,7 @@ check_flush_cache__empty_cache(H5C_t * cache_ptr)
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_MARKED_ENTRIES_FLAG);
 
         if ( result < 0 ) {
@@ -3173,9 +3187,10 @@ check_flush_cache__empty_cache(H5C_t * cache_ptr)
  */
 
 static void
-check_flush_cache__multi_entry(H5C_t * cache_ptr)
+check_flush_cache__multi_entry(H5F_t * file_ptr)
 {
     /* const char * fcn_name = "check_flush_cache__multi_entry"; */
+    H5C_t *cache_ptr = file_ptr->shared->cache;
 
     if ( cache_ptr == NULL ) {
 
@@ -3294,7 +3309,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -3404,7 +3419,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -3514,7 +3529,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -3624,7 +3639,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -3735,7 +3750,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -3846,7 +3861,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -3957,7 +3972,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -4069,7 +4084,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -4183,7 +4198,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__multi_entry_test(file_ptr, test_num,
                                             flush_flags, spec_size, spec);
     }
 
@@ -4350,7 +4365,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__pe_multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__pe_multi_entry_test(file_ptr, test_num,
                                                flush_flags, spec_size, spec);
     }
 
@@ -4496,7 +4511,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__pe_multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__pe_multi_entry_test(file_ptr, test_num,
                                                flush_flags, spec_size, spec);
     }
 
@@ -4633,7 +4648,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__pe_multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__pe_multi_entry_test(file_ptr, test_num,
                                                flush_flags, spec_size, spec);
     }
 
@@ -4779,7 +4794,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__pe_multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__pe_multi_entry_test(file_ptr, test_num,
                                                flush_flags, spec_size, spec);
     }
 
@@ -4922,7 +4937,7 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
           }
         };
 
-        check_flush_cache__pe_multi_entry_test(cache_ptr, test_num,
+        check_flush_cache__pe_multi_entry_test(file_ptr, test_num,
                                                flush_flags, spec_size, spec);
     }
 
@@ -4947,13 +4962,14 @@ check_flush_cache__multi_entry(H5C_t * cache_ptr)
  */
 
 static void
-check_flush_cache__multi_entry_test(H5C_t * cache_ptr,
+check_flush_cache__multi_entry_test(H5F_t * file_ptr,
                                     int test_num,
                                     unsigned int flush_flags,
                                     int spec_size,
                                     struct flush_cache_test_spec spec[])
 {
     /* const char *   fcn_name = "check_flush_cache__multi_entry_test"; */
+    H5C_t * cache_ptr = file_ptr->shared->cache;
     static char    msg[128];
     herr_t	   result;
     int            i;
@@ -5018,14 +5034,14 @@ check_flush_cache__multi_entry_test(H5C_t * cache_ptr,
     {
         if ( spec[i].insert_flag ) {
 
-            insert_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index,
+            insert_entry(file_ptr, spec[i].entry_type, spec[i].entry_index,
                          spec[i].dirty_flag, spec[i].flags);
 
         } else {
 
-            protect_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index);
+            protect_entry(file_ptr, spec[i].entry_type, spec[i].entry_index);
 
-            unprotect_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index,
+            unprotect_entry(file_ptr, spec[i].entry_type, spec[i].entry_index,
                             (int)(spec[i].dirty_flag), spec[i].flags);
         }
 
@@ -5036,7 +5052,7 @@ check_flush_cache__multi_entry_test(H5C_t * cache_ptr,
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr, flush_flags);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT, flush_flags);
 
         if ( result < 0 ) {
 
@@ -5113,7 +5129,7 @@ check_flush_cache__multi_entry_test(H5C_t * cache_ptr,
     /* clean up the cache to prep for the next test */
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
@@ -5171,13 +5187,14 @@ check_flush_cache__multi_entry_test(H5C_t * cache_ptr,
  */
 
 static void
-check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
+check_flush_cache__pe_multi_entry_test(H5F_t * file_ptr,
                                        int test_num,
                                        unsigned int flush_flags,
                                        int spec_size,
                                        struct pe_flush_cache_test_spec spec[])
 {
     /* const char *   fcn_name = "check_flush_cache__pe_multi_entry_test"; */
+    H5C_t *cache_ptr = file_ptr->shared->cache;
     static char    msg[128];
     herr_t	   result;
     int            i;
@@ -5245,14 +5262,14 @@ check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
     {
         if ( spec[i].insert_flag ) {
 
-            insert_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index,
+            insert_entry(file_ptr, spec[i].entry_type, spec[i].entry_index,
                          spec[i].dirty_flag, spec[i].flags);
 
         } else {
 
-            protect_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index);
+            protect_entry(file_ptr, spec[i].entry_type, spec[i].entry_index);
 
-            unprotect_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index,
+            unprotect_entry(file_ptr, spec[i].entry_type, spec[i].entry_index,
                             (int)(spec[i].dirty_flag), spec[i].flags);
         }
 
@@ -5260,7 +5277,7 @@ check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
 
 	for ( j = 0; j < spec[i].num_pins; j++ )
 	{
-            create_pinned_entry_dependency(cache_ptr,
+            create_pinned_entry_dependency(file_ptr,
 		                           spec[i].entry_type,
 					   spec[i].entry_index,
 					   spec[i].pin_type[j],
@@ -5272,7 +5289,8 @@ check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr, flush_flags);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                flush_flags);
 
         if ( result < 0 ) {
 
@@ -5349,7 +5367,7 @@ check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
     /* clean up the cache to prep for the next test */
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
@@ -5398,7 +5416,7 @@ check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
  *
  * 		These are tests that test the cache's ability to handle
  * 		the case in which the flush callback dirties, resizes,
- * 		and/or renames entries.
+ * 		and/or moves entries.
  *
  * 		Do nothing if pass is FALSE on entry.
  *
@@ -5413,9 +5431,10 @@ check_flush_cache__pe_multi_entry_test(H5C_t * cache_ptr,
  */
 
 static void
-check_flush_cache__flush_ops(H5C_t * cache_ptr)
+check_flush_cache__flush_ops(H5F_t * file_ptr)
 {
     /* const char *   fcn_name = "check_flush_cache__flush_ops"; */
+    H5C_t *cache_ptr = file_ptr->shared->cache;
 
     if ( cache_ptr == NULL ) {
 
@@ -5521,7 +5540,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -5629,7 +5648,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -5706,7 +5725,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -5785,7 +5804,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -5801,7 +5820,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
     if ( pass ) /* test #5 & #6 */
     {
 	/* Single entry test verifying that the cache can handle the case in
-	 * which the call back function renames the entry for which it has
+	 * which the call back function moves the entry for which it has
 	 * been called.
 	 *
 	 * Run this entry twice, as the first run moves the entry to its
@@ -5829,7 +5848,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /* num_flush_ops      = */ 1,
 	    /* flush_ops          = */
 	    /*	op_code:		type:			idx:	flag:	size: */
-	    { { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	    { { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
@@ -5865,7 +5884,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -5877,11 +5896,11 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 					 check_size,
 					 checks);
 
-	/* this change forces the rename to move the target entry back to its
+	/* this change forces the move to move the target entry back to its
 	 * main address.  The first test moved it to its alternate address.
 	 *
 	 * Note that these two tests are not the same, as in the first test,
-	 * the renamed entry is moved forward in the slist.  In the second
+	 * the moved entry is moved forward in the slist.  In the second
 	 * it is moved backwards.
 	 *
 	 * Since there is only one entry in the cache, this doesn't really
@@ -5893,7 +5912,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    spec[0].flush_ops[0].flag = TRUE;
 	    test_num = 6;
 
-            check_flush_cache__flush_op_test(cache_ptr,
+            check_flush_cache__flush_op_test(file_ptr,
                                              test_num,
                                              flush_flags,
                                              spec_size,
@@ -5913,7 +5932,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * second test.
 	 *
 	 * Single entry test verifying that the cache can handle the case in
-	 * which the call back function renames the entry for which it has
+	 * which the call back function moves the entry for which it has
 	 * been called.
 	 *
 	 * Run this entry twice, as the first run moves the entry to its
@@ -5941,7 +5960,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /* num_flush_ops      = */ 1,
 	    /* flush_ops          = */
 	    /*	op_code:		type:			idx:	flag:	size: */
-	    { { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	    { { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
@@ -5977,7 +5996,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -5989,11 +6008,11 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 					 check_size,
 					 checks);
 
-	/* this change forces the rename to move the target entry back to its
+	/* this change forces the move to move the target entry back to its
 	 * main address.  The first test moved it to its alternate address.
 	 *
 	 * Note that these two tests are not the same, as in the first test,
-	 * the renamed entry is moved forward in the slist.  In the second
+	 * the moved entry is moved forward in the slist.  In the second
 	 * it is moved backwards.
 	 *
 	 * Since there is only one entry in the cache, this doesn't really
@@ -6010,7 +6029,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    spec[0].flush_ops[0].flag = TRUE;
 	    spec[0].expected_destroyed = TRUE;
 
-            check_flush_cache__flush_op_test(cache_ptr,
+            check_flush_cache__flush_op_test(file_ptr,
                                              test_num,
                                              flush_flags,
                                              spec_size,
@@ -6027,11 +6046,11 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
     if ( pass ) /* test #9 & #10 */
     {
 	/* Single entry test verifying that the cache can handle the case in
-	 * which the call back function both resizes and renames the entry
+	 * which the call back function both resizes and moves the entry
 	 * for which it has been called.
 	 *
-	 * Again, we run this entry twice, as the first run moves the entry to its
-	 * alternate address, and the second moves it back.
+	 * Again, we run this entry twice, as the first run moves the entry
+         * to its alternate address, and the second moves it back.
 	 */
         int test_num			= 9; /* and 10 */
 	unsigned int flush_flags	= H5C__NO_FLAGS_SET;
@@ -6056,7 +6075,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /* flush_ops          = */
 	    /*	op_code:		type:			idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
@@ -6091,7 +6110,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6103,11 +6122,11 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 					 check_size,
 					 checks);
 
-	/* this change forces the rename to move the target entry back to its
+	/* this change forces the move to move the target entry back to its
 	 * main address.  The first test moved it to its alternate address.
 	 *
 	 * Note that these two tests are not the same, as in the first test,
-	 * the renamed entry is moved forward in the slist.  In the second
+	 * the moved entry is moved forward in the slist.  In the second
 	 * it is moved backwards.
 	 *
 	 * Since there is only one entry in the cache, this doesn't really
@@ -6116,10 +6135,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 */
 	if ( pass ) {
 
-	    spec[0].flush_ops[0].flag = TRUE;
+	    spec[0].flush_ops[1].flag = TRUE;
 	    test_num = 10;
 
-            check_flush_cache__flush_op_test(cache_ptr,
+            check_flush_cache__flush_op_test(file_ptr,
                                              test_num,
                                              flush_flags,
                                              spec_size,
@@ -6139,7 +6158,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * second test.
 	 *
 	 * Single entry test verifying that the cache can handle the case in
-	 * which the call back function both resizes and renames the entry
+	 * which the call back function both resizes and moves the entry
 	 * for which it has been called.
 	 *
 	 * Again, we run this entry twice, as the first run moves the entry to its
@@ -6168,7 +6187,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /* flush_ops          = */
 	    /*	op_code:		type:			idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,			0,	FALSE,	0 },
@@ -6203,7 +6222,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6215,11 +6234,11 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 					 check_size,
 					 checks);
 
-	/* this change forces the rename to move the target entry back to its
+	/* this change forces the move to move the target entry back to its
 	 * main address.  The first test moved it to its alternate address.
 	 *
 	 * Note that these two tests are not the same, as in the first test,
-	 * the renamed entry is moved forward in the slist.  In the second
+	 * the moved entry is moved forward in the slist.  In the second
 	 * it is moved backwards.
 	 *
 	 * Since there is only one entry in the cache, this doesn't really
@@ -6236,7 +6255,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    spec[0].expected_destroyed = TRUE;
 
 
-            check_flush_cache__flush_op_test(cache_ptr,
+            check_flush_cache__flush_op_test(file_ptr,
                                              test_num,
                                              flush_flags,
                                              spec_size,
@@ -6333,7 +6352,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6431,7 +6450,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6528,7 +6547,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6625,7 +6644,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6642,7 +6661,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
     {
 	/* Test the ability of the cache to handle the case in which
 	 * the flush function of an entry that is resident in cache
-	 * resizes, dirties, and renames two entries that are not in cache.
+	 * resizes, dirties, and moves two entries that are not in cache.
 	 *
 	 * At present, I am assured that this case will never occur, but
 	 * lets make sure we can handle it regardless.
@@ -6673,10 +6692,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -6722,7 +6741,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6734,12 +6753,12 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 					 check_size,
 					 checks);
 
-	/* this change forces the renames to move the target entries back to
+	/* this change forces the moves to move the target entries back to
 	 * their main address.  The first test moved them to their alternate
 	 * address.
 	 *
 	 * Note that these two tests are not the same, as in the first test,
-	 * the renamed entries are moved forward in the slist.  In the second
+	 * the moved entries are moved forward in the slist.  In the second
 	 * they are moved backwards.
 	 */
 	if ( pass ) {
@@ -6750,7 +6769,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    checks[0].at_main_addr = TRUE;
 	    checks[1].at_main_addr = TRUE;
 
-            check_flush_cache__flush_op_test(cache_ptr,
+            check_flush_cache__flush_op_test(file_ptr,
                                              test_num,
                                              flush_flags,
                                              spec_size,
@@ -6771,7 +6790,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 *
 	 * Test the ability of the cache to handle the case in which
 	 * the flush function of an entry that is resident in cache
-	 * resizes, dirties, and renames two entries that are not in cache.
+	 * resizes, dirties, and moves two entries that are not in cache.
 	 *
 	 * At present, I am assured that this case will never occur, but
 	 * lets make sure we can handle it regardless.
@@ -6802,10 +6821,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -6851,7 +6870,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -6863,12 +6882,12 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 					 check_size,
 					 checks);
 
-	/* this change forces the renames to move the target entries back to
+	/* this change forces the moves to move the target entries back to
 	 * their main address.  The first test moved them to their alternate
 	 * address.
 	 *
 	 * Note that these two tests are not the same, as in the first test,
-	 * the renamed entries are moved forward in the slist.  In the second
+	 * the moved entries are moved forward in the slist.  In the second
 	 * they are moved backwards.
 	 */
 	if ( pass ) {
@@ -6887,7 +6906,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    checks[1].in_cache = FALSE;
 	    checks[1].expected_destroyed = TRUE;
 
-            check_flush_cache__flush_op_test(cache_ptr,
+            check_flush_cache__flush_op_test(file_ptr,
                                              test_num,
                                              flush_flags,
                                              spec_size,
@@ -6906,7 +6925,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	/* Now mix things up a bit.
 	 *
 	 * Load several entries, two of which have flush functions that
-	 * resize, dirty, and rename two entries that are not in the
+	 * resize, dirty, and move two entries that are not in the
 	 * cache.  Mark only one of these entries, and then flush the
 	 * cache with the flush marked entries flag.
 	 *
@@ -6943,10 +6962,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -6971,10 +6990,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -7106,7 +7125,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -7125,7 +7144,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	/* Mix things up some more.
 	 *
 	 * Load lots of entries, some of which have flush functions that
-	 * resize, dirty, and rename two entries that are not in the
+	 * resize, dirty, and move two entries that are not in the
 	 * cache.
 	 *
 	 * Also load entries that have flush ops on entries that are in
@@ -7158,10 +7177,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -7186,10 +7205,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -7377,7 +7396,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -7398,7 +7417,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * Mix things up some more.
 	 *
 	 * Load lots of entries, some of which have flush functions that
-	 * resize, dirty, and rename two entries that are not in the
+	 * resize, dirty, and move two entries that are not in the
 	 * cache.
 	 *
 	 * Also load entries that have flush ops on entries that are in
@@ -7428,10 +7447,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	0,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -7456,10 +7475,10 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	VARIABLE_ENTRY_SIZE / 4 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	10,	FALSE,	0 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	12,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -7647,7 +7666,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -7784,7 +7803,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -7918,7 +7937,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -7967,12 +7986,12 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * 		dirties (VET, 100)
 	 * 		resizes (VET, 200)
 	 * 		dirty	(VET, 300) -- dirty first to bring into cache.
-	 * 		renames (VET, 300)
+	 * 		moves (VET, 300)
 	 *
 	 * (VET, 2000)	initially clean, and in cache
 	 * 		dirties (VET, 2100)
 	 * 		resizes (VET, 2200)
-	 * 		renames (VET, 2300)
+	 * 		moves (VET, 2300)
 	 *
 	 * (VET, 350)	initially clean, and in cache
 	 * 		pins	(VET, 1000)
@@ -7984,7 +8003,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * (VET, 450)	initially dirty, and in cache
 	 * 		pins	(VET, 1000)
 	 * 		dirties	(VET, 1000)
-	 * 		renames (VET, 450)
+	 * 		moves (VET, 450)
 	 * 		pins	(VET, 2000)
 	 * 		dirties (VET, 2000)
 	 *
@@ -8117,7 +8136,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	200,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8144,7 +8163,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2200,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2300,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2300,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8349,7 +8368,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -8404,12 +8423,12 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * 		dirties (VET, 100)
 	 * 		resizes (VET, 200)
 	 * 		dirty	(VET, 300) -- dirty first to bring into cache.
-	 * 		renames (VET, 300)
+	 * 		moves (VET, 300)
 	 *
 	 * (VET, 2000)	initially clean, and in cache
 	 * 		dirties (VET, 2100)
 	 * 		resizes (VET, 2200)
-	 * 		renames (VET, 2300)
+	 * 		moves (VET, 2300)
 	 *
 	 * (VET, 350)	initially clean, and in cache
 	 * 		pins	(VET, 1000)
@@ -8421,7 +8440,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	 * (VET, 450)	initially dirty, and in cache
 	 * 		pins	(VET, 1000)
 	 * 		dirties	(VET, 1000)
-	 * 		renames (VET, 450)
+	 * 		moves (VET, 450)
 	 * 		pins	(VET, 2000)
 	 * 		dirties (VET, 2000)
 	 *
@@ -8554,7 +8573,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	200,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
 	      { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8581,7 +8600,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	2100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	2200,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	2300,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	2300,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8786,7 +8805,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -8859,7 +8878,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	200,	FALSE,	VARIABLE_ENTRY_SIZE },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	200,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	200,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8887,7 +8906,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	400,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8943,7 +8962,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	500,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	500,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	500,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -8977,7 +8996,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -9052,7 +9071,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	200,	FALSE,	VARIABLE_ENTRY_SIZE },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	200,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	200,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -9080,7 +9099,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	400,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	300,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -9136,7 +9155,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	    /*	op_code:		type:	idx:	flag:	size: */
 	    { { FLUSH_OP__DIRTY,	VARIABLE_ENTRY_TYPE,	100,	FALSE,	0 },
 	      { FLUSH_OP__RESIZE,	VARIABLE_ENTRY_TYPE,	500,	FALSE,	VARIABLE_ENTRY_SIZE / 2 },
-	      { FLUSH_OP__RENAME,	VARIABLE_ENTRY_TYPE,	500,	FALSE,	0 },
+	      { FLUSH_OP__MOVE,		VARIABLE_ENTRY_TYPE,	500,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
 	      { FLUSH_OP__NO_OP,	0,	0,	FALSE,	0 },
@@ -9170,7 +9189,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
 	  }
 	};
 
-        check_flush_cache__flush_op_test(cache_ptr,
+        check_flush_cache__flush_op_test(file_ptr,
                                          test_num,
                                          flush_flags,
                                          spec_size,
@@ -9186,7 +9205,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
     }
 
     /* finally finish up with the flush ops eviction test */
-    check_flush_cache__flush_op_eviction_test(cache_ptr);
+    check_flush_cache__flush_op_eviction_test(file_ptr);
 
     return;
 
@@ -9210,7 +9229,7 @@ check_flush_cache__flush_ops(H5C_t * cache_ptr)
  */
 
 static void
-check_flush_cache__flush_op_test(H5C_t * cache_ptr,
+check_flush_cache__flush_op_test(H5F_t * file_ptr,
                                  int test_num,
                                  unsigned int flush_flags,
                                  int spec_size,
@@ -9223,11 +9242,11 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 				 struct fo_flush_entry_check check[])
 {
     const char *   fcn_name = "check_flush_cache__flush_op_test";
+    H5C_t *       cache_ptr = file_ptr->shared->cache;
     static char    msg[128];
     hbool_t	   show_progress = FALSE;
     hbool_t	   verbose = FALSE;
     herr_t	   result;
-    int		   target_test = -1;
     int            i;
     int            j;
     test_entry_t * base_addr;
@@ -9238,14 +9257,9 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 	      test_num);
 #endif
 
-    if ( ( target_test > 0 ) && ( test_num != target_test ) ) {
-
-	show_progress = FALSE;
-    }
-
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: running sanity checks on entry(1).\n", 
+	HDfprintf(stdout, "%s:%d:%d: running sanity checks on entry(1).\n",
 	          fcn_name, test_num, (int)pass);
     }
 
@@ -9278,7 +9292,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: running sanity checks on entry(2).\n", 
+	HDfprintf(stdout, "%s:%d:%d: running sanity checks on entry(2).\n",
 	          fcn_name, test_num, (int)pass);
     }
 
@@ -9306,7 +9320,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: running sanity checks on entry(3).\n", 
+	HDfprintf(stdout, "%s:%d:%d: running sanity checks on entry(3).\n",
 	          fcn_name, test_num, (int)pass);
     }
 
@@ -9349,7 +9363,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Setting up the test.\n", 
+	HDfprintf(stdout, "%s:%d:%d: Setting up the test.\n",
 	          fcn_name, test_num, (int)pass);
     }
 
@@ -9360,7 +9374,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
 	    if ( show_progress ) {
 
-	        HDfprintf(stdout, 
+	        HDfprintf(stdout,
 			  "%s:%d: Inserting entry(%d,%d) with flags 0x%x.\n",
 			  fcn_name, test_num,
 			  (int)(spec[i].entry_type),
@@ -9368,25 +9382,25 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 			  (unsigned)spec[i].flags);
 	    }
 
-            insert_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index,
+            insert_entry(file_ptr, spec[i].entry_type, spec[i].entry_index,
                          TRUE, spec[i].flags);
 
         } else {
 
 	    if ( show_progress ) {
 
-	        HDfprintf(stdout, 
+	        HDfprintf(stdout,
 			  "%s:%d: Protecting entry(%d,%d).\n",
 			  fcn_name, test_num,
 			  (int)(spec[i].entry_type),
 			  (int)(spec[i].entry_index));
 	    }
 
-            protect_entry(cache_ptr, spec[i].entry_type, spec[i].entry_index);
+            protect_entry(file_ptr, spec[i].entry_type, spec[i].entry_index);
 
 	    if ( show_progress ) {
 
-	        HDfprintf(stdout, 
+	        HDfprintf(stdout,
 		    "%s:%d: Unprotecting entry(%d,%d) with flags 0x%x ns = %d.\n",
 		    fcn_name, test_num,
 		    (int)(spec[i].entry_type),
@@ -9395,14 +9409,14 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 		    (int)(spec[i].new_size));
 	    }
 
-            unprotect_entry_with_size_change(cache_ptr, spec[i].entry_type,
+            unprotect_entry_with_size_change(file_ptr, spec[i].entry_type,
 			                     spec[i].entry_index,
 					     spec[i].flags, spec[i].new_size);
         }
 
 	for ( j = 0; j < spec[i].num_pins; j++ )
 	{
-            create_pinned_entry_dependency(cache_ptr,
+            create_pinned_entry_dependency(file_ptr,
 		                           spec[i].entry_type,
 					   spec[i].entry_index,
 					   spec[i].pin_type[j],
@@ -9438,13 +9452,14 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Running the test.\n", 
+	HDfprintf(stdout, "%s:%d:%d: Running the test.\n",
 		  fcn_name, test_num, (int)pass);
     }
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr, flush_flags);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                flush_flags);
 
         if ( result < 0 ) {
 
@@ -9458,7 +9473,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Checking test results(1).\n", 
+	HDfprintf(stdout, "%s:%d:%d: Checking test results(1).\n",
 		  fcn_name, test_num, (int)pass);
     }
 
@@ -9501,7 +9516,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Checking test results(2).\n", 
+	HDfprintf(stdout, "%s:%d:%d: Checking test results(2).\n",
 		  fcn_name, test_num, (int)pass);
     }
 
@@ -9625,7 +9640,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Checking test results(3).\n", 
+	HDfprintf(stdout, "%s:%d:%d: Checking test results(3).\n",
 		  fcn_name, test_num, (int)pass);
     }
 
@@ -9660,13 +9675,13 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Cleaning up after test(1).\n", 
+	HDfprintf(stdout, "%s:%d:%d: Cleaning up after test(1).\n",
 		  fcn_name, test_num, (int)pass);
     }
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
@@ -9703,7 +9718,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Cleaning up after test(2).\n", 
+	HDfprintf(stdout, "%s:%d:%d: Cleaning up after test(2).\n",
 		  fcn_name, test_num, (int)pass);
     }
 
@@ -9725,7 +9740,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
 
     if ( show_progress ) {
 
-	HDfprintf(stdout, "%s:%d:%d: Cleaning up after test(3).\n", 
+	HDfprintf(stdout, "%s:%d:%d: Cleaning up after test(3).\n",
 		  fcn_name, test_num, (int)pass);
     }
 
@@ -9774,7 +9789,7 @@ check_flush_cache__flush_op_test(H5C_t * cache_ptr,
  */
 
 static void
-check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
+check_flush_cache__flush_op_eviction_test(H5F_t * file_ptr)
 {
     /* const char *   fcn_name = "check_flush_cache__flush_op_eviction_test"; */
     int		   i;
@@ -9782,6 +9797,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
     int		   num_monster_entries = 31;
     int		   num_large_entries = 0;
     herr_t	   result;
+    H5C_t        * cache_ptr = file_ptr->shared->cache;
     test_entry_t * entry_ptr;
     test_entry_t * base_addr;
     struct expected_entry_status expected[8 + 31 + 14] =
@@ -9865,7 +9881,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
                   ( cache_ptr->min_clean_size != (1 * 1024 * 1024 ) ) ) {
 
 	    pass = FALSE;
-	    failure_mssg = 
+	    failure_mssg =
 	        "unexpected cache config at start of flush op eviction test.";
 
         } else {
@@ -9900,40 +9916,40 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 * Start by just loading the entries.
 	 */
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 0);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 0,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 0);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 0,
 			           H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG,
 				   (VARIABLE_ENTRY_SIZE / 2));
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 1);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 1,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 1);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 1,
 			                 H5C__NO_FLAGS_SET, (size_t)0);
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 2);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 2,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 2);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 2,
 			                 H5C__NO_FLAGS_SET, (size_t)0);
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 3);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 3,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 3);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 3,
 			           H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG,
 				   (VARIABLE_ENTRY_SIZE / 2));
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 4);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 4,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 4);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 4,
 			           H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG,
 				   (VARIABLE_ENTRY_SIZE / 2));
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 5);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 5,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 5);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 5,
 			           H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG,
 				   (VARIABLE_ENTRY_SIZE / 2));
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 6);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 6,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 6);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 6,
 			                 H5C__NO_FLAGS_SET, (size_t)0);
 
-	protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 7);
-	unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 7,
+	protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 7);
+	unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 7,
 			                 H5C__NO_FLAGS_SET, (size_t)0);
 
 	if ( ( cache_ptr->index_len != 8 ) ||
@@ -9952,15 +9968,15 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 * Briefly, (VET, 0) is pinned by (VET, 1), (VET, 2), and (VET, 3)
 	 *          (VET, 7) is pinned by (VET, 3), and (VET, 5)
 	 */
-	create_pinned_entry_dependency(cache_ptr, VARIABLE_ENTRY_TYPE, 1,
+	create_pinned_entry_dependency(file_ptr, VARIABLE_ENTRY_TYPE, 1,
 			               VARIABLE_ENTRY_TYPE, 0);
-	create_pinned_entry_dependency(cache_ptr, VARIABLE_ENTRY_TYPE, 2,
+	create_pinned_entry_dependency(file_ptr, VARIABLE_ENTRY_TYPE, 2,
 			               VARIABLE_ENTRY_TYPE, 0);
-	create_pinned_entry_dependency(cache_ptr, VARIABLE_ENTRY_TYPE, 3,
+	create_pinned_entry_dependency(file_ptr, VARIABLE_ENTRY_TYPE, 3,
 			               VARIABLE_ENTRY_TYPE, 0);
-	create_pinned_entry_dependency(cache_ptr, VARIABLE_ENTRY_TYPE, 3,
+	create_pinned_entry_dependency(file_ptr, VARIABLE_ENTRY_TYPE, 3,
 			               VARIABLE_ENTRY_TYPE, 7);
-	create_pinned_entry_dependency(cache_ptr, VARIABLE_ENTRY_TYPE, 5,
+	create_pinned_entry_dependency(file_ptr, VARIABLE_ENTRY_TYPE, 5,
 			               VARIABLE_ENTRY_TYPE, 7);
 
 	/* Next, set up the flush operations:
@@ -9970,7 +9986,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 *
 	 *          (VET, 2) dirties (VET, 0)
 	 *                   resizes (VET, 0) to VARIABLE_ENTRY_SIZE
-	 *                   renames (VET, 0) to its alternate address
+	 *                   moves (VET, 0) to its alternate address
 	 *
 	 *          (VET, 3) dirties (VET, 0)
 	 *                   resizes itself to VARIABLE_ENTRY_SIZE
@@ -9987,7 +10003,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
                      VARIABLE_ENTRY_TYPE, 0, FALSE, (size_t)0);
         add_flush_op(VARIABLE_ENTRY_TYPE, 2, FLUSH_OP__RESIZE,
                      VARIABLE_ENTRY_TYPE, 0, FALSE, VARIABLE_ENTRY_SIZE);
-        add_flush_op(VARIABLE_ENTRY_TYPE, 2, FLUSH_OP__RENAME,
+        add_flush_op(VARIABLE_ENTRY_TYPE, 2, FLUSH_OP__MOVE,
                      VARIABLE_ENTRY_TYPE, 0, FALSE, (size_t)0);
 
         add_flush_op(VARIABLE_ENTRY_TYPE, 3, FLUSH_OP__DIRTY,
@@ -10014,7 +10030,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 *
 	 * (VET, 2)	Y	10 KB	N	N	0	dirty (VET, 0)
 	 * 							resize (VET, 0) to 10 KB
-	 * 							rename (VET, 0) to its alternate address
+	 * 							move (VET, 0) to its alternate address
 	 *
 	 * (VET, 3)	Y	 5 KB	Y	N	0, 7	dirty (VET, 0)
 	 * 							resize (VET, 3) to 10 KB
@@ -10035,15 +10051,15 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
         /* Now fill up the cache with other, unrelated entries */
 	for ( i = 0; i < 31; i++ )
 	{
-	    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, MONSTER_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, MONSTER_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
 	for ( i = 0; i < 1; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10088,7 +10104,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 *
 	 * (VET, 2)	Y	10 KB	N	N	0	dirty (VET, 0)
 	 * 							resize (VET, 0) to 10 KB
-	 * 							rename (VET, 0) to its alternate address
+	 * 							move (VET, 0) to its alternate address
 	 *
 	 * (VET, 3)	Y	 5 KB	Y	N	0, 7	dirty (VET, 0)
 	 * 							resize (VET, 3) to 10 KB
@@ -10110,8 +10126,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
         num_large_entries = 2;
 
-	protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1);
-	unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, 1,
+	protect_entry(file_ptr, LARGE_ENTRY_TYPE, 1);
+	unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, 1,
                                          H5C__DIRTIED_FLAG, (size_t)0);
 
 	if ( ( cache_ptr->index_len != 40 ) ||
@@ -10140,7 +10156,7 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
 	/* Now load another large entry.  This should result in the eviction
 	 * of (VET, 2), the increase in the size of (VET, 0) from .75
-	 * VARIABLE_ENTRY_SIZE to 1.0 VARIABLE_ENTRY_SIZE, and the renaming
+	 * VARIABLE_ENTRY_SIZE to 1.0 VARIABLE_ENTRY_SIZE, and the moving
 	 * of (VET, 0) to its alternate address.
 	 *
 	 * The following table shows the expected states of the variable
@@ -10176,8 +10192,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
         num_large_entries = 3;
 
-	protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2);
-	unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, 2,
+	protect_entry(file_ptr, LARGE_ENTRY_TYPE, 2);
+	unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, 2,
                                          H5C__DIRTIED_FLAG, (size_t)0);
 
 	if ( ( cache_ptr->index_len != 40 ) ||
@@ -10249,12 +10265,12 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
         num_large_entries = 5;
 
-	protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3);
-	unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, 3,
+	protect_entry(file_ptr, LARGE_ENTRY_TYPE, 3);
+	unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, 3,
                                          H5C__DIRTIED_FLAG, (size_t)0);
 
-	protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 4);
-	unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, 4,
+	protect_entry(file_ptr, LARGE_ENTRY_TYPE, 4);
+	unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, 4,
                                          H5C__DIRTIED_FLAG, (size_t)0);
 
         /* verify cache size */
@@ -10290,15 +10306,15 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 */
 	for ( i = 0; i < 31; i++ )
 	{
-	    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, MONSTER_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, MONSTER_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
 	for ( i = 0; i < 5; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10357,8 +10373,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
 	for ( i = 5; i < 8; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10419,8 +10435,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
 	for ( i = 8; i < 9; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10485,8 +10501,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
 	for ( i = 9; i < 10; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10521,15 +10537,15 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 */
 	for ( i = 0; i < 31; i++ )
 	{
-	    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, MONSTER_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, MONSTER_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
 	for ( i = 0; i < 10; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10632,8 +10648,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
 	for ( i = 10; i < 12; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10665,15 +10681,15 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 	 */
 	for ( i = 0; i < num_monster_entries; i++ )
 	{
-	    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, MONSTER_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, MONSTER_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
 	for ( i = 0; i < num_large_entries; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10759,8 +10775,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
 	for ( i = 12; i < 14; i++ )
 	{
-	    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
-	    unprotect_entry_with_size_change(cache_ptr, LARGE_ENTRY_TYPE, i,
+	    protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
+	    unprotect_entry_with_size_change(file_ptr, LARGE_ENTRY_TYPE, i,
 			                     H5C__DIRTIED_FLAG, (size_t)0);
 	}
 
@@ -10790,8 +10806,8 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
-                                 H5C__FLUSH_INVALIDATE_FLAG);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
 
@@ -10823,9 +10839,9 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
              ( cache_ptr->clears[VARIABLE_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->flushes[VARIABLE_ENTRY_TYPE] != 14 ) ||
              ( cache_ptr->evictions[VARIABLE_ENTRY_TYPE] != 9 ) ||
-             ( cache_ptr->renames[VARIABLE_ENTRY_TYPE] != 1 ) ||
-             ( cache_ptr->entry_flush_renames[VARIABLE_ENTRY_TYPE] != 0 ) ||
-             ( cache_ptr->cache_flush_renames[VARIABLE_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->moves[VARIABLE_ENTRY_TYPE] != 1 ) ||
+             ( cache_ptr->entry_flush_moves[VARIABLE_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->cache_flush_moves[VARIABLE_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->pins[VARIABLE_ENTRY_TYPE] != 2 ) ||
              ( cache_ptr->unpins[VARIABLE_ENTRY_TYPE] != 2 ) ||
              ( cache_ptr->dirty_pins[VARIABLE_ENTRY_TYPE] != 0 ) ||
@@ -10848,9 +10864,9 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
              ( cache_ptr->clears[LARGE_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->flushes[LARGE_ENTRY_TYPE] != 38 ) ||
              ( cache_ptr->evictions[LARGE_ENTRY_TYPE] != 14 ) ||
-             ( cache_ptr->renames[LARGE_ENTRY_TYPE] != 0 ) ||
-             ( cache_ptr->entry_flush_renames[LARGE_ENTRY_TYPE] != 0 ) ||
-             ( cache_ptr->cache_flush_renames[LARGE_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->moves[LARGE_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->entry_flush_moves[LARGE_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->cache_flush_moves[LARGE_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->pins[LARGE_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->unpins[LARGE_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->dirty_pins[LARGE_ENTRY_TYPE] != 0 ) ||
@@ -10873,9 +10889,9 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
              ( cache_ptr->clears[MONSTER_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->flushes[MONSTER_ENTRY_TYPE] != 93 ) ||
              ( cache_ptr->evictions[MONSTER_ENTRY_TYPE] != 31 ) ||
-             ( cache_ptr->renames[MONSTER_ENTRY_TYPE] != 0 ) ||
-             ( cache_ptr->entry_flush_renames[MONSTER_ENTRY_TYPE] != 0 ) ||
-             ( cache_ptr->cache_flush_renames[MONSTER_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->moves[MONSTER_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->entry_flush_moves[MONSTER_ENTRY_TYPE] != 0 ) ||
+             ( cache_ptr->cache_flush_moves[MONSTER_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->pins[MONSTER_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->unpins[MONSTER_ENTRY_TYPE] != 0 ) ||
              ( cache_ptr->dirty_pins[MONSTER_ENTRY_TYPE] != 0 ) ||
@@ -10920,17 +10936,17 @@ check_flush_cache__flush_op_eviction_test(H5C_t * cache_ptr)
  *
  * 		JRM -- 5/17/06
  * 		Complete reqrite of pinned entry tests to accomodate
- * 		the new H5C_mark_pinned_or_protected_entry_dirty()
- * 		call.
+ * 		the new H5C_mark_entry_dirty() call.
  *
  *-------------------------------------------------------------------------
  */
 
 static void
-check_flush_cache__single_entry(H5C_t * cache_ptr)
+check_flush_cache__single_entry(H5F_t * file_ptr)
 {
     const char * fcn_name = "check_flush_cache__single_entry";
     hbool_t show_progress = FALSE;
+    H5C_t * cache_ptr = file_ptr->shared->cache;
 
     if ( cache_ptr == NULL ) {
 
@@ -10952,7 +10968,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 1,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -10979,7 +10995,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 2,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11006,7 +11022,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 3,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11033,7 +11049,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 4,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11060,7 +11076,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 5,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11087,7 +11103,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 6,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11114,7 +11130,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 7,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11141,7 +11157,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 8,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11168,7 +11184,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 9,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11196,7 +11212,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 10,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11224,7 +11240,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 11,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11252,7 +11268,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 12,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11280,7 +11296,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 13,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11308,7 +11324,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 14,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11336,7 +11352,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 15,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11365,7 +11381,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 16,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11394,7 +11410,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 17,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11421,7 +11437,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 18,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11448,7 +11464,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 19,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11475,7 +11491,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 20,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11502,7 +11518,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 21,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11529,7 +11545,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 22,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11556,7 +11572,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 23,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11583,7 +11599,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 24,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11610,7 +11626,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 25,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11638,7 +11654,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 26,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11666,7 +11682,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 27,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11694,7 +11710,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 28,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11722,7 +11738,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 29,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11750,7 +11766,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 30,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11778,7 +11794,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 31,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11807,7 +11823,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 32,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11836,7 +11852,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 33,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11863,7 +11879,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 34,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11890,7 +11906,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 35,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11917,7 +11933,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 36,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11944,7 +11960,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 37,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11971,7 +11987,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 38,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -11998,7 +12014,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 39,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12025,7 +12041,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 40,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12052,7 +12068,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 41,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12080,7 +12096,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 42,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12108,7 +12124,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 43,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12136,7 +12152,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 44,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12164,7 +12180,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 45,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12192,7 +12208,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 46,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12220,7 +12236,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 47,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12249,7 +12265,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 48,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12278,7 +12294,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 49,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12305,7 +12321,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 50,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12332,7 +12348,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 51,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12359,7 +12375,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 52,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12386,7 +12402,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 53,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12413,7 +12429,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 54,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12440,7 +12456,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 55,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12467,7 +12483,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 56,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12494,7 +12510,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 57,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12522,7 +12538,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 58,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12550,7 +12566,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 59,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12578,7 +12594,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 60,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12606,7 +12622,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 61,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12634,7 +12650,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 62,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12662,7 +12678,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 63,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12691,7 +12707,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
         check_flush_cache__single_entry_test
         (
-            /* cache_ptr            */ cache_ptr,
+            /* file_ptr            */ file_ptr,
             /* test_num             */ 64,
             /* entry_type           */ PICO_ENTRY_TYPE,
             /* entry_idx            */ 0,
@@ -12720,13 +12736,12 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
      *
      * 	2) Marked dirty by unprotect or not.
      *
-     * 	3) Marked dirty by call to H5C_mark_pinned_entry_dirty() or not.
+     * 	3) Marked dirty by call to H5C_mark_entry_dirty() or not.
      *
-     *  4) Marked dirty by call to H5C_mark_pinned_or_protected_entry_dirty()
-     *     while protected or not.
+     *  4) Marked dirty by call to H5C_mark_entry_dirty() while protected
+     *     or not.
      *
-     *  5) Marked dirty by call to H5C_mark_pinned_or_protected_entry_dirty()
-     *     while pinned or not.
+     *  5) Marked dirty by call to H5C_mark_entry_dirty() while pinned or not.
      *
      * 	6) Entry marked for flush or not.
      *
@@ -13065,7 +13080,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
 
 	    check_flush_cache__pinned_single_entry_test
 	    (
-                /* cache_ptr             */ cache_ptr,
+                /* file_ptr             */ file_ptr,
                 /* test_num              */ spec[i].test_num,
                 /* entry_type            */ spec[i].entry_type,
                 /* entry_idx             */ spec[i].entry_idx,
@@ -13105,7 +13120,7 @@ check_flush_cache__single_entry(H5C_t * cache_ptr)
  */
 
 static void
-check_flush_cache__single_entry_test(H5C_t * cache_ptr,
+check_flush_cache__single_entry_test(H5F_t * file_ptr,
                                      int test_num,
                                      int entry_type,
                                      int entry_idx,
@@ -13119,6 +13134,7 @@ check_flush_cache__single_entry_test(H5C_t * cache_ptr,
                                      hbool_t expected_destroyed)
 {
     /* const char *   fcn_name = "check_flush_cache__single_entry_test"; */
+    H5C_t *        cache_ptr = file_ptr->shared->cache;
     static char    msg[128];
     herr_t	   result;
     test_entry_t * base_addr;
@@ -13158,20 +13174,20 @@ check_flush_cache__single_entry_test(H5C_t * cache_ptr,
 
         if ( insert_flag ) {
 
-            insert_entry(cache_ptr, entry_type, entry_idx, dirty_flag, flags);
+            insert_entry(file_ptr, entry_type, entry_idx, dirty_flag, flags);
 
         } else {
 
-            protect_entry(cache_ptr, entry_type, entry_idx);
+            protect_entry(file_ptr, entry_type, entry_idx);
 
-            unprotect_entry(cache_ptr, entry_type, entry_idx,
+            unprotect_entry(file_ptr, entry_type, entry_idx,
                             (int)dirty_flag, flags);
         }
     }
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr, flush_flags);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT, flush_flags);
 
         if ( result < 0 ) {
 
@@ -13234,7 +13250,7 @@ check_flush_cache__single_entry_test(H5C_t * cache_ptr,
     /* clean up the cache to prep for the next test */
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
@@ -13283,7 +13299,7 @@ check_flush_cache__single_entry_test(H5C_t * cache_ptr,
  * 		JRM -- 5/17/06
  * 		Added the pop_mark_dirty_prot and pop_mark_dirty_pinned
  * 		flags and supporting code to allow us to test the
- * 		H5C_mark_pinned_or_protected_entry_dirty() call.  Use the
+ * 		H5C_mark_entry_dirty() call.  Use the
  * 		call to mark the entry dirty while the entry is protected
  * 		if pop_mark_dirty_prot is TRUE, and to mark the entry
  * 		dirty while it is pinned if pop_mark_dirty_pinned is TRUE.
@@ -13292,7 +13308,7 @@ check_flush_cache__single_entry_test(H5C_t * cache_ptr,
  */
 
 static void
-check_flush_cache__pinned_single_entry_test(H5C_t * cache_ptr,
+check_flush_cache__pinned_single_entry_test(H5F_t * file_ptr,
                                             int test_num,
                                             int entry_type,
                                             int entry_idx,
@@ -13308,6 +13324,7 @@ check_flush_cache__pinned_single_entry_test(H5C_t * cache_ptr,
                                             hbool_t expected_destroyed)
 {
     /* const char *fcn_name = "check_flush_cache__pinned_single_entry_test"; */
+    H5C_t *       cache_ptr = file_ptr->shared->cache;
     static char    msg[128];
     hbool_t        expected_loaded = TRUE;
     herr_t	   result;
@@ -13346,35 +13363,31 @@ check_flush_cache__pinned_single_entry_test(H5C_t * cache_ptr,
         base_addr = entries[entry_type];
         entry_ptr = &(base_addr[entry_idx]);
 
-        protect_entry(cache_ptr, entry_type, entry_idx);
+        protect_entry(file_ptr, entry_type, entry_idx);
 
 	if ( pop_mark_dirty_prot ) {
 
-	    mark_pinned_or_protected_entry_dirty(cache_ptr,
-			                         entry_type,
-			                         entry_idx);
+	    mark_entry_dirty(entry_type, entry_idx);
 	}
 
-        unprotect_entry(cache_ptr, entry_type, entry_idx,
+        unprotect_entry(file_ptr, entry_type, entry_idx,
                         (int)dirty_flag, (flags | H5C__PIN_ENTRY_FLAG));
 
 	if ( mark_dirty ) {
 
-            mark_pinned_entry_dirty(cache_ptr, entry_type, entry_idx,
-			            FALSE, (size_t)0);
+            mark_entry_dirty(entry_type, entry_idx);
 	}
 
 	if ( pop_mark_dirty_pinned ) {
 
-	    mark_pinned_or_protected_entry_dirty(cache_ptr,
-			                         entry_type,
-			                         entry_idx);
+	    mark_entry_dirty(entry_type, entry_idx);
 	}
     }
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr, flush_flags);
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+            flush_flags);
 
         if ( result < 0 ) {
 
@@ -13437,21 +13450,21 @@ check_flush_cache__pinned_single_entry_test(H5C_t * cache_ptr,
 
         if ( unprotect_unpin ) {
 
-            protect_entry(cache_ptr, entry_type, entry_idx);
+            protect_entry(file_ptr, entry_type, entry_idx);
 
-            unprotect_entry(cache_ptr, entry_type, entry_idx,
+            unprotect_entry(file_ptr, entry_type, entry_idx,
                             (int)dirty_flag, H5C__UNPIN_ENTRY_FLAG);
 
         } else {
 
-            unpin_entry(cache_ptr, entry_type, entry_idx);
+            unpin_entry(entry_type, entry_idx);
 
         }
     }
 
     if ( pass ) {
 
-        result = H5C_flush_cache(NULL, -1, -1, cache_ptr,
+        result = H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
                                  H5C__FLUSH_INVALIDATE_FLAG);
 
         if ( result < 0 ) {
@@ -13511,9 +13524,9 @@ check_get_entry_status(void)
     hbool_t	  is_protected;
     hbool_t	  is_pinned;
     size_t	  entry_size;
-    H5C_t *       cache_ptr = NULL;
-    test_entry_t * base_addr;
-    test_entry_t * entry_ptr;
+    H5F_t *       file_ptr = NULL;
+    test_entry_t * base_addr = NULL;
+    test_entry_t * entry_ptr = NULL;
 
     TESTING("H5C_get_entry_status() functionality");
 
@@ -13523,11 +13536,21 @@ check_get_entry_status(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
 
-        base_addr = entries[0];
-        entry_ptr = &(base_addr[0]);
+        if ( file_ptr == NULL ) {
+
+            pass = FALSE;
+            failure_mssg = "file_ptr NULL from setup_cache.";
+
+        }
+        else {
+
+            base_addr = entries[0];
+            entry_ptr = &(base_addr[0]);
+
+        }
     }
 
     if ( pass ) {
@@ -13536,14 +13559,14 @@ check_get_entry_status(void)
          * the call.  Thus, only check that boolean.
          */
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 1.");
+                       "H5C_get_entry_status() reports failure 1.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -13554,20 +13577,24 @@ check_get_entry_status(void)
         }
     }
 
-    protect_entry(cache_ptr, 0, 0);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        protect_entry(file_ptr, 0, 0);
+
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 2.");
+                       "H5C_get_entry_status() reports failure 2.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || is_dirty || is_protected || is_pinned ) {
@@ -13578,18 +13605,22 @@ check_get_entry_status(void)
         }
     }
 
-    protect_entry(cache_ptr, 0, 0);
+    if ( pass ) {
+
+        protect_entry(file_ptr, 0, 0);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 3.");
+                       "H5C_get_entry_status() reports failure 3.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || is_dirty || !is_protected || is_pinned ) {
@@ -13600,18 +13631,22 @@ check_get_entry_status(void)
         }
     }
 
-    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+    if ( pass ) {
+
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 4.");
+                       "H5C_get_entry_status() reports failure 4.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || is_dirty || is_protected || !is_pinned ) {
@@ -13622,18 +13657,22 @@ check_get_entry_status(void)
         }
     }
 
-    mark_pinned_entry_dirty(cache_ptr, 0, 0, FALSE, (size_t)0);
+    if ( pass ) {
+
+        mark_entry_dirty(0, 0);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 5.");
+                       "H5C_get_entry_status() reports failure 5.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || !is_pinned ) {
@@ -13644,18 +13683,22 @@ check_get_entry_status(void)
         }
     }
 
-    unpin_entry(cache_ptr, 0, 0);
+    if ( pass ) {
+
+        unpin_entry(0, 0);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 6.");
+                       "H5C_get_entry_status() reports failure 6.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || is_pinned ) {
@@ -13668,7 +13711,7 @@ check_get_entry_status(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -13712,7 +13755,7 @@ check_expunge_entry(void)
     hbool_t	  is_protected;
     hbool_t	  is_pinned;
     size_t	  entry_size;
-    H5C_t *       cache_ptr = NULL;
+    H5F_t *       file_ptr = NULL;
     test_entry_t * base_addr;
     test_entry_t * entry_ptr;
 
@@ -13724,7 +13767,7 @@ check_expunge_entry(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
 
         base_addr = entries[0];
@@ -13737,7 +13780,7 @@ check_expunge_entry(void)
          * the status call.  Thus, only check that boolean.
          */
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                                       &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
@@ -13745,7 +13788,7 @@ check_expunge_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 1.");
+                       "H5C_get_entry_status() reports failure 1.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -13770,45 +13813,53 @@ check_expunge_entry(void)
      * it without marking it dirty.
      */
 
-    protect_entry(cache_ptr, 0, 0);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        protect_entry(file_ptr, 0, 0);
+
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
-	if ( result < 0 ) {
+        if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 2.");
+                       "H5C_get_entry_status() reports failure 2.");
             failure_mssg = msg;
 
-	} else if ( !in_cache || is_dirty || is_protected || is_pinned ) {
+        } else if ( !in_cache || is_dirty || is_protected || is_pinned ) {
 
-            pass = FALSE;
-            HDsnprintf(msg, (size_t)128, "Unexpected status 2.");
-            failure_mssg = msg;
+                pass = FALSE;
+                HDsnprintf(msg, (size_t)128, "Unexpected status 2.");
+                failure_mssg = msg;
 
-        } else if ( ( ! entry_ptr->loaded ) ||
-                    ( entry_ptr->cleared ) ||
-		    ( entry_ptr->flushed ) ||
-		    ( entry_ptr->destroyed ) ) {
+            } else if ( ( ! entry_ptr->loaded ) ||
+                        ( entry_ptr->cleared ) ||
+                ( entry_ptr->flushed ) ||
+                ( entry_ptr->destroyed ) ) {
 
-            pass = FALSE;
-            HDsnprintf(msg, (size_t)128, "Unexpected entry history 2.");
-            failure_mssg = msg;
+                pass = FALSE;
+                HDsnprintf(msg, (size_t)128, "Unexpected entry history 2.");
+                failure_mssg = msg;
 
-	}
+        }
     }
 
     /* Expunge the entry and then verify that it is no longer in the cache.
      * Also verify that the entry was loaded, cleared, and destroyed, but
      * not flushed.
      */
-    expunge_entry(cache_ptr, 0, 0);
+    if ( pass ) {
+
+        expunge_entry(file_ptr, 0, 0);
+
+    }
 
     if ( pass ) {
 
@@ -13816,32 +13867,32 @@ check_expunge_entry(void)
 	 * by the status call.  Thus, only check that boolean.
          */
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                 &in_cache, &is_dirty, &is_protected, &is_pinned);
 
-	if ( result < 0 ) {
+        if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 3.");
+                       "H5C_get_entry_status() reports failure 3.");
             failure_mssg = msg;
 
-	} else if ( in_cache ) {
+        } else if ( in_cache ) {
 
-            pass = FALSE;
-            HDsnprintf(msg, (size_t)128, "Unexpected status 3.");
-            failure_mssg = msg;
+                pass = FALSE;
+                HDsnprintf(msg, (size_t)128, "Unexpected status 3.");
+                failure_mssg = msg;
 
-        } else if ( ( ! entry_ptr->loaded ) ||
-                    ( ! entry_ptr->cleared ) ||
-		    ( entry_ptr->flushed ) ||
-		    ( ! entry_ptr->destroyed ) ) {
+            } else if ( ( ! entry_ptr->loaded ) ||
+                        ( ! entry_ptr->cleared ) ||
+                ( entry_ptr->flushed ) ||
+                ( ! entry_ptr->destroyed ) ) {
 
-            pass = FALSE;
-            HDsnprintf(msg, (size_t)128, "Unexpected entry history 3.");
-            failure_mssg = msg;
+                pass = FALSE;
+                HDsnprintf(msg, (size_t)128, "Unexpected entry history 3.");
+                failure_mssg = msg;
 
-	}
+        }
     }
 
     /* now repeat the process with a different entry.  On unprotect
@@ -13857,18 +13908,18 @@ check_expunge_entry(void)
          * the status call.  Thus, only check that boolean.
          */
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                                       &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
-	if ( result < 0 ) {
+        if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 4.");
+                       "H5C_get_entry_status() reports failure 4.");
             failure_mssg = msg;
 
-	} else if ( in_cache ) {
+        } else if ( in_cache ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128, "Unexpected status 4.");
@@ -13883,31 +13934,35 @@ check_expunge_entry(void)
             HDsnprintf(msg, (size_t)128, "Unexpected entry history 4.");
             failure_mssg = msg;
 
-	}
+        }
     }
 
     /* protect the entry to force the cache to load it, and then unprotect
      * it with the dirty flag set.
      */
 
-    protect_entry(cache_ptr, 0, 1);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, 0, 1, TRUE, H5C__NO_FLAGS_SET);
+        protect_entry(file_ptr, 0, 1);
+
+        unprotect_entry(file_ptr, 0, 1, TRUE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                                       &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
-	if ( result < 0 ) {
+        if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 5.");
+                       "H5C_get_entry_status() reports failure 5.");
             failure_mssg = msg;
 
-	} else if ( !in_cache || !is_dirty || is_protected || is_pinned ) {
+        } else if ( !in_cache || !is_dirty || is_protected || is_pinned ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128, "Unexpected status 5.");
@@ -13922,14 +13977,18 @@ check_expunge_entry(void)
             HDsnprintf(msg, (size_t)128, "Unexpected entry history 5.");
             failure_mssg = msg;
 
-	}
+        }
     }
 
     /* Expunge the entry and then verify that it is no longer in the cache.
      * Also verify that the entry was loaded, cleared and destroyed, but not
      * flushed.
      */
-    expunge_entry(cache_ptr, 0, 1);
+    if ( pass ) {
+
+        expunge_entry(file_ptr, 0, 1);
+
+    }
 
     if ( pass ) {
 
@@ -13937,18 +13996,18 @@ check_expunge_entry(void)
 	 * by the status call.  Thus, only check that boolean.
          */
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                                       &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
-	if ( result < 0 ) {
+        if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 6.");
+                       "H5C_get_entry_status() reports failure 6.");
             failure_mssg = msg;
 
-	} else if ( in_cache ) {
+        } else if ( in_cache ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128, "Unexpected status 6.");
@@ -13963,12 +14022,12 @@ check_expunge_entry(void)
             HDsnprintf(msg, (size_t)128, "Unexpected entry history 6.");
             failure_mssg = msg;
 
-	}
+        }
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -14001,12 +14060,11 @@ check_expunge_entry(void)
  *
  *-------------------------------------------------------------------------
  */
-
-
 static unsigned
 check_multiple_read_protect(void)
 {
     const char * fcn_name = "check_multiple_read_protect()";
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     test_entry_t * entry_ptr;
 
@@ -14039,8 +14097,9 @@ check_multiple_read_protect(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
 
         entry_ptr = &((entries[0])[0]);
 
@@ -14065,7 +14124,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14088,7 +14147,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14111,7 +14170,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14134,7 +14193,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14157,7 +14216,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14180,7 +14239,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14203,7 +14262,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( ! ( entry_ptr->header.is_read_only ) ) ||
@@ -14226,7 +14285,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         if ( ( entry_ptr->header.is_protected ) ||
  	     ( entry_ptr->header.is_read_only ) ||
@@ -14254,7 +14313,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
         if ( ( ! ( entry_ptr->header.is_protected ) ) ||
  	     ( entry_ptr->header.is_read_only ) ||
@@ -14277,7 +14336,7 @@ check_multiple_read_protect(void)
 
     if ( pass )
     {
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         if ( ( entry_ptr->header.is_protected ) ||
  	     ( entry_ptr->header.is_read_only ) ||
@@ -14309,36 +14368,36 @@ check_multiple_read_protect(void)
 
     if ( pass ) {
 
-        protect_entry(cache_ptr, 0, 2);		/* (0,2) write */
-        protect_entry_ro(cache_ptr, 0, 4);      /* (0,4) read only (1) */
-	protect_entry(cache_ptr, 0, 6);		/* (0,6) write */
+        protect_entry(file_ptr, 0, 2);		/* (0,2) write */
+        protect_entry_ro(file_ptr, 0, 4);      /* (0,4) read only (1) */
+	protect_entry(file_ptr, 0, 6);		/* (0,6) write */
 
-        unprotect_entry(cache_ptr, 0, 2, FALSE, /* (0,2) unprotect */
+        unprotect_entry(file_ptr, 0, 2, FALSE, /* (0,2) unprotect */
 			H5C__NO_FLAGS_SET);
 
-        protect_entry_ro(cache_ptr, 0, 2);	/* (0,2) read only (1) */
-	protect_entry(cache_ptr, 0, 1);         /* (0,1) write */
-        protect_entry_ro(cache_ptr, 0, 4);	/* (0,4) read only (2) */
-	protect_entry(cache_ptr, 0, 0);		/* (0,0) write */
-        protect_entry_ro(cache_ptr, 0, 2);	/* (0,2) read only (2) */
+        protect_entry_ro(file_ptr, 0, 2);	/* (0,2) read only (1) */
+	protect_entry(file_ptr, 0, 1);         /* (0,1) write */
+        protect_entry_ro(file_ptr, 0, 4);	/* (0,4) read only (2) */
+	protect_entry(file_ptr, 0, 0);		/* (0,0) write */
+        protect_entry_ro(file_ptr, 0, 2);	/* (0,2) read only (2) */
 
-        unprotect_entry(cache_ptr, 0, 2, FALSE, /* (0,2) read only (1) pin */
+        unprotect_entry(file_ptr, 0, 2, FALSE, /* (0,2) read only (1) pin */
 			H5C__PIN_ENTRY_FLAG);
-        unprotect_entry(cache_ptr, 0, 6, FALSE, /* (0,6) unprotect */
+        unprotect_entry(file_ptr, 0, 6, FALSE, /* (0,6) unprotect */
 			H5C__NO_FLAGS_SET);
 
-        protect_entry_ro(cache_ptr, 0, 4);	/* (0,4) read only (3) */
+        protect_entry_ro(file_ptr, 0, 4);	/* (0,4) read only (3) */
 
-        unprotect_entry(cache_ptr, 0, 2, FALSE, /* (0,2) unprotect */
+        unprotect_entry(file_ptr, 0, 2, FALSE, /* (0,2) unprotect */
 			H5C__NO_FLAGS_SET);
-        unprotect_entry(cache_ptr, 0, 1, FALSE, /* (0,1) unprotect */
+        unprotect_entry(file_ptr, 0, 1, FALSE, /* (0,1) unprotect */
 			H5C__NO_FLAGS_SET);
 
 	if ( pass ) {
 
 	    entry_ptr = &((entries[0])[4]);
 
-	    if ( H5C_pin_protected_entry(cache_ptr, (void *)entry_ptr) < 0 ) {
+	    if ( H5C_pin_protected_entry((void *)entry_ptr) < 0 ) {
 
 	        pass = FALSE;
 	        failure_mssg = "H5C_pin_protected_entry() failed.\n";
@@ -14356,9 +14415,9 @@ check_multiple_read_protect(void)
 	    }
 	}
 
-        unprotect_entry(cache_ptr, 0, 4, FALSE, /* (0,4) read only (2) */
+        unprotect_entry(file_ptr, 0, 4, FALSE, /* (0,4) read only (2) */
 			H5C__NO_FLAGS_SET);
-        unprotect_entry(cache_ptr, 0, 4, FALSE, /* (0,4) read only (1) */
+        unprotect_entry(file_ptr, 0, 4, FALSE, /* (0,4) read only (1) */
 			H5C__UNPIN_ENTRY_FLAG);
 
         if ( ( pass ) && ( entry_ptr->header.is_pinned ) ) {
@@ -14368,12 +14427,12 @@ check_multiple_read_protect(void)
 
 	}
 
-        unprotect_entry(cache_ptr, 0, 4, FALSE, /* (0,4) unprotect */
+        unprotect_entry(file_ptr, 0, 4, FALSE, /* (0,4) unprotect */
 			H5C__NO_FLAGS_SET);
-        unprotect_entry(cache_ptr, 0, 0, FALSE, /* (0,0) unprotect */
+        unprotect_entry(file_ptr, 0, 0, FALSE, /* (0,0) unprotect */
 			H5C__NO_FLAGS_SET);
 
-	unpin_entry(cache_ptr, 0, 2);
+	unpin_entry(0, 2);
     }
 
 #if H5C_COLLECT_CACHE_STATS
@@ -14389,7 +14448,7 @@ check_multiple_read_protect(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -14406,9 +14465,9 @@ check_multiple_read_protect(void)
 
 
 /*-------------------------------------------------------------------------
- * Function:	check_rename_entry()
+ * Function:	check_move_entry()
  *
- * Purpose:	Verify that H5C_rename_entry behaves as expected.  In
+ * Purpose:	Verify that H5C_move_entry behaves as expected.  In
  * 		particular, verify that it works correctly with pinned
  * 		entries.
  *
@@ -14423,12 +14482,12 @@ check_multiple_read_protect(void)
  */
 
 static unsigned
-check_rename_entry(void)
+check_move_entry(void)
 {
-    const char * fcn_name = "check_rename_entry";
+    const char * fcn_name = "check_move_entry";
     int          i;
-    H5C_t *      cache_ptr = NULL;
-    struct rename_entry_test_spec test_specs[4] =
+    H5F_t *      file_ptr = NULL;
+    struct move_entry_test_spec test_specs[4] =
     {
       {
         /* int     entry_type  = */ PICO_ENTRY_TYPE,
@@ -14456,23 +14515,23 @@ check_rename_entry(void)
       }
     };
 
-    TESTING("H5C_rename_entry() functionality");
+    TESTING("H5C_move_entry() functionality");
 
     pass = TRUE;
 
-    /* allocate a cache, load entries into it, and then rename
+    /* allocate a cache, load entries into it, and then move
      * them.  To the extent possible, verify that the desired
      * actions took place.
      *
      * At present, we should do the following tests:
      *
-     * 1) Rename a clean, unprotected, unpinned entry.
+     * 1) move a clean, unprotected, unpinned entry.
      *
-     * 2) Rename a dirty, unprotected, unpinned entry.
+     * 2) move a dirty, unprotected, unpinned entry.
      *
-     * 3) Rename a clean, unprotected, pinned entry.
+     * 3) move a clean, unprotected, pinned entry.
      *
-     * 4) Rename a dirty, unprotected, pinned entry.
+     * 4) move a dirty, unprotected, pinned entry.
      *
      * In all cases, the entry should have moved to its
      * new location, and have been marked dirty if it wasn't
@@ -14489,20 +14548,20 @@ check_rename_entry(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
     }
 
     i = 0;
     while ( ( pass ) && ( i < 4 ) )
     {
-        check_rename_entry__run_test(cache_ptr, i, &(test_specs[i]));
+        check_move_entry__run_test(file_ptr, i, &(test_specs[i]));
 	i++;
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -14515,13 +14574,13 @@ check_rename_entry(void)
 
     return (unsigned)!pass;
 
-} /* check_rename_entry() */
+} /* check_move_entry() */
 
 
 /*-------------------------------------------------------------------------
- * Function:    check_rename_entry__run_test()
+ * Function:    check_move_entry__run_test()
  *
- * Purpose:     Run a rename entry test.
+ * Purpose:     Run a move entry test.
  *
  *		Do nothing if pass is FALSE on entry.
  *
@@ -14538,34 +14597,20 @@ check_rename_entry(void)
  */
 
 static void
-check_rename_entry__run_test(H5C_t * cache_ptr,
+check_move_entry__run_test(H5F_t * file_ptr,
                              int test_num,
-                             struct rename_entry_test_spec * spec_ptr)
+                             struct move_entry_test_spec * spec_ptr)
 {
-    /* const char *   fcn_name = "check_rename_entry__run_test"; */
+    /* const char *   fcn_name = "check_move_entry__run_test"; */
+    H5C_t *       cache_ptr = file_ptr->shared->cache;
     static char    msg[128];
     unsigned int   flags = H5C__NO_FLAGS_SET;
     test_entry_t * base_addr;
     test_entry_t * entry_ptr = NULL;
     H5C_cache_entry_t * test_ptr = NULL;
 
-    if ( cache_ptr == NULL ) {
-
-        pass = FALSE;
-        HDsnprintf(msg, (size_t)128,
-                   "cache_ptr NULL on entry to rename test #%d.",
-                   test_num);
-        failure_mssg = msg;
-
-    } else if ( spec_ptr == NULL ) {
-
-        pass = FALSE;
-        HDsnprintf(msg, (size_t)128,
-                   "spec_ptr NULL on entry to rename test #%d.",
-                   test_num);
-        failure_mssg = msg;
-
-    }
+    assert( cache_ptr );
+    assert( spec_ptr );
 
     if ( pass ) {
 
@@ -14580,7 +14625,7 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "bad entry_ptr in rename test #%d.",
+                       "bad entry_ptr in move test #%d.",
                        test_num);
             failure_mssg = msg;
 
@@ -14590,18 +14635,22 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
         }
     }
 
-    protect_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index,
-                    (int)(spec_ptr->is_dirty), flags);
+        protect_entry(file_ptr, spec_ptr->entry_type, spec_ptr->entry_index);
 
-    rename_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index, FALSE);
+        unprotect_entry(file_ptr, spec_ptr->entry_type, spec_ptr->entry_index,
+                        (int)(spec_ptr->is_dirty), flags);
+
+        move_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index, FALSE);
+
+    }
 
     if ( pass ) {
 
-        /* verify that the rename took place, and that the cache's internal
+        /* verify that the move took place, and that the cache's internal
          * structures are as expected.  Note that some sanity checking is
-         * done by rename_entry(), so we don't have to repeat it here.
+         * done by move_entry(), so we don't have to repeat it here.
          */
 
         if ( spec_ptr->is_pinned ) {
@@ -14610,7 +14659,7 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
 
                 pass = FALSE;
                 HDsnprintf(msg, (size_t)128,
-                           "Pinned entry not pinned after rename in test #%d.",
+                           "Pinned entry not pinned after move in test #%d.",
                            test_num);
                 failure_mssg = msg;
             }
@@ -14629,13 +14678,13 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
 
                     pass = FALSE;
                     HDsnprintf(msg, (size_t)128,
-                           "Pinned entry not in pel after rename in test #%d.",
+                           "Pinned entry not in pel after move in test #%d.",
                            test_num);
                     failure_mssg = msg;
                 }
             }
 
-            unpin_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index);
+            unpin_entry(spec_ptr->entry_type, spec_ptr->entry_index);
 
         } else {
 
@@ -14643,7 +14692,7 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
 
                 pass = FALSE;
                 HDsnprintf(msg, (size_t)128,
-                           "Unpinned entry pinned after rename in test #%d.",
+                           "Unpinned entry pinned after move in test #%d.",
                            test_num);
                 failure_mssg = msg;
             }
@@ -14653,7 +14702,7 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
             {
                 pass = FALSE;
                 HDsnprintf(msg, (size_t)128,
-                           "Entry not at head of LRU after rename in test #%d.",
+                           "Entry not at head of LRU after move in test #%d.",
                            test_num);
                 failure_mssg = msg;
             }
@@ -14661,11 +14710,11 @@ check_rename_entry__run_test(H5C_t * cache_ptr,
     }
 
     /* put the entry back where it started from */
-    rename_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index, TRUE);
+    move_entry(cache_ptr, spec_ptr->entry_type, spec_ptr->entry_index, TRUE);
 
     return;
 
-} /* check_rename_entry__run_test() */
+} /* check_move_entry__run_test() */
 
 
 /*-------------------------------------------------------------------------
@@ -14689,7 +14738,7 @@ check_pin_protected_entry(void)
     const char *  fcn_name = "check_pin_protected_entry";
     static char   msg[128];
     herr_t        result;
-    H5C_t *       cache_ptr = NULL;
+    H5F_t *       file_ptr = NULL;
     test_entry_t * base_addr;
     test_entry_t * entry_ptr;
 
@@ -14706,18 +14755,29 @@ check_pin_protected_entry(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
+
+        if ( file_ptr == NULL ) {
+
+            pass = FALSE;
+            failure_mssg = "file_ptr NULL from setup_cache.";
+
+        }
     }
 
-    protect_entry(cache_ptr, 0, 0);
+    if ( pass ) {
+
+        protect_entry(file_ptr, 0, 0);
+
+    }
 
     if ( pass ) {
 
         base_addr = entries[0];
         entry_ptr = &(base_addr[0]);
 
-	result = H5C_pin_protected_entry(cache_ptr, (void *)entry_ptr);
+	result = H5C_pin_protected_entry((void *)entry_ptr);
 
 	if ( result < 0 ) {
 
@@ -14738,11 +14798,11 @@ check_pin_protected_entry(void)
 	}
     }
 
-    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
+    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -14788,6 +14848,7 @@ check_resize_entry(void)
     hbool_t	   is_pinned;
     size_t	   entry_size;
     size_t	   reported_entry_size;
+    H5F_t *        file_ptr = NULL;
     H5C_t *        cache_ptr = NULL;
     test_entry_t * base_addr;
     test_entry_t * entry_ptr;
@@ -14831,12 +14892,22 @@ check_resize_entry(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024 * 1024),
                                 (size_t)(1 * 1024 * 1024));
+        if ( file_ptr == NULL ) {
 
-        base_addr = entries[LARGE_ENTRY_TYPE];
-        entry_ptr = &(base_addr[0]);
-	entry_size = LARGE_ENTRY_SIZE;
+            pass = FALSE;
+            failure_mssg = "file_ptr NULL from setup_cache.";
+
+        } 
+        else  
+        {
+            cache_ptr = file_ptr->shared->cache;
+
+            base_addr = entries[LARGE_ENTRY_TYPE];
+            entry_ptr = &(base_addr[0]);
+	    entry_size = LARGE_ENTRY_SIZE;
+        }
     }
 
     if ( pass ) {
@@ -14853,7 +14924,11 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
+    if ( pass ) {
+
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+
+    }
 
     if ( pass ) {
 
@@ -14872,7 +14947,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -14880,7 +14955,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 1.");
+                       "H5C_get_entry_status() reports failure 1.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || is_dirty || !is_protected || is_pinned ) {
@@ -14903,11 +14978,9 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr,
-			       &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr,
-			       (void *)entry_ptr,
-			       H5C__SIZE_CHANGED_FLAG | H5C__DIRTIED_FLAG,
-			       (LARGE_ENTRY_SIZE / 2));
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__SIZE_CHANGED_FLAG | H5C__DIRTIED_FLAG, (LARGE_ENTRY_SIZE / 2));
 
 	if ( result < 0 ) {
 
@@ -14942,7 +15015,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -14950,7 +15023,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 2.");
+                       "H5C_get_entry_status() reports failure 2.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || is_pinned ||
@@ -14972,15 +15045,17 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
+    if ( pass ) {
+
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr,
-			       &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr,
-			       (void *)entry_ptr,
-			       (H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG),
-			       LARGE_ENTRY_SIZE);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr, (void *)entry_ptr,
+                (H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG), LARGE_ENTRY_SIZE);
 
 	if ( result < 0 ) {
 
@@ -15015,7 +15090,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15023,7 +15098,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 3.");
+                       "H5C_get_entry_status() reports failure 3.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || is_pinned ||
@@ -15045,20 +15120,23 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_resize_pinned_entry(cache_ptr, (void *)entry_ptr,
-			                 (LARGE_ENTRY_SIZE / 4));
+        result = H5C_resize_entry((void *)entry_ptr, (LARGE_ENTRY_SIZE / 4));
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-		       "H5C_resize_pinned_entry() reports failure 1.");
+		       "H5C_resize_entry() reports failure 1.");
             failure_mssg = msg;
 
 	}
@@ -15080,7 +15158,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15088,7 +15166,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 4.");
+                       "H5C_get_entry_status() reports failure 4.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || ! is_pinned ||
@@ -15112,14 +15190,13 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_resize_pinned_entry(cache_ptr, (void *)entry_ptr,
-			                 LARGE_ENTRY_SIZE);
+        result = H5C_resize_entry((void *)entry_ptr, LARGE_ENTRY_SIZE);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-		       "H5C_resize_pinned_entry() reports failure 2.");
+		       "H5C_resize_entry() reports failure 2.");
             failure_mssg = msg;
 
 	}
@@ -15141,7 +15218,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15149,7 +15226,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 5.");
+                       "H5C_get_entry_status() reports failure 5.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || ! is_pinned ||
@@ -15171,14 +15248,18 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0, FALSE,
-		    H5C__UNPIN_ENTRY_FLAG | H5C__DELETED_FLAG);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0, FALSE, 
+                        H5C__UNPIN_ENTRY_FLAG | H5C__DELETED_FLAG);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                                       &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
@@ -15186,7 +15267,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 6.");
+                       "H5C_get_entry_status() reports failure 6.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -15241,14 +15322,18 @@ check_resize_entry(void)
 	entry_size = LARGE_ENTRY_SIZE;
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0, FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1);
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1, TRUE, H5C__NO_FLAGS_SET);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0, FALSE, H5C__NO_FLAGS_SET);
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2);
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2, FALSE, H5C__NO_FLAGS_SET);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 1);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 1, TRUE, H5C__NO_FLAGS_SET);
+
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 2);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 2, FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( pass ) {
 
@@ -15265,7 +15350,11 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3);
+    if ( pass ) {
+
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 3);
+
+    }
 
     if ( pass ) {
 
@@ -15284,7 +15373,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15292,7 +15381,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 7.");
+                       "H5C_get_entry_status() reports failure 7.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || is_dirty || !is_protected || is_pinned ) {
@@ -15315,11 +15404,9 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr,
-			       &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr,
-			       (void *)entry_ptr,
-			       H5C__SIZE_CHANGED_FLAG | H5C__DIRTIED_FLAG,
-			       (LARGE_ENTRY_SIZE / 2));
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__SIZE_CHANGED_FLAG | H5C__DIRTIED_FLAG, (LARGE_ENTRY_SIZE / 2));
 
 	if ( result < 0 ) {
 
@@ -15356,7 +15443,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15364,7 +15451,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 8.");
+                       "H5C_get_entry_status() reports failure 8.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || is_pinned ||
@@ -15386,15 +15473,17 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3);
+    if ( pass ) {
+
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 3);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr,
-			       &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr,
-			       (void *)entry_ptr,
-			       (H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG),
-			       LARGE_ENTRY_SIZE);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[LARGE_ENTRY_TYPE]), entry_ptr->addr, (void *)entry_ptr,
+                (H5C__DIRTIED_FLAG | H5C__SIZE_CHANGED_FLAG), LARGE_ENTRY_SIZE);
 
 	if ( result < 0 ) {
 
@@ -15429,7 +15518,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15437,7 +15526,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 9.");
+                       "H5C_get_entry_status() reports failure 9.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || is_pinned ||
@@ -15459,20 +15548,23 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3, FALSE, H5C__PIN_ENTRY_FLAG);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 3);
+
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 3, FALSE, H5C__PIN_ENTRY_FLAG);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_resize_pinned_entry(cache_ptr, (void *)entry_ptr,
-			                 (LARGE_ENTRY_SIZE / 4));
+        result = H5C_resize_entry((void *)entry_ptr, (LARGE_ENTRY_SIZE / 4));
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-		       "H5C_resize_pinned_entry() reports failure 3.");
+		       "H5C_resize_entry() reports failure 3.");
             failure_mssg = msg;
 
 	}
@@ -15496,7 +15588,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15504,7 +15596,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 10.");
+                       "H5C_get_entry_status() reports failure 10.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || ! is_pinned ||
@@ -15528,14 +15620,13 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_resize_pinned_entry(cache_ptr, (void *)entry_ptr,
-			                 LARGE_ENTRY_SIZE);
+        result = H5C_resize_entry((void *)entry_ptr, LARGE_ENTRY_SIZE);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-		       "H5C_resize_pinned_entry() reports failure 4.");
+		       "H5C_resize_entry() reports failure 4.");
             failure_mssg = msg;
 
 	}
@@ -15557,7 +15648,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              &reported_entry_size, &in_cache,
 				      &is_dirty, &is_protected, &is_pinned);
 
@@ -15565,7 +15656,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 11.");
+                       "H5C_get_entry_status() reports failure 11.");
             failure_mssg = msg;
 
 	} else if ( !in_cache || !is_dirty || is_protected || ! is_pinned ||
@@ -15587,14 +15678,18 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3);
+    if ( pass ) {
 
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3, FALSE,
-		    H5C__UNPIN_ENTRY_FLAG | H5C__DELETED_FLAG);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 3);
+
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 3, FALSE, 
+                        H5C__UNPIN_ENTRY_FLAG | H5C__DELETED_FLAG);
+
+    }
 
     if ( pass ) {
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr, &entry_size,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr, &entry_size,
                                       &in_cache, &is_dirty, &is_protected,
 				      &is_pinned);
 
@@ -15602,7 +15697,7 @@ check_resize_entry(void)
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 12.");
+                       "H5C_get_entry_status() reports failure 12.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -15637,15 +15732,18 @@ check_resize_entry(void)
 	}
     }
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2);
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2, FALSE, H5C__DELETED_FLAG);
+    if ( pass ) {
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1);
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1, FALSE, H5C__DELETED_FLAG);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 2);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 2, FALSE, H5C__DELETED_FLAG);
 
-    protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
-    unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0, FALSE, H5C__DELETED_FLAG);
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 1);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 1, FALSE, H5C__DELETED_FLAG);
 
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0, FALSE, H5C__DELETED_FLAG);
+
+    }
 
     if ( pass ) {
 
@@ -15663,7 +15761,7 @@ check_resize_entry(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -15708,8 +15806,9 @@ check_evictions_enabled(void)
     hbool_t	   in_cache;
     int 	   i;
     int		   mile_stone = 1;
+    H5F_t *        file_ptr = NULL;
     H5C_t *        cache_ptr = NULL;
-    test_entry_t * base_addr;
+    test_entry_t * base_addr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("evictions enabled/disabled functionality");
@@ -15760,17 +15859,27 @@ check_evictions_enabled(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(1 * 1024 * 1024),
+        file_ptr = setup_cache((size_t)(1 * 1024 * 1024),
                                 (size_t)(     512 * 1024));
+        if ( file_ptr == NULL ) {
 
-        base_addr = entries[MONSTER_ENTRY_TYPE];
+            pass = FALSE;
+            failure_mssg = "file_ptr NULL from setup_cache.";
+
+        } 
+        else  
+        {
+            cache_ptr = file_ptr->shared->cache;
+
+            base_addr = entries[MONSTER_ENTRY_TYPE];
+        }
     }
 
     if ( show_progress ) /* 2 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* verivy that it is empty */
+    /* verify that it is empty */
     if ( pass ) {
 
 	if ( ( cache_ptr->index_len != 0 ) ||
@@ -15807,12 +15916,16 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* fill the cache */
-    for ( i = 0; i < 16 ; i++ )
-    {
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
-        unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
-			FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* fill the cache */
+        for ( i = 0; i < 16 ; i++ )
+        {
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
+            unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i, 
+                            FALSE, H5C__NO_FLAGS_SET);
+        }
+
     }
 
     if ( show_progress ) /* 5 */
@@ -15840,16 +15953,20 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* protect and unprotect another entry */
-    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 16);
-    unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 16,
-		    FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* protect and unprotect another entry */
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 16);
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 16, 
+                        FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 7 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* verify that the an entry has been evicted */
+    /* verify that an entry has been evicted */
     if ( pass ) {
 
 	if ( ( cache_ptr->index_len != 16 ) ||
@@ -15873,14 +15990,14 @@ check_evictions_enabled(void)
 
         entry_ptr = &(base_addr[0]);
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              NULL, &in_cache, NULL, NULL, NULL);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 1.");
+                       "H5C_get_entry_status() reports failure 1.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -15905,8 +16022,12 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* insert an entry */
-    insert_entry(cache_ptr, MONSTER_ENTRY_TYPE, 17, TRUE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* insert an entry */
+        insert_entry(file_ptr, MONSTER_ENTRY_TYPE, 17, TRUE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 10 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -15936,14 +16057,14 @@ check_evictions_enabled(void)
 
         entry_ptr = &(base_addr[1]);
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              NULL, &in_cache, NULL, NULL, NULL);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 2.");
+                       "H5C_get_entry_status() reports failure 2.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -16005,10 +16126,14 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* protect and unprotect another entry */
-    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 18);
-    unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 18,
-		    FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* protect and unprotect another entry */
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 18);
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 18, 
+                        FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 15 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -16034,8 +16159,12 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* insert another entry */
-    insert_entry(cache_ptr, MONSTER_ENTRY_TYPE, 19, TRUE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* insert another entry */
+        insert_entry(file_ptr, MONSTER_ENTRY_TYPE, 19, TRUE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 17 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -16078,10 +16207,14 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* protect and unprotect an entry that is in the cache */
-    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 19);
-    unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 19,
-		    FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* protect and unprotect an entry that is in the cache */
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 19);
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 19, 
+                        FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 20 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -16107,10 +16240,14 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* protect and unprotect an entry that isn't in the cache */
-    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 20);
-    unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 20,
-		    FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* protect and unprotect an entry that isn't in the cache */
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 20);
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 20, 
+                        FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 22 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -16143,14 +16280,14 @@ check_evictions_enabled(void)
 
         entry_ptr = &(base_addr[2]);
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              NULL, &in_cache, NULL, NULL, NULL);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 3.");
+                       "H5C_get_entry_status() reports failure 3.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -16179,14 +16316,14 @@ check_evictions_enabled(void)
 
         entry_ptr = &(base_addr[3]);
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              NULL, &in_cache, NULL, NULL, NULL);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 4.");
+                       "H5C_get_entry_status() reports failure 4.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -16228,13 +16365,16 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* protect and unprotect an entry that isn't in the cache, forcing
-     * the cache to grow.
-     */
-    protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 21);
-    unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 21,
-		    FALSE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
 
+        /* protect and unprotect an entry that isn't in the cache, forcing
+         * the cache to grow.
+         */
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 21);
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 21, 
+                        FALSE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 27 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -16277,8 +16417,12 @@ check_evictions_enabled(void)
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
                   fcn_name, mile_stone++, (int)pass);
 
-    /* insert an entry */
-    insert_entry(cache_ptr, MONSTER_ENTRY_TYPE, 22, TRUE, H5C__NO_FLAGS_SET);
+    if ( pass ) {
+
+        /* insert an entry */
+        insert_entry(file_ptr, MONSTER_ENTRY_TYPE, 22, TRUE, H5C__NO_FLAGS_SET);
+
+    }
 
     if ( show_progress ) /* 30 */
         HDfprintf(stdout, "%s() - %0d -- pass = %d\n",
@@ -16308,14 +16452,14 @@ check_evictions_enabled(void)
 
         entry_ptr = &(base_addr[4]);
 
-        result = H5C_get_entry_status(cache_ptr, entry_ptr->addr,
+        result = H5C_get_entry_status(file_ptr, entry_ptr->addr,
 			              NULL, &in_cache, NULL, NULL, NULL);
 
 	if ( result < 0 ) {
 
             pass = FALSE;
             HDsnprintf(msg, (size_t)128,
-                       "H5AC_get_entry_status() reports failure 5.");
+                       "H5C_get_entry_status() reports failure 5.");
             failure_mssg = msg;
 
 	} else if ( in_cache ) {
@@ -16359,7 +16503,7 @@ check_evictions_enabled(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( show_progress ) /* 34 */
@@ -16399,7 +16543,7 @@ static unsigned
 check_flush_protected_err(void)
 {
     const char * fcn_name = "check_flush_protected_err";
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("flush cache with protected entry error");
 
@@ -16414,30 +16558,30 @@ check_flush_protected_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
-        if ( H5C_flush_cache(NULL, -1, -1, cache_ptr, H5C__NO_FLAGS_SET)
-             >= 0 ) {
+        if ( H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                H5C__NO_FLAGS_SET) >= 0 ) {
 
             pass = FALSE;
             failure_mssg = "flush succeeded on cache with protected entry.\n";
 
         } else {
 
-            unprotect_entry(cache_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
+            unprotect_entry(file_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
 
-            if ( H5C_flush_cache(NULL, -1, -1, cache_ptr, H5C__NO_FLAGS_SET)
-                 < 0 ) {
+            if ( H5C_flush_cache(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                    H5C__NO_FLAGS_SET) < 0 ) {
 
                 pass = FALSE;
                 failure_mssg = "flush failed after unprotect.\n";
 
             } else {
 
-                takedown_cache(cache_ptr, FALSE, FALSE);
+                takedown_cache(file_ptr, FALSE, FALSE);
             }
         }
     }
@@ -16472,11 +16616,13 @@ check_flush_protected_err(void)
  *-------------------------------------------------------------------------
  */
 
+extern H5C_t * saved_cache;
+
 static unsigned
 check_destroy_pinned_err(void)
 {
     const char * fcn_name = "check_destroy_pinned_err()";
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("destroy cache with permanently pinned entry error");
 
@@ -16491,28 +16637,44 @@ check_destroy_pinned_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+        protect_entry(file_ptr, 0, 0);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
 
-        if ( H5C_dest(NULL, -1, -1, cache_ptr) >= 0 ) {
+        if ( H5C_dest(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT) >= 0 ) {
 
             pass = FALSE;
             failure_mssg = "destroy succeeded on cache with pinned entry.\n";
 
         } else {
 
-	    unpin_entry(cache_ptr, 0, 0);
+	    unpin_entry(0, 0);
 
-            if ( H5C_dest(NULL, -1, -1, cache_ptr) < 0 ) {
+            if ( H5C_dest(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT) < 0 ) {
 
                 pass = FALSE;
                 failure_mssg = "destroy failed after unpin.\n";
 
-            }
+            } else {
+                file_ptr->shared->cache = NULL;
+	    }
         }
+
+        if ( saved_cache != NULL ) {
+
+            file_ptr->shared->cache = saved_cache;
+            saved_cache = NULL;
+
+        }
+
+	/* call takedown_cache() with a NULL file_ptr parameter.
+	 * This causes the function to close and delete the file,
+	 * while skipping the call to H5C_dest().
+	 */
+	takedown_cache(NULL, FALSE, FALSE);
+
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -16548,7 +16710,7 @@ static unsigned
 check_destroy_protected_err(void)
 {
     const char * fcn_name = "check_destroy_protected_err";
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
 
     TESTING("destroy cache with protected entry error");
 
@@ -16563,27 +16725,42 @@ check_destroy_protected_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
-        if ( H5C_dest(NULL, -1, -1, cache_ptr) >= 0 ) {
+        if ( H5C_dest(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT) >= 0 ) {
 
             pass = FALSE;
             failure_mssg = "destroy succeeded on cache with protected entry.\n";
 
         } else {
 
-            unprotect_entry(cache_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
+            unprotect_entry(file_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
 
-            if ( H5C_dest(NULL, -1, -1, cache_ptr) < 0 ) {
+            if ( H5C_dest(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT) < 0 ) {
 
                 pass = FALSE;
                 failure_mssg = "destroy failed after unprotect.\n";
 
-            }
+            } else {
+                file_ptr->shared->cache = NULL;
+	    }
         }
+
+        if ( saved_cache != NULL ) {
+
+            file_ptr->shared->cache = saved_cache;
+            saved_cache = NULL;
+
+        }
+
+	/* call takedown_cache() with a NULL file_ptr parameter.
+	 * This causes the function to close and delete the file,
+	 * while skipping the call to H5C_dest().
+	 */
+	takedown_cache(NULL, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -16620,7 +16797,7 @@ check_duplicate_insert_err(void)
 {
     const char * fcn_name = "check_duplicate_insert_err";
     herr_t result = -1;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * base_addr;
     test_entry_t * entry_ptr;
 
@@ -16637,19 +16814,18 @@ check_duplicate_insert_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
         if ( pass ) {
 
             base_addr = entries[0];
             entry_ptr = &(base_addr[0]);
 
-            result = H5C_insert_entry(NULL, -1, -1, cache_ptr,
-                                      &(types[0]), entry_ptr->addr,
-                                      (void *)entry_ptr, H5C__NO_FLAGS_SET);
+            result = H5C_insert_entry(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                    &(types[0]), entry_ptr->addr, (void *)entry_ptr, H5C__NO_FLAGS_SET);
 
             if ( result >= 0 ) {
 
@@ -16658,9 +16834,9 @@ check_duplicate_insert_err(void)
 
             } else {
 
-                unprotect_entry(cache_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
+                unprotect_entry(file_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
 
-                takedown_cache(cache_ptr, FALSE, FALSE);
+                takedown_cache(file_ptr, FALSE, FALSE);
             }
         }
     }
@@ -16679,9 +16855,9 @@ check_duplicate_insert_err(void)
 
 
 /*-------------------------------------------------------------------------
- * Function:	check_rename_err()
+ * Function:	check_move_err()
  *
- * Purpose:	Verify that an attempt to rename an entry to the address
+ * Purpose:	Verify that an attempt to move an entry to the address
  *		of an existing entry will generate an error.
  *
  * Return:	void
@@ -16695,20 +16871,21 @@ check_duplicate_insert_err(void)
  */
 
 static unsigned
-check_rename_err(void)
+check_move_err(void)
 {
-    const char * fcn_name = "check_rename_err()";
+    const char * fcn_name = "check_move_err()";
     herr_t result;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     test_entry_t * entry_0_0_ptr;
     test_entry_t * entry_0_1_ptr;
     test_entry_t * entry_1_0_ptr;
 
-    TESTING("rename to existing entry errors");
+    TESTING("move to existing entry errors");
 
     pass = TRUE;
 
-    /* allocate a cache, and insert several entries.  Try to rename
+    /* allocate a cache, and insert several entries.  Try to move
      * entries to other entries resident in the cache.  This should
      * fail.  Destroy the cache -- should succeed.
      */
@@ -16717,12 +16894,13 @@ check_rename_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
 
-        insert_entry(cache_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
-        insert_entry(cache_ptr, 0, 1, TRUE, H5C__NO_FLAGS_SET);
-        insert_entry(cache_ptr, 1, 0, TRUE, H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, 0, 0, TRUE, H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, 0, 1, TRUE, H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, 1, 0, TRUE, H5C__NO_FLAGS_SET);
 
         entry_0_0_ptr = &((entries[0])[0]);
         entry_0_1_ptr = &((entries[0])[1]);
@@ -16731,31 +16909,31 @@ check_rename_err(void)
 
     if ( pass ) {
 
-        result = H5C_rename_entry(cache_ptr, &(types[0]),
+        result = H5C_move_entry(cache_ptr, &(types[0]),
                                   entry_0_0_ptr->addr, entry_0_1_ptr->addr);
 
         if ( result >= 0 ) {
 
             pass = FALSE;
-            failure_mssg = "rename to addr of same type succeeded.\n";
+            failure_mssg = "move to addr of same type succeeded.\n";
         }
     }
 
     if ( pass ) {
 
-        result = H5C_rename_entry(cache_ptr, &(types[0]),
+        result = H5C_move_entry(cache_ptr, &(types[0]),
                                   entry_0_0_ptr->addr, entry_1_0_ptr->addr);
 
         if ( result >= 0 ) {
 
             pass = FALSE;
-            failure_mssg = "rename to addr of different type succeeded.\n";
+            failure_mssg = "move to addr of different type succeeded.\n";
         }
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -16768,7 +16946,7 @@ check_rename_err(void)
 
     return (unsigned)!pass;
 
-} /* check_rename_err() */
+} /* check_move_err() */
 
 
 /*-------------------------------------------------------------------------
@@ -16794,7 +16972,7 @@ check_double_pin_err(void)
 {
     const char * fcn_name = "check_double_pin_err()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("pin a pinned entry error");
@@ -16811,23 +16989,23 @@ check_double_pin_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr, &(types[0]),
-                               entry_ptr->addr, (void *)entry_ptr,
-                               H5C__PIN_ENTRY_FLAG, (size_t)0);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__PIN_ENTRY_FLAG, (size_t)0);
 
         if ( result > 0 ) {
 
@@ -16837,13 +17015,13 @@ check_double_pin_err(void)
 
         } else {
 
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
+	    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
 	}
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -16882,7 +17060,7 @@ check_double_unpin_err(void)
 {
     const char * fcn_name = "check_double_unpin_err()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("unpin an unpinned entry error");
@@ -16901,19 +17079,19 @@ check_double_unpin_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr, &(types[0]),
-                               entry_ptr->addr, (void *)entry_ptr,
-                               H5C__UNPIN_ENTRY_FLAG, (size_t)0);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__UNPIN_ENTRY_FLAG, (size_t)0);
 
         if ( result > 0 ) {
 
@@ -16923,13 +17101,13 @@ check_double_unpin_err(void)
 
         } else {
 
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+	    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 	}
     }
 
     if ( pass ) {
 
-	result =  H5C_unpin_entry(cache_ptr, (void *)entry_ptr);
+	result =  H5C_unpin_entry((void *)entry_ptr);
 
         if ( result > 0 ) {
 
@@ -16942,7 +17120,7 @@ check_double_unpin_err(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -16981,7 +17159,7 @@ check_pin_entry_errs(void)
 {
     const char * fcn_name = "check_pin_entry_errs()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("pin entry related errors");
@@ -17004,19 +17182,19 @@ check_pin_entry_errs(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        result = H5C_pin_protected_entry(cache_ptr, (void *)entry_ptr);
+        result = H5C_pin_protected_entry((void *)entry_ptr);
 
         if ( result > 0 ) {
 
@@ -17026,17 +17204,17 @@ check_pin_entry_errs(void)
 
         } else {
 
-            protect_entry(cache_ptr, 0, 0);
+            protect_entry(file_ptr, 0, 0);
 
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+	    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
 
-            protect_entry(cache_ptr, 0, 0);
+            protect_entry(file_ptr, 0, 0);
 	}
     }
 
     if ( pass ) {
 
-        result = H5C_pin_protected_entry(cache_ptr, (void *)entry_ptr);
+        result = H5C_pin_protected_entry((void *)entry_ptr);
 
         if ( result > 0 ) {
 
@@ -17046,14 +17224,14 @@ check_pin_entry_errs(void)
 
         } else {
 
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
+	    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
 
 	}
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17094,7 +17272,7 @@ static unsigned
 check_double_protect_err(void)
 {
     const char * fcn_name = "check_double_protect_err()";
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
     H5C_cache_entry_t * cache_entry_ptr;
 
@@ -17111,19 +17289,18 @@ check_double_protect_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        cache_entry_ptr = (H5C_cache_entry_t *)H5C_protect(NULL, -1, -1, cache_ptr, &(types[0]),
-                                      entry_ptr->addr, NULL, NULL,
-				      H5C__NO_FLAGS_SET);
+        cache_entry_ptr = (H5C_cache_entry_t *)H5C_protect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, NULL, H5C__NO_FLAGS_SET);
 
         if ( cache_entry_ptr != NULL ) {
 
@@ -17134,12 +17311,12 @@ check_double_protect_err(void)
 
     if ( pass ) {
 
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17184,7 +17361,7 @@ check_double_unprotect_err(void)
 {
     const char * fcn_name = "check_double_unprotect_err()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("unprotect an unprotected entry error");
@@ -17200,21 +17377,21 @@ check_double_unprotect_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
-        unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+        unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr, &(types[0]),
-                               entry_ptr->addr, (void *)entry_ptr,
-                               H5C__NO_FLAGS_SET, (size_t)0);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__NO_FLAGS_SET, (size_t)0);
 
         if ( result > 0 ) {
 
@@ -17226,7 +17403,7 @@ check_double_unprotect_err(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17247,13 +17424,7 @@ check_double_unprotect_err(void)
  *
  * Purpose:	Verify that:
  *
- * 		1) a call to H5C_mark_pinned_entry_dirty with an upinned
- * 		   entry as the target will generate an error.
- *
- * 		2) a call to H5C_mark_pinned_entry_dirty with a protected
- * 		   entry as the target will generate an error.
- *
- *		3) a call to H5C_mark_pinned_or_protected_entry_dirty with
+ *		1) a call to H5C_mark_entry_dirty with
  *		   and unpinned and unprotected entry will generate an
  *		   error.
  *
@@ -17261,10 +17432,6 @@ check_double_unprotect_err(void)
  *
  * Programmer:	John Mainzer
  *              5/17/06
- *
- * Modifications:
- *
- *		None.
  *
  *-------------------------------------------------------------------------
  */
@@ -17274,21 +17441,15 @@ check_mark_entry_dirty_errs(void)
 {
     const char * fcn_name = "check_mark_entry_dirty_errs()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("mark entry dirty related errors");
 
     pass = TRUE;
 
-    /* allocate a cache, protect an entry, and then attempt to mark it dirty
-     * with the H5C_mark_pinned_entry_dirty() call -- This should fail.
-     *
-     * Then unprotect the entry without pinning it, and try to mark it dirty
-     * again -- this should fail too.
-     *
-     * Try it again using H5C_mark_pinned_or_protected_entry_dirty -- this
-     * should fail as well.
+    /* allocate a cache, protect an entry, unprotect the entry without
+     * pinning it, and try to mark it dirty -- this should fail.
      *
      * Destroy the cache -- should succeed.
      */
@@ -17297,66 +17458,32 @@ check_mark_entry_dirty_errs(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
-
-        protect_entry(cache_ptr, 0, 0);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-	result = H5C_mark_pinned_entry_dirty(cache_ptr, (void *)entry_ptr,
-			                     FALSE, (size_t)0);
-
-        if ( result > 0 ) {
-
-            pass = FALSE;
-            failure_mssg =
-                    "attempt dirty a pinned and protected entry succeeded.\n";
-
-        } else {
-
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__UNPIN_ENTRY_FLAG);
-	}
-    }
-
-    if ( pass ) {
-
-	result = H5C_mark_pinned_entry_dirty(cache_ptr, (void *)entry_ptr,
-			                     FALSE, (size_t)0);
+	result = H5C_mark_entry_dirty((void *)entry_ptr);
 
 
         if ( result > 0 ) {
 
             pass = FALSE;
             failure_mssg =
-            "attempt to dirty a unpinned and unprotected entry succeeded 1.\n";
+            "attempt to dirty a unpinned and unprotected entry succeeded.\n";
         }
     }
 
     if ( pass ) {
 
-	result = H5C_mark_pinned_or_protected_entry_dirty(cache_ptr,
-			                                  (void *)entry_ptr);
-
-
-        if ( result > 0 ) {
-
-            pass = FALSE;
-            failure_mssg =
-            "attempt to dirty a unpinned and unprotected entry succeeded 2.\n";
-        }
-    }
-
-    if ( pass ) {
-
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17395,7 +17522,7 @@ check_expunge_entry_errs(void)
 {
     const char * fcn_name = "check_expunge_entry_errs()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("expunge entry related errors");
@@ -17418,19 +17545,19 @@ check_expunge_entry_errs(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
         entry_ptr = &((entries[0])[0]);
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
     }
 
     if ( pass ) {
 
-	result = H5C_expunge_entry(NULL, -1, -1, cache_ptr,
-                                   &(types[0]), entry_ptr->addr, H5AC__NO_FLAGS_SET);
+	result = H5C_expunge_entry(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, H5C__NO_FLAGS_SET);
 
         if ( result > 0 ) {
 
@@ -17440,15 +17567,15 @@ check_expunge_entry_errs(void)
 
         } else {
 
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+	    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
 
 	}
     }
 
     if ( pass ) {
 
-	result = H5C_expunge_entry(NULL, -1, -1, cache_ptr,
-                                   &(types[0]), entry_ptr->addr, H5AC__NO_FLAGS_SET);
+	result = H5C_expunge_entry(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, H5C__NO_FLAGS_SET);
 
         if ( result > 0 ) {
 
@@ -17458,15 +17585,15 @@ check_expunge_entry_errs(void)
 
         } else {
 
-	    unpin_entry(cache_ptr, 0, 0);
+	    unpin_entry(0, 0);
 
 	}
     }
 
     if ( pass ) {
 
-	result = H5C_expunge_entry(NULL, -1, -1, cache_ptr,
-                                   &(types[0]), entry_ptr->addr, H5AC__NO_FLAGS_SET);
+	result = H5C_expunge_entry(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, H5C__NO_FLAGS_SET);
 
         if ( result < 0 ) {
 
@@ -17480,7 +17607,7 @@ check_expunge_entry_errs(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17499,17 +17626,13 @@ check_expunge_entry_errs(void)
 /*-------------------------------------------------------------------------
  * Function:	check_resize_entry_errs()
  *
- * Purpose:	Verify that invalid calls to H5C_resize_pinned_entry()
+ * Purpose:	Verify that invalid calls to H5C_resize_entry()
  * 		generates errors as expected.
  *
  * Return:	void
  *
  * Programmer:	John Mainzer
  *              7/7/06
- *
- * Modifications:
- *
- *		None.
  *
  *-------------------------------------------------------------------------
  */
@@ -17519,7 +17642,7 @@ check_resize_entry_errs(void)
 {
     const char * fcn_name = "check_resize_entry_errs()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("resize entry related errors");
@@ -17527,11 +17650,11 @@ check_resize_entry_errs(void)
     pass = TRUE;
 
     /* Allocate a cache, protect an entry, and then call
-     * H5C_resize_pinned_entry() to resize it -- this should fail.
+     * H5C_resize_entry() to resize it -- this should succeed.
      *
      * Unprotect the the entry with the pinned flag, and then call
-     * H5C_resize_pinned_entry() again with new size of zero.
-     * This should fail too.
+     * H5C_resize_entry() again with new size of zero.
+     * This should fail.
      *
      * Finally, unpin the entry and destroy the cache.
      * This should succeed.
@@ -17541,52 +17664,52 @@ check_resize_entry_errs(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
         entry_ptr = &((entries[0])[0]);
 
-        protect_entry(cache_ptr, 0, 0);
+        protect_entry(file_ptr, 0, 0);
 
     }
 
     if ( pass ) {
 
-	result = H5C_resize_pinned_entry(cache_ptr, (void *)entry_ptr, (size_t)1);
+	result = H5C_resize_entry((void *)entry_ptr, (size_t)1);
 
-        if ( result > 0 ) {
+        if ( result < 0 ) {
 
             pass = FALSE;
             failure_mssg =
-            "Call to H5C_resize_pinned_entry on a protected entry succeeded.\n";
+                "Call to H5C_resize_entry on a protected entry failed.\n";
 
         } else {
 
-	    unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
+	    unprotect_entry(file_ptr, 0, 0, FALSE, H5C__PIN_ENTRY_FLAG);
 
 	}
     }
 
     if ( pass ) {
 
-	result = H5C_resize_pinned_entry(cache_ptr, (void *)entry_ptr, (size_t)0);
+	result = H5C_resize_entry((void *)entry_ptr, (size_t)0);
 
-        if ( result > 0 ) {
+        if ( result >= 0 ) {
 
             pass = FALSE;
             failure_mssg =
-                 "Call to H5C_resize_pinned_entry with 0 new size succeeded.\n";
+                 "Call to H5C_resize_entry with 0 new size succeeded.\n";
 
         } else {
 
-	    unpin_entry(cache_ptr, 0, 0);
+	    unpin_entry(0, 0);
 
 	}
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17625,7 +17748,7 @@ check_unprotect_ro_dirty_err(void)
 {
     const char * fcn_name = "check_unprotect_ro_dirty_err()";
     herr_t result;
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
 
     TESTING("unprotect a read only entry dirty error");
@@ -17641,19 +17764,19 @@ check_unprotect_ro_dirty_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr, &(types[0]),
-                               entry_ptr->addr, (void *)entry_ptr,
-                               H5C__DIRTIED_FLAG, (size_t)0);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__DIRTIED_FLAG, (size_t)0);
 
         if ( result >= 0 ) {
 
@@ -17665,13 +17788,13 @@ check_unprotect_ro_dirty_err(void)
 
     if ( pass ) {
 
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     /* allocate a another cache, protect an entry read only twice, and
@@ -17684,20 +17807,20 @@ check_unprotect_ro_dirty_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry_ro(cache_ptr, 0, 0);
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        result = H5C_unprotect(NULL, -1, -1, cache_ptr, &(types[0]),
-                               entry_ptr->addr, (void *)entry_ptr,
-                               H5C__DIRTIED_FLAG, (size_t)0);
+        result = H5C_unprotect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, (void *)entry_ptr,
+                H5C__DIRTIED_FLAG, (size_t)0);
 
         if ( result > 0 ) {
 
@@ -17709,14 +17832,14 @@ check_unprotect_ro_dirty_err(void)
 
     if ( pass ) {
 
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
 
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17754,7 +17877,7 @@ static unsigned
 check_protect_ro_rw_err(void)
 {
     const char * fcn_name = "check_protect_ro_rw_err()";
-    H5C_t * cache_ptr = NULL;
+    H5F_t * file_ptr = NULL;
     test_entry_t * entry_ptr;
     void * thing_ptr = NULL;
 
@@ -17772,18 +17895,18 @@ check_protect_ro_rw_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
 
-        protect_entry_ro(cache_ptr, 0, 0);
+        protect_entry_ro(file_ptr, 0, 0);
 
         entry_ptr = &((entries[0])[0]);
     }
 
     if ( pass ) {
 
-        thing_ptr = H5C_protect(NULL, -1, -1, cache_ptr, &(types[0]),
-                                entry_ptr->addr, NULL, NULL, H5C__NO_FLAGS_SET);
+        thing_ptr = (H5C_cache_entry_t *)H5C_protect(file_ptr, H5P_DATASET_XFER_DEFAULT, H5P_DATASET_XFER_DEFAULT,
+                &(types[0]), entry_ptr->addr, NULL, H5C__NO_FLAGS_SET);
 
         if ( thing_ptr != NULL ) {
 
@@ -17794,12 +17917,12 @@ check_protect_ro_rw_err(void)
 
     if ( pass ) {
 
-	unprotect_entry(cache_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
+	unprotect_entry(file_ptr, 0, 0, FALSE, H5C__NO_FLAGS_SET);
     }
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17839,6 +17962,7 @@ check_check_evictions_enabled_err(void)
     const char * fcn_name = "check_evictions_enabled_err()";
     herr_t result;
     hbool_t evictions_enabled;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
 
     TESTING("get/set evictions enabled errors");
@@ -17862,8 +17986,9 @@ check_check_evictions_enabled_err(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( pass ) {
@@ -17909,7 +18034,7 @@ check_check_evictions_enabled_err(void)
 	if ( result == SUCCEED ) {
 
             pass = FALSE;
-            failure_mssg = "H5C_set_evictions_enabled succeeded() 1.\n";
+            failure_mssg = "H5C_get_evictions_enabled succeeded() 1.\n";
 
         } else if ( cache_ptr->evictions_enabled == TRUE ) {
 
@@ -17927,16 +18052,16 @@ check_check_evictions_enabled_err(void)
 	if ( result == SUCCEED ) {
 
             pass = FALSE;
-            failure_mssg = "H5C_set_evictions_enabled succeeded() 2.\n";
+            failure_mssg = "H5C_get_evictions_enabled succeeded() 2.\n";
         }
 
         (cache_ptr->resize_ctl).decr_mode = H5C_decr__off;
     }
 
 
-    if ( pass ) {
+    if ( cache_ptr ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -17998,6 +18123,7 @@ check_auto_cache_resize(void)
     herr_t result;
     int32_t i;
     int32_t checkpoint = 0;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -18026,8 +18152,8 @@ check_auto_cache_resize(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__threshold,
@@ -18060,8 +18186,9 @@ check_auto_cache_resize(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( pass ) {
@@ -18096,10 +18223,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, PICO_ENTRY_TYPE, i);
+            protect_entry(file_ptr, PICO_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, PICO_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, PICO_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18126,10 +18253,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18156,10 +18283,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, PICO_ENTRY_TYPE, i);
+            protect_entry(file_ptr, PICO_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, PICO_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, PICO_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18186,10 +18313,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18216,10 +18343,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18246,10 +18373,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18277,10 +18404,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18307,10 +18434,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18337,10 +18464,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18368,10 +18495,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18423,7 +18550,6 @@ check_auto_cache_resize(void)
 	auto_size_ctl.flash_multiple         = 2.0;
 	auto_size_ctl.flash_threshold        = 0.5;
 
-
         auto_size_ctl.decr_mode              = H5C_decr__threshold;
 
         auto_size_ctl.upper_hr_threshold     = 0.995;
@@ -18468,10 +18594,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18499,10 +18625,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18530,10 +18656,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18561,10 +18687,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18591,10 +18717,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18621,10 +18747,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18651,10 +18777,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 900 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18662,10 +18788,10 @@ check_auto_cache_resize(void)
 
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i + 1000);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i + 1000);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i + 1000,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i + 1000,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18692,10 +18818,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18722,10 +18848,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18777,7 +18903,6 @@ check_auto_cache_resize(void)
 	auto_size_ctl.flash_multiple         = 2.0;
 	auto_size_ctl.flash_threshold        = 0.5;
 
-
         auto_size_ctl.decr_mode              = H5C_decr__threshold;
 
         auto_size_ctl.upper_hr_threshold     = 0.995;
@@ -18822,10 +18947,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18852,10 +18977,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18882,10 +19007,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -18912,10 +19037,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19019,10 +19144,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19046,10 +19171,10 @@ check_auto_cache_resize(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19073,10 +19198,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19104,10 +19229,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19134,10 +19259,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19163,10 +19288,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19192,10 +19317,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19222,10 +19347,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19241,7 +19366,7 @@ check_auto_cache_resize(void)
         }
     }
 
-    if ( show_progress ) HDfprintf(stderr, "*check point %d\n", checkpoint++);
+    if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
     /* now just bang on one entry -- after three epochs, this should
      * get all entries other than the one evicted, and the cache size
@@ -19253,10 +19378,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19280,10 +19405,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19307,10 +19432,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19337,10 +19462,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19446,10 +19571,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19473,10 +19598,10 @@ check_auto_cache_resize(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19500,10 +19625,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19531,10 +19656,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19561,10 +19686,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19590,10 +19715,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19619,10 +19744,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19648,10 +19773,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19677,10 +19802,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19706,10 +19831,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19735,10 +19860,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19765,10 +19890,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19796,10 +19921,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19823,10 +19948,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19852,10 +19977,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19882,10 +20007,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -19990,10 +20115,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20017,10 +20142,10 @@ check_auto_cache_resize(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20044,10 +20169,10 @@ check_auto_cache_resize(void)
         i = 2000;
         while ( ( pass ) && ( i < 3000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20075,10 +20200,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20105,10 +20230,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20134,10 +20259,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20163,10 +20288,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20193,10 +20318,10 @@ check_auto_cache_resize(void)
         i = 3000;
         while ( ( pass ) && ( i < 4000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20224,10 +20349,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20251,10 +20376,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20278,10 +20403,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20308,10 +20433,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20415,10 +20540,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20442,10 +20567,10 @@ check_auto_cache_resize(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20469,10 +20594,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20497,10 +20622,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20525,10 +20650,10 @@ check_auto_cache_resize(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20553,10 +20678,10 @@ check_auto_cache_resize(void)
         i = 1002;
         while ( ( pass ) && ( i < 2002 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20582,10 +20707,10 @@ check_auto_cache_resize(void)
         i = 1003;
         while ( ( pass ) && ( i < 2003 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20684,10 +20809,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20711,10 +20836,10 @@ check_auto_cache_resize(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20746,10 +20871,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20777,10 +20902,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20808,10 +20933,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20840,10 +20965,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20870,10 +20995,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, LARGE_ENTRY_TYPE, i);
+            protect_entry(file_ptr, LARGE_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20901,10 +21026,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20933,10 +21058,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20965,10 +21090,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -20997,10 +21122,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -21027,10 +21152,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -21057,10 +21182,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -21087,10 +21212,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -21117,10 +21242,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -21147,10 +21272,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -21171,7 +21296,7 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     /* now test the flash cache size increment code.  At least at present,
@@ -21196,8 +21321,9 @@ check_auto_cache_resize(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
@@ -21277,10 +21403,10 @@ check_auto_cache_resize(void)
     /* Load a huge entry into the cache */
     if ( pass ) {
 
-        protect_entry(cache_ptr, HUGE_ENTRY_TYPE, 0);
+        protect_entry(file_ptr, HUGE_ENTRY_TYPE, 0);
 
         if ( pass ) {
-            unprotect_entry(cache_ptr, HUGE_ENTRY_TYPE, 0,
+            unprotect_entry(file_ptr, HUGE_ENTRY_TYPE, 0,
                             NO_CHANGE, H5C__NO_FLAGS_SET);
         }
 
@@ -21305,10 +21431,10 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
         if ( pass ) {
-            unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+            unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                             NO_CHANGE, H5C__NO_FLAGS_SET);
         }
 
@@ -21327,16 +21453,16 @@ check_auto_cache_resize(void)
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
-    /* Load a second moster entry.  Since the monster entry is larger
+    /* Load a second monster entry.  Since the monster entry is larger
      * than half the size of the cache yet again, and there is not
      * sufficient space for the monster entry in the cache, we again
      * add space to the cache to make space for the entry.
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 1);
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 1);
 
-        unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 1,
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 1,
                         NO_CHANGE, H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -21359,9 +21485,9 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 2);
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 2);
 
-        unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 2,
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 2,
                         NO_CHANGE, H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -21383,13 +21509,12 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-	expunge_entry(cache_ptr, MONSTER_ENTRY_TYPE, 1);
-	expunge_entry(cache_ptr, MONSTER_ENTRY_TYPE, 2);
+	expunge_entry(file_ptr, MONSTER_ENTRY_TYPE, 1);
+	expunge_entry(file_ptr, MONSTER_ENTRY_TYPE, 2);
 
         if ( pass ) {
 
-            result = H5C_set_cache_auto_resize_config(cache_ptr,
-			                              &auto_size_ctl);
+            result = H5C_set_cache_auto_resize_config(cache_ptr, &auto_size_ctl);
 
             if ( result != SUCCEED ) {
 
@@ -21419,14 +21544,13 @@ check_auto_cache_resize(void)
     /* insert a huge entry into the cache */
     if ( pass ) {
 
-        insert_entry(cache_ptr, HUGE_ENTRY_TYPE, 1, TRUE,
-		     H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, HUGE_ENTRY_TYPE, 1, TRUE, H5C__NO_FLAGS_SET);
 	/* protect and unprotect a couple times to increment cache_accesses */
-        protect_entry(cache_ptr, HUGE_ENTRY_TYPE, 1);
-        unprotect_entry(cache_ptr, HUGE_ENTRY_TYPE, 1,
+        protect_entry(file_ptr, HUGE_ENTRY_TYPE, 1);
+        unprotect_entry(file_ptr, HUGE_ENTRY_TYPE, 1,
                         NO_CHANGE, H5C__NO_FLAGS_SET);
-        protect_entry(cache_ptr, HUGE_ENTRY_TYPE, 1);
-        unprotect_entry(cache_ptr, HUGE_ENTRY_TYPE, 1,
+        protect_entry(file_ptr, HUGE_ENTRY_TYPE, 1);
+        unprotect_entry(file_ptr, HUGE_ENTRY_TYPE, 1,
                         NO_CHANGE, H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -21450,8 +21574,7 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        insert_entry(cache_ptr, MONSTER_ENTRY_TYPE, 4, TRUE,
-		     H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, MONSTER_ENTRY_TYPE, 4, TRUE, H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (80 * 1024) ) ||
@@ -21472,8 +21595,7 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        insert_entry(cache_ptr, MONSTER_ENTRY_TYPE, 5, TRUE,
-		     H5C__NO_FLAGS_SET);
+        insert_entry(file_ptr, MONSTER_ENTRY_TYPE, 5, TRUE, H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (144 * 1024) ) ||
@@ -21495,9 +21617,9 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 6);
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 6);
 
-        unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 6,
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 6,
                         NO_CHANGE, H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -21521,33 +21643,32 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-	expunge_entry(cache_ptr, MONSTER_ENTRY_TYPE, 5);
-	expunge_entry(cache_ptr, MONSTER_ENTRY_TYPE, 6);
+	expunge_entry(file_ptr, MONSTER_ENTRY_TYPE, 5);
+	expunge_entry(file_ptr, MONSTER_ENTRY_TYPE, 6);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 10,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 10,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1024);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 11,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 11,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1024);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 12,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 12,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1024);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 13);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 13,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 13);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 13,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1024);
 
-	flush_cache(cache_ptr, TRUE, FALSE, FALSE);
+	flush_cache(file_ptr, TRUE, FALSE, FALSE);
 
 
         if ( pass ) {
 
             auto_size_ctl.initial_size           = 6 * 1024;
-            result = H5C_set_cache_auto_resize_config(cache_ptr,
-			                              &auto_size_ctl);
+            result = H5C_set_cache_auto_resize_config(cache_ptr, &auto_size_ctl);
 
             if ( result != SUCCEED ) {
 
@@ -21573,20 +21694,20 @@ check_auto_cache_resize(void)
     /* Now load the variable entries into the cache */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 13);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 13, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 13);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 13, NO_CHANGE,
                         H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -21608,8 +21729,8 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 10,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 10,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 3 * 1024);
 
 
@@ -21633,8 +21754,8 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 10,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 10,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 10 * 1024);
 
 
@@ -21657,8 +21778,8 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 11,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 11,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 10 * 1024);
 
 
@@ -21681,8 +21802,8 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 12,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 12,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 10 * 1024);
 
 
@@ -21706,21 +21827,20 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 10,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 10,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1 * 1024);
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 11,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 11,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1 * 1024);
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 12,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 12,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1 * 1024);
 
         if ( pass ) {
 
             auto_size_ctl.initial_size           = 6 * 1024;
-            result = H5C_set_cache_auto_resize_config(cache_ptr,
-			                              &auto_size_ctl);
+            result = H5C_set_cache_auto_resize_config(cache_ptr, &auto_size_ctl);
 
             if ( result != SUCCEED ) {
 
@@ -21747,10 +21867,10 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
 			H5C__PIN_ENTRY_FLAG);
-        resize_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, 2 * 1024, TRUE);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, 2 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (6 * 1024) ) ||
@@ -21768,7 +21888,7 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        resize_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, 10 * 1024, TRUE);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, 10 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (13 * 1024) ) ||
@@ -21786,10 +21906,10 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
 			H5C__PIN_ENTRY_FLAG);
-        resize_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, 10 * 1024, TRUE);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, 10 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (22 * 1024) ) ||
@@ -21807,10 +21927,10 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
 			H5C__PIN_ENTRY_FLAG);
-        resize_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, 10 * 1024, TRUE);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, 10 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (22 * 1024) ) ||
@@ -21831,16 +21951,16 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
 			H5C__UNPIN_ENTRY_FLAG);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
 			H5C__UNPIN_ENTRY_FLAG);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
 			H5C__UNPIN_ENTRY_FLAG);
 
 	if ( ( pass ) &&
@@ -21863,21 +21983,20 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 10,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 10,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1 * 1024);
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 11,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 11,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1 * 1024);
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry_with_size_change(cache_ptr, VARIABLE_ENTRY_TYPE, 12,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry_with_size_change(file_ptr, VARIABLE_ENTRY_TYPE, 12,
                         H5C__DIRTIED_FLAG|H5C__SIZE_CHANGED_FLAG, 1 * 1024);
 
         if ( pass ) {
 
             auto_size_ctl.initial_size           = 6 * 1024;
-            result = H5C_set_cache_auto_resize_config(cache_ptr,
-			                              &auto_size_ctl);
+            result = H5C_set_cache_auto_resize_config(cache_ptr, &auto_size_ctl);
 
             if ( result != SUCCEED ) {
 
@@ -21900,10 +22019,10 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
 			H5C__PIN_ENTRY_FLAG);
-        resize_pinned_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, 2 * 1024);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, 2 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (6 * 1024) ) ||
@@ -21921,7 +22040,7 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        resize_pinned_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, 10 * 1024);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, 10 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (13 * 1024) ) ||
@@ -21939,10 +22058,10 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
 			H5C__PIN_ENTRY_FLAG);
-        resize_pinned_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, 10 * 1024);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, 10 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (22 * 1024) ) ||
@@ -21960,10 +22079,10 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
 			H5C__PIN_ENTRY_FLAG);
-        resize_pinned_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, 10 * 1024);
+        resize_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, 10 * 1024, TRUE);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (22 * 1024) ) ||
@@ -21984,16 +22103,16 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10, NO_CHANGE,
 			H5C__UNPIN_ENTRY_FLAG);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11, NO_CHANGE,
 			H5C__UNPIN_ENTRY_FLAG);
 
-        protect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-        unprotect_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
+        protect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+        unprotect_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12, NO_CHANGE,
 			H5C__UNPIN_ENTRY_FLAG);
 
 	if ( ( pass ) &&
@@ -22013,10 +22132,10 @@ check_auto_cache_resize(void)
      */
     if ( pass ) {
 
-	expunge_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 10);
-	expunge_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 11);
-	expunge_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 12);
-	expunge_entry(cache_ptr, VARIABLE_ENTRY_TYPE, 13);
+	expunge_entry(file_ptr, VARIABLE_ENTRY_TYPE, 10);
+	expunge_entry(file_ptr, VARIABLE_ENTRY_TYPE, 11);
+	expunge_entry(file_ptr, VARIABLE_ENTRY_TYPE, 12);
+	expunge_entry(file_ptr, VARIABLE_ENTRY_TYPE, 13);
 
 	if ( ( pass ) &&
 	     ( ( ( cache_ptr->max_cache_size != (22 * 1024) ) ||
@@ -22113,8 +22232,8 @@ check_auto_cache_resize(void)
 
         rpt_fcn_called = FALSE;
 
-        protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
-        unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0, NO_CHANGE,
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -22140,8 +22259,8 @@ check_auto_cache_resize(void)
 
         rpt_fcn_called = FALSE;
 
-        protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1);
-        unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 1, NO_CHANGE,
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 1);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 1, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -22166,11 +22285,11 @@ check_auto_cache_resize(void)
 
         rpt_fcn_called = FALSE;
 
-        protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2);
-        unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 2, NO_CHANGE,
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 2);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 2, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
-        protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3);
-        unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 3, NO_CHANGE,
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 3);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 3, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -22197,10 +22316,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, TINY_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, TINY_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, TINY_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, TINY_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22223,8 +22342,8 @@ check_auto_cache_resize(void)
 
         rpt_fcn_called = FALSE;
 
-        protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
-        unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0, NO_CHANGE,
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0, NO_CHANGE,
 			H5C__NO_FLAGS_SET);
 
 	if ( ( pass ) &&
@@ -22251,10 +22370,10 @@ check_auto_cache_resize(void)
         i = 0;
         while ( ( pass ) && ( i < 500 ) )
         {
-            protect_entry(cache_ptr, TINY_ENTRY_TYPE, i);
+            protect_entry(file_ptr, TINY_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, TINY_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, TINY_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22275,7 +22394,7 @@ check_auto_cache_resize(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
@@ -22321,6 +22440,7 @@ check_auto_cache_resize_disable(void)
     herr_t result;
     int32_t i;
     int32_t checkpoint = 0;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -22383,8 +22503,19 @@ check_auto_cache_resize_disable(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+
+        if ( file_ptr == NULL ) {
+
+            pass = FALSE;
+            failure_mssg = "file_ptr NULL from setup_cache.";
+
+        } 
+        else {
+
+            cache_ptr = file_ptr->shared->cache;
+        }
     }
 
     if ( pass ) {
@@ -22492,10 +22623,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22523,10 +22654,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22553,10 +22684,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22612,7 +22743,6 @@ check_auto_cache_resize_disable(void)
         auto_size_ctl.decr_mode              = H5C_decr__threshold;
 
         auto_size_ctl.upper_hr_threshold     = 0.995;
-
         auto_size_ctl.decrement              = 0.5;
 
         auto_size_ctl.apply_max_decrement    = FALSE;
@@ -22653,10 +22783,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22684,10 +22814,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22714,10 +22844,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22814,10 +22944,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22845,10 +22975,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22875,10 +23005,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -22976,10 +23106,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23005,10 +23135,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23035,10 +23165,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23134,10 +23264,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23164,10 +23294,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23194,10 +23324,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23293,10 +23423,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23323,10 +23453,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23353,10 +23483,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23445,8 +23575,11 @@ check_auto_cache_resize_disable(void)
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
-    /* flush the cache and destroy all entries so we start from a known point */
-    flush_cache(cache_ptr, TRUE, FALSE, FALSE);
+    if ( pass ) {
+
+        /* flush the cache and destroy all entries so we start from a known point */
+        flush_cache(file_ptr, TRUE, FALSE, FALSE);
+    }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
@@ -23459,10 +23592,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23489,10 +23622,10 @@ check_auto_cache_resize_disable(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23521,10 +23654,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23551,10 +23684,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23583,10 +23716,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23673,8 +23806,11 @@ check_auto_cache_resize_disable(void)
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
-    /* flush the cache and destroy all entries so we start from a known point */
-    flush_cache(cache_ptr, TRUE, FALSE, FALSE);
+    if ( pass ) {
+
+        /* flush the cache and destroy all entries so we start from a known point */
+        flush_cache(file_ptr, TRUE, FALSE, FALSE);
+    }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
@@ -23687,10 +23823,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23717,10 +23853,10 @@ check_auto_cache_resize_disable(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23749,10 +23885,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23779,10 +23915,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23811,10 +23947,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23908,8 +24044,11 @@ check_auto_cache_resize_disable(void)
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
-    /* flush the cache and destroy all entries so we start from a known point */
-    flush_cache(cache_ptr, TRUE, FALSE, FALSE);
+    if ( pass ) {
+
+        /* flush the cache and destroy all entries so we start from a known point */
+        flush_cache(file_ptr, TRUE, FALSE, FALSE);
+    }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
 
@@ -23922,10 +24061,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23952,10 +24091,10 @@ check_auto_cache_resize_disable(void)
         i = 1000;
         while ( ( pass ) && ( i < 2000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -23986,10 +24125,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24018,10 +24157,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24052,10 +24191,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 999);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 999);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 999,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 999,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24156,10 +24295,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24188,10 +24327,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24285,10 +24424,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24317,10 +24456,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24414,10 +24553,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24446,10 +24585,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24543,10 +24682,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24575,10 +24714,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24673,10 +24812,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24705,10 +24844,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24803,10 +24942,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24835,10 +24974,10 @@ check_auto_cache_resize_disable(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -24857,6 +24996,7 @@ check_auto_cache_resize_disable(void)
     }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
+
 
     /* Now test the flash cache size increment code to verify that it
      * is disabled when it should be.
@@ -24884,7 +25024,6 @@ check_auto_cache_resize_disable(void)
      * situations that would trigger flash cache size increases were that
      * code enabled.
      */
-
 
     if ( pass ) {
 
@@ -24958,8 +25097,8 @@ check_auto_cache_resize_disable(void)
 
         rpt_fcn_called = FALSE;
 
-        protect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0);
-        unprotect_entry(cache_ptr, LARGE_ENTRY_TYPE, 0,
+        protect_entry(file_ptr, LARGE_ENTRY_TYPE, 0);
+        unprotect_entry(file_ptr, LARGE_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
 
         if ( ( pass ) &&
@@ -24998,8 +25137,8 @@ check_auto_cache_resize_disable(void)
 
         rpt_fcn_called = FALSE;
 
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
-        unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0,
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
 
         if ( ( pass ) &&
@@ -25029,7 +25168,7 @@ check_auto_cache_resize_disable(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
@@ -25072,6 +25211,7 @@ check_auto_cache_resize_epoch_markers(void)
     int32_t i;
     int32_t j;
     int32_t checkpoint = 0;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t auto_size_ctl =
     {
@@ -25100,8 +25240,8 @@ check_auto_cache_resize_epoch_markers(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__threshold,
@@ -25129,8 +25269,9 @@ check_auto_cache_resize_epoch_markers(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( pass ) {
@@ -25244,10 +25385,10 @@ check_auto_cache_resize_epoch_markers(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i);
+            protect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, MEDIUM_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, MEDIUM_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -25277,10 +25418,10 @@ check_auto_cache_resize_epoch_markers(void)
             i = (j - 2) * 1000;
             while ( ( pass ) && ( i < (j - 1) * 1000 ) )
             {
-                protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+                protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
                 if ( pass ) {
-                    unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                    unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                     NO_CHANGE, H5C__NO_FLAGS_SET);
                 }
                 i++;
@@ -25309,10 +25450,10 @@ check_auto_cache_resize_epoch_markers(void)
         i = 9000;
         while ( ( pass ) && ( i < 10000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -25423,10 +25564,10 @@ check_auto_cache_resize_epoch_markers(void)
         i = 9000;
         while ( ( pass ) && ( i < 10000 ) )
         {
-            protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+            protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
             if ( pass ) {
-                unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -25615,10 +25756,10 @@ check_auto_cache_resize_epoch_markers(void)
             i = (j - 1) * 1000;
             while ( ( pass ) && ( i < j * 1000 ) )
             {
-                protect_entry(cache_ptr, SMALL_ENTRY_TYPE, i);
+                protect_entry(file_ptr, SMALL_ENTRY_TYPE, i);
 
                 if ( pass ) {
-                    unprotect_entry(cache_ptr, SMALL_ENTRY_TYPE, i,
+                    unprotect_entry(file_ptr, SMALL_ENTRY_TYPE, i,
                                     NO_CHANGE, H5C__NO_FLAGS_SET);
                 }
                 i++;
@@ -25737,7 +25878,7 @@ check_auto_cache_resize_epoch_markers(void)
 
     if ( pass ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( show_progress ) HDfprintf(stderr, "check point %d\n", checkpoint++);
@@ -25769,9 +25910,9 @@ check_auto_cache_resize_epoch_markers(void)
  * Modifications:
  *
  * 		Added code to verify that errors in the flash cache size
- * 		increment related fields are caught as well.
+ *              increment related fields are caught as well.
  *
- * 						JRM -- 1/17/08
+ *                                              JRM -- 1/17/08
  *
  *-------------------------------------------------------------------------
  */
@@ -25812,6 +25953,7 @@ check_auto_cache_resize_input_errs(void)
 {
     const char * fcn_name = "check_auto_cache_resize_input_errs()";
     herr_t result;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     H5C_auto_size_ctl_t ref_auto_size_ctl =
     {
@@ -25840,8 +25982,8 @@ check_auto_cache_resize_input_errs(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__threshold,
@@ -25876,14 +26018,14 @@ check_auto_cache_resize_input_errs(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( pass ) {
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &ref_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &ref_auto_size_ctl);
 
         if ( result != SUCCEED ) {
 
@@ -25964,8 +26106,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(NULL,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(NULL, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26040,8 +26181,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26117,8 +26257,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26191,8 +26330,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26267,8 +26405,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26340,8 +26477,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26417,8 +26553,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26490,8 +26625,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26563,8 +26697,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26639,8 +26772,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26712,8 +26844,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26789,8 +26920,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26863,8 +26993,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -26939,8 +27068,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27012,8 +27140,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27085,8 +27212,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27162,8 +27288,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27190,7 +27315,6 @@ check_auto_cache_resize_input_errs(void)
             failure_mssg = "Unexpected auto resize config 18.";
         }
     }
-
 
     /* test for bad flash_incr_mode rejection */
 
@@ -27239,8 +27363,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27315,8 +27438,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27389,8 +27511,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27465,8 +27586,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27539,8 +27659,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27567,6 +27686,7 @@ check_auto_cache_resize_input_errs(void)
             failure_mssg = "Unexpected auto resize config 23.";
         }
     }
+
 
     /* test for bad decr_mode rejection */
 
@@ -27615,8 +27735,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27689,8 +27808,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27765,8 +27883,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27838,8 +27955,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27914,8 +28030,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -27987,8 +28102,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -28062,8 +28176,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = -0.0000001; /* INVALID */
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -28135,8 +28248,7 @@ check_auto_cache_resize_input_errs(void)
         invalid_auto_size_ctl.apply_empty_reserve    = TRUE;
         invalid_auto_size_ctl.empty_reserve          = 0.05;
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &invalid_auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &invalid_auto_size_ctl);
 
         if ( result != FAIL ) {
 
@@ -28182,7 +28294,7 @@ check_auto_cache_resize_input_errs(void)
 
     if ( pass ) {
 
-        result = H5C_get_cache_auto_resize_config((H5C_t *)&test_auto_size_ctl,
+        result = H5C_get_cache_auto_resize_config((const H5C_t *)&test_auto_size_ctl,
                                                   &test_auto_size_ctl);
 
         if ( result != FAIL ) {
@@ -28205,9 +28317,9 @@ check_auto_cache_resize_input_errs(void)
         }
     }
 
-    if ( pass ) {
+    if ( cache_ptr ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -28250,6 +28362,7 @@ check_auto_cache_resize_aux_fcns(void)
     const char * fcn_name = "check_auto_cache_resize_aux_fcns()";
     herr_t result;
     int32_t i;
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     double hit_rate;
     size_t max_size;
@@ -28286,8 +28399,8 @@ check_auto_cache_resize_aux_fcns(void)
 
         /* enum H5C_cache_flash_incr_mode       */
 	/*                    flash_incr_mode = */ H5C_flash_incr__off,
-        /* double      flash_multiple         = */ 2.0,
-        /* double      flash_threshold        = */ 0.5,
+	/* double      flash_multiple         = */ 2.0,
+	/* double      flash_threshold        = */ 0.5,
 
 
         /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__off,
@@ -28317,14 +28430,14 @@ check_auto_cache_resize_aux_fcns(void)
 
         reset_entries();
 
-        cache_ptr = setup_cache((size_t)(2 * 1024),
+        file_ptr = setup_cache((size_t)(2 * 1024),
                                 (size_t)(1 * 1024));
+        cache_ptr = file_ptr->shared->cache;
     }
 
     if ( pass ) {
 
-        result = H5C_set_cache_auto_resize_config(cache_ptr,
-                                                  &auto_size_ctl);
+        result = H5C_set_cache_auto_resize_config(cache_ptr, &auto_size_ctl);
 
         if ( result != SUCCEED ) {
 
@@ -28380,11 +28493,11 @@ check_auto_cache_resize_aux_fcns(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, PICO_ENTRY_TYPE, i);
+            protect_entry(file_ptr, PICO_ENTRY_TYPE, i);
 
             if ( pass ) {
 
-                unprotect_entry(cache_ptr, PICO_ENTRY_TYPE, i,
+                unprotect_entry(file_ptr, PICO_ENTRY_TYPE, i,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -28426,11 +28539,11 @@ check_auto_cache_resize_aux_fcns(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, PICO_ENTRY_TYPE, 0);
+            protect_entry(file_ptr, PICO_ENTRY_TYPE, 0);
 
             if ( pass ) {
 
-                unprotect_entry(cache_ptr, PICO_ENTRY_TYPE, 0,
+                unprotect_entry(file_ptr, PICO_ENTRY_TYPE, 0,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -28509,11 +28622,11 @@ check_auto_cache_resize_aux_fcns(void)
         i = 0;
         while ( ( pass ) && ( i < 1000 ) )
         {
-            protect_entry(cache_ptr, PICO_ENTRY_TYPE, i + 500);
+            protect_entry(file_ptr, PICO_ENTRY_TYPE, i + 500);
 
             if ( pass ) {
 
-                unprotect_entry(cache_ptr, PICO_ENTRY_TYPE, i + 500,
+                unprotect_entry(file_ptr, PICO_ENTRY_TYPE, i + 500,
                                 NO_CHANGE, H5C__NO_FLAGS_SET);
             }
             i++;
@@ -28614,11 +28727,11 @@ check_auto_cache_resize_aux_fcns(void)
      */
     if ( pass ) {
 
-        protect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0);
+        protect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0);
     }
 
     if ( pass ) {
-        unprotect_entry(cache_ptr, MONSTER_ENTRY_TYPE, 0, NO_CHANGE,
+        unprotect_entry(file_ptr, MONSTER_ENTRY_TYPE, 0, NO_CHANGE,
                         H5C__NO_FLAGS_SET);
     }
 
@@ -28667,9 +28780,6 @@ check_auto_cache_resize_aux_fcns(void)
     if ( pass ) {
 
         max_size        = 0;
-        min_clean_size  = 0;
-        cur_size        = 0;
-        cur_num_entries = 0;
 
         result = H5C_get_cache_size(cache_ptr, &max_size, NULL, NULL, NULL);
 
@@ -28684,22 +28794,12 @@ check_auto_cache_resize_aux_fcns(void)
             failure_mssg =
                 "H5C_get_cache_size reports unexpected max_size 3.\n";
 
-        } else if ( ( min_clean_size != 0 ) ||
-                    ( cur_size != 0 ) ||
-                    ( cur_num_entries != 0 ) ) {
-
-            pass = FALSE;
-            failure_mssg = "Phantom returns from H5C_get_cache_size?\n";
-
         }
     }
 
     if ( pass ) {
 
-        max_size        = 0;
         min_clean_size  = 0;
-        cur_size        = 0;
-        cur_num_entries = 0;
 
         result = H5C_get_cache_size(cache_ptr, NULL, &min_clean_size,
                                     NULL, NULL);
@@ -28715,22 +28815,12 @@ check_auto_cache_resize_aux_fcns(void)
             failure_mssg =
                 "H5C_get_cache_size reports unexpected min_clean_size 4.\n";
 
-        } else if ( ( max_size != 0 ) ||
-                    ( cur_size != 0 ) ||
-                    ( cur_num_entries != 0 ) ) {
-
-            pass = FALSE;
-            failure_mssg = "Phantom returns from H5C_get_cache_size?\n";
-
         }
     }
 
     if ( pass ) {
 
-        max_size        = 0;
-        min_clean_size  = 0;
         cur_size        = 0;
-        cur_num_entries = 0;
 
         result = H5C_get_cache_size(cache_ptr, NULL, NULL, &cur_size, NULL);
 
@@ -28746,21 +28836,11 @@ check_auto_cache_resize_aux_fcns(void)
             failure_mssg =
                 "H5C_get_cache_size reports unexpected cur_size 5.\n";
 
-        } else if ( ( max_size != 0 ) ||
-                    ( min_clean_size != 0 ) ||
-                    ( cur_num_entries != 0 ) ) {
-
-            pass = FALSE;
-            failure_mssg = "Phantom returns from H5C_get_cache_size?\n";
-
         }
     }
 
     if ( pass ) {
 
-        max_size        = 0;
-        min_clean_size  = 0;
-        cur_size        = 0;
         cur_num_entries = 0;
 
         result = H5C_get_cache_size(cache_ptr, NULL, NULL, NULL,
@@ -28777,19 +28857,12 @@ check_auto_cache_resize_aux_fcns(void)
             failure_mssg =
                 "H5C_get_cache_size reports unexpected cur_num_entries 2.\n";
 
-        } else if ( ( max_size != 0 ) ||
-                    ( min_clean_size != 0 ) ||
-                    ( cur_size != 0 ) ) {
-
-            pass = FALSE;
-            failure_mssg = "Phantom returns from H5C_get_cache_size?\n";
-
         }
     }
 
-    if ( pass ) {
+    if ( cache_ptr ) {
 
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
     }
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -28813,13 +28886,13 @@ check_auto_cache_resize_aux_fcns(void)
  *
  *              A 'metadata blizzard' in this context occurs when the cache
  *              gets completely filled with all dirty entries. Upon needing
- *              to make space in the cache, the cache then has no clean 
+ *              to make space in the cache, the cache then has no clean
  *              entries ready to evict, and must clean every dirty entry
  *              in the cache first, due to the second chance replacement
  *              policy. (i.e. after cleaning an entry, it is bumped to the
  *              top of the LRU to make a second pass before eviction).
- *              The massive amount of sequential writes to disk while 
- *              flushing the entire cache is what constitutes a 'metadata 
+ *              The massive amount of sequential writes to disk while
+ *              flushing the entire cache is what constitutes a 'metadata
  *              blizzard'.
  *
  * Return:	void
@@ -28839,13 +28912,14 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     const char * fcn_name = "check_metadata_blizzard_absence";
     int entry_type = HUGE_ENTRY_TYPE;
     size_t entry_size = HUGE_ENTRY_SIZE; /* 16 KB */
+    H5F_t * file_ptr = NULL;
     H5C_t * cache_ptr = NULL;
     hbool_t show_progress = FALSE;
-    int32_t checkpoint = 0;   
+    int32_t checkpoint = 0;
     int32_t entry_idx = 0;
     int32_t i;
 
-    /* Expected loaded status of entries depends on how they get into 
+    /* Expected loaded status of entries depends on how they get into
      * the cache. Insertions = not loaded, protect/unprotect = loaded.
      */
     hbool_t loaded = (hbool_t)!(fill_via_insertion);
@@ -29021,84 +29095,87 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 0 */
-         HDfprintf(stdout, "\n%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "\n%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
-    
+
         /* Set up the cache.
          *
-         * The max_cache_size should have room for 50 entries. 
-         * The min_clean_size is half of that, or 25 entries.   
+         * The max_cache_size should have room for 50 entries.
+         * The min_clean_size is half of that, or 25 entries.
          */
-        cache_ptr = setup_cache((size_t)(50 * entry_size), /* max_cache_size */
+        file_ptr = setup_cache((size_t)(50 * entry_size), /* max_cache_size */
                                 (size_t)(25 * entry_size)); /* min_clean_size */
- 
-        if ( cache_ptr == NULL) {
+
+        if ( file_ptr == NULL) {
 
             pass = FALSE;
             failure_mssg = "bad return from cache intialization.\n";
-         }
-    }        
+
+        }
+        else
+            cache_ptr = file_ptr->shared->cache;
+    }
 
     if ( show_progress) /* 1 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     /* ========================================================================
      * ========================================================================
      *  Phase 1:
-     * 
-     *    Inserting dirty entries into an empty cache, until the cache 
+     *
+     *    Inserting dirty entries into an empty cache, until the cache
      *    violates the min_clean_size requirement. The expected result is
      *    that none of the inserted entries during this phase will get
      *    flushed or evicted.
-     * 
+     *
      *    This verifies that while maintaining min_clean_size, we don't go
      *    overboard and flush entries that we don't need to flush.
-     *  
+     *
      * ========================================================================
      * ========================================================================
      */
 
     if ( pass ) {
 
-        /* Insert 26 entries (indexes 0 through 25) into the cache.  
+        /* Insert 26 entries (indexes 0 through 25) into the cache.
          *
-         * Note that we are inserting 26 entries, and not 25, because the cache 
-         * will only try to adhere to the min_clean_size if it's currently 
-         * being violated. Thus, on insertion of the 26th entry, since the 
-         * min_clean_size will not be violated, it will accept the insertion 
-         * without having to make clean space. 
+         * Note that we are inserting 26 entries, and not 25, because the cache
+         * will only try to adhere to the min_clean_size if it's currently
+         * being violated. Thus, on insertion of the 26th entry, since the
+         * min_clean_size will not be violated, it will accept the insertion
+         * without having to make clean space.
          */
 
         for (entry_idx = 0; entry_idx < 26; entry_idx++) {
 
             if (fill_via_insertion) {
-                insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+                insert_entry(file_ptr,           /* H5F_t * file_ptr */
                              entry_type,          /* int32_t type */
                              entry_idx,            /* int32_t idx */
                              TRUE,                /* hbool_t dirty */
                              H5C__NO_FLAGS_SET);  /* unsigned int flags */
 
             } else {
-                protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+                protect_entry(file_ptr,   /* H5F_t * file_ptr */
                               entry_type,  /* int32_t type */
                               entry_idx);   /* int32-t idx */
 
-                unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+                unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                                 entry_type,         /* int32_t type */
                                 entry_idx,           /* int32_t idx */
                                 TRUE,               /* int321_t dirty */
                                 H5C__NO_FLAGS_SET); /* unsigned int flags */
             }
 
-            /* Change expected values, and verify the status of the entries 
-             * after each insertion 
+            /* Change expected values, and verify the status of the entries
+             * after each insertion
              */
             expected[entry_idx].in_cache = TRUE;
             expected[entry_idx].is_dirty = TRUE;
-            expected[entry_idx].loaded = loaded;
+            expected[entry_idx].loaded = (unsigned char)loaded;
 
             verify_entry_status(cache_ptr, /* H5C_t * cache_ptr */
                                 entry_idx, /* int tag */
@@ -29108,45 +29185,45 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 2 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     /* ========================================================================
      * ========================================================================
      *  Phase 2:
-     * 
+     *
      *    Inserting entries into a cache that violates the min_clean_size,
      *    until the cache is full. The expected result is that each insertion
-     *    will result in the flushing of a dirty entry in the cache.    
+     *    will result in the flushing of a dirty entry in the cache.
      *
      *    This verifies that we maintain the min_clean_size. By doing so, we
      *    prevent building the situation in which a 'metadata blizzard' would
      *    occur (i.e., the cache being completely filled with dirty entries).
-     *  
+     *
      * ========================================================================
      * ========================================================================
      */
-   
+
     if ( pass ) {
 
         /* Insert the 27th entry (index = 26) into the cache.
-         * 
-         * This should cause the cache to flush its least recently used entry 
+         *
+         * This should cause the cache to flush its least recently used entry
          * before the insertion because it doesn't satisfy the min_clean_size
          * constraint.
          */
         if (fill_via_insertion) {
-            insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+            insert_entry(file_ptr,           /* H5F_t * file_ptr */
                          entry_type,          /* int32_t type */
                          entry_idx++,          /* int32_t idx */
                          TRUE,                /* hbool_t dirty */
                          H5C__NO_FLAGS_SET);  /* unsigned int flags */
         } else {
-            protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+            protect_entry(file_ptr,   /* H5F_t * file_ptr */
                           entry_type,  /* int32_t type */
                           entry_idx);   /* int32-t idx */
 
-            unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+            unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                             entry_type,         /* int32_t type */
                             entry_idx++,           /* int32_t idx */
                             TRUE,               /* int321_t dirty */
@@ -29154,15 +29231,15 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         }
 
         /* Verify the status of the entries.
-         * 
+         *
          * Expected status is that there are 27 entries in the cache, and
          * entry number 0 has been cleaned.
-         * 
+         *
          * Changes from last entry verification:
          *   - entry w/ index 0 has now been flushed and is now clean.
          *   - entry w/ index 26 is now in the cache and dirty.
          */
-          
+
         /* entry w/ index 0 has now been flushed and is now clean. */
 	expected[0].flushed   = TRUE;
 	expected[0].is_dirty  = FALSE;
@@ -29170,7 +29247,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         /* entry w/ index 26 is now in the cache and dirty. */
 	expected[26].in_cache = TRUE;
 	expected[26].is_dirty = TRUE;
-	expected[26].loaded   = loaded;
+	expected[26].loaded   = (unsigned char)loaded;
 
         /* verify the status */
         verify_entry_status(cache_ptr, /* H5C_t * cache_ptr */
@@ -29180,7 +29257,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 3 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
@@ -29192,17 +29269,17 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
          * satisfy the min_clean_size constraint.
          */
         if (fill_via_insertion) {
-            insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+            insert_entry(file_ptr,           /* H5F_t * file_ptr */
                          entry_type,          /* int32_t type */
                          entry_idx++,          /* int32_t idx */
                          TRUE,                /* hbool_t dirty */
                          H5C__NO_FLAGS_SET);  /* unsigned int flags */
         } else {
-            protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+            protect_entry(file_ptr,   /* H5F_t * file_ptr */
                           entry_type,  /* int32_t type */
                           entry_idx);   /* int32-t idx */
 
-            unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+            unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                             entry_type,         /* int32_t type */
                             entry_idx++,        /* int32_t idx */
                             TRUE,               /* int321_t dirty */
@@ -29210,10 +29287,10 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         }
 
         /* Verify the status of the entries.
-         * 
+         *
          * Expected status is that there are 28 entries in the cache, and
          * entry numbers 0 and 1 have been cleaned.
-         * 
+         *
          * Changes from last entry verification:
          *   - entry w/ index 1 has now been flushed and is now clean.
          *   - entry w/ index 27 is now in the cache and dirty.
@@ -29226,7 +29303,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         /* entry w/ index 27 is now in the cache and dirty. */
 	expected[27].in_cache = TRUE;
 	expected[27].is_dirty = TRUE;
-	expected[27].loaded   = loaded;
+	expected[27].loaded   = (unsigned char)loaded;
 
         /* verify the status */
         verify_entry_status(cache_ptr, /* H5C_t * cache_ptr */
@@ -29236,7 +29313,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 4 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
@@ -29246,17 +29323,17 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         for (entry_idx = entry_idx; entry_idx < 50; entry_idx++) {
 
             if (fill_via_insertion) {
-                insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+                insert_entry(file_ptr,           /* H5F_t * file_ptr */
                              entry_type,          /* int32_t type */
                              entry_idx,            /* int32_t idx */
                              TRUE,                /* hbool_t dirty */
                              H5C__NO_FLAGS_SET);  /* unsigned int flags */
             } else {
-                protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+                protect_entry(file_ptr,   /* H5F_t * file_ptr */
                               entry_type,  /* int32_t type */
                               entry_idx);   /* int32-t idx */
 
-                unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+                unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                                 entry_type,         /* int32_t type */
                                 entry_idx,           /* int32_t idx */
                                 TRUE,               /* int321_t dirty */
@@ -29264,7 +29341,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
             }
 
             /* Expected staus is that after each insertion, the entry
-             * inserted 26 insertions ago has been flushed, and the 
+             * inserted 26 insertions ago has been flushed, and the
              * entry currently getting inserted is now in the cache and
              * dirty.
              */
@@ -29273,8 +29350,8 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
 
 	    expected[entry_idx].in_cache = TRUE;
     	    expected[entry_idx].is_dirty = TRUE;
-	    expected[entry_idx].loaded   = loaded;
-    
+	    expected[entry_idx].loaded   = (unsigned char)loaded;
+
             /* verify the status */
             verify_entry_status(cache_ptr, /* H5C_t * cache_ptr */
                                 entry_idx, /* int tag */
@@ -29291,23 +29368,23 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 5 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     /* ========================================================================
      * ========================================================================
      *  Phase 3:
-     * 
-     *    Inserting entries into a cache that is completely full. Insertions 
+     *
+     *    Inserting entries into a cache that is completely full. Insertions
      *    of new entries will force evictions of old entries, but since the
-     *    min_clean_size has been maintained, doing so will not result in 
+     *    min_clean_size has been maintained, doing so will not result in
      *    the entire cache getting flushed in order to evict a single entry,
      *    as a clean entry will be available to flush reasonably close to
      *    the bottom of the LRU.
-     * 
+     *
      *    This verifies that with a maintained min_clean_size, a metadata
      *    blizzard does not occur on insertion.
-     * 
+     *
      * ========================================================================
      * ========================================================================
      */
@@ -29315,22 +29392,22 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     if ( pass ) {
 
         /* Insert the 51st entry (index = 50) into the cache.
-         * 
+         *
          * The cache is full prior to the insertion, so it will
          * have to evict in order to make room for the new entry.
          */
         if (fill_via_insertion) {
-            insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+            insert_entry(file_ptr,           /* H5F_t * file_ptr */
                          entry_type,          /* int32_t type */
                          entry_idx++,          /* int32_t idx */
                          TRUE,                /* hbool_t dirty */
                          H5C__NO_FLAGS_SET);  /* unsigned int flags */
         } else {
-            protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+            protect_entry(file_ptr,   /* H5F_t * file_ptr */
                           entry_type,  /* int32_t type */
                           entry_idx);   /* int32-t idx */
 
-            unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+            unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                             entry_type,         /* int32_t type */
                             entry_idx++,        /* int32_t idx */
                             TRUE,               /* int321_t dirty */
@@ -29338,13 +29415,13 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         }
 
         /* Verify the status of the entries.
-         * 
+         *
          * Changes from last entry verification:
          *   - entry w/ index 0 has been evicted.
          *   - entries w/ indices 24,25 have now been flushed and are clean.
          *   - entry w/ index 50 is now in the cache and dirty.
          */
-    
+
         /* entry w/ index 0 has been evicted. */
 	expected[0].in_cache  = FALSE;
 	expected[0].destroyed = TRUE;
@@ -29358,7 +29435,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         /* entry w/ index 50 is now in the cache and dirty */
 	expected[50].in_cache = TRUE;
 	expected[50].is_dirty = TRUE;
-	expected[50].loaded   = loaded;
+	expected[50].loaded   = (unsigned char)loaded;
 
         /* verify the status */
         verify_entry_status(cache_ptr, /* H5C_t * cache_ptr */
@@ -29368,16 +29445,16 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 6 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
 
     if ( pass ) {
 
         /* Insert 49 more entries (indices 51-99) into the cache.
-         * 
-         * The cache will be flushing an entry on each insertion, and 
-         * evicting an entry on each insertion. 
+         *
+         * The cache will be flushing an entry on each insertion, and
+         * evicting an entry on each insertion.
          *
          * After each insertion, verify the expected status of the
          * entries in the cache.
@@ -29385,17 +29462,17 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         for (entry_idx = entry_idx; entry_idx < 100; entry_idx++) {
 
             if (fill_via_insertion) {
-                insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+                insert_entry(file_ptr,           /* H5F_t * file_ptr */
                              entry_type,          /* int32_t type */
                              entry_idx,          /* int32_t idx */
                              TRUE,                /* hbool_t dirty */
                              H5C__NO_FLAGS_SET);  /* unsigned int flags */
             } else {
-                protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+                protect_entry(file_ptr,   /* H5F_t * file_ptr */
                               entry_type,  /* int32_t type */
                               entry_idx);   /* int32-t idx */
-    
-                unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+
+                unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                                 entry_type,         /* int32_t type */
                                 entry_idx,        /* int32_t idx */
                                 TRUE,               /* int321_t dirty */
@@ -29405,27 +29482,27 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
             /* This past inserted entry is now in the cache and dirty */
 	    expected[entry_idx].in_cache = TRUE;
     	    expected[entry_idx].is_dirty = TRUE;
-	    expected[entry_idx].loaded   = loaded;
+	    expected[entry_idx].loaded   = (unsigned char)loaded;
 
             /* The entry inserted 50 insertions ago has been evicted */
 	    expected[entry_idx - 50].in_cache  = FALSE;
 	    expected[entry_idx - 50].destroyed = TRUE;
 
-            /* If the newly inserted entry is among the first 24 
+            /* If the newly inserted entry is among the first 24
              * insertions in this loop, then the insertion will
              * have resulted in a flush of the entry inserted
              * 25 insertions ago. */
             if (entry_idx < 75) {
-                
+
                 expected[entry_idx - 25].flushed = TRUE;
                 expected[entry_idx - 25].is_dirty = FALSE;
             }
             /* If the newly inserted entry is among the last
              * 25 insertions in this loop, then the insertion will
              * have resulted in a flush of the entry inserted 26
-             * insertions ago. This switch is because there was two 
+             * insertions ago. This switch is because there was two
              * consecutive clean entries in the cache (due to 51/49
-             * dirty/clean ratio when full), so instead of 
+             * dirty/clean ratio when full), so instead of
              * flush-then-evict, it switches to evict-then-flush. */
             else {
 
@@ -29442,13 +29519,13 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 7 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     /* ========================================================================
      * ========================================================================
      *  Phase 4:
-     * 
+     *
      *    Flushing the entire cache, and then inserting entries into a cache
      *    that is completely full, but all clean.
      *
@@ -29456,18 +29533,18 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
      *    into an empty cache, we're inserting into a full cache that's all
      *    clean, thus an eviction occurs before each insertion.
      *
-     *    When the cache finally hits the point of violating the 
+     *    When the cache finally hits the point of violating the
      *    min_clean_size, the bottom half of the LRU will be filled with
      *    clean entries and the top half will be filled with recently inserted
      *    dirty entries. We'll then verify that an insertion will only evict
      *    one entry and flush one entry, and no more.
-     *    
+     *
      * ========================================================================
      * ========================================================================
      */
 
     if ( pass ) {
-    
+
         /* Flush the cache.
          *
          * We're doing this so we can repeat the above insertions, but
@@ -29475,16 +29552,16 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
          * to an empty cache.
          */
 
-        flush_cache(cache_ptr, /* H5C_t * cache_ptr */
+        flush_cache(file_ptr, /* H5F_t * file_ptr */
                     FALSE,     /* hbool_t destory_entries */
                     FALSE,     /* hbool_t dump_stats */
                     FALSE);    /* hbool_t dump_detailed_stats */
-    
+
         /* Verify that the cache is clean */
         verify_clean();
 
         /* Verify the status of the entries.
-         * 
+         *
          * Changes from last entry verification:
          *   - entries w/ indices 74-99 have been flushed.
          */
@@ -29502,7 +29579,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 8 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
@@ -29517,18 +29594,18 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         for (entry_idx = 100; entry_idx < 126; entry_idx++) {
 
             if (fill_via_insertion) {
-                insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+                insert_entry(file_ptr,           /* H5F_t * file_ptr */
                              entry_type,          /* int32_t type */
                              entry_idx,            /* int32_t idx */
                              TRUE,                /* hbool_t dirty */
                              H5C__NO_FLAGS_SET);  /* unsigned int flags */
 
             } else {
-                protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+                protect_entry(file_ptr,   /* H5F_t * file_ptr */
                               entry_type,  /* int32_t type */
                               entry_idx);   /* int32-t idx */
 
-                unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+                unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                                 entry_type,         /* int32_t type */
                                 entry_idx,           /* int32_t idx */
                                 TRUE,               /* int321_t dirty */
@@ -29538,7 +29615,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
             /* This past inserted entry is now in the cache and dirty */
 	    expected[entry_idx].in_cache = TRUE;
     	    expected[entry_idx].is_dirty = TRUE;
-	    expected[entry_idx].loaded   = loaded;
+	    expected[entry_idx].loaded   = (unsigned char)loaded;
 
             /* The entry with ID minus 50 will have been evicted */
 	    expected[entry_idx - 50].in_cache  = FALSE;
@@ -29553,24 +29630,24 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 9 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
 
         /* Insert the 127th entry (index = 126) into the cache. */
         if (fill_via_insertion) {
-            insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+            insert_entry(file_ptr,           /* H5F_t * file_ptr */
                          entry_type,          /* int32_t type */
                          entry_idx++,          /* int32_t idx */
                          TRUE,                /* hbool_t dirty */
                          H5C__NO_FLAGS_SET);  /* unsigned int flags */
         } else {
-            protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+            protect_entry(file_ptr,   /* H5F_t * file_ptr */
                           entry_type,  /* int32_t type */
                           entry_idx);   /* int32-t idx */
 
-            unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+            unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                             entry_type,         /* int32_t type */
                             entry_idx++,           /* int32_t idx */
                             TRUE,               /* int321_t dirty */
@@ -29578,7 +29655,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         }
 
         /* Verify the status of the entries.
-         * 
+         *
          * Changes from last entry verification:
          *   - entry w/ index 76 is evicted.
          *   - entry w/ index 100 is cleaned.
@@ -29588,7 +29665,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         /* entry w/ index 76 has been evicted. */
 	expected[76].in_cache  = FALSE;
 	expected[76].destroyed = TRUE;
-          
+
         /* entry w/ index 100 has now been flushed and is now clean. */
 	expected[100].flushed   = TRUE;
 	expected[100].is_dirty  = FALSE;
@@ -29596,7 +29673,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         /* entry w/ index 26 is now in the cache and dirty. */
 	expected[126].in_cache = TRUE;
 	expected[126].is_dirty = TRUE;
-	expected[126].loaded   = loaded;
+	expected[126].loaded   = (unsigned char)loaded;
 
         /* verify the status */
         verify_entry_status(cache_ptr, /* H5C_t * cache_ptr */
@@ -29606,7 +29683,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 10 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
@@ -29615,18 +29692,18 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
         for (entry_idx = 127; entry_idx < 150; entry_idx++) {
 
             if (fill_via_insertion) {
-                insert_entry(cache_ptr,           /* H5C_t * cache_ptr */
+                insert_entry(file_ptr,           /* H5F_t * file_ptr */
                              entry_type,          /* int32_t type */
                              entry_idx,            /* int32_t idx */
                              TRUE,                /* hbool_t dirty */
                              H5C__NO_FLAGS_SET);  /* unsigned int flags */
 
             } else {
-                protect_entry(cache_ptr,   /* H5C_t * cache_ptr */
+                protect_entry(file_ptr,   /* H5F_t * file_ptr */
                               entry_type,  /* int32_t type */
                               entry_idx);   /* int32-t idx */
 
-                unprotect_entry(cache_ptr,          /* H5C_t * cache_ptr */
+                unprotect_entry(file_ptr,          /* H5F_t * file_ptr */
                                 entry_type,         /* int32_t type */
                                 entry_idx,           /* int32_t idx */
                                 TRUE,               /* int321_t dirty */
@@ -29636,7 +29713,7 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
             /* This past inserted entry is now in the cache and dirty */
 	    expected[entry_idx].in_cache = TRUE;
     	    expected[entry_idx].is_dirty = TRUE;
-	    expected[entry_idx].loaded   = loaded;
+	    expected[entry_idx].loaded   = (unsigned char)loaded;
 
             /* The entry with ID minus 50 will have been evicted */
 	    expected[entry_idx - 50].in_cache  = FALSE;
@@ -29656,18 +29733,18 @@ check_metadata_blizzard_absence(hbool_t fill_via_insertion)
     }
 
     if ( show_progress) /* 11 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) {
-        
+
         /* We're done with testing. We can take down the cache. */
-        takedown_cache(cache_ptr, FALSE, FALSE);
+        takedown_cache(file_ptr, FALSE, FALSE);
         reset_entries();
     }
 
     if ( show_progress) /* 12 */
-         HDfprintf(stdout, "%s: check point %d -- pass %d\n", 
+         HDfprintf(stdout, "%s: check point %d -- pass %d\n",
                    fcn_name, checkpoint++, pass);
 
     if ( pass ) { PASSED(); } else { H5_FAILED(); }
@@ -29726,7 +29803,7 @@ main(void)
     nerrs += check_get_entry_status();
     nerrs += check_expunge_entry();
     nerrs += check_multiple_read_protect();
-    nerrs += check_rename_entry();
+    nerrs += check_move_entry();
     nerrs += check_pin_protected_entry();
     nerrs += check_resize_entry();
     nerrs += check_evictions_enabled();
@@ -29734,7 +29811,7 @@ main(void)
     nerrs += check_destroy_pinned_err();
     nerrs += check_destroy_protected_err();
     nerrs += check_duplicate_insert_err();
-    nerrs += check_rename_err();
+    nerrs += check_move_err();
     nerrs += check_double_pin_err();
     nerrs += check_double_unpin_err();
     nerrs += check_pin_entry_errs();
@@ -29751,8 +29828,8 @@ main(void)
     nerrs += check_auto_cache_resize_epoch_markers();
     nerrs += check_auto_cache_resize_input_errs();
     nerrs += check_auto_cache_resize_aux_fcns();
-    nerrs += check_metadata_blizzard_absence(TRUE);   
-    nerrs += check_metadata_blizzard_absence(FALSE);  
+    nerrs += check_metadata_blizzard_absence(TRUE);
+    nerrs += check_metadata_blizzard_absence(FALSE);
 
     return(nerrs > 0);
 }

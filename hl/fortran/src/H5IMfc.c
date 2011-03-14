@@ -17,7 +17,7 @@
 
 #include "H5IMcc.h"
 #include "H5LTf90proto.h"
-
+#include "H5Eprivate.h"
 
 /*-------------------------------------------------------------------------
 * Function: h5immake_image_8bit_c
@@ -59,7 +59,7 @@ nh5immake_image_8bit_c (hid_t_f *loc_id,
     */
     c_namelen = (int)*namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     /*
@@ -68,15 +68,15 @@ nh5immake_image_8bit_c (hid_t_f *loc_id,
     c_loc_id = (hid_t)*loc_id;
     ret = H5IMmake_image_8bitf(c_loc_id,c_name,w,h,buf);
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     ret_value = 0;
-    
+
 done:
     if(c_name!=NULL)
         free(c_name);
-  
+
     return ret_value;
 
 
@@ -118,7 +118,7 @@ nh5imread_image_c (hid_t_f *loc_id,
     */
     c_namelen = (int)*namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     /*
@@ -128,7 +128,7 @@ nh5imread_image_c (hid_t_f *loc_id,
 
     ret = H5IMread_imagef(c_loc_id,c_name,buf);
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     ret_value = 0;
@@ -184,12 +184,12 @@ nh5immake_image_24bit_c (hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     c_ilen = *ilen;
     c_il = (char *)HD5f2cstring(il, c_ilen);
-    if (c_il == NULL) 
+    if (c_il == NULL)
         goto done;
 
     /*
@@ -199,7 +199,7 @@ nh5immake_image_24bit_c (hid_t_f *loc_id,
 
     ret = H5IMmake_image_24bitf(c_loc_id,c_name,w,h,c_il,buf);
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     ret_value = 0;
@@ -259,7 +259,7 @@ nh5imget_image_info_c(hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     /*
@@ -275,7 +275,7 @@ nh5imget_image_info_c(hid_t_f *loc_id,
 
     ret = H5IMget_image_info(c_loc_id,c_name,&c_width,&c_height,&c_planes,c_buf,&c_npals);
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     *width  = (hsize_t_f) c_width;
@@ -287,13 +287,13 @@ nh5imget_image_info_c(hid_t_f *loc_id,
     * convert C name to FORTRAN and place it in the given buffer
     */
     HD5packFstring(c_buf, _fcdtocp(interlace), (size_t)*ilen);
-   
+
     ret_value = 0;
 
 done:
     if(c_name!=NULL)
         free(c_name);
-    if(c_buf!=NULL) 
+    if(c_buf!=NULL)
         free(c_buf);
 
     return ret_value;
@@ -377,49 +377,30 @@ nh5immake_palette_c (hid_t_f *loc_id,
                      hsize_t_f *dims,
                      void *buf)
 {
-    int     ret_value = -1;
-    herr_t  ret;
-    hid_t   c_loc_id;
     char    *c_name = NULL;
-    int     c_namelen;
-    hsize_t *c_dims;
+    hsize_t c_dims[H5S_MAX_RANK];
     int     i;
     int     rank=2;
+    int_f   ret_value = 0;
 
     /*
     * convert FORTRAN name to C name
     */
-    c_namelen = *namelen;
-    c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
-        goto done;
+    if(NULL == (c_name = (char *)HD5f2cstring(name, (int)*namelen)))
+        HGOTO_DONE(FAIL)
 
-    c_dims =  malloc(sizeof(hsize_t) * (rank ));
-    if (c_dims == NULL)
-        goto done;
-
-    for (i = 0; i < rank ; i++) 
-    {
+    for(i = 0; i < rank ; i++)
         c_dims[i] =  dims[i];
-    }
 
     /*
     * call H5IMmake_palette function.
     */
-    c_loc_id = (hid_t)*loc_id;
-
-    ret = H5IMmake_palettef(c_loc_id,c_name,c_dims,buf);
-
-    if (ret < 0) 
-        goto done;
-
-    ret_value = 0;
+    if(H5IMmake_palettef((hid_t)*loc_id, c_name, c_dims, buf) < 0)
+        HGOTO_DONE(FAIL)
 
 done:
-    if(c_name!=NULL)
-        free(c_name);
-    if(c_dims!=NULL)
-        free(c_dims);
+    if(c_name)
+        HDfree(c_name);
 
     return ret_value;
 }
@@ -464,12 +445,12 @@ nh5imlink_palette_c (hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     c_namelenpal = *ilen;
     c_namepal = (char *)HD5f2cstring(pal_name, c_namelenpal);
-    if (c_namepal == NULL) 
+    if (c_namepal == NULL)
         goto done;
 
     /*
@@ -479,7 +460,7 @@ nh5imlink_palette_c (hid_t_f *loc_id,
 
     ret = H5IMlink_palette(c_loc_id,c_name,c_namepal);
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     ret_value = 0;
@@ -534,12 +515,12 @@ nh5imunlink_palette_c (hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     c_namelenpal = *ilen;
     c_namepal = (char *)HD5f2cstring(pal_name, c_namelenpal);
-    if (c_namepal == NULL) 
+    if (c_namepal == NULL)
         goto done;
 
     /*
@@ -549,7 +530,7 @@ nh5imunlink_palette_c (hid_t_f *loc_id,
 
     ret = H5IMunlink_palette(c_loc_id,c_name,c_namepal);
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     ret_value = 0;
@@ -602,7 +583,7 @@ nh5imget_npalettes_c(hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     /*
@@ -614,7 +595,7 @@ nh5imget_npalettes_c(hid_t_f *loc_id,
 
     *npals  = (hsize_t_f) c_npals;
 
-    if (ret < 0) 
+    if (ret < 0)
         goto done;
 
     ret_value = 0;
@@ -668,7 +649,7 @@ nh5imget_palette_info_c(hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
         goto done;
 
     /*
@@ -677,11 +658,11 @@ nh5imget_palette_info_c(hid_t_f *loc_id,
     c_loc_id = (hid_t)*loc_id;
 
     ret = H5IMget_palette_info(c_loc_id,c_name,*pal_number,c_dims);
-    
-    if (ret < 0) 
+
+    if (ret < 0)
         goto done;
 
-    for (i = 0; i < 2 ; i++) 
+    for (i = 0; i < 2 ; i++)
     {
         dims[i] = (hsize_t_f) c_dims[i];
     }
@@ -735,7 +716,7 @@ nh5imget_palette_c(hid_t_f *loc_id,
     */
     c_namelen = *namelen;
     c_name = (char *)HD5f2cstring(name, c_namelen);
-    if (c_name == NULL) 
+    if (c_name == NULL)
          goto done;
 
     /*
@@ -745,7 +726,7 @@ nh5imget_palette_c(hid_t_f *loc_id,
 
     ret = H5IMget_palettef(c_loc_id,c_name,*pal_number,buf);
 
-    if (ret < 0) 
+    if (ret < 0)
          goto done;
 
     ret_value = 0;

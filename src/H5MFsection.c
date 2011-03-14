@@ -459,7 +459,7 @@ H5MF_sect_simple_free(H5FS_section_info_t *_sect)
     HDassert(sect);
 
     /* Release the section */
-    (void)H5FL_FREE(H5MF_free_section_t, sect);
+    sect = H5FL_FREE(H5MF_free_section_t, sect);
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 }   /* H5MF_sect_simple_free() */
@@ -480,7 +480,7 @@ H5MF_sect_simple_free(H5FS_section_info_t *_sect)
  */
 static herr_t
 H5MF_sect_simple_valid(const H5FS_section_class_t UNUSED *cls,
-    const H5FS_section_info_t 
+    const H5FS_section_info_t
 #ifdef NDEBUG
     UNUSED
 #endif /* NDEBUG */

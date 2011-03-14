@@ -39,6 +39,8 @@ int   nCols = 80;
 int         opt_err = 1;    /*get_option prints errors if this is on */
 int         opt_ind = 1;    /*token pointer                          */
 const char *opt_arg;        /*flag argument (or value)               */
+static int  h5tools_d_status = 0;
+static const char  *h5tools_progname = "h5tools";
 
 /* local functions */
 static void init_table(table_t **tbl);
@@ -232,8 +234,8 @@ get_option(int argc, const char **argv, const char *opts, const struct long_opti
             }
 
             sp = 1;
-        } 
-        
+        }
+
         /* wildcard argument */
         else if (*cp == '*')
         {
@@ -249,16 +251,16 @@ get_option(int argc, const char **argv, const char *opts, const struct long_opti
                 opt_arg = NULL;
             }
         }
-        
-        else 
+
+        else
         {
             /* set up to look at next char in token, next time */
             if (argv[opt_ind][++sp] == '\0') {
                 /* no more in current token, so setup next token */
                 opt_ind++;
                 sp = 1;
-                
-                
+
+
             }
 
             opt_arg = NULL;
@@ -315,7 +317,7 @@ print_version(const char *progname)
 {
     printf("%s: Version %u.%u.%u%s%s\n",
            progname, H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE,
-           H5_VERS_SUBRELEASE[0] ? "-" : "", H5_VERS_SUBRELEASE);
+           ((char *)H5_VERS_SUBRELEASE)[0] ? "-" : "", H5_VERS_SUBRELEASE);
 }
 
 
@@ -626,3 +628,163 @@ tmpfile(void)
 }
 
 #endif
+
+/*-------------------------------------------------------------------------
+ * Function: H5tools_get_link_info
+ *
+ * Purpose: Get link (soft, external) info and its target object type 
+            (dataset, group, named datatype) and path, if exist
+ *
+ * Patameters:
+ *  - [IN]  fileid : link file id
+ *  - [IN]  linkpath : link path
+ *  - [OUT] h5li : link's info (H5L_info_t)
+ *  - [OUT] link_info: returning target object info (h5tool_link_info_t)
+ *
+ * Return: 
+ *   2 : given pathname is object 
+ *   1 : Succed to get link info.  
+ *   0 : Detected as a dangling link
+ *  -1 : H5 API failed.
+ *
+ * NOTE:
+ *  link_info->trg_path must be freed out of this function
+ *
+ * Programmer: Jonathan Kim
+ *
+ * Date: Feb 8, 2010
+ *-------------------------------------------------------------------------*/
+int H5tools_get_link_info(hid_t file_id, const char * linkpath, h5tool_link_info_t *link_info)
+{
+    int Ret = -1; /* init to fail */
+    htri_t l_ret;
+    H5O_info_t trg_oinfo;
+    hid_t fapl;
+    hid_t lapl = H5P_DEFAULT;
+
+    /* init */
+    link_info->trg_type = H5O_TYPE_UNKNOWN;
+
+    /* check if link itself exist */
+    if((H5Lexists(file_id, linkpath, H5P_DEFAULT) <= 0)) 
+    {
+        if(link_info->opt.msg_mode==1)
+            parallel_print("Warning: link <%s> doesn't exist \n",linkpath);
+        goto out;
+    }
+
+    /* get info from link */
+    if(H5Lget_info(file_id, linkpath, &(link_info->linfo), H5P_DEFAULT) < 0)
+    {
+        if(link_info->opt.msg_mode==1)
+            parallel_print("Warning: unable to get link info from <%s>\n",linkpath);
+        goto out;
+    }
+
+    /* given path is hard link (object) */
+    if (link_info->linfo.type == H5L_TYPE_HARD)
+    {
+        Ret = 2;
+        goto out;
+    }
+
+    /* trg_path must be freed out of this function when finished using */
+    link_info->trg_path = (char*)HDcalloc(link_info->linfo.u.val_size, sizeof(char));
+    HDassert(link_info->trg_path);
+
+    /* get link value */
+    if(H5Lget_val(file_id, linkpath, link_info->trg_path, link_info->linfo.u.val_size, H5P_DEFAULT) < 0)
+    {
+        if(link_info->opt.msg_mode==1)
+            parallel_print("Warning: unable to get link value from <%s>\n",linkpath);
+        goto out;
+    }
+
+    /*-----------------------------------------------------
+     * if link type is external link use different lapl to 
+     * follow object in other file
+     */
+    if (link_info->linfo.type == H5L_TYPE_EXTERNAL)
+    {
+        fapl = H5Pcreate(H5P_FILE_ACCESS);
+        H5Pset_fapl_sec2(fapl);
+        lapl = H5Pcreate(H5P_LINK_ACCESS);
+        H5Pset_elink_fapl(lapl, fapl);
+    }
+
+    /*--------------------------------------------------------------
+     * if link's target object exist, get type
+     */
+     /* check if target object exist */
+    l_ret = H5Oexists_by_name(file_id, linkpath, lapl);
+    
+    /* detect dangling link */
+    if(l_ret == FALSE) 
+    {
+            Ret = 0;
+            goto out;
+    }
+    /* function failed */
+    else if (l_ret < 0)
+    {
+        goto out;    
+    }
+
+    /* get target object info */
+    if(H5Oget_info_by_name(file_id, linkpath, &trg_oinfo, lapl) < 0) 
+    {
+        if(link_info->opt.msg_mode==1)
+            parallel_print("Warning: unable to get object information for <%s>\n", linkpath);
+        goto out;
+    }
+
+    /* check unknown type */
+    if (trg_oinfo.type < H5O_TYPE_GROUP || trg_oinfo.type >=H5O_TYPE_NTYPES)
+    {
+        if(link_info->opt.msg_mode==1)
+            parallel_print("Warning: target object of <%s> is unknown type\n", linkpath);
+        goto out;
+    } 
+
+    /* set target obj type to return */
+    link_info->trg_type = trg_oinfo.type;
+
+    /* succeed */
+    Ret = 1;
+out:
+    if (link_info->linfo.type == H5L_TYPE_EXTERNAL)
+    {
+        H5Pclose(fapl);
+        H5Pclose(lapl);
+    }
+
+    return Ret;
+}
+
+/*-------------------------------------------------------------------------
+ * Audience:    Public
+ * Chapter:     H5Tools Library
+ * Purpose:     Initialize the name and operation status of the H5 Tools library
+ * Description:
+ *      These are utility functions to set/get the program name and operation status.
+ *-------------------------------------------------------------------------
+ */
+void h5tools_setprogname(const char *Progname)
+{
+    h5tools_progname = Progname;
+}
+
+void h5tools_setstatus(int D_status)
+{
+    h5tools_d_status = D_status;
+}
+
+const char*h5tools_getprogname()
+{
+   return h5tools_progname;
+}
+
+int h5tools_getstatus()
+{
+   return h5tools_d_status;
+}

@@ -30,6 +30,7 @@
 
 #include "hdf5.h"
 #include "testhdf5.h"
+#include "H5srcdir.h"
 #include "H5Dpkg.h"		/* Datasets 				*/
 
 /* Definitions for misc. test #1 */
@@ -5144,7 +5145,7 @@ test_misc29(void)
     CHECK(ret, -1, "h5_make_local_copy");
 
     /* Open the copied file */
-    fid = H5Fopen(MISC29_COPY_FILE, H5F_ACC_RDWR, H5P_DEFAULT); 
+    fid = H5Fopen(MISC29_COPY_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
     CHECK(fid, FAIL, "H5Fopen");
 
     /* Delete the last dataset */

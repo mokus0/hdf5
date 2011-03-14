@@ -27,6 +27,10 @@ USE_FILTER_FLETCHER32="@USE_FILTER_FLETCHER32@"
 USE_FILTER_NBIT="@USE_FILTER_NBIT@"
 USE_FILTER_SCALEOFFSET="@USE_FILTER_SCALEOFFSET@"
 
+TESTNAME=h5repack
+EXIT_SUCCESS=0
+EXIT_FAILURE=1
+
 H5REPACK=h5repack               # The tool name
 H5REPACK_BIN=`pwd`/$H5REPACK    # The path of the tool binary
 
@@ -55,6 +59,7 @@ FILE14=h5repack_layouto.h5      # A file with an older version of the layout mes
                                 # (copy of test/tlayouto.h5)
 FILE15=h5repack_named_dtypes.h5
 FILE16=tfamily%05d.h5           # located in common testfiles folder
+FILE_REF=h5repack_refs.h5
 
 
 nerrors=0
@@ -527,9 +532,14 @@ TOOLTEST $FILE15
 # tests family driver (file is located in common testfiles folder, uses TOOLTEST1
 TOOLTEST1 $FILE16
 
-if test $nerrors -eq 0 ; then
-   echo "All $H5REPACK tests passed."
-fi
+# test various references (bug 1814 and 1726)
+TOOLTEST $FILE_REF
 
-exit $nerrors
+if test $nerrors -eq 0 ; then
+    echo "All $TESTNAME tests passed."
+    exit $EXIT_SUCCESS
+else
+    echo "$TESTNAME tests failed with $nerrors errors."
+    exit $EXIT_FAILURE
+fi
 

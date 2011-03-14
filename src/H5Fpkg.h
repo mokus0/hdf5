@@ -36,6 +36,7 @@
 
 /* Other private headers needed by this file */
 #include "H5private.h"		/* Generic Functions			*/
+#include "H5ACprivate.h"        /* Metadata cache                       */
 #include "H5FLprivate.h"	/* Free Lists                           */
 #include "H5FOprivate.h"        /* File objects                         */
 #include "H5FSprivate.h"	/* File free space                      */
@@ -197,15 +198,15 @@ typedef struct H5F_file_t {
     H5F_mtab_t	mtab;		/* File mount table                     */
 
     /* Cached values from FCPL/superblock */
-    size_t	sizeof_addr;	/* Size of addresses in file            */
-    size_t	sizeof_size;	/* Size of offsets in file              */
+    uint8_t	sizeof_addr;	/* Size of addresses in file            */
+    uint8_t	sizeof_size;	/* Size of offsets in file              */
     haddr_t	sohm_addr;	/* Relative address of shared object header message table */
     unsigned	sohm_vers;	/* Version of shared message table on disk */
     unsigned	sohm_nindexes;	/* Number of shared messages indexes in the table */
     unsigned long feature_flags; /* VFL Driver feature Flags            */
     haddr_t	maxaddr;	/* Maximum address for file             */
 
-    H5AC_t      *cache;		/* The object cache			*/
+    H5AC_t      *cache;		/* The object cache	 		*/
     H5AC_cache_config_t
 		mdc_initCacheCfg; /* initial configuration for the      */
                                 /* metadata cache.  This structure is   */
@@ -222,7 +223,7 @@ typedef struct H5F_file_t {
     unsigned	gc_ref;		/* Garbage-collect references?		*/
     hbool_t	latest_format;	/* Always use the latest format?	*/
     hbool_t	store_msg_crt_idx;  /* Store creation index for object header messages?	*/
-    int	ncwfs;			/* Num entries on cwfs list		*/
+    unsigned	ncwfs;		/* Num entries on cwfs list		*/
     struct H5HG_heap_t **cwfs;	/* Global heap cache			*/
     struct H5G_t *root_grp;	/* Open root group			*/
     H5FO_t *open_objs;          /* Open objects in file                 */
@@ -248,14 +249,12 @@ typedef struct H5F_file_t {
 /*
  * This is the top-level file descriptor.  One of these structures is
  * allocated every time H5Fopen() is called although they may contain pointers
- * to shared H5F_file_t structs. The reference count (nrefs) indicates the
- * number of times the file has been opened (the application can only open a
- * file once explicitly, but the library can open the file a second time to
- * indicate that the file is mounted on some other file).
+ * to shared H5F_file_t structs.
  */
 struct H5F_t {
     unsigned		intent;		/* The flags passed to H5F_open()*/
-    char		*name;		/* Name used to open file	*/
+    char		*open_name;	/* Name used to open file	*/
+    char		*actual_name;	/* Actual name of the file, after resolving symlinks, etc. */
     char               	*extpath;       /* Path for searching target external link file */
     H5F_file_t		*shared;	/* The shared file info		*/
     unsigned		nopen_objs;	/* Number of open object headers*/
@@ -300,6 +299,7 @@ H5_DLL herr_t H5F_super_init(H5F_t *f, hid_t dxpl_id);
 H5_DLL herr_t H5F_super_read(H5F_t *f, hid_t dxpl_id);
 H5_DLL herr_t H5F_super_size(H5F_t *f, hid_t dxpl_id, hsize_t *super_size,
     hsize_t *super_ext_info);
+H5_DLL herr_t H5F_super_free(H5F_super_t *sblock);
 
 /* Superblock extension related routines */
 H5_DLL herr_t H5F_super_ext_open(H5F_t *f, haddr_t ext_addr, H5O_loc_t *ext_ptr);

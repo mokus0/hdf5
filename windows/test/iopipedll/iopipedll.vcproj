@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8.00"
+	Version="9.00"
 	Name="iopipedll"
 	ProjectGUID="{4E8105F2-56D4-45D6-9017-706F804052E7}"
+	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -47,7 +48,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\test,..\..\..\src"
-				PreprocessorDefinitions="_DEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;_DEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\../../../test/iopipedll/Debug/iopipedll.pch"
@@ -64,7 +65,7 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;_DEBUG"
 				Culture="1033"
 			/>
 			<Tool
@@ -78,6 +79,8 @@
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\../../../test/iopipedll/Debug/iopipedll.pdb"
 				SubSystem="1"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -97,9 +100,6 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -137,7 +137,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\test,..\..\..\src"
-				PreprocessorDefinitions="_DEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;_DEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				PrecompiledHeaderFile=".\../../../test/iopipedll/Debug/iopipedll.pch"
@@ -154,7 +154,7 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;_DEBUG"
 				Culture="1033"
 			/>
 			<Tool
@@ -168,6 +168,8 @@
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\../../../test/iopipedll/Debug/iopipedll.pdb"
 				SubSystem="1"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -187,9 +189,6 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -227,7 +226,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="..\..\test,..\..\..\src"
-				PreprocessorDefinitions="NDEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;NDEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -245,7 +244,7 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;NDEBUG"
 				Culture="1033"
 			/>
 			<Tool
@@ -258,6 +257,8 @@
 				SuppressStartupBanner="true"
 				ProgramDatabaseFile=".\../../../test/iopipedll/Release/iopipedll.pdb"
 				SubSystem="1"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -277,9 +278,6 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -318,7 +316,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="..\..\test,..\..\..\src"
-				PreprocessorDefinitions="NDEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;NDEBUG;WIN32;_CONSOLE;_HDF5USEDLL_;_HDF5TESTUSEDLL_"
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -336,7 +334,7 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
+				PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;NDEBUG"
 				Culture="1033"
 			/>
 			<Tool
@@ -349,6 +347,8 @@
 				SuppressStartupBanner="true"
 				ProgramDatabaseFile=".\../../../test/iopipedll/Release/iopipedll.pdb"
 				SubSystem="1"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
 				TargetMachine="17"
 			/>
 			<Tool
@@ -370,9 +370,6 @@
 				Name="VCAppVerifierTool"
 			/>
 			<Tool
-				Name="VCWebDeploymentTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -390,7 +387,7 @@
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
+					PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -400,7 +397,7 @@
 					Name="VCCLCompilerTool"
 					Optimization="0"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
+					PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -410,7 +407,7 @@
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
+					PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;"
 				/>
 			</FileConfiguration>
 			<FileConfiguration
@@ -420,7 +417,7 @@
 					Name="VCCLCompilerTool"
 					Optimization="2"
 					AdditionalIncludeDirectories=""
-					PreprocessorDefinitions=""
+					PreprocessorDefinitions="BIND_TO_CURRENT_VCLIBS_VERSION=1;"
 				/>
 			</FileConfiguration>
 		</File>

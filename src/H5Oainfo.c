@@ -159,7 +159,7 @@ H5O_ainfo_decode(H5F_t *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
 
 done:
     if(ret_value == NULL && ainfo != NULL)
-        (void)H5FL_FREE(H5O_ainfo_t, ainfo);
+        ainfo = H5FL_FREE(H5O_ainfo_t, ainfo);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_ainfo_decode() */
@@ -314,7 +314,7 @@ H5O_ainfo_free(void *mesg)
 
     HDassert(mesg);
 
-    (void)H5FL_FREE(H5O_ainfo_t, mesg);
+    mesg = H5FL_FREE(H5O_ainfo_t, mesg);
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5O_ainfo_free() */
@@ -396,13 +396,13 @@ H5O_ainfo_pre_copy_file(H5F_t UNUSED *file_src, const void UNUSED *native_src,
  * Return:      Success:        Ptr to _DEST
  *              Failure:        NULL
  *
- * Programmer:  Peter Cao 
+ * Programmer:  Peter Cao
  *              July 18, 2007
  *
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_ainfo_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst, 
+H5O_ainfo_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst,
     hbool_t *recompute_size, H5O_copy_t *cpy_info, void UNUSED *udata, hid_t dxpl_id)
 {
     H5O_ainfo_t *ainfo_src = (H5O_ainfo_t *)mesg_src;
@@ -431,17 +431,17 @@ H5O_ainfo_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst,
         if(H5A_dense_create(file_dst, dxpl_id, ainfo_dst) < 0)
             HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, NULL, "unable to create dense storage for attributes")
 
-        if ( (H5A_dense_copy_file_all(file_src, ainfo_src, file_dst, ainfo_dst, recompute_size, cpy_info, dxpl_id)) <0)
+        if((H5A_dense_copy_file_all(file_src, ainfo_src, file_dst, ainfo_dst, recompute_size, cpy_info, dxpl_id)) < 0)
             HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, NULL, "unable to create dense storage for attributes")
-    }
+    } /* end if */
 
     /* Set return value */
     ret_value = ainfo_dst;
 
 done:
     /* Release destination attribute information on failure */
-    if(ret_value == NULL && ainfo_dst != NULL)
-        (void)H5FL_FREE(H5O_ainfo_t, ainfo_dst);
+    if(!ret_value && ainfo_dst)
+        ainfo_dst = H5FL_FREE(H5O_ainfo_t, ainfo_dst);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5O_ainfo_copy_file() */
@@ -475,7 +475,7 @@ H5O_ainfo_post_copy_file(const H5O_loc_t *src_oloc, const void *mesg_src,
     HDassert(ainfo_src);
 
     if(H5F_addr_defined(ainfo_src->fheap_addr)) {
-        if ( H5A_dense_post_copy_file_all(src_oloc, ainfo_src, dst_oloc, 
+        if ( H5A_dense_post_copy_file_all(src_oloc, ainfo_src, dst_oloc,
             (H5O_ainfo_t *)mesg_dst, dxpl_id, cpy_info) < 0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTCOPY, FAIL, "can't copy attribute")
     }

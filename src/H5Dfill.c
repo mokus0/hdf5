@@ -240,7 +240,7 @@ H5D_fill(const void *fill, const H5T_t *fill_type, void *buf,
          * then do conversion on each element so that each of them has a copy
          * of the VL data.
          */
-        if(TRUE == H5T_detect_class(fill_type, H5T_VLEN)) {
+        if(TRUE == H5T_detect_class(fill_type, H5T_VLEN, FALSE)) {
             H5D_dxpl_cache_t _dxpl_cache;       /* Data transfer property cache buffer */
             H5D_dxpl_cache_t *dxpl_cache = &_dxpl_cache;   /* Data transfer property cache */
             H5S_sel_iter_t mem_iter;            /* Memory selection iteration info */
@@ -337,13 +337,13 @@ done:
     if(dst_id != (-1) && H5I_dec_ref(dst_id, FALSE) < 0)
         HDONE_ERROR(H5E_DATASET, H5E_CANTFREE, FAIL, "Can't decrement temporary datatype ID")
     if(tmp_buf)
-        (void)H5FL_BLK_FREE(type_conv, tmp_buf);
+        tmp_buf = H5FL_BLK_FREE(type_conv, tmp_buf);
     if(elem_wb && H5WB_unwrap(elem_wb) < 0)
         HDONE_ERROR(H5E_ATTR, H5E_CLOSEERROR, FAIL, "can't close wrapped buffer")
     if(bkg_elem_wb && H5WB_unwrap(bkg_elem_wb) < 0)
         HDONE_ERROR(H5E_ATTR, H5E_CLOSEERROR, FAIL, "can't close wrapped buffer")
     if(bkg_buf)
-        (void)H5FL_BLK_FREE(type_conv, bkg_buf);
+        bkg_buf = H5FL_BLK_FREE(type_conv, bkg_buf);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5D_fill() */
@@ -397,7 +397,7 @@ H5D_fill_init(H5D_fill_buf_info_t *fb_info, void *caller_fill_buf,
         htri_t has_vlen_type;   /* Whether the datatype has a VL component */
 
         /* Detect whether the datatype has a VL component */
-        if((has_vlen_type = H5T_detect_class(dset_type, H5T_VLEN)) < 0)
+        if((has_vlen_type = H5T_detect_class(dset_type, H5T_VLEN, FALSE)) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_BADVALUE, FAIL, "unable to detect vlen datatypes?")
         fb_info->has_vlen_fill_type = (hbool_t)has_vlen_type;
 
@@ -570,6 +570,7 @@ herr_t
 H5D_fill_refill_vl(H5D_fill_buf_info_t *fb_info, size_t nelmts, hid_t dxpl_id)
 {
     herr_t	ret_value = SUCCEED;	/* Return value */
+    void * buf = NULL;              /* Temporary fill buffer */
 
     FUNC_ENTER_NOAPI(H5D_fill_refill_vl, FAIL)
 
@@ -605,11 +606,32 @@ H5D_fill_refill_vl(H5D_fill_buf_info_t *fb_info, size_t nelmts, hid_t dxpl_id)
     if(H5T_path_bkg(fb_info->mem_to_dset_tpath))
         HDmemset(fb_info->bkg_buf, 0, fb_info->bkg_buf_size);
 
+    /* Make a copy of the fill buffer so we can free dynamic elements after conversion */
+    if(fb_info->fill_alloc_func)
+        buf = fb_info->fill_alloc_func(fb_info->fill_buf_size, fb_info->fill_alloc_info);
+    else
+        buf = H5FL_BLK_MALLOC(non_zero_fill, fb_info->fill_buf_size);
+    HDmemcpy(buf, fb_info->fill_buf, fb_info->fill_buf_size);
+
     /* Type convert the dataset buffer, to copy any VL components */
     if(H5T_convert(fb_info->mem_to_dset_tpath, fb_info->mem_tid, fb_info->file_tid, nelmts, (size_t)0, (size_t)0, fb_info->fill_buf, fb_info->bkg_buf, dxpl_id) < 0)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTCONVERT, FAIL, "data type conversion failed")
 
 done:
+    if (buf) {
+        /* Free dynamically allocated VL elements in fill buffer */
+        if (fb_info->fill->type)
+            H5T_vlen_reclaim_elmt(buf, fb_info->fill->type, dxpl_id);
+        else
+            H5T_vlen_reclaim_elmt(buf, fb_info->mem_type, dxpl_id);
+
+        /* Free temporary fill buffer */
+        if(fb_info->fill_free_func)
+            fb_info->fill_free_func(buf, fb_info->fill_free_info);
+        else
+            buf = H5FL_BLK_FREE(non_zero_fill, buf);
+    } /* end if */
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5D_fill_refill_vl() */
 
@@ -641,9 +663,9 @@ H5D_fill_release(H5D_fill_buf_info_t *fb_info)
             fb_info->fill_free_func(fb_info->fill_buf, fb_info->fill_free_info);
         else {
             if(fb_info->fill->buf)
-                (void)H5FL_BLK_FREE(non_zero_fill, fb_info->fill_buf);
+                fb_info->fill_buf = H5FL_BLK_FREE(non_zero_fill, fb_info->fill_buf);
             else
-                (void)H5FL_BLK_FREE(zero_fill, fb_info->fill_buf);
+                fb_info->fill_buf = H5FL_BLK_FREE(zero_fill, fb_info->fill_buf);
         } /* end else */
         fb_info->fill_buf = NULL;
     } /* end if */
@@ -682,7 +704,7 @@ H5D_fill_term(H5D_fill_buf_info_t *fb_info)
         else if(fb_info->mem_type)
             H5T_close(fb_info->mem_type);
         if(fb_info->bkg_buf)
-            (void)H5FL_BLK_FREE(type_conv, fb_info->bkg_buf);
+            fb_info->bkg_buf = H5FL_BLK_FREE(type_conv, fb_info->bkg_buf);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(SUCCEED)

@@ -169,7 +169,7 @@
 #define H5HF_FSPACE_SECT_SINGLE         0       /* Section is a range of actual bytes in a direct block */
 #define H5HF_FSPACE_SECT_FIRST_ROW      1       /* Section is first range of blocks in an indirect block row */
 #define H5HF_FSPACE_SECT_NORMAL_ROW     2       /* Section is a range of blocks in an indirect block row */
-#define H5HF_FSPACE_SECT_INDIRECT      3       /* Section is a span of blocks in an indirect block */
+#define H5HF_FSPACE_SECT_INDIRECT       3       /* Section is a span of blocks in an indirect block */
 
 /* Flags for 'op' operations */
 #define H5HF_OP_MODIFY          0x0001          /* Operation will modify object */
@@ -335,25 +335,26 @@ typedef struct H5HF_hdr_t {
 
     /* Cached/computed values (not stored in header) */
     size_t      rc;             /* Reference count of heap's components using heap header */
-    hbool_t     dirty;          /* Shared info is modified */
     haddr_t     heap_addr;      /* Address of heap header in the file */
     size_t      heap_size;      /* Size of heap header in the file */
     H5AC_protect_t mode;        /* Access mode for heap */
     H5F_t      *f;              /* Pointer to file for heap */
     size_t      file_rc;        /* Reference count of files using heap header */
     hbool_t     pending_delete; /* Heap is pending deletion */
-    size_t      sizeof_size;    /* Size of file sizes */
-    size_t      sizeof_addr;    /* Size of file addresses */
+    uint8_t     sizeof_size;    /* Size of file sizes */
+    uint8_t     sizeof_addr;    /* Size of file addresses */
     struct H5HF_indirect_t *root_iblock;    /* Pointer to pinned root indirect block */
     H5FS_t      *fspace;        /* Free space list for objects in heap */
     H5HF_block_iter_t next_block;   /* Block iterator for searching for next block with space */
+    H5B2_t      *huge_bt2;      /* v2 B-tree handle for huge objects */
     hsize_t     huge_max_id;    /* Max. 'huge' heap ID before rolling 'huge' heap IDs over */
+    uint8_t     huge_id_size;   /* Size of 'huge' heap IDs (in bytes) */
     hbool_t     huge_ids_direct; /* Flag to indicate that 'huge' object's offset & length are stored directly in heap ID */
     size_t      tiny_max_len;   /* Max. size of tiny objects for this heap */
     hbool_t     tiny_len_extended; /* Flag to indicate that 'tiny' object's length is stored in extended form (i.e. w/extra byte) */
-    uint8_t     huge_id_size; /* Size of 'huge' heap IDs (in bytes) */
-    uint8_t     heap_off_size; /* Size of heap offsets (in bytes) */
-    uint8_t     heap_len_size; /* Size of heap ID lengths (in bytes) */
+    uint8_t     heap_off_size;  /* Size of heap offsets (in bytes) */
+    uint8_t     heap_len_size;  /* Size of heap ID lengths (in bytes) */
+    hbool_t     checked_filters; /* TRUE if pipeline passes can_apply checks */
 } H5HF_hdr_t;
 
 /* Common indirect block doubling table entry */
@@ -467,6 +468,36 @@ typedef struct {
     hsize_t obj_len;            /* Length of object removed (out) */
 } H5HF_huge_remove_ud1_t;
 
+/* User data for fractal heap header cache client callback */
+typedef struct H5HF_hdr_cache_ud_t {
+    H5F_t *f;                   /* File pointer */
+    hid_t dxpl_id;              /* DXPL ID for operation (in) */
+} H5HF_hdr_cache_ud_t;
+
+/* User data for fractal heap indirect block cache client callbacks */
+typedef struct H5HF_iblock_cache_ud_t {
+    H5HF_parent_t * par_info;   /* Parent info */
+    H5F_t * f;                  /* File pointer */
+    const unsigned *nrows;      /* Number of rows */
+} H5HF_iblock_cache_ud_t;
+
+/* User data for fractal heap direct block cache client callbacks */
+typedef struct H5HF_dblock_cache_ud_t {
+    H5HF_parent_t par_info;     /* Parent info */
+    H5F_t * f;                  /* File pointer */
+    size_t dblock_size;		/* size of the direct block, which bears
+				 * no necessary relation to the block
+				 * odi_size -- the size of the on disk
+				 * image of the block.  Note that the
+				 * metadata cache is only interested
+				 * in the odi_size, and thus it is this
+				 * value that is passed to the cache in
+				 * calls to it.
+				 */
+    unsigned filter_mask;	/* Excluded filters for direct block */
+} H5HF_dblock_cache_ud_t;
+
+
 /*****************************/
 /* Package Private Variables */
 /*****************************/
@@ -481,16 +512,16 @@ H5_DLLVAR const H5AC_class_t H5AC_FHEAP_IBLOCK[1];
 H5_DLLVAR const H5AC_class_t H5AC_FHEAP_DBLOCK[1];
 
 /* The v2 B-tree class for tracking indirectly accessed 'huge' objects */
-H5_DLLVAR const H5B2_class_t H5HF_BT2_INDIR[1];
+H5_DLLVAR const H5B2_class_t H5HF_HUGE_BT2_INDIR[1];
 
 /* The v2 B-tree class for tracking indirectly accessed filtered 'huge' objects */
-H5_DLLVAR const H5B2_class_t H5HF_BT2_FILT_INDIR[1];
+H5_DLLVAR const H5B2_class_t H5HF_HUGE_BT2_FILT_INDIR[1];
 
 /* The v2 B-tree class for tracking directly accessed 'huge' objects */
-H5_DLLVAR const H5B2_class_t H5HF_BT2_DIR[1];
+H5_DLLVAR const H5B2_class_t H5HF_HUGE_BT2_DIR[1];
 
 /* The v2 B-tree class for tracking directly accessed filtered 'huge' objects */
-H5_DLLVAR const H5B2_class_t H5HF_BT2_FILT_DIR[1];
+H5_DLLVAR const H5B2_class_t H5HF_HUGE_BT2_FILT_DIR[1];
 
 /* H5HF single section inherits serializable properties from H5FS_section_class_t */
 H5_DLLVAR H5FS_section_class_t H5HF_FSPACE_SECT_CLS_SINGLE[1];
@@ -503,9 +534,6 @@ H5_DLLVAR H5FS_section_class_t H5HF_FSPACE_SECT_CLS_NORMAL_ROW[1];
 
 /* H5HF indirect section inherits serializable properties from H5FS_section_class_t */
 H5_DLLVAR H5FS_section_class_t H5HF_FSPACE_SECT_CLS_INDIRECT[1];
-
-/* Declare a free list to manage the H5HF_hdr_t struct */
-H5FL_EXTERN(H5HF_hdr_t);
 
 /* Declare a free list to manage the H5HF_indirect_t struct */
 H5FL_EXTERN(H5HF_indirect_t);
@@ -544,6 +572,8 @@ H5_DLL hsize_t H5HF_dtable_span_size(const H5HF_dtable_t *dtable, unsigned start
 /* Heap header routines */
 H5_DLL H5HF_hdr_t * H5HF_hdr_alloc(H5F_t *f);
 H5_DLL haddr_t H5HF_hdr_create(H5F_t *f, hid_t dxpl_id, const H5HF_create_t *cparam);
+H5_DLL H5HF_hdr_t *H5HF_hdr_protect(H5F_t *f, hid_t dxpl_id, haddr_t addr,
+    H5AC_protect_t rw);
 H5_DLL herr_t H5HF_hdr_finish_init_phase1(H5HF_hdr_t *hdr);
 H5_DLL herr_t H5HF_hdr_finish_init_phase2(H5HF_hdr_t *hdr);
 H5_DLL herr_t H5HF_hdr_finish_init(H5HF_hdr_t *hdr);
@@ -564,7 +594,9 @@ H5_DLL herr_t H5HF_hdr_reverse_iter(H5HF_hdr_t *hdr, hid_t dxpl_id,
     haddr_t dblock_addr);
 H5_DLL herr_t H5HF_hdr_reset_iter(H5HF_hdr_t *hdr, hsize_t curr_off);
 H5_DLL herr_t H5HF_hdr_empty(H5HF_hdr_t *hdr);
+H5_DLL herr_t H5HF_hdr_free(H5HF_hdr_t *hdr);
 H5_DLL herr_t H5HF_hdr_delete(H5HF_hdr_t *hdr, hid_t dxpl_id);
+H5_DLL herr_t H5HF_hdr_dest(H5HF_hdr_t *hdr);
 
 /* Indirect block routines */
 H5_DLL herr_t H5HF_iblock_incr(H5HF_indirect_t *iblock);
@@ -595,6 +627,7 @@ H5_DLL herr_t H5HF_man_iblock_delete(H5HF_hdr_t *hdr, hid_t dxpl_id,
     unsigned par_entry);
 H5_DLL herr_t H5HF_man_iblock_size(H5F_t *f, hid_t dxpl_id, H5HF_hdr_t *hdr,
     haddr_t iblock_addr, unsigned nrows, H5HF_indirect_t *par_iblock, unsigned par_entry, hsize_t *heap_size/*out*/);
+H5_DLL herr_t H5HF_man_iblock_dest(H5HF_indirect_t *iblock);
 
 /* Direct block routines */
 H5_DLL herr_t H5HF_man_dblock_new(H5HF_hdr_t *fh, hid_t dxpl_id, size_t request,
@@ -613,6 +646,7 @@ H5_DLL herr_t H5HF_man_dblock_locate(H5HF_hdr_t *hdr, hid_t dxpl_id,
     unsigned *par_entry, hbool_t *par_did_protect, H5AC_protect_t rw);
 H5_DLL herr_t H5HF_man_dblock_delete(H5F_t *f, hid_t dxpl_id, haddr_t dblock_addr,
     hsize_t dblock_size);
+H5_DLL herr_t H5HF_man_dblock_dest(H5HF_direct_t *dblock);
 
 /* Managed object routines */
 H5_DLL herr_t H5HF_man_insert(H5HF_hdr_t *fh, hid_t dxpl_id, size_t obj_size,
@@ -660,11 +694,6 @@ H5_DLL herr_t H5HF_tiny_read(H5HF_hdr_t *fh, const uint8_t *id, void *obj);
 H5_DLL herr_t H5HF_tiny_op(H5HF_hdr_t *hdr, const uint8_t *id,
     H5HF_operator_t op, void *op_data);
 H5_DLL herr_t H5HF_tiny_remove(H5HF_hdr_t *fh, const uint8_t *id);
-
-/* Metadata cache callbacks */
-H5_DLL herr_t H5HF_cache_hdr_dest(H5F_t *f, H5HF_hdr_t *hdr);
-H5_DLL herr_t H5HF_cache_dblock_dest(H5F_t *f, H5HF_direct_t *dblock);
-H5_DLL herr_t H5HF_cache_iblock_dest(H5F_t *f, H5HF_indirect_t *iblock);
 
 /* Debugging routines for dumping file structures */
 H5_DLL herr_t H5HF_hdr_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr,
@@ -723,6 +752,7 @@ H5_DLL herr_t H5HF_sect_row_reduce(H5HF_hdr_t *hdr, hid_t dxpl_id,
 H5_DLL H5HF_indirect_t *H5HF_sect_row_get_iblock(H5HF_free_section_t *sect);
 H5_DLL herr_t H5HF_sect_indirect_add(H5HF_hdr_t *hdr, hid_t dxpl_id,
     H5HF_indirect_t *iblock, unsigned start_entry, unsigned nentries);
+H5_DLL herr_t H5HF_sect_single_free(H5FS_section_info_t *sect);
 
 /* Internal operator callbacks */
 H5_DLL herr_t H5HF_op_read(const void *obj, size_t obj_len, void *op_data);

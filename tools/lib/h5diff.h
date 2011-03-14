@@ -35,6 +35,8 @@ typedef struct {
     double   percent;               /* relative error value */
     int      n;                     /* count, compare up to count */
     hsize_t  count;                 /* count value */
+    int      follow_links;          /* follow symbolic links */
+    int      no_dangle_links;       /* return error when find dangling link */
     int      err_stat;              /* an error ocurred (1, error, 0, no error) */
     int      cmn_objs;              /* do we have common objects */
     int      not_cmp;               /* are the objects comparable */
@@ -53,15 +55,15 @@ typedef struct {
 extern "C" {
 #endif
 
-hsize_t  h5diff(const char *fname1,
+H5TOOLS_DLL hsize_t  h5diff(const char *fname1,
                 const char *fname2,
                 const char *objname1,
                 const char *objname2,
                 diff_opt_t *options);
 
 #ifdef H5_HAVE_PARALLEL
-void phdiff_dismiss_workers(void);
-void print_manager_output(void);
+H5TOOLS_DLL void phdiff_dismiss_workers(void);
+H5TOOLS_DLL void print_manager_output(void);
 #endif
 
 #ifdef __cplusplus

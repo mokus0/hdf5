@@ -93,12 +93,21 @@
 /* Package Private Typedefs */
 /****************************/
 
-/* Information for protecting a free space manager header */
-typedef struct H5FS_prot_t {
+/* Callback info for loading a free space header into the cache */
+typedef struct H5FS_hdr_cache_ud_t {
+    H5F_t *f;                  /* File that free space header is within */
     size_t nclasses;                            /* Number of section classes */
     const H5FS_section_class_t **classes;       /* Array of section class info */
     void *cls_init_udata;                       /* Pointer to class init user data */
-} H5FS_prot_t;
+    haddr_t addr;              /* Address of header */
+} H5FS_hdr_cache_ud_t;
+
+/* Callback info for loading free space section info into the cache */
+typedef struct H5FS_sinfo_cache_ud_t {
+    H5F_t *f;                  /* File that free space section info is within */
+    H5FS_t *fspace;            /* free space manager */
+    hid_t dxpl_id;
+} H5FS_sinfo_cache_ud_t;
 
 /* Free space section bin info */
 typedef struct H5FS_bin_t {
@@ -213,16 +222,16 @@ H5FL_EXTERN(H5FS_t);
 /* Free space manager header routines */
 H5_DLL H5FS_t *H5FS_new(size_t nclasses, const H5FS_section_class_t *classes[],
     void *cls_init_udata);
-H5_DLL herr_t H5FS_incr(H5F_t *f, H5FS_t *fspace);
-H5_DLL herr_t H5FS_decr(H5F_t *f, H5FS_t *fspace);
-H5_DLL herr_t H5FS_dirty(H5F_t *f, H5FS_t *fspace);
+H5_DLL herr_t H5FS_incr(H5FS_t *fspace);
+H5_DLL herr_t H5FS_decr(H5FS_t *fspace);
+H5_DLL herr_t H5FS_dirty(H5FS_t *fspace);
 
 /* Free space section routines */
 H5_DLL H5FS_sinfo_t *H5FS_sinfo_new(H5F_t *f, H5FS_t *fspace);
 
-/* Metadata cache callbacks */
-H5_DLL herr_t H5FS_cache_hdr_dest(H5F_t *f, H5FS_t *hdr);
-H5_DLL herr_t H5FS_cache_sinfo_dest(H5F_t *f, H5FS_sinfo_t *sinfo);
+/* Routines for destroying structures */
+H5_DLL herr_t H5FS_hdr_dest(H5FS_t *hdr);
+H5_DLL herr_t H5FS_sinfo_dest(H5FS_sinfo_t *sinfo);
 
 /* Sanity check routines */
 #ifdef H5FS_DEBUG

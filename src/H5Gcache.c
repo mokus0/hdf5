@@ -64,10 +64,9 @@
 /********************/
 
 /* Metadata cache (H5AC) callbacks */
-static H5G_node_t *H5G_node_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void *_udata1,
-				 void *_udata2);
+static H5G_node_t *H5G_node_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, void *udata);
 static herr_t H5G_node_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr,
-			     H5G_node_t *sym, unsigned UNUSED * flags_ptr);
+			     H5G_node_t *sym, unsigned *flags_ptr);
 static herr_t H5G_node_dest(H5F_t *f, H5G_node_t *sym);
 static herr_t H5G_node_clear(H5F_t *f, H5G_node_t *sym, hbool_t destroy);
 static herr_t H5G_node_size(const H5F_t *f, const H5G_node_t *sym, size_t *size_ptr);
@@ -118,18 +117,10 @@ H5FL_SEQ_EXTERN(H5G_entry_t);
  *		matzke@llnl.gov
  *		Jun 23 1997
  *
- * Modifications:
- *		Robb Matzke, 1999-07-28
- *		The ADDR argument is passed by value.
- *
- *	Quincey Koziol, 2002-7-180
- *	Added dxpl parameter to allow more control over I/O from metadata
- *      cache.
  *-------------------------------------------------------------------------
  */
 static H5G_node_t *
-H5G_node_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED  *_udata1,
-	      void UNUSED * _udata2)
+H5G_node_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, void *udata)
 {
     H5G_node_t		   *sym = NULL;
     size_t		    size;
@@ -146,8 +137,7 @@ H5G_node_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED  *_udata1
      */
     HDassert(f);
     HDassert(H5F_addr_defined(addr));
-    HDassert(!_udata1);
-    HDassert(NULL == _udata2);
+    HDassert(udata);
 
     /*
      * Initialize variables.
@@ -204,7 +194,7 @@ done:
     if(wb && H5WB_unwrap(wb) < 0)
         HDONE_ERROR(H5E_SYM, H5E_CLOSEERROR, NULL, "can't close wrapped buffer")
     if(!ret_value)
-        if(sym && H5G_node_dest(f, sym) < 0)
+        if(sym && H5G_node_free(sym) < 0)
             HDONE_ERROR(H5E_SYM, H5E_CANTFREE, NULL, "unable to destroy symbol table node")
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -222,26 +212,6 @@ done:
  *		matzke@llnl.gov
  *		Jun 23 1997
  *
- * Modifications:
- *              rky, 1998-08-28
- *		Only p0 writes metadata to disk.
- *
- * 		Robb Matzke, 1999-07-28
- *		The ADDR argument is passed by value.
- *
- *	Quincey Koziol, 2002-7-180
- *	Added dxpl parameter to allow more control over I/O from metadata
- *      cache.
- *
- *      Pedro Vicente, <pvn@ncsa.uiuc.edu> 18 Sep 2002
- *      Added `id to name' support.
- *
- *      JRM -- 8/21/06
- *      Added the flags_ptr parameter.  This parameter exists to
- *      allow the flush routine to report to the cache if the
- *      entry is resized or renamed as a result of the flush.
- *      *flags_ptr is set to H5C_CALLBACK__NO_FLAGS_SET on entry.
- *
  *-------------------------------------------------------------------------
  */
 static herr_t
@@ -249,7 +219,6 @@ H5G_node_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5G_node_
 {
     H5WB_t     *wb = NULL;     /* Wrapped buffer for node data */
     uint8_t     node_buf[H5G_NODE_BUF_SIZE]; /* Buffer for node */
-    unsigned	u;
     herr_t      ret_value = SUCCEED;       /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5G_node_flush)
@@ -260,18 +229,6 @@ H5G_node_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5G_node_
     HDassert(f);
     HDassert(H5F_addr_defined(addr));
     HDassert(sym);
-
-    /*
-     * Look for dirty entries and set the node dirty flag.
-     */
-    for(u = 0; u < sym->nsyms; u++)
-	if(sym->entry[u].dirty) {
-            /* Set the node's dirty flag */
-            sym->cache_info.is_dirty = TRUE;
-
-            /* Reset the entry's dirty flag */
-            sym->entry[u].dirty = FALSE;
-        } /* end if */
 
     /*
      * Write the symbol node to disk.
@@ -349,8 +306,6 @@ done:
  *		koziol@ncsa.uiuc.edu
  *		Jan 15 2003
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -380,10 +335,9 @@ H5G_node_dest(H5F_t *f, H5G_node_t *sym)
             HGOTO_ERROR(H5E_SYM, H5E_CANTFREE, FAIL, "unable to free symbol table node")
     } /* end if */
 
-    /* Release resources */
-    if(sym->entry)
-        sym->entry = (H5G_entry_t *)H5FL_SEQ_FREE(H5G_entry_t, sym->entry);
-    (void)H5FL_FREE(H5G_node_t, sym);
+    /* Destroy symbol table node */
+    if(H5G_node_free(sym) < 0)
+        HGOTO_ERROR(H5E_SYM, H5E_CANTFREE, FAIL, "unable to destroy symbol table node")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -401,38 +355,33 @@ done:
  *		koziol@ncsa.uiuc.edu
  *		Mar 20 2003
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 static herr_t
 H5G_node_clear(H5F_t *f, H5G_node_t *sym, hbool_t destroy)
 {
-    unsigned u;              /* Local index variable */
     herr_t ret_value = SUCCEED;
 
-    FUNC_ENTER_NOAPI_NOINIT(H5G_node_clear);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_node_clear)
 
     /*
      * Check arguments.
      */
-    assert(sym);
+    HDassert(sym);
 
-    /* Look for dirty entries and reset their dirty flag.  */
-    for(u = 0; u < sym->nsyms; u++)
-        sym->entry[u].dirty=FALSE;
+    /* Reset the node's dirty flag */
     sym->cache_info.is_dirty = FALSE;
 
     /*
      * Destroy the symbol node?	 This might happen if the node is being
      * preempted from the cache.
      */
-    if (destroy)
-        if (H5G_node_dest(f, sym) < 0)
-	    HGOTO_ERROR(H5E_SYM, H5E_CANTFREE, FAIL, "unable to destroy symbol table node");
+    if(destroy)
+        if(H5G_node_dest(f, sym) < 0)
+	    HGOTO_ERROR(H5E_SYM, H5E_CANTFREE, FAIL, "unable to destroy symbol table node")
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5G_node_clear() */
 
 
@@ -448,14 +397,12 @@ done:
  * Programmer:	John Mainzer
  *		5/13/04
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 static herr_t
 H5G_node_size(const H5F_t *f, const H5G_node_t UNUSED *sym, size_t *size_ptr)
 {
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_node_size);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_node_size)
 
     /*
      * Check arguments.
@@ -465,6 +412,6 @@ H5G_node_size(const H5F_t *f, const H5G_node_t UNUSED *sym, size_t *size_ptr)
 
     *size_ptr = H5G_node_size_real(f);
 
-    FUNC_LEAVE_NOAPI(SUCCEED);
+    FUNC_LEAVE_NOAPI(SUCCEED)
 } /* H5G_node_size() */
 

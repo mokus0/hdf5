@@ -172,7 +172,8 @@ done:
 static herr_t
 H5D_compact_construct(H5F_t *f, H5D_t *dset)
 {
-    hssize_t tmp_size;          /* Temporary holder for raw data size */
+    hssize_t stmp_size;         /* Temporary holder for raw data size */
+    hsize_t tmp_size;           /* Temporary holder for raw data size */
     hsize_t max_comp_data_size; /* Max. allowed size of compact data */
     herr_t ret_value = SUCCEED;         /* Return value */
 
@@ -186,7 +187,11 @@ H5D_compact_construct(H5F_t *f, H5D_t *dset)
      * Compact dataset is stored in dataset object header message of
      * layout.
      */
-    tmp_size = H5S_GET_EXTENT_NPOINTS(dset->shared->space) * H5T_get_size(dset->shared->type);
+    stmp_size = H5S_GET_EXTENT_NPOINTS(dset->shared->space);
+    HDassert(stmp_size >= 0);
+    tmp_size = H5T_get_size(dset->shared->type);
+    HDassert(tmp_size > 0);
+    tmp_size = tmp_size * (hsize_t)stmp_size;
     H5_ASSIGN_OVERFLOW(dset->shared->layout.storage.u.compact.size, tmp_size, hssize_t, size_t);
 
     /* Verify data size is smaller than maximum header message size
@@ -412,7 +417,7 @@ H5D_compact_copy(H5F_t *f_src, H5O_storage_compact_t *storage_src, H5F_t *f_dst,
         HGOTO_ERROR(H5E_DATASET, H5E_CANTREGISTER, FAIL, "unable to register source file datatype")
 
     /* If there's a VLEN source datatype, do type conversion information */
-    if(H5T_detect_class(dt_src, H5T_VLEN) > 0) {
+    if(H5T_detect_class(dt_src, H5T_VLEN, FALSE) > 0) {
         H5T_path_t  *tpath_src_mem, *tpath_mem_dst;   /* Datatype conversion paths */
         H5T_t *dt_dst;              /* Destination datatype */
         H5T_t *dt_mem;              /* Memory datatype */
@@ -427,16 +432,22 @@ H5D_compact_copy(H5F_t *f_src, H5O_storage_compact_t *storage_src, H5F_t *f_dst,
         /* create a memory copy of the variable-length datatype */
         if(NULL == (dt_mem = H5T_copy(dt_src, H5T_COPY_TRANSIENT)))
             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to copy")
-        if((tid_mem = H5I_register(H5I_DATATYPE, dt_mem, FALSE)) < 0)
+        if((tid_mem = H5I_register(H5I_DATATYPE, dt_mem, FALSE)) < 0) {
+            H5T_close(dt_mem);
             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to register memory datatype")
+        } /* end if */
 
         /* create variable-length datatype at the destinaton file */
         if(NULL == (dt_dst = H5T_copy(dt_src, H5T_COPY_TRANSIENT)))
             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to copy")
-        if(H5T_set_loc(dt_dst, f_dst, H5T_LOC_DISK) < 0)
+        if(H5T_set_loc(dt_dst, f_dst, H5T_LOC_DISK) < 0) {
+            H5T_close(dt_dst);
             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "cannot mark datatype on disk")
-        if((tid_dst = H5I_register(H5I_DATATYPE, dt_dst, FALSE)) < 0)
+        } /* end if */
+        if((tid_dst = H5I_register(H5I_DATATYPE, dt_dst, FALSE)) < 0) {
+            H5T_close(dt_dst);
             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to register destination file datatype")
+        } /* end if */
 
         /* Set up the conversion functions */
         if(NULL == (tpath_src_mem = H5T_path_find(dt_src, dt_mem, NULL, NULL, dxpl_id, FALSE)))
@@ -549,11 +560,11 @@ done:
         if(H5I_dec_ref(tid_mem, FALSE) < 0)
             HDONE_ERROR(H5E_DATASET, H5E_CANTFREE, FAIL, "Can't decrement temporary datatype ID")
     if(buf)
-        (void)H5FL_BLK_FREE(type_conv, buf);
+        buf = H5FL_BLK_FREE(type_conv, buf);
     if(reclaim_buf)
-        (void)H5FL_BLK_FREE(type_conv, reclaim_buf);
+        reclaim_buf = H5FL_BLK_FREE(type_conv, reclaim_buf);
     if(bkg)
-        (void)H5FL_BLK_FREE(type_conv, bkg);
+        bkg = H5FL_BLK_FREE(type_conv, bkg);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5D_compact_copy() */

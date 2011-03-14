@@ -350,8 +350,8 @@ h5tools_str_prefix(h5tools_str_t *str/*in,out*/, const h5tool_format_t *info,
  *
  * Return:  Success:    Pointer to the prefix.
  *          Failure:    NULL
- *      
- * In/Out: 
+ *
+ * In/Out:
  *      h5tools_context_t *ctx
  *      h5tools_str_t     *str
  *-------------------------------------------------------------------------
@@ -359,7 +359,7 @@ h5tools_str_prefix(h5tools_str_t *str/*in,out*/, const h5tool_format_t *info,
 char *
 h5tools_str_region_prefix(h5tools_str_t *str, const h5tool_format_t *info,
         hsize_t elmtno, hsize_t *ptdata, unsigned ndims, hsize_t min_idx[], hsize_t max_idx[],
-        h5tools_context_t *ctx) 
+        h5tools_context_t *ctx)
 {
     hsize_t p_prod[H5S_MAX_RANK];
     size_t i = 0;
@@ -406,15 +406,15 @@ h5tools_str_region_prefix(h5tools_str_t *str, const h5tool_format_t *info,
  *          the information to the specified string.
  *
  * Return:  none
- *      
- * In/Out: 
+ *
+ * In/Out:
  *      h5tools_context_t *ctx
  *      h5tools_str_t     *str
  *-------------------------------------------------------------------------
  */
-void 
+void
 h5tools_str_dump_region_blocks(h5tools_str_t *str, hid_t region,
-        const h5tool_format_t *info, h5tools_context_t *ctx) 
+        const h5tool_format_t *info, h5tools_context_t *ctx)
 {
     hssize_t   nblocks;
     hsize_t    alloc_size;
@@ -422,7 +422,7 @@ h5tools_str_dump_region_blocks(h5tools_str_t *str, hid_t region,
     int        ndims = H5Sget_simple_extent_ndims(region);
 
     /*
-     * This function fails if the region does not have blocks. 
+     * This function fails if the region does not have blocks.
      */
     H5E_BEGIN_TRY {
         nblocks = H5Sget_select_hyper_nblocks(region);
@@ -467,15 +467,15 @@ h5tools_str_dump_region_blocks(h5tools_str_t *str, hid_t region,
  *          the information to the specified string.
  *
  * Return:  none
- *      
- * In/Out: 
+ *
+ * In/Out:
  *      h5tools_context_t *ctx
  *      h5tools_str_t     *str
  *-------------------------------------------------------------------------
  */
-void 
+void
 h5tools_str_dump_region_points(h5tools_str_t *str, hid_t region,
-        const h5tool_format_t *info, h5tools_context_t *ctx) 
+        const h5tool_format_t *info, h5tools_context_t *ctx)
 {
     hssize_t   npoints;
     hsize_t    alloc_size;
@@ -699,7 +699,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
         h5tools_str_append(str, "%Lf", templdouble);
 #endif
     }
-    else if (info->ascii && (H5Tequal(type, H5T_NATIVE_SCHAR) || 
+    else if (info->ascii && (H5Tequal(type, H5T_NATIVE_SCHAR) ||
                              H5Tequal(type, H5T_NATIVE_UCHAR))) {
         h5tools_print_char(str, info, (char) (*ucp_vp));
     }
@@ -783,36 +783,72 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
     }
     else if (H5Tequal(type, H5T_NATIVE_INT)) {
         HDmemcpy(&tempint, vp, sizeof(int));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempint = (tempint >> packed_data_offset) & packed_data_mask;
+#endif
         h5tools_str_append(str, OPT(info->fmt_int, "%d"), tempint);
     }
     else if (H5Tequal(type, H5T_NATIVE_UINT)) {
         HDmemcpy(&tempuint, vp, sizeof(unsigned int));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempuint = (tempuint >> packed_data_offset) & packed_data_mask;
+#endif
         h5tools_str_append(str, OPT(info->fmt_uint, "%u"), tempuint);
-    } 
+    }
     else if (H5Tequal(type, H5T_NATIVE_SCHAR)) {
-        h5tools_str_append(str, OPT(info->fmt_schar, "%d"), *cp_vp);
-    } 
+        char               tempchar;
+        HDmemcpy(&tempchar, cp_vp, sizeof(char));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempchar = (tempchar >> packed_data_offset) & packed_data_mask;
+#endif
+        h5tools_str_append(str, OPT(info->fmt_schar, "%d"), tempchar);
+    }
     else if (H5Tequal(type, H5T_NATIVE_UCHAR)) {
-        h5tools_str_append(str, OPT(info->fmt_uchar, "%u"), *ucp_vp);
-    } 
+        unsigned char      tempuchar;
+        HDmemcpy(&tempuchar, ucp_vp, sizeof(unsigned char));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempuchar = (tempuchar >> packed_data_offset) & packed_data_mask;
+#endif
+        h5tools_str_append(str, OPT(info->fmt_uchar, "%u"), tempuchar);
+    }
     else if (H5Tequal(type, H5T_NATIVE_SHORT)) {
         short tempshort;
 
         HDmemcpy(&tempshort, vp, sizeof(short));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempshort = (tempshort >> packed_data_offset) & packed_data_mask;
+#endif
         h5tools_str_append(str, OPT(info->fmt_short, "%d"), tempshort);
     }
     else if (H5Tequal(type, H5T_NATIVE_USHORT)) {
         unsigned short tempushort;
 
         HDmemcpy(&tempushort, vp, sizeof(unsigned short));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempushort = (tempushort >> packed_data_offset) & packed_data_mask;
+#endif
         h5tools_str_append(str, OPT(info->fmt_ushort, "%u"), tempushort);
     }
     else if (H5Tequal(type, H5T_NATIVE_LONG)) {
         HDmemcpy(&templong, vp, sizeof(long));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            templong = (templong >> packed_data_offset) & packed_data_mask;
+#endif
         h5tools_str_append(str, OPT(info->fmt_long, "%ld"), templong);
     }
     else if (H5Tequal(type, H5T_NATIVE_ULONG)) {
         HDmemcpy(&tempulong, vp, sizeof(unsigned long));
+#ifdef H5_HAVE_H5DUMP_PACKED_BITS
+        if(packed_bits_num)
+            tempulong = (tempulong >> packed_data_offset) & packed_data_mask;
+#endif
         h5tools_str_append(str, OPT(info->fmt_ulong, "%lu"), tempulong);
     }
     else if (H5Tequal(type, H5T_NATIVE_LLONG)) {
@@ -1110,9 +1146,9 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
  * Return:  Nothing
  *-------------------------------------------------------------------------
  */
-void 
+void
 h5tools_str_sprint_region(h5tools_str_t *str, const h5tool_format_t *info,
-        hid_t container, void *vp, h5tools_context_t *ctx) 
+        hid_t container, void *vp, h5tools_context_t *ctx)
 {
     hid_t   obj, region;
     char    ref_name[1024];

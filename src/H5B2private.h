@@ -82,23 +82,30 @@ typedef enum H5B2_compare_t {
 typedef struct H5B2_class_t H5B2_class_t;
 struct H5B2_class_t {
     H5B2_subid_t id;		/* ID of B-tree class, as found in file */
+    const char *name;		/* Name of B-tree class, for debugging */
     size_t nrec_size;           /* Size of native (memory) record */
 
-    /* Store record from application to B-tree 'native' form */
-    herr_t (*store)(void *nrecord, const void *udata);                  /*  Store record in native record table */
-
-    /* Compare records, according to a key */
-    herr_t (*compare)(const void *rec1, const void *rec2);              /*  Compare two native records */
-
-    /* Encode & decode record values */
-    herr_t (*encode)(const H5F_t *f, uint8_t *raw, const void *record); /*  Encode record from native form to disk storage form */
-    herr_t (*decode)(const H5F_t *f, const uint8_t *raw, void *record); /*  Decode record from disk storage form to native form */
-
-    /* Debug record values */
-    herr_t (*debug)(FILE *stream, const H5F_t *f, hid_t dxpl_id,        /* Print a record for debugging */
-        int indent, int fwidth, const void *record,
-        const void *udata);
+    /* Extensible array client callback methods */
+    void *(*crt_context)(void *udata);          /* Create context for other client callbacks */
+    herr_t (*dst_context)(void *ctx);           /* Destroy client callback context */
+    herr_t (*store)(void *nrecord, const void *udata);              /*  Store application record in native record table */
+    herr_t (*compare)(const void *rec1, const void *rec2);          /*  Compare two native records */
+    herr_t (*encode)(uint8_t *raw, const void *record, void *ctx);  /*  Encode record from native form to disk storage form */
+    herr_t (*decode)(const uint8_t *raw, void *record, void *ctx);  /*  Decode record from disk storage form to native form */
+    herr_t (*debug)(FILE *stream, const H5F_t *f, hid_t dxpl_id,    /* Print a record for debugging */
+        int indent, int fwidth, const void *record, const void *udata);
+    void *(*crt_dbg_ctx)(H5F_t *f, hid_t dxpl_id, haddr_t obj_addr); /* Create debugging context */
+    herr_t (*dst_dbg_ctx)(void *dbg_ctx);       /* Destroy debugging context */
 };
+
+/* v2 B-tree creation parameters */
+typedef struct H5B2_create_t {
+    const H5B2_class_t *cls;            /* v2 B-tree client class */
+    uint32_t node_size;                 /* Size of each node (in bytes) */
+    uint32_t rrec_size;                 /* Size of raw record (in bytes) */
+    uint8_t split_percent;              /* % full to split nodes */
+    uint8_t merge_percent;              /* % full to merge nodes */
+} H5B2_create_t;
 
 /* v2 B-tree metadata statistics info */
 typedef struct H5B2_stat_t {
@@ -106,46 +113,46 @@ typedef struct H5B2_stat_t {
     hsize_t nrecords;          /* Number of records */
 } H5B2_stat_t;
 
+/* v2 B-tree info (forward decl - defined in H5B2pkg.h) */
+typedef struct H5B2_t H5B2_t;
+
+
 /*****************************/
 /* Library-private Variables */
 /*****************************/
 
+
 /***************************************/
 /* Library-private Function Prototypes */
 /***************************************/
-H5_DLL herr_t H5B2_create(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    size_t node_size, size_t rrec_size,
-    unsigned split_percent, unsigned merge_percent,
-    haddr_t *addr_p);
-H5_DLL herr_t H5B2_insert(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, void *udata);
-H5_DLL herr_t H5B2_iterate(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, H5B2_operator_t op, void *op_data);
-H5_DLL herr_t H5B2_iterate_size(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, hsize_t *op_data);
-H5_DLL htri_t H5B2_find(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, void *udata, H5B2_found_t op, void *op_data);
-H5_DLL herr_t H5B2_index(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, H5_iter_order_t order, hsize_t idx, H5B2_found_t op,
+H5_DLL H5B2_t *H5B2_create(H5F_t *f, hid_t dxpl_id, const H5B2_create_t *cparam,
+    void *ctx_udata);
+H5_DLL H5B2_t *H5B2_open(H5F_t *f, hid_t dxpl_id, haddr_t addr, void *ctx_udata);
+H5_DLL herr_t H5B2_get_addr(const H5B2_t *bt2, haddr_t *addr/*out*/);
+H5_DLL herr_t H5B2_insert(H5B2_t *bt2, hid_t dxpl_id, void *udata);
+H5_DLL herr_t H5B2_iterate(H5B2_t *bt2, hid_t dxpl_id, H5B2_operator_t op,
     void *op_data);
-H5_DLL herr_t H5B2_neighbor(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, H5B2_compare_t comp, void *udata, H5B2_found_t op,
-    void *op_data);
-H5_DLL herr_t H5B2_modify(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, void *udata, H5B2_modify_t op, void *op_data);
-H5_DLL herr_t H5B2_remove(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, void *udata, H5B2_remove_t op, void *op_data);
-H5_DLL herr_t H5B2_remove_by_idx(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, H5_iter_order_t order, hsize_t idx, H5B2_remove_t op,
-    void *op_data);
-H5_DLL herr_t H5B2_get_nrec(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, hsize_t *nrec);
-H5_DLL herr_t H5B2_delete(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, H5B2_remove_t op, void *op_data);
+H5_DLL htri_t H5B2_find(H5B2_t *bt2, hid_t dxpl_id, void *udata,
+    H5B2_found_t op, void *op_data);
+H5_DLL herr_t H5B2_index(H5B2_t *bt2, hid_t dxpl_id, H5_iter_order_t order,
+    hsize_t idx, H5B2_found_t op, void *op_data);
+H5_DLL herr_t H5B2_neighbor(H5B2_t *bt2, hid_t dxpl_id, H5B2_compare_t range,
+    void *udata, H5B2_found_t op, void *op_data);
+H5_DLL herr_t H5B2_modify(H5B2_t *bt2, hid_t dxpl_id, void *udata,
+    H5B2_modify_t op, void *op_data);
+H5_DLL herr_t H5B2_remove(H5B2_t *b2, hid_t dxpl_id, void *udata,
+    H5B2_remove_t op, void *op_data);
+H5_DLL herr_t H5B2_remove_by_idx(H5B2_t *bt2, hid_t dxpl_id,
+    H5_iter_order_t order, hsize_t idx, H5B2_remove_t op, void *op_data);
+H5_DLL herr_t H5B2_get_nrec(const H5B2_t *bt2, hsize_t *nrec);
+H5_DLL herr_t H5B2_size(H5B2_t *bt2, hid_t dxpl_id,
+    hsize_t *btree_size);
+H5_DLL herr_t H5B2_close(H5B2_t *bt2, hid_t dxpl_id);
+H5_DLL herr_t H5B2_delete(H5F_t *f, hid_t dxpl_id, haddr_t addr,
+    void *ctx_udata, H5B2_remove_t op, void *op_data);
 
 /* Statistics routines */
-H5_DLL herr_t H5B2_stat_info(H5F_t *f, hid_t dxpl_id, const H5B2_class_t *type,
-    haddr_t addr, H5B2_stat_t *info);
+H5_DLL herr_t H5B2_stat_info(H5B2_t *bt2, H5B2_stat_t *info);
 
 #endif /* _H5B2private_H */
 

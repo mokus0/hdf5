@@ -29,6 +29,9 @@
 #include "h5tools_utils.h"
 #include "h5trav.h"
 
+/* Name of tool */
+#define PROGRAMNAME "h5ls"
+
 #define NAME_BUF_SIZE   2048
 
 /* Struct to keep track of external link targets visited */
@@ -88,9 +91,6 @@ static struct dispatch_t {
 static void display_type(hid_t type, int ind);
 static herr_t visit_obj(hid_t file, const char *oname, iter_t *iter);
 
-const char *progname="h5ls";
-int   d_status;
-
 
 /*-------------------------------------------------------------------------
  * Function: usage
@@ -135,7 +135,7 @@ usage: %s [OPTIONS] [OBJECTS...]\n\
       within the file then the contents of the root group are displayed).\n\
       The file name may include a printf(3C) integer format such as\n\
       \"%%05d\" to open a file family.\n",
-     progname);
+     h5tools_getprogname());
 }
 
 
@@ -1544,7 +1544,7 @@ dataset_list2(hid_t dset, const char UNUSED *name)
         printf("    %-10s ", "Storage:");
         switch (tclass)
         {
-            
+
         case H5T_VLEN:
             printf("information not available");
             break;
@@ -1555,20 +1555,20 @@ dataset_list2(hid_t dset, const char UNUSED *name)
                 printf("information not available");
             }
             break;
-            
+
         default:
             printf("%lu logical byte%s, %lu allocated byte%s",
                 (unsigned long)total, 1==total?"":"s",
                 (unsigned long)used, 1==used?"":"s");
-            if (used>0) 
+            if (used>0)
             {
                 utilization = (total*100.0)/used;
                 printf(", %1.2f%% utilization", utilization);
             }
-            
+
         }
-        
-       
+
+
         putchar('\n');
 
         /* Print information about external strorage */
@@ -1937,7 +1937,7 @@ list_lnk(const char *name, const H5L_info_t *linfo, void *_iter)
                 hbool_t orig_grp_literal = grp_literal_g;
 
                 HDfputc(' ', stdout);
-            
+
                 /* Check if we have already seen this elink */
                 if(elink_trav_visited(iter->elink_list, filename, path)) {
                     HDfputs("{Already Visited}\n", stdout);
@@ -2028,7 +2028,7 @@ visit_obj(hid_t file, const char *oname, iter_t *iter)
         } /* end if */
 
         /* Delay specifying the name start point so the original object name is
-         * displayed if it is a link or non-group object */ 
+         * displayed if it is a link or non-group object */
         iter->name_start = iter->base_len;
 
         /* Specified name is a group. List the complete contents of the group. */
@@ -2180,6 +2180,10 @@ main(int argc, const char *argv[])
     static char root_name[] = "/";
     char        drivername[50];
     const char *preferred_driver = NULL;
+    int err_openfile = 0;
+
+    h5tools_setprogname(PROGRAMNAME);
+    h5tools_setstatus(EXIT_SUCCESS);
 
     /* Initialize h5tools lib */
     h5tools_init();
@@ -2248,7 +2252,7 @@ main(int argc, const char *argv[])
         } else if(!HDstrcmp(argv[argno], "--verbose")) {
             verbose_g++;
         } else if(!HDstrcmp(argv[argno], "--version")) {
-            print_version(progname);
+            print_version(h5tools_getprogname());
             leave(EXIT_SUCCESS);
         } else if(!HDstrcmp(argv[argno], "--hexdump")) {
             hexdump_g = TRUE;
@@ -2324,7 +2328,7 @@ main(int argc, const char *argv[])
                         break;
 
                     case 'V': /* --version */
-                        print_version(progname);
+                        print_version(h5tools_getprogname());
                         leave(EXIT_SUCCESS);
 
                     case 'x': /* --hexdump */
@@ -2402,9 +2406,11 @@ main(int argc, const char *argv[])
                 break;
             *oname = '\0';
         } /* end while */
+
         if(file < 0) {
             fprintf(stderr, "%s: unable to open file\n", argv[argno-1]);
             HDfree(fname);
+            err_openfile = 1;
             continue;
         } /* end if */
         if(oname) {
@@ -2420,7 +2426,7 @@ main(int argc, const char *argv[])
             }
             *x = '\0';
             /* Delay specifying the name start point so the original object name
-             * is displayed if it is a link or non-group object */ 
+             * is displayed if it is a link or non-group object */
             iter.name_start = 1;
         }
         if(!oname || !*oname) {
@@ -2478,6 +2484,9 @@ main(int argc, const char *argv[])
         HDfree(elink_list.objs);
     } /* end while */
 
-    leave(EXIT_SUCCESS);
+    if (err_openfile)
+        leave(EXIT_FAILURE);
+    else
+        leave(EXIT_SUCCESS);
 } /* end main() */
 

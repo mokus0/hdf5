@@ -19,7 +19,7 @@
 /*
  * End of Windows Specific Definitions
  */
- 
+
 /* Define if your system generates wrong code for log2 routine. */
 /* #undef H5_BAD_LOG2_CODE_GENERATED */
 
@@ -169,6 +169,9 @@
 /* Define to 1 if you have the <gpfs.h> header file. */
 /* #undef H5_HAVE_GPFS_H */
 
+/* Define if h5dump packed bits feature is enabled */
+#define H5_HAVE_H5DUMP_PACKED_BITS
+
 /* Define if library will contain instrumentation to detect correct
    optimization operation */
 /* #undef H5_HAVE_INSTRUMENTED_LIBRARY */
@@ -224,6 +227,9 @@
 /* Define to 1 if you have the `lseek64' function. */
 /* #undef H5_HAVE_LSEEK64 */
 
+/* Define to 1 if you have the `lstat' function. */
+/* #undef H5_HAVE_LSTAT */
+
 /* Define to 1 if you have the <memory.h> header file. */
 #define H5_HAVE_MEMORY_H 1
 
@@ -259,9 +265,6 @@
 
 /* Define to 1 if you have the `setsysinfo' function. */
 /* #undef H5_HAVE_SETSYSINFO */
-
-/* Define to 1 if you have the `sigaction' function. */
-/* #undef H5_HAVE_SIGACTION */
 
 /* Define to 1 if you have the `siglongjmp' function. */
 /* #undef H5_HAVE_SIGLONGJMP */
@@ -472,13 +475,13 @@
 #define H5_PACKAGE_NAME "HDF5"
 
 /* Define to the full name and version of this package. */
-#define H5_PACKAGE_STRING "HDF5 1.8.4-patch1"
+#define H5_PACKAGE_STRING "HDF5 1.8.5"
 
 /* Define to the one symbol short name of this package. */
 #define H5_PACKAGE_TARNAME "hdf5"
 
 /* Define to the version of this package. */
-#define H5_PACKAGE_VERSION "1.8.4-patch1"
+#define H5_PACKAGE_VERSION "1.8.5"
 
 /* Width for printf() for type `long long' or `__int64', use `ll' */
 #define H5_PRINTF_LL_WIDTH "I64"
@@ -635,7 +638,7 @@
 /* #undef H5_USING_MEMCHECKER */
 
 /* Version number of package */
-#define H5_VERSION "1.8.4-patch1"
+#define H5_VERSION "1.8.5"
 
 /* Define if vsnprintf() returns the correct value for formatted strings that
    don't fit into size allowed */

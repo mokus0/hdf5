@@ -17,6 +17,10 @@
 /* Define if C++ compiler recognizes offsetof */
 #undef CXX_HAVE_OFFSETOF
 
+/* Define a macro for Cygwin (on XP only) where the compiler has rounding
+   problem converting from unsigned long long to long double */
+#undef CYGWIN_ULLONG_TO_LDOUBLE_ROUND_PROBLEM
+
 /* Define the default virtual file driver to compile */
 #undef DEFAULT_VFD
 
@@ -165,6 +169,9 @@
 /* Define to 1 if you have the <gpfs.h> header file. */
 #undef HAVE_GPFS_H
 
+/* Define if h5dump packed bits feature is enabled */
+#undef HAVE_H5DUMP_PACKED_BITS
+
 /* Define if library will contain instrumentation to detect correct
    optimization operation */
 #undef HAVE_INSTRUMENTED_LIBRARY
@@ -220,6 +227,9 @@
 /* Define to 1 if you have the `lseek64' function. */
 #undef HAVE_LSEEK64
 
+/* Define to 1 if you have the `lstat' function. */
+#undef HAVE_LSTAT
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -250,20 +260,26 @@
 /* Define to 1 if you have the `rand_r' function. */
 #undef HAVE_RAND_R
 
+/* Define to 1 if you have the `setjmp' function. */
+#undef HAVE_SETJMP
+
 /* Define to 1 if you have the <setjmp.h> header file. */
 #undef HAVE_SETJMP_H
 
 /* Define to 1 if you have the `setsysinfo' function. */
 #undef HAVE_SETSYSINFO
 
-/* Define to 1 if you have the `sigaction' function. */
-#undef HAVE_SIGACTION
-
 /* Define to 1 if you have the `siglongjmp' function. */
 #undef HAVE_SIGLONGJMP
 
 /* Define to 1 if you have the `signal' function. */
 #undef HAVE_SIGNAL
+
+/* Define to 1 if you have the `sigprocmask' function. */
+#undef HAVE_SIGPROCMASK
+
+/* Define to 1 if you have the `sigsetjmp' function. */
+#undef HAVE_SIGSETJMP
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
@@ -301,11 +317,14 @@
 /* Define if `struct timezone' is defined */
 #undef HAVE_STRUCT_TIMEZONE
 
-/* Define to 1 if `struct tm' is a member of `tm_zone'. */
+/* Define to 1 if `tm_zone' is a member of `struct tm'. */
 #undef HAVE_STRUCT_TM_TM_ZONE
 
 /* Define if `struct videoconfig' is defined */
 #undef HAVE_STRUCT_VIDEOCONFIG
+
+/* Define to 1 if you have the `symlink' function. */
+#undef HAVE_SYMLINK
 
 /* Define to 1 if you have the `system' function. */
 #undef HAVE_SYSTEM
@@ -545,6 +564,9 @@
 /* The size of `off_t', as computed by sizeof. */
 #undef SIZEOF_OFF_T
 
+/* The size of `ptrdiff_t', as computed by sizeof. */
+#undef SIZEOF_PTRDIFF_T
+
 /* The size of `short', as computed by sizeof. */
 #undef SIZEOF_SHORT
 
@@ -661,6 +683,12 @@
 # endif
 #endif
 
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
@@ -672,6 +700,9 @@
 
 /* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
+
+/* Define to `long' if <sys/types.h> does not define. */
+#undef ptrdiff_t
 
 /* Define to `unsigned long' if <sys/types.h> does not define. */
 #undef size_t

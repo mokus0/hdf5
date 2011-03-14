@@ -275,7 +275,7 @@ done:
     if(!ret_value && fill) {
         if(fill->buf)
             H5MM_xfree(fill->buf);
-	(void)H5FL_FREE(H5O_fill_t, fill);
+	fill = H5FL_FREE(H5O_fill_t, fill);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -335,7 +335,7 @@ done:
     if(!ret_value && fill) {
         if(fill->buf)
             H5MM_xfree(fill->buf);
-	(void)H5FL_FREE(H5O_fill_t, fill);
+	fill = H5FL_FREE(H5O_fill_t, fill);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -556,7 +556,7 @@ H5O_fill_copy(const void *_src, void *_dst)
                     H5I_dec_ref(src_id, FALSE);
                     H5I_dec_ref(dst_id, FALSE);
                     if(bkg_buf)
-                        (void)H5FL_BLK_FREE(type_conv, bkg_buf);
+                        bkg_buf = H5FL_BLK_FREE(type_conv, bkg_buf);
                     HGOTO_ERROR(H5E_DATASET, H5E_CANTCONVERT, NULL, "datatype conversion failed")
                 } /* end if */
 
@@ -564,7 +564,7 @@ H5O_fill_copy(const void *_src, void *_dst)
                 H5I_dec_ref(src_id, FALSE);
                 H5I_dec_ref(dst_id, FALSE);
                 if(bkg_buf)
-                    (void)H5FL_BLK_FREE(type_conv, bkg_buf);
+                    bkg_buf = H5FL_BLK_FREE(type_conv, bkg_buf);
             } /* end if */
         } /* end if */
     } /* end if */
@@ -581,7 +581,7 @@ done:
 	if(dst->type)
             H5T_close(dst->type);
 	if(!_dst)
-            (void)H5FL_FREE(H5O_fill_t, dst);
+            dst = H5FL_FREE(H5O_fill_t, dst);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -689,7 +689,7 @@ H5O_fill_reset_dyn(H5O_fill_t *fill)
     HDassert(fill);
 
     if(fill->buf) {
-        if(fill->type && H5T_detect_class(fill->type, H5T_VLEN) > 0) {
+        if(fill->type && H5T_detect_class(fill->type, H5T_VLEN, FALSE) > 0) {
             H5T_t *fill_type;           /* Copy of fill value datatype */
             H5S_t *fill_space;          /* Scalar dataspace for fill value element */
 
@@ -783,7 +783,7 @@ H5O_fill_free(void *fill)
 
     HDassert(fill);
 
-    (void)H5FL_FREE(H5O_fill_t, fill);
+    fill = H5FL_FREE(H5O_fill_t, fill);
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5O_fill_free() */
@@ -965,6 +965,7 @@ H5O_fill_convert(H5O_fill_t *fill, H5T_t *dset_type, hbool_t *fill_changed, hid_
 
         /* Update the fill message */
         if(buf != fill->buf) {
+            H5T_vlen_reclaim_elmt(fill->buf, fill->type, dxpl_id);
             H5MM_xfree(fill->buf);
             fill->buf = buf;
         } /* end if */

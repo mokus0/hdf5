@@ -155,11 +155,11 @@ H5O_dset_free_copy_file_udata(void *_udata)
         H5T_close(udata->src_dtype);
 
     /* Release copy of dataset's filter pipeline, if it was set */
-    if(udata->src_pline)
-        H5O_msg_free(H5O_PLINE_ID, udata->src_pline);
+    if(udata->common.src_pline)
+        H5O_msg_free(H5O_PLINE_ID, udata->common.src_pline);
 
     /* Release space for 'copy file' user data */
-    (void)H5FL_FREE(H5D_copy_file_ud_t, udata);
+    udata = H5FL_FREE(H5D_copy_file_ud_t, udata);
 
     FUNC_LEAVE_NOAPI_VOID
 } /* end H5O_dset_free_copy_file_udata() */
@@ -290,9 +290,8 @@ H5O_dset_create(H5F_t *f, void *_crt_info, H5G_loc_t *obj_loc, hid_t dxpl_id)
     HDassert(crt_info);
     HDassert(obj_loc);
 
-    /* Create the the dqtaset */
-    if(NULL == (dset = H5D_create(f, crt_info->type_id, crt_info->space,
-        crt_info->dcpl_id, crt_info->dapl_id, dxpl_id)))
+    /* Create the the dataset */
+    if(NULL == (dset = H5D_create(f, crt_info->type_id, crt_info->space, crt_info->dcpl_id, crt_info->dapl_id, dxpl_id)))
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, NULL, "unable to create dataset")
 
     /* Set up the new dataset's location */
@@ -359,12 +358,21 @@ done:
  * Programmer:  Vailin Choi
  *              July 11, 2007
  *
+ * Modification:Raymond Lu
+ *              5 February, 2010
+ *              I added the call to H5O_msg_reset after H5D_chunk_bh_info 
+ *              to free the PLINE. 
  *-------------------------------------------------------------------------
  */
 static herr_t
 H5O_dset_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh, H5_ih_info_t *bh_info)
 {
     H5O_layout_t        layout;         	/* Data storage layout message */
+    H5O_pline_t         pline;                  /* I/O pipeline message */
+    H5O_efl_t           efl;			/* External File List message */
+    hbool_t             layout_read = FALSE;    /* Whether the layout message was read */
+    hbool_t             pline_read = FALSE;     /* Whether the I/O pipeline message was read */
+    hbool_t             efl_read = FALSE;       /* Whether the external file list message was read */
     htri_t		exists;                 /* Flag if header message of interest exists */
     herr_t      	ret_value = SUCCEED;    /* Return value */
 
@@ -378,17 +386,17 @@ H5O_dset_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh, H5_ih_info_t *bh_info)
     /* Get the layout message from the object header */
     if(NULL == H5O_msg_read_oh(f, dxpl_id, oh, H5O_LAYOUT_ID, &layout))
 	HGOTO_ERROR(H5E_OHDR, H5E_CANTGET, FAIL, "can't find layout message")
+    layout_read = TRUE;
 
     /* Check for chunked dataset storage */
     if(layout.type == H5D_CHUNKED && H5D_chunk_is_space_alloc(&layout.storage)) {
-        H5O_pline_t pline;              /* I/O pipeline message */
-
         /* Check for I/O pipeline message */
         if((exists = H5O_msg_exists_oh(oh, H5O_PLINE_ID)) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to read object header")
         else if(exists) {
             if(NULL == H5O_msg_read_oh(f, dxpl_id, oh, H5O_PLINE_ID, &pline))
                 HGOTO_ERROR(H5E_OHDR, H5E_CANTGET, FAIL, "can't find I/O pipeline message")
+            pline_read = TRUE;
         } /* end else if */
         else
             HDmemset(&pline, 0, sizeof(pline));
@@ -401,15 +409,14 @@ H5O_dset_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh, H5_ih_info_t *bh_info)
     if((exists = H5O_msg_exists_oh(oh, H5O_EFL_ID)) < 0)
 	HGOTO_ERROR(H5E_OHDR, H5E_NOTFOUND, FAIL, "unable to check for EFL message")
 
-    if(exists && H5D_efl_is_space_alloc(&layout)) {
-	H5O_efl_t efl;			/* External File List message */
-
+    if(exists && H5D_efl_is_space_alloc(&layout.storage)) {
         /* Start with clean EFL info */
         HDmemset(&efl, 0, sizeof(efl));
 
 	/* Get External File List message from the object header */
 	if(NULL == H5O_msg_read_oh(f, dxpl_id, oh, H5O_EFL_ID, &efl))
 	    HGOTO_ERROR(H5E_OHDR, H5E_CANTGET, FAIL, "can't find EFL message")
+        efl_read = TRUE;
 
 	/* Get size of local heap for EFL message's file list */
 	if(H5D_efl_bh_info(f, dxpl_id, &efl, &(bh_info->heap_size)) < 0)
@@ -417,6 +424,14 @@ H5O_dset_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh, H5_ih_info_t *bh_info)
     } /* end if */
 
 done:
+    /* Free messages, if they've been read in */
+    if(layout_read && H5O_msg_reset(H5O_LAYOUT_ID, &layout) < 0)
+        HDONE_ERROR(H5E_DATASET, H5E_CANTRESET, FAIL, "unable to reset data storage layout message")
+    if(pline_read && H5O_msg_reset(H5O_PLINE_ID, &pline) < 0)
+        HDONE_ERROR(H5E_DATASET, H5E_CANTRESET, FAIL, "unable to reset I/O pipeline message")
+    if(efl_read && H5O_msg_reset(H5O_EFL_ID, &efl) < 0)
+        HDONE_ERROR(H5E_DATASET, H5E_CANTRESET, FAIL, "unable to reset external file list message")
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_dset_bh_info() */
 

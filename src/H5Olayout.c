@@ -58,15 +58,15 @@ const H5O_msg_class_t H5O_MSG_LAYOUT[1] = {{
     H5O_layout_encode,      	/*encode message                */
     H5O_layout_copy,        	/*copy the native value         */
     H5O_layout_size,        	/*size of message on disk       */
-    H5O_layout_reset,           /*reset method                  */
+    H5O_layout_reset,		/*reset method                  */
     H5O_layout_free,        	/*free the struct		*/
     H5O_layout_delete,	        /* file delete method		*/
     NULL,			/* link method			*/
     NULL,			/*set share method		*/
     NULL,		    	/*can share method		*/
     NULL,			/* pre copy native value to file */
-    H5O_layout_copy_file,       /* copy native value to file    */
-    NULL,		        /* post copy native value to file    */
+    H5O_layout_copy_file,	/* copy native value to file    */
+    NULL,		        /* post copy native value to file */
     NULL,			/* get creation index		*/
     NULL,			/* set creation index		*/
     H5O_layout_debug       	/*debug the message             */
@@ -249,7 +249,7 @@ H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
 done:
     if(ret_value == NULL)
         if(mesg)
-            (void)H5FL_FREE(H5O_layout_t, mesg);
+            mesg = H5FL_FREE(H5O_layout_t, mesg);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_layout_decode() */
@@ -374,8 +374,10 @@ H5O_layout_copy(const void *_mesg, void *_dest)
 
     /* check args */
     HDassert(mesg);
+
+    /* Allocate destination message, if necessary */
     if(!dest && NULL == (dest = H5FL_MALLOC(H5O_layout_t)))
-        HGOTO_ERROR(H5E_OHDR, H5E_NOSPACE, NULL, "memory allocation failed")
+        HGOTO_ERROR(H5E_OHDR, H5E_CANTALLOC, NULL, "layout message allocation failed")
 
     /* copy */
     *dest = *mesg;
@@ -398,6 +400,10 @@ H5O_layout_copy(const void *_mesg, void *_dest)
     ret_value = dest;
 
 done:
+    if(ret_value == NULL)
+        if(NULL == _dest)
+            dest = H5FL_FREE(H5O_layout_t, dest);
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_layout_copy() */
 
@@ -497,7 +503,7 @@ H5O_layout_free(void *_mesg)
     if(H5O_layout_reset(mesg) < 0)
         HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free message resources")
 
-    (void)H5FL_FREE(H5O_layout_t, mesg);
+    mesg = H5FL_FREE(H5O_layout_t, mesg);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -583,6 +589,7 @@ H5O_layout_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst,
     FUNC_ENTER_NOAPI_NOINIT(H5O_layout_copy_file)
 
     /* check args */
+    HDassert(file_src);
     HDassert(layout_src);
     HDassert(file_dst);
 
@@ -622,7 +629,7 @@ H5O_layout_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst,
         case H5D_CHUNKED:
             if(H5D_chunk_is_space_alloc(&layout_src->storage)) {
                 /* Create chunked layout */
-                if(H5D_chunk_copy(file_src, &layout_src->storage.u.chunk, &layout_src->u.chunk, file_dst, &layout_dst->storage.u.chunk, udata->src_space_extent, udata->src_dtype, udata->src_pline, cpy_info, dxpl_id) < 0)
+                if(H5D_chunk_copy(file_src, &layout_src->storage.u.chunk, &layout_src->u.chunk, file_dst, &layout_dst->storage.u.chunk, udata->src_space_extent, udata->src_dtype, udata->common.src_pline, cpy_info, dxpl_id) < 0)
                     HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, NULL, "unable to copy chunked storage")
             } /* end if */
             break;
@@ -640,7 +647,7 @@ H5O_layout_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst,
 done:
     if(!ret_value)
 	if(layout_dst)
-	    (void)H5FL_FREE(H5O_layout_t, layout_dst);
+	    layout_dst = H5FL_FREE(H5O_layout_t, layout_dst);
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_layout_copy_file() */

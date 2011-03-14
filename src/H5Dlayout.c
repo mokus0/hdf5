@@ -104,6 +104,8 @@ H5D_layout_set_io_ops(const H5D_t *dataset)
             dataset->shared->layout.ops = H5D_LOPS_COMPACT;
             break;
 
+        case H5D_LAYOUT_ERROR:
+        case H5D_NLAYOUTS:
         default:
             HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unknown storage method")
     } /* end switch */ /*lint !e788 All appropriate cases are covered */
@@ -167,6 +169,8 @@ H5D_layout_meta_size(const H5F_t *f, const H5O_layout_t *layout, hbool_t include
             ret_value += H5F_SIZEOF_ADDR(f);    /* Address of data */
             break;
 
+        case H5D_LAYOUT_ERROR:
+        case H5D_NLAYOUTS:
         default:
             HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, 0, "Invalid layout class")
     } /* end switch */
@@ -230,7 +234,7 @@ H5D_layout_oh_create(H5F_t *file, hid_t dxpl_id, H5O_t *oh, H5D_t *dset,
      * allocation until later.
      */
     if(fill_prop->alloc_time == H5D_ALLOC_TIME_EARLY)
-        if(H5D_alloc_storage(dset, dxpl_id, H5D_ALLOC_CREATE, FALSE) < 0)
+        if(H5D_alloc_storage(dset, dxpl_id, H5D_ALLOC_CREATE, FALSE, NULL) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to initialize storage")
 
     /* Update external storage message, if it's used */
@@ -254,7 +258,7 @@ H5D_layout_oh_create(H5F_t *file, hid_t dxpl_id, H5O_t *oh, H5D_t *dset,
 
         /* Insert "empty" name first */
         if((size_t)(-1) == H5HL_insert(file, dxpl_id, heap, (size_t)1, "")) {
-            H5HL_unprotect(file, dxpl_id, heap, efl->heap_addr);
+            H5HL_unprotect(heap);
             HGOTO_ERROR(H5E_DATASET, H5E_CANTINSERT, FAIL, "unable to insert file name into heap")
         } /* end if */
 
@@ -264,7 +268,7 @@ H5D_layout_oh_create(H5F_t *file, hid_t dxpl_id, H5O_t *oh, H5D_t *dset,
             /* Insert file name into heap */
             if((size_t)(-1) == (offset = H5HL_insert(file, dxpl_id, heap,
                         HDstrlen(efl->slot[u].name) + 1, efl->slot[u].name))) {
-                H5HL_unprotect(file, dxpl_id, heap, efl->heap_addr);
+                H5HL_unprotect(heap);
                 HGOTO_ERROR(H5E_DATASET, H5E_CANTINSERT, FAIL, "unable to insert file name into heap")
             } /* end if */
 
@@ -274,7 +278,7 @@ H5D_layout_oh_create(H5F_t *file, hid_t dxpl_id, H5O_t *oh, H5D_t *dset,
         } /* end for */
 
         /* Release the heap */
-        if(H5HL_unprotect(file, dxpl_id, heap, efl->heap_addr) < 0)
+        if(H5HL_unprotect(heap) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTUNPROTECT, FAIL, "unable to unprotect EFL file name heap")
         heap = NULL;
 
@@ -336,7 +340,7 @@ H5D_layout_oh_read(H5D_t *dataset, hid_t dxpl_id, hid_t dapl_id, H5P_genplist_t 
             HGOTO_ERROR(H5E_DATASET, H5E_CANTGET, FAIL, "can't retrieve message")
 
         /* Set the I/O pipeline info in the property list */
-        if(H5P_set(plist, H5D_CRT_DATA_PIPELINE_NAME, &dataset->shared->dcpl_cache.pline) < 0)
+        if(H5P_set(plist, H5O_CRT_PIPELINE_NAME, &dataset->shared->dcpl_cache.pline) < 0)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTSET, FAIL, "can't set pipeline")
     } /* end if */
 
@@ -423,6 +427,8 @@ H5D_layout_oh_read(H5D_t *dataset, hid_t dxpl_id, hid_t dapl_id, H5P_genplist_t 
         case H5D_COMPACT:
             break;
 
+        case H5D_LAYOUT_ERROR:
+        case H5D_NLAYOUTS:
         default:
             HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unknown storage method")
     } /* end switch */ /*lint !e788 All appropriate cases are covered */
@@ -435,7 +441,7 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5D_layout_oh_write
  *
- * Purpose:	Read layout/pline/efl information for dataset
+ * Purpose:	Write layout/pline/efl information for dataset
  *
  * Return:	Success:    SUCCEED
  *		Failure:    FAIL

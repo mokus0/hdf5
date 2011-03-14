@@ -181,7 +181,7 @@ herr_t H5TBmake_table( const char *table_title,
 
     /* attach the FIELD_ name attribute */
     for ( i = 0; i < nfields; i++)
-    {        
+    {
         /* get the member name */
         member_name = H5Tget_member_name( mem_type_id,(unsigned) i );
 
@@ -339,7 +339,7 @@ herr_t H5TBappend_records( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(mem_type_id);
@@ -443,7 +443,7 @@ herr_t H5TBwrite_records( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(mem_type_id);
@@ -607,7 +607,7 @@ herr_t H5TBwrite_fields_name( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Pclose(preserve_id);
         H5Dclose(did);
@@ -766,7 +766,7 @@ herr_t H5TBwrite_fields_index( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Pclose(preserve_id);
         H5Dclose(did);
@@ -856,7 +856,7 @@ herr_t H5TBread_table( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(mem_type_id);
@@ -1091,7 +1091,7 @@ herr_t H5TBread_fields_name( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(mem_type_id);
@@ -1247,7 +1247,7 @@ herr_t H5TBread_fields_index( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(read_type_id);
@@ -1414,7 +1414,7 @@ out:
 
     if (tmp_buf !=NULL )
         free( tmp_buf );
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(tid);
@@ -1574,7 +1574,7 @@ herr_t H5TBinsert_record( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Sclose(sid);
@@ -1711,7 +1711,7 @@ herr_t H5TBadd_records_from( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did_1);
         H5Sclose(sid_1);
@@ -2065,7 +2065,7 @@ herr_t H5TBcombine_tables( hid_t loc_id1,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did_1);
         H5Sclose(sid_1);
@@ -2220,7 +2220,7 @@ herr_t H5TBinsert_field( hid_t loc_id,
         if (inserted )
             idx = i - 1;
 
-        if (i == position ) 
+        if (i == position )
         {
             /* get the new member size */
             new_member_size = H5Tget_size( field_type );
@@ -2502,7 +2502,7 @@ herr_t H5TBinsert_field( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did_1);
         H5Sclose(sid_1);
@@ -2614,7 +2614,7 @@ herr_t H5TBdelete_field( hid_t loc_id,
 
     /* check out the field */
     for ( i = 0; i < nfields; i++)
-    {        
+    {
         /* get the member name */
         member_name = H5Tget_member_name( tid_1,(unsigned) i );
 
@@ -2673,7 +2673,7 @@ herr_t H5TBdelete_field( hid_t loc_id,
 
     /* insert the old fields except the one to delete */
     for ( i = 0; i < nfields; i++)
-    {        
+    {
         /* get the member name */
         member_name = H5Tget_member_name( tid_1, (unsigned) i );
 
@@ -2751,13 +2751,13 @@ herr_t H5TBdelete_field( hid_t loc_id,
     * we have to read field by field of the old dataset and save it into the new one
     *-------------------------------------------------------------------------
     */
-    for ( i = 0; i < nfields; i++) 
+    for ( i = 0; i < nfields; i++)
     {
         /* get the member name */
         member_name = H5Tget_member_name(tid_1, (unsigned)i);
 
         /* skip the field to delete */
-        if (H5TB_find_field(member_name, field_name) > 0) 
+        if (H5TB_find_field(member_name, field_name) > 0)
         {
             free(member_name);
             continue;
@@ -2951,7 +2951,7 @@ herr_t H5TBdelete_field( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did_1);
         H5Sclose(sid_1);
@@ -3101,7 +3101,7 @@ out:
 *
 * Comments:
 *
-* Modifications: 
+* Modifications:
 *  May 08, 2003
 *  In version 2.0 of Table, the number of records is stored as an
 *  attribute "NROWS"
@@ -3178,7 +3178,7 @@ herr_t H5TBget_table_info ( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Sclose(sid);
@@ -3213,16 +3213,12 @@ herr_t H5TBget_field_info( hid_t loc_id,
                           size_t *field_offsets,
                           size_t *type_size )
 {
-    hid_t         did;    /* dataset ID */
-    hid_t         tid;    /* file type ID */
-    hid_t         n_tid;  /* native type ID */
-    hid_t         m_tid;  /* member type ID */
-    hid_t         nm_tid; /* native member ID */
+    hid_t         did = -1;    /* dataset ID */
+    hid_t         tid = -1;    /* file type ID */
+    hid_t         n_tid = -1;  /* native type ID */
+    hid_t         m_tid = -1;  /* member type ID */
+    hid_t         nm_tid = -1; /* native member ID */
     hssize_t      nfields;
-    char          *member_name;
-    size_t        member_size;
-    size_t        member_offset;
-    size_t        size;
     hssize_t      i;
 
     /* open the dataset. */
@@ -3233,62 +3229,47 @@ herr_t H5TBget_field_info( hid_t loc_id,
     if (( tid = H5Dget_type( did )) < 0)
         goto out;
 
-    if ((n_tid = H5Tget_native_type(tid,H5T_DIR_DEFAULT)) < 0)
+    if ((n_tid = H5Tget_native_type(tid, H5T_DIR_DEFAULT)) < 0)
         goto out;
 
     /* get the type size */
-    size = H5Tget_size( n_tid );
-
-    if ( type_size )
-    {
-        *type_size = size;
-    }
+    if(type_size)
+        *type_size = H5Tget_size(n_tid);
 
     /* get the number of members */
     if (( nfields = H5Tget_nmembers( tid )) < 0)
         goto out;
 
     /* iterate tru the members */
-    for ( i = 0; i < nfields; i++)
-    {
+    for ( i = 0; i < nfields; i++) {
         /* get the member name */
-        member_name = H5Tget_member_name( tid, (unsigned)i );
+        if(field_names) {
+            char          *member_name;
 
-        if (field_names )
-        {
-            strcpy( field_names[i], member_name );
-        }
+            member_name = H5Tget_member_name(tid, (unsigned)i);
+            strcpy(field_names[i], member_name);
+            free(member_name);
+        } /* end if */
 
         /* get the member type */
-        if (( m_tid = H5Tget_member_type( tid,(unsigned) i )) < 0)
+        if(( m_tid = H5Tget_member_type( tid,(unsigned) i )) < 0)
             goto out;
-        if ((nm_tid = H5Tget_native_type(m_tid,H5T_DIR_DEFAULT)) < 0)
+        if((nm_tid = H5Tget_native_type(m_tid,H5T_DIR_DEFAULT)) < 0)
             goto out;
 
         /* get the member size */
-        member_size = H5Tget_size( nm_tid );
-
-        if(field_sizes )
-        {
-            field_sizes[i] = member_size;
-        }
+        if(field_sizes)
+            field_sizes[i] = H5Tget_size(nm_tid);
 
         /* get the member offset */
-        member_offset = H5Tget_member_offset( n_tid,(unsigned) i );
-
-        if(field_offsets )
-        {
-            field_offsets[i] = member_offset;
-        }
+        if(field_offsets)
+            field_offsets[i] = H5Tget_member_offset(n_tid, (unsigned) i);
 
         /* close the member types */
         if (H5Tclose( m_tid ) < 0)
             goto out;
         if (H5Tclose( nm_tid ) < 0)
             goto out;
-
-        free( member_name );
-
     } /* i */
 
     /* close */
@@ -3303,11 +3284,13 @@ herr_t H5TBget_field_info( hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Dclose(did);
         H5Tclose(tid);
         H5Tclose(n_tid);
+        H5Tclose(m_tid);
+        H5Tclose(nm_tid);
     } H5E_END_TRY;
     return -1;
 
@@ -3472,7 +3455,7 @@ hid_t H5TB_create_type(hid_t loc_id,
 
     for ( i = 0; i < nfields; i++)
     {
-        if ((fnames[i] = (char*) malloc(sizeof(char)*HLTB_MAX_FIELD_LEN))==NULL) 
+        if ((fnames[i] = (char*) malloc(sizeof(char)*HLTB_MAX_FIELD_LEN))==NULL)
         {
             free(fnames);
             return -1;
@@ -3518,7 +3501,7 @@ hid_t H5TB_create_type(hid_t loc_id,
 
     /* error zone */
 out:
-    H5E_BEGIN_TRY 
+    H5E_BEGIN_TRY
     {
         H5Tclose(mtype_id);
         H5Tclose(nmtype_id);

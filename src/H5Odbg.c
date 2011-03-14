@@ -280,7 +280,7 @@ herr_t
 H5O_debug_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh, haddr_t addr, FILE *stream, int indent, int fwidth)
 {
     size_t	mesg_total = 0, chunk_total = 0, gap_total = 0;
-    unsigned	*sequence;
+    unsigned	*sequence = NULL;
     unsigned	i;              /* Local index variable */
     herr_t	ret_value = SUCCEED;
 
@@ -376,10 +376,6 @@ H5O_debug_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh, haddr_t addr, FILE *stream, i
         size_t chunk_size;
 
 	HDfprintf(stream, "%*sChunk %d...\n", indent, "", i);
-
-	HDfprintf(stream, "%*s%-*s %t\n", indent + 3, "", MAX(0, fwidth - 3),
-		  "Dirty:",
-		  oh->chunk[i].dirty);
 
 	HDfprintf(stream, "%*s%-*s %a\n", indent + 3, "", MAX(0, fwidth - 3),
 		  "Address:",
@@ -508,12 +504,15 @@ H5O_debug_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh, haddr_t addr, FILE *stream, i
 	else
 	    HDfprintf(stream, "%*s<No info for this message>\n", indent + 6, "");
     } /* end for */
-    sequence = (unsigned *)H5MM_xfree(sequence);
 
     if((mesg_total + gap_total) != chunk_total)
 	HDfprintf(stream, "*** TOTAL SIZE DOES NOT MATCH ALLOCATED SIZE!\n");
 
 done:
+    /* Release resources */
+    if(sequence)
+        sequence = (unsigned *)H5MM_xfree(sequence);
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_debug_real() */
 
@@ -534,8 +533,9 @@ done:
 herr_t
 H5O_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent, int fwidth)
 {
-    H5O_t	*oh = NULL;
-    herr_t	ret_value = SUCCEED;
+    H5O_t	*oh = NULL;             /* Object header to display */
+    H5O_loc_t   loc;                    /* Object location for object to delete */
+    herr_t	ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_NOAPI(H5O_debug, FAIL)
 
@@ -546,15 +546,20 @@ H5O_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent, int f
     HDassert(indent >= 0);
     HDassert(fwidth >= 0);
 
-    if(NULL == (oh = (H5O_t *)H5AC_protect(f, dxpl_id, H5AC_OHDR, addr, NULL, NULL, H5AC_READ)))
-	HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, FAIL, "unable to load object header")
+    /* Set up the object location */
+    loc.file = f;
+    loc.addr = addr;
+    loc.holding_file = FALSE;
+
+    if(NULL == (oh = H5O_protect(&loc, dxpl_id, H5AC_READ)))
+	HGOTO_ERROR(H5E_OHDR, H5E_CANTPROTECT, FAIL, "unable to load object header")
 
     /* debug */
     H5O_debug_real(f, dxpl_id, oh, addr, stream, indent, fwidth);
 
 done:
-    if(oh && H5AC_unprotect(f, dxpl_id, H5AC_OHDR, addr, oh, H5AC__NO_FLAGS_SET) < 0)
-	HDONE_ERROR(H5E_OHDR, H5E_PROTECT, FAIL, "unable to release object header")
+    if(oh && H5O_unprotect(&loc, dxpl_id, oh, H5AC__NO_FLAGS_SET) < 0)
+	HDONE_ERROR(H5E_OHDR, H5E_CANTUNPROTECT, FAIL, "unable to release object header")
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_debug() */

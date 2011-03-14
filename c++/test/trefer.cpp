@@ -34,7 +34,6 @@
 #endif  // H5_NO_STD
 #endif
 
-#include "testhdf5.h"   // C test header file
 #include "H5Cpp.h"      // C++ API header file
 
 #ifndef H5_NO_NAMESPACE
@@ -47,6 +46,10 @@ const H5std_string      FILE1("trefer1.h5");
 const H5std_string      FILE2("trefer2.h5");
 const H5std_string      FILE3("trefer3.h5");
 const H5std_string      DSET_DEFAULT_NAME("default");
+
+// Dataset 1
+const H5std_string      DSET1_NAME("Dataset1");
+const int DSET1_LEN = 8;
 
 const H5std_string MEMBER1( "a_name" );
 const H5std_string MEMBER2( "b_name" );
@@ -82,7 +85,7 @@ static void test_reference_obj(void)
     const  H5std_string write_comment="Foo!"; // Comments for group
 
     // Output message about test being performed
-    SUBTEST("Testing Object Reference Functions");
+    SUBTEST("Object Reference Functions");
 
     H5File* file1 = NULL;
     try {
@@ -110,7 +113,7 @@ static void test_reference_obj(void)
 	group.setComment(".", write_comment);
 
 	// Create a dataset (inside /Group1)
-	DataSet dataset = group.createDataSet("Dataset1", PredType::NATIVE_UINT, sid1);
+	DataSet dataset = group.createDataSet(DSET1_NAME, PredType::NATIVE_UINT, sid1);
 
 	unsigned *tu32;      // Temporary pointer to uint32 data
 	for (tu32=(unsigned *)wbuf, i=0; i<SPACE1_DIM1; i++)
@@ -205,7 +208,7 @@ static void test_reference_obj(void)
 	dset2.read(tbuf, PredType::NATIVE_UINT);
 
 	for(tu32=(unsigned *)tbuf,i=0; i<SPACE1_DIM1; i++,tu32++)
-	   VERIFY(*tu32, (uint32_t)(i*3), "Data");
+	   verify_val(*tu32, (uint32_t)(i*3), "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	// Close dereferenced dataset
 	dset2.close();
@@ -216,6 +219,58 @@ static void test_reference_obj(void)
 	// Get group's comment
 	H5std_string read_comment1 = group.getComment(".", 10);
 	verify_val(read_comment1, write_comment, "Group::getComment", __LINE__, __FILE__);
+
+	// Test that getComment handles failures gracefully
+	try {
+	    H5std_string read_comment_tmp = group.getComment(NULL);
+	}
+	catch (Exception E) {} // We expect this to fail
+
+	// Test reading the name of an item in the group
+
+	// Test getObjnameByIdx(idx)
+	H5std_string name;
+	name = group.getObjnameByIdx(0);
+	verify_val(name, DSET1_NAME, "Group::getObjnameByIdx", __LINE__, __FILE__);
+	// Test getObjnameByIdx(hsize_t idx, H5std_string& name, size_t size)
+	name.clear();
+	ssize_t name_size = group.getObjnameByIdx(0, name, 5);
+	verify_val(name, "Data", "Group::getObjnameByIdx(index,(std::string)buf,buf_len)", __LINE__, __FILE__);
+	verify_val(name_size, DSET1_LEN, "Group::getObjnameByIdx(index,(std::string)buf,buf_len)", __LINE__, __FILE__);
+
+	name.clear();
+	name_size = group.getObjnameByIdx(0, name, name_size+1);
+	verify_val(name, DSET1_NAME, "Group::getObjnameByIdx(index,(std::string)buf,buf_len)", __LINE__, __FILE__);
+	verify_val(name_size, DSET1_LEN, "Group::getObjnameByIdx(index,(std::string)buf,buf_len)", __LINE__, __FILE__);
+
+	// Test getObjnameByIdx(hsize_t idx, char* name, size_t size)
+	char name_C[DSET1_LEN+1];
+	group.getObjnameByIdx(0, name, name_size+1);
+	verify_val(name, DSET1_NAME, "Group::getObjnameByIdx(index,(char*)buf,buf_len)", __LINE__, __FILE__);
+	verify_val(name_size, DSET1_LEN, "Group::getObjnameByIdx(index,(char*)buf,buf_len)", __LINE__, __FILE__);
+
+#ifndef H5_NO_DEPRECATED_SYMBOLS
+	// Test getting the type of objects
+	
+	// Test getObjTypeByIdx(hsize_t idx)
+	obj_type = group.getObjTypeByIdx(0);
+	verify_val(obj_type, H5G_DATASET, "Group::getObjTypeByIdx(index)", __LINE__, __FILE__);
+
+	// Test getObjTypeByIdx(hsize_t idx, char* type_name)
+	obj_type = H5G_UNKNOWN;
+	char type_name_C[256];
+	obj_type = group.getObjTypeByIdx(0, type_name_C);
+	verify_val(obj_type, H5G_DATASET, "Group::getObjTypeByIdx(index, (char*)name)", __LINE__, __FILE__);
+	verify_val((const char*)type_name_C, (const char*)"dataset", "Group::getObjTypeByIdx(index, (char*)name)", __LINE__, __FILE__);
+
+	// Test getObjTypeByIdx(hsize_t idx, H5std_string& type_name)
+	obj_type = H5G_UNKNOWN;
+	H5std_string type_name;
+	obj_type = group.getObjTypeByIdx(0, type_name);
+	verify_val(obj_type, H5G_DATASET, "Group::getObjTypeByIdx(index, (char*)name)", __LINE__, __FILE__);
+	verify_val(type_name, "dataset", "Group::getObjTypeByIdx(index, (char*)name)", __LINE__, __FILE__);
+
+#endif // ifndef H5_NO_DEPRECATED_SYMBOLS
 
 	// Close group
 	group.close();
@@ -284,6 +339,7 @@ extern "C"
 void test_reference(void)
 {
     // Output message about test being performed
+    //MESSAGE("Testing References\n");
     MESSAGE(5, ("Testing References\n"));
 
     test_reference_obj();       // Test basic object reference functionality

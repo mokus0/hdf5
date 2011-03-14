@@ -23,6 +23,9 @@
 #include "h5tools_utils.h"
 
 
+/* Name of tool */
+#define PROGRAMNAME "h5import"
+
 int main(int argc, char *argv[])
 {
   struct  Options opt;
@@ -41,6 +44,9 @@ int main(int argc, char *argv[])
     const char *err7 = "Invalid type of data - %s.\n";
     const char *err8 = "Invalid size of data - %s.\n";
     const char *err9 = "Cannot specify more than 30 input files in one call to h5import.\n";
+
+    h5tools_setprogname(PROGRAMNAME);
+    h5tools_setstatus(EXIT_SUCCESS);
 
    (void)HDsetvbuf(stderr, (char *) NULL, _IOLBF, 0);
    (void)HDsetvbuf(stdout, (char *) NULL, _IOLBF, 0);
@@ -116,7 +122,7 @@ int main(int argc, char *argv[])
 
       case 6:    /* -h found; help, then exit */
         help(argv[0]);
-        exit(0);
+        exit(EXIT_SUCCESS);
       break;
 
       case 7:    /* -d found; look for dimensions */
@@ -174,7 +180,7 @@ int main(int argc, char *argv[])
 
       case ERR:   /* command syntax error */
       default:
-        (void) fprintf(stderr, err2);
+        (void) fprintf(stderr, "%s", err2);
         usage(argv[0]);
         goto err;
     }
@@ -182,7 +188,7 @@ int main(int argc, char *argv[])
 
   if (FALSE == outfile_named)
   {
-    (void) fprintf(stderr, err3);
+    (void) fprintf(stderr, "%s", err3);
     usage(argv[0]);
     goto err;
   }
@@ -192,7 +198,7 @@ int main(int argc, char *argv[])
 
   return(EXIT_SUCCESS);
   err:
-    (void) fprintf(stderr, err4);
+    (void) fprintf(stderr, "%s", err4);
     return(EXIT_FAILURE);
 }
 
@@ -397,7 +403,7 @@ processDataFile(char *infile, struct Input *in, FILE **strm, hid_t file_id)
     break;
 
     default:
-        (void) fprintf(stderr, err10);
+        (void) fprintf(stderr, "%s", err10);
         return(-1);
   }
   return (0);
@@ -435,7 +441,7 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%hd", &temp) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
             (*in08) = (H5DT_INT8)temp;
@@ -448,14 +454,14 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in08, sizeof(H5DT_INT8), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -469,7 +475,7 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%hd", in16) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
@@ -481,14 +487,14 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in16, sizeof(H5DT_INT16), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -502,7 +508,7 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%d", in32) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
@@ -513,14 +519,14 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in32, sizeof(H5DT_INT32), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -535,7 +541,7 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%s", buffer) < 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
             *in64 = (H5DT_INT64) HDstrtoll(buffer, NULL, 10);
@@ -547,21 +553,21 @@ readIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in64, sizeof(H5DT_INT64), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
   	  break;
 #endif /* ifndef _WIN32 */
 
     default:
-      (void) fprintf(stderr, err3);
+      (void) fprintf(stderr, "%s", err3);
       break;
   }
   return(0);
@@ -598,7 +604,7 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%hu", &temp) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
             (*in08) = (H5DT_UINT8)temp;
@@ -611,14 +617,14 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in08, sizeof(H5DT_UINT8), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -632,7 +638,7 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%hu", in16) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
@@ -643,14 +649,14 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in16, sizeof(H5DT_UINT16), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -664,7 +670,7 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%u", in32) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
@@ -675,14 +681,14 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in32, sizeof(H5DT_UINT32), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -697,7 +703,7 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%s", buffer) < 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
             *in64 = (H5DT_UINT64) HDstrtoll(buffer, NULL, 10);
@@ -709,21 +715,21 @@ readUIntegerData(FILE **strm, struct Input *in)
           {
             if (fread((char *) in64, sizeof(H5DT_UINT64), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
 #endif /* ifndef _WIN32 */
 
     default:
-      (void) fprintf(stderr, err3);
+      (void) fprintf(stderr, "%s", err3);
       break;
   }
   return(0);
@@ -756,7 +762,7 @@ readFloatData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%f", fp32) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
@@ -766,16 +772,16 @@ readFloatData(FILE **strm, struct Input *in)
 
         /* same as TEXTFP */
         case 2: /*TEXTFPE */
-            
+
             for (i = 0; i < len; i++, fp32++)
             {
                 if (fscanf(*strm, "%f", fp32) != 1)
                 {
-                    (void) fprintf(stderr, err1);
+                    (void) fprintf(stderr, "%s", err1);
                     return (-1);
                 }
             }
-            
+
             fp32 = (H5DT_FLOAT32 *) in->data;
             break;
 
@@ -784,14 +790,14 @@ readFloatData(FILE **strm, struct Input *in)
           {
             if (fread((char *) fp32, sizeof(H5DT_FLOAT32), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
@@ -805,7 +811,7 @@ readFloatData(FILE **strm, struct Input *in)
           {
             if (fscanf(*strm, "%lf", fp64) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
@@ -815,16 +821,16 @@ readFloatData(FILE **strm, struct Input *in)
 
         /* same as TEXTFP */
         case 2: /*TEXTFPE */
-            
+
             for (i = 0; i < len; i++, fp64++)
             {
                 if (fscanf(*strm, "%lf", fp64) != 1)
                 {
-                    (void) fprintf(stderr, err1);
+                    (void) fprintf(stderr, "%s", err1);
                     return (-1);
                 }
             }
-            
+
             fp64 = (H5DT_FLOAT64 *) in->data;
             break;
 
@@ -833,20 +839,20 @@ readFloatData(FILE **strm, struct Input *in)
           {
             if (fread((char *) fp64, sizeof(H5DT_FLOAT64), 1, *strm) != 1)
             {
-              (void) fprintf(stderr, err1);
+              (void) fprintf(stderr, "%s", err1);
               return (-1);
             }
           }
         break;
 
         default:
-          (void) fprintf(stderr, err2);
+          (void) fprintf(stderr, "%s", err2);
           return (-1);
       }
     break;
 
     default:
-      (void) fprintf(stderr, err3);
+      (void) fprintf(stderr, "%s", err3);
       break;
   }
   return(0);
@@ -1019,7 +1025,7 @@ allocateIntegerStorage(struct Input *in)
     case 8:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_INT8))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
     break;
@@ -1027,7 +1033,7 @@ allocateIntegerStorage(struct Input *in)
     case 16:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_INT16))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
     break;
@@ -1035,7 +1041,7 @@ allocateIntegerStorage(struct Input *in)
     case 32:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_INT32))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
     break;
@@ -1043,13 +1049,13 @@ allocateIntegerStorage(struct Input *in)
     case 64:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_INT64))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
     break;
 
     default:
-      (void) fprintf(stderr, err2);
+      (void) fprintf(stderr, "%s", err2);
     break;
   }
   return(0);
@@ -1070,7 +1076,7 @@ static int allocateUIntegerStorage(struct Input *in)
     case 8:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_UINT8))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
       break;
@@ -1078,7 +1084,7 @@ static int allocateUIntegerStorage(struct Input *in)
     case 16:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_UINT16))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
       break;
@@ -1086,7 +1092,7 @@ static int allocateUIntegerStorage(struct Input *in)
     case 32:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_UINT32))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
       break;
@@ -1094,13 +1100,13 @@ static int allocateUIntegerStorage(struct Input *in)
     case 64:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_UINT64))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
       break;
 
     default:
-      (void) fprintf(stderr, err2);
+      (void) fprintf(stderr, "%s", err2);
       break;
   }
   return(0);
@@ -1122,7 +1128,7 @@ allocateFloatStorage(struct Input *in)
     case 32:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_FLOAT32))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
     break;
@@ -1130,13 +1136,13 @@ allocateFloatStorage(struct Input *in)
     case 64:
       if ((in->data = (VOIDP) HDmalloc((size_t) len * sizeof(H5DT_FLOAT64))) == NULL)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
     break;
 
     default:
-      (void) fprintf(stderr, err2);
+      (void) fprintf(stderr, "%s", err2);
     break;
   }
   return(0);
@@ -1216,7 +1222,7 @@ processConfigurationFile(char *infile, struct Input *in, FILE **strm)
         }
 	if (fscanf(*strm, "%s", temp) != 1)
 	{
-	  (void) fprintf(stderr, err18);
+	  (void) fprintf(stderr, "%s", err18);
 	  return (-1);
 	}
         if (parsePathInfo(&in->path, temp) == -1)
@@ -1236,7 +1242,7 @@ processConfigurationFile(char *infile, struct Input *in, FILE **strm)
 
 	if (fscanf(*strm, "%s", temp) != 1)
 	{
-	  (void) fprintf(stderr, err18);
+	  (void) fprintf(stderr, "%s", err18);
 	  return (-1);
 	}
         if (getInputClass(in, temp) == -1)
@@ -1267,7 +1273,7 @@ processConfigurationFile(char *infile, struct Input *in, FILE **strm)
         }
 	if (fscanf(*strm, "%d", (&ival)) != 1)
 	{
-	  (void) fprintf(stderr, err19);
+	  (void) fprintf(stderr, "%s", err19);
 	  return (-1);
 	}
         if (getInputSize(in, ival) == -1)
@@ -1437,7 +1443,7 @@ processConfigurationFile(char *infile, struct Input *in, FILE **strm)
         if (in->configOptionVector[COMPRESS] == 0)
           in->compressionType = 0;
 
-       
+
       break;
 
       case 12: /* EXTERNAL-STORAGE */
@@ -1514,7 +1520,7 @@ validateConfigurationParameters(struct Input * in)
       (in->configOptionVector[DIM] != 1) ||
       (in->configOptionVector[RANK] != 1))
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
@@ -1524,7 +1530,7 @@ validateConfigurationParameters(struct Input * in)
         (in->configOptionVector[CHUNK] == 1) ||
         (in->configOptionVector[EXTEND] == 1))
     {
-      (void) fprintf(stderr, err2);
+      (void) fprintf(stderr, "%s", err2);
       return (-1);
     }
   }
@@ -1534,7 +1540,7 @@ validateConfigurationParameters(struct Input * in)
   {
     if (in->configOptionVector[CHUNK] != 1)
     {
-      (void) fprintf(stderr, err3);
+      (void) fprintf(stderr, "%s", err3);
       return (-1);
     }
   }
@@ -1543,7 +1549,7 @@ validateConfigurationParameters(struct Input * in)
   if (in->outputArchitecture == 1)
     if (in->outputClass == 1)
     {
-      (void) fprintf(stderr, err4a);
+      (void) fprintf(stderr, "%s", err4a);
       return (-1);
     }
 
@@ -1551,7 +1557,7 @@ validateConfigurationParameters(struct Input * in)
   if (in->outputArchitecture == 2)
     if (in->outputClass == 0)
     {
-      (void) fprintf(stderr, err4b);
+      (void) fprintf(stderr, "%s", err4b);
       return (-1);
     }
 
@@ -1559,14 +1565,14 @@ validateConfigurationParameters(struct Input * in)
     if(in->outputSize != 32 &&
        in->outputSize != 64 )
     {
-      (void) fprintf(stderr, err5);
+      (void) fprintf(stderr, "%s", err5);
       return (-1);
     }
 
 #ifdef _WIN32
   if (in->inputSize == 64 && (in->inputClass == 0 || in->inputClass == 4 || in->inputClass == 6 || in->inputClass == 7) )
 	{
-	  (void) fprintf(stderr, err6);
+	  (void) fprintf(stderr, "%s", err6);
 	  return -1;
 	}
 #endif
@@ -1587,16 +1593,29 @@ static int
 parsePathInfo(struct path_info *path, char *temp)
 {
   const char delimiter[] = "/";
-  char *token = (char*) malloc(255*sizeof(char));
+  char *token;
   int i=0;
+  const char *err1 = "Path string larger than MAX_PATH_NAME_LENGTH.\n";
 
-  HDstrcpy(path->group[i++],HDstrtok (temp, delimiter));
+  token = HDstrtok (temp, delimiter);
+  if (HDstrlen(token) >= MAX_PATH_NAME_LENGTH)
+  {
+    (void) fprintf(stderr, err1);
+    return (-1);
+  }
+   HDstrcpy(path->group[i++],token);
+
 
   while (1)
   {
     token = HDstrtok (NULL, delimiter);
     if (token == NULL)
       break;
+    if (HDstrlen(token) >= MAX_PATH_NAME_LENGTH)
+    {
+      (void) fprintf(stderr, err1);
+      return (-1);
+    }
     HDstrcpy(path->group[i++],token);
   }
   path->count = i;
@@ -1608,11 +1627,12 @@ parseDimensions(struct Input *in, char *strm)
 {
   const char delimiter[] = ",";
   char temp[255];
-  char *token = (char*) malloc(255*sizeof(char));
+  char *token;
   int i=0;
   const char *err1 = "Unable to allocate dynamic memory.\n";
 
-  HDstrcpy(temp, strm);
+  HDstrncpy(temp, strm, sizeof(temp));
+  temp[sizeof(temp)-1] = '\0';
   HDstrtok (temp, delimiter);
 
   while (1)
@@ -1626,12 +1646,13 @@ parseDimensions(struct Input *in, char *strm)
   if ((in->sizeOfDimension =
                (hsize_t *) HDmalloc ((size_t) in->rank * sizeof(hsize_t))) == NULL)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
   i=0;
-  HDstrcpy(temp, strm);
+  HDstrncpy(temp, strm, sizeof(temp));
+  temp[sizeof(temp)-1] = '\0';
   in->sizeOfDimension[i++] = HDstrtol(HDstrtok (temp, delimiter), NULL, BASE_10);
 
   while (1)
@@ -1654,13 +1675,13 @@ getOutputClass(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%s", temp) != 1)
     {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
   if ((kindex = OutputClassStrToInt(temp)) == -1)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
 
@@ -1694,7 +1715,7 @@ getOutputSize(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%d", (&ival)) != 1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
         return (-1);
   }
 
@@ -1704,7 +1725,7 @@ getOutputSize(struct Input *in, FILE** strm)
       in->outputSize = ival;
       return (0);
     }
-  (void) fprintf(stderr, err2);
+  (void) fprintf(stderr, "%s", err2);
   return(-1);
 }
 
@@ -1716,7 +1737,7 @@ getInputClass(struct Input *in, char * temp)
 
   if ((kindex = InputClassStrToInt(temp)) == -1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
@@ -1757,7 +1778,7 @@ getInputSize(struct Input *in, int ival)
       in->inputSize = ival;
       return (0);
     }
-  (void) fprintf(stderr, err1);
+  (void) fprintf(stderr, "%s", err1);
   return(-1);
 }
 
@@ -1771,7 +1792,7 @@ getRank(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%d", (&ival)) != 1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
   if (ival >=MIN_NUM_DIMENSION && ival <=MAX_NUM_DIMENSION )
@@ -1780,7 +1801,7 @@ getRank(struct Input *in, FILE** strm)
     return (0);
   }
 
-  (void) fprintf(stderr, err2);
+  (void) fprintf(stderr, "%s", err2);
   return(-1);
 }
 
@@ -1797,7 +1818,7 @@ getDimensionSizes(struct Input *in, FILE **strm)
   if ((in->sizeOfDimension =
                (hsize_t *) HDmalloc ((size_t) in->rank * sizeof(hsize_t))) == NULL)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
@@ -1806,7 +1827,7 @@ getDimensionSizes(struct Input *in, FILE **strm)
 
   if (in->rank != i)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
   return (0);
@@ -1825,7 +1846,7 @@ getChunkedDimensionSizes(struct Input *in, FILE **strm)
   if ((in->sizeOfChunk =
            (hsize_t *) HDmalloc ((size_t) in->rank * sizeof(hsize_t))) == NULL)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
@@ -1834,14 +1855,14 @@ getChunkedDimensionSizes(struct Input *in, FILE **strm)
 
   if (in->rank != i)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
 
   for (i=0; i<in->rank; i++)
     if (in->sizeOfChunk[i] > in->sizeOfDimension[i])
     {
-      (void) fprintf(stderr, err3);
+      (void) fprintf(stderr, "%s", err3);
       return (-1);
     }
   return (0);
@@ -1860,7 +1881,7 @@ getMaximumDimensionSizes(struct Input *in, FILE **strm)
   if ((in->maxsizeOfDimension =
                 (hsize_t *) HDmalloc ((size_t) in->rank * sizeof(hsize_t))) == NULL)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
@@ -1874,7 +1895,7 @@ getMaximumDimensionSizes(struct Input *in, FILE **strm)
 
   if (in->rank != i)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
 
@@ -1883,7 +1904,7 @@ getMaximumDimensionSizes(struct Input *in, FILE **strm)
     if (in->maxsizeOfDimension[i] != H5S_UNLIMITED)
       if (in->maxsizeOfDimension[i] < in->sizeOfDimension[i])
       {
-        (void) fprintf(stderr, err3);
+        (void) fprintf(stderr, "%s", err3);
         return (-1);
       }
   }
@@ -1900,13 +1921,13 @@ getOutputArchitecture(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%s", temp) != 1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
   if ((kindex = OutputArchStrToInt(temp)) == -1)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
 
@@ -1943,13 +1964,13 @@ getOutputByteOrder(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%s", temp) != 1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
   if ((kindex = OutputByteOrderStrToInt(temp)) == -1)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
 
@@ -1980,13 +2001,13 @@ getCompressionType(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%s", temp) != 1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
   if ((kindex = CompressionTypeStrToInt(temp)) == -1)
   {
-    (void) fprintf(stderr, err2);
+    (void) fprintf(stderr, "%s", err2);
     return (-1);
   }
 
@@ -2027,20 +2048,20 @@ getCompressionParameter(struct Input *in, FILE** strm)
     case 0:    /* GZIP */
       if (fscanf(*strm, "%d", (&ival)) != 1)
       {
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
       }
 
       if (ival <0 || ival > 9)
       {
-        (void) fprintf(stderr, err2);
+        (void) fprintf(stderr, "%s", err2);
         return (-1);
       }
       in->compressionParam = ival;
       return (0);
 
     default:
-      (void) fprintf(stderr, err3);
+      (void) fprintf(stderr, "%s", err3);
       return (-1);
   }
 }
@@ -2053,7 +2074,7 @@ getExternalFilename(struct Input *in, FILE** strm)
 
   if (fscanf(*strm, "%s", temp) != 1)
   {
-    (void) fprintf(stderr, err1);
+    (void) fprintf(stderr, "%s", err1);
     return (-1);
   }
 
@@ -2370,7 +2391,7 @@ createOutputDataType(struct Input *in)
         break;
 
     default:
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
     }
     return new_type;
@@ -2447,7 +2468,7 @@ createInputDataType(struct Input *in)
         break;
 
     default:
-        (void) fprintf(stderr, err1);
+        (void) fprintf(stderr, "%s", err1);
         return (-1);
     }
   return new_type;
@@ -2555,7 +2576,7 @@ process(struct Options *opt)
       /* creating the external file if it doesnt exist */
       if ((extfile = HDfopen(in->externFilename, "ab")) == NULL)
       {
-        (void) fprintf(stderr, err4);
+        (void) fprintf(stderr, "%s", err4);
         H5Pclose(proplist);
         H5Sclose(dataspace);
         H5Fclose(file_id);
@@ -2575,7 +2596,7 @@ process(struct Options *opt)
     H5E_BEGIN_TRY {
     /* create data set */
     if((dataset = H5Dcreate2(handle, in->path.group[j], outtype, dataspace, H5P_DEFAULT, proplist, H5P_DEFAULT)) < 0) {
-      (void)fprintf(stderr, err5);
+      (void)fprintf(stderr, "%s", err5);
       H5Pclose(proplist);
       H5Sclose(dataspace);
       H5Fclose(file_id);
@@ -2587,7 +2608,7 @@ process(struct Options *opt)
 
      /* write dataset */
     if(H5Dwrite(dataset, intype, H5S_ALL, H5S_ALL, H5P_DEFAULT, (VOIDP)in->data) < 0) {
-      (void) fprintf(stderr, err6);
+      (void) fprintf(stderr, "%s", err6);
       H5Dclose(dataset);
       H5Pclose(proplist);
       H5Sclose(dataspace);

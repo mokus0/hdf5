@@ -67,14 +67,14 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
     FUNC_ENTER_NOAPI(H5HG_debug, FAIL);
 
     /* check arguments */
-    assert(f);
-    assert(H5F_addr_defined (addr));
-    assert(stream);
-    assert(indent >= 0);
-    assert(fwidth >= 0);
+    HDassert(f);
+    HDassert(H5F_addr_defined (addr));
+    HDassert(stream);
+    HDassert(indent >= 0);
+    HDassert(fwidth >= 0);
 
-    if (NULL == (h = (H5HG_heap_t *)H5AC_protect(f, dxpl_id, H5AC_GHEAP, addr, NULL, NULL, H5AC_READ)))
-        HGOTO_ERROR(H5E_HEAP, H5E_CANTLOAD, FAIL, "unable to load global heap collection");
+    if(NULL == (h = H5HG_protect(f, dxpl_id, addr, H5AC_READ)))
+        HGOTO_ERROR(H5E_HEAP, H5E_CANTPROTECT, FAIL, "unable to protect global heap collection");
 
     fprintf(stream, "%*sGlobal Heap Collection...\n", indent, "");
     fprintf(stream, "%*s%-*s %d\n", indent, "", fwidth,
@@ -93,7 +93,10 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
     fprintf (stream, "%*s%-*s %u/%lu/", indent, "", fwidth,
 	     "Objects defined/allocated/max:",
 	     nused, (unsigned long)h->nalloc);
-    fprintf (stream, nused ? "%u\n": "NA\n", maxobj);
+    if(nused)
+        fprintf(stream, "%u\n", maxobj);
+    else
+        fprintf(stream, "NA\n");
 
     fprintf (stream, "%*s%-*s %lu\n", indent, "", fwidth,
 	     "Free space:",
@@ -132,7 +135,7 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
     }
 
 done:
-    if (h && H5AC_unprotect(f, dxpl_id, H5AC_GHEAP, addr, h, H5AC__NO_FLAGS_SET) != SUCCEED)
+    if (h && H5AC_unprotect(f, dxpl_id, H5AC_GHEAP, addr, h, H5AC__NO_FLAGS_SET) < 0)
         HDONE_ERROR(H5E_HEAP, H5E_PROTECT, FAIL, "unable to release object header");
 
     FUNC_LEAVE_NOAPI(ret_value);

@@ -26,6 +26,9 @@ rem setup to support it if we do in the future.  --SJW 8/22/07
 setlocal enabledelayedexpansion
 pushd %~dp0
 
+set EXIT_SUCCESS=0
+set EXIT_FAILURE=1
+
 rem The tool name
 set h5copy=h5copy%2
 rem The path of the tool binary
@@ -44,7 +47,11 @@ set h5ls_bin=%CD%\..\%h5ls%\%1\%h5ls%
 set /a nerrors=0
 set verbose=yes
 
-set srcfile=h5copytst.h5
+set srcfile1=h5copytst.h5
+set srcfile2=h5copy_ref.h5
+set hdf_ext_src_file=h5copy_extlinks_src.h5
+set hdf_ext_trg_file=h5copy_extlinks_trg.h5
+
 set indir=%CD%\testfiles
 set outdir=%CD%\..\testfiles
 
@@ -293,8 +300,8 @@ rem Assumed arguments:
 rem <none>
 :copyobjects
     
-    set testfile=%indir%\%srcfile%
-    set fileout=%outdir%\%srcfile:.h5=.out.h5%
+    set testfile=%indir%\%srcfile1%
+    set fileout=%outdir%\%srcfile1:.h5=.out.h5%
     
     rem Remove any output file left over from previous test run
     del /f %fileout% 2> nul
@@ -346,13 +353,91 @@ rem <none>
 
     exit /b
     
-    
+
+rem Copy references in various way.
+rem adding to the destination file each time compare the result
+rem
+rem Assumed arguments:
+rem <none>
+:copyreferences 
+
+    set testfile=%indir%\%srcfile2%
+    set fileout=%outdir%\%srcfile2:.h5=.out.h5%
+
+    rem Remove any output file left over from previous test run
+    del /f %fileout% 2> nul
+
+    echo.Test copying object and region references
+    rem echo.TOOLTEST -f ref -i $TESTFILE -o $FILEOUT -v -s / -d /COPY
+    call :tooltest -f ref -i %testfile% -o %fileout% -v -s / -d /COPY
+
+    rem Verify that the file created above is correct
+    call :h5lstest %fileout%
+
+    rem Remove output file created, if the "no cleanup" environment variable is
+    rem   not defined
+    if not defined HDF5_NOCLEANUP (
+        del /f %fileout%
+    )
+
+    exit /b
+ 
+rem Copy external links.
+rem adding to the destination file each time compare the result
+rem
+rem Assumed arguments:
+rem <none>
+:copy_ext_links 
+
+    set testfile=%indir%\%hdf_ext_src_file%
+    set fileout=%outdir%\%hdf_ext_src_file:.h5=.out.h5%
+
+    rem Remove any output file left over from previous test run
+    del /f %fileout% 2> nul
+
+    echo.Test copying external link directly without -f ext
+    call :tooltest -v -i %testfile% -o %fileout% -s /group_ext/extlink_dset -d /copy1_dset
+
+    echo.Test copying external link directly with -f ext
+    call :tooltest -f ext -i %testfile% -o %fileout% -v -s /group_ext/extlink_dset -d /copy2_dset
+
+    echo.Test copying dangling external link (no obj) directly without -f ext
+    call :tooltest -i %testfile% -o %fileout% -v -s /group_ext/extlink_notyet1 -d /copy_dangle1_1
+
+    echo.Test copying dangling external link (no obj) directly with -f ext
+    call :tooltest -f ext -i %testfile% -o %fileout% -v -s /group_ext/extlink_notyet1 -d /copy_dangle1_2
+
+    echo.Test copying dangling external link (no file) directly without -f ext
+    call :tooltest -i %testfile% -o %fileout% -v -s /group_ext/extlink_notyet2 -d /copy_dangle2_1
+
+    echo.Test copying dangling external link (no file) directly with -f ext
+    call :tooltest -f ext -i %testfile% -o %fileout% -v -s /group_ext/extlink_notyet2 -d /copy_dangle2_2
+
+    echo.Test copying a group contains external links without -f ext
+    call :tooltest -v -i %testfile% -o %fileout% -s /group_ext -d /copy1_group
+
+    echo.Test copying a group contains external links with -f ext
+    call :tooltest -f ext -i %testfile% -o %fileout% -v -f ext -s /group_ext -d /copy2_group
+
+    rem Verify that the file created above is correct
+    call :h5lstest %fileout%
+
+    rem Remove output file created, if the "no cleanup" environment variable is
+    rem   not defined
+    if not defined HDF5_NOCLEANUP (
+        del /f %fileout%
+    )
+
+    exit /b
+     
 rem ##############################################################################
 rem ###           T H E   T E S T S                                            ###
 rem ##############################################################################
 
 :main
     call :copyobjects
+    call :copyreferences
+    call :copy_ext_links
 
     if %nerrors% equ 0 (
         echo.All h5copy tests passed.

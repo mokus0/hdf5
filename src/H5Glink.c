@@ -218,13 +218,12 @@ H5G_link_cmp_corder_dec(const void *lnk1, const void *lnk2)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5G_ent_to_link(H5F_t *f, H5O_link_t *lnk, const H5HL_t *heap,
+H5G_ent_to_link(H5O_link_t *lnk, const H5HL_t *heap,
     const H5G_entry_t *ent, const char *name)
 {
     FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_to_link)
 
     /* check arguments */
-    HDassert(f);
     HDassert(lnk);
     HDassert(heap);
     HDassert(ent);
@@ -241,7 +240,7 @@ H5G_ent_to_link(H5F_t *f, H5O_link_t *lnk, const H5HL_t *heap,
     if(ent->type == H5G_CACHED_SLINK) {
         const char *s;          /* Pointer to link value */
 
-        s = (const char *)H5HL_offset_into(f, heap, ent->cache.slink.lval_offset);
+        s = (const char *)H5HL_offset_into(heap, ent->cache.slink.lval_offset);
         HDassert(s);
 
         /* Copy the link value */
@@ -260,61 +259,6 @@ H5G_ent_to_link(H5F_t *f, H5O_link_t *lnk, const H5HL_t *heap,
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5G_ent_to_link() */
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5G_ent_to_info
- *
- * Purpose:     Make link info for a symbol table entry
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:	Quincey Koziol
- *		koziol@hdfgroup.org
- *		Nov 16 2006
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5G_ent_to_info(H5F_t *f, H5L_info_t *info, const H5HL_t *heap,
-    const H5G_entry_t *ent)
-{
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_to_info)
-
-    /* check arguments */
-    HDassert(f);
-    HDassert(info);
-    HDassert(heap);
-    HDassert(ent);
-
-    /* Set (default) common info for info */
-    info->cset = H5F_DEFAULT_CSET;
-    info->corder = 0;
-    info->corder_valid = FALSE;       /* Creation order not valid for this link */
-
-    /* Object is a symbolic or hard link */
-    if(ent->type == H5G_CACHED_SLINK) {
-        const char *s;          /* Pointer to link value */
-
-        s = (const char *)H5HL_offset_into(f, heap, ent->cache.slink.lval_offset);
-        HDassert(s);
-
-        /* Get the link value size */
-        info->u.val_size = HDstrlen(s) + 1;
-
-        /* Set link type */
-        info->type = H5L_TYPE_SOFT;
-    } /* end if */
-    else {
-        /* Set address of object */
-        info->u.address = ent->header;
-
-        /* Set link type */
-        info->type = H5L_TYPE_HARD;
-    } /* end else */
-
-    FUNC_LEAVE_NOAPI(SUCCEED)
-} /* end H5G_ent_to_info() */
 
 
 /*-------------------------------------------------------------------------
@@ -355,6 +299,9 @@ H5G_link_to_info(const H5O_link_t *lnk, H5L_info_t *info)
                 info->u.val_size = HDstrlen(lnk->u.soft.name) + 1; /*count the null terminator*/
                 break;
 
+            case H5L_TYPE_ERROR:
+            case H5L_TYPE_EXTERNAL:
+            case H5L_TYPE_MAX:
             default:
             {
                 const H5L_class_t *link_class;      /* User-defined link class */
@@ -459,6 +406,10 @@ H5G_link_copy_file(H5F_t *dst_file, hid_t dxpl_id, const H5O_link_t *_src_lnk,
     H5O_link_t tmp_src_lnk;             /* Temporary copy of src link, when needed */
     const H5O_link_t *src_lnk = _src_lnk; /* Source link */
     hbool_t dst_lnk_init = FALSE;       /* Whether the destination link is initialized */
+    hbool_t expanded_link_open = FALSE; /* Whether the target location has been opened */
+    H5G_loc_t tmp_src_loc;              /* Group location holding target object */
+    H5G_name_t tmp_src_path;            /* Path for target object */
+    H5O_loc_t tmp_src_oloc;             /* Object location for target object */
     herr_t ret_value = SUCCEED;         /* Return value */
 
     FUNC_ENTER_NOAPI(H5G_link_copy_file, FAIL)
@@ -469,61 +420,79 @@ H5G_link_copy_file(H5F_t *dst_file, hid_t dxpl_id, const H5O_link_t *_src_lnk,
     HDassert(dst_lnk);
     HDassert(cpy_info);
 
-    /* Expand soft link */
-    if(H5L_TYPE_SOFT == src_lnk->type && cpy_info->expand_soft_link) {
-        H5O_info_t  oinfo;          /* Information about object pointed to by soft link */
-        H5G_loc_t   grp_loc;        /* Group location holding soft link */
-        H5G_name_t  grp_path;       /* Path for group holding soft link */
+    /* Expand soft or external link, if requested */
+    if((H5L_TYPE_SOFT == src_lnk->type && cpy_info->expand_soft_link)
+            || (H5L_TYPE_EXTERNAL == src_lnk->type
+            && cpy_info->expand_ext_link)) {
+        H5G_loc_t   lnk_grp_loc;    /* Group location holding link */
+        H5G_name_t  lnk_grp_path;   /* Path for link */
+        htri_t      tar_exists;     /* Whether the target object exists */
 
-        /* Make a temporary copy, so that it will not change the info in the cache */
-        if(NULL == H5O_msg_copy(H5O_LINK_ID, src_lnk, &tmp_src_lnk))
-            HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, H5_ITER_ERROR, "unable to copy message")
+        /* Set up group location for link */
+        H5G_name_reset(&lnk_grp_path);
+        lnk_grp_loc.path = &lnk_grp_path;
+        lnk_grp_loc.oloc = (H5O_loc_t *)src_oloc;    /* Casting away const OK -QAK */
 
-        /* Set up group location for soft link to start in */
-        H5G_name_reset(&grp_path);
-        grp_loc.path = &grp_path;
-        grp_loc.oloc = (H5O_loc_t *)src_oloc;    /* Casting away const OK -QAK */
+        /* Check if the target object exists */
+        if((tar_exists = H5G_loc_exists(&lnk_grp_loc, src_lnk->name, H5P_DEFAULT,
+                dxpl_id)) < 0)
+            HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, FAIL, "unable to check if target object exists")
 
-        /* Check if the object pointed by the soft link exists in the source file */
-        if(H5G_loc_info(&grp_loc, tmp_src_lnk.u.soft.name, FALSE, &oinfo, H5P_DEFAULT, dxpl_id) >= 0) {
-            /* Convert soft link to hard link */
-            tmp_src_lnk.u.soft.name = (char *)H5MM_xfree(tmp_src_lnk.u.soft.name);
+        if(tar_exists) {
+            /* Make a temporary copy of the link, so that it will not change the
+             * info in the cache when we change it to a hard link */
+            if(NULL == H5O_msg_copy(H5O_LINK_ID, src_lnk, &tmp_src_lnk))
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, FAIL, "unable to copy message")
+
+            /* Set up group location for target object.  Let H5G_traverse expand
+             * the link. */
+            tmp_src_loc.path = &tmp_src_path;
+            tmp_src_loc.oloc = &tmp_src_oloc;
+            if(H5G_loc_reset(&tmp_src_loc) < 0)
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, FAIL, "unable to reset location")
+
+            /* Find the target object */
+            if(H5G_loc_find(&lnk_grp_loc, src_lnk->name, &tmp_src_loc,
+                    H5P_DEFAULT, dxpl_id) < 0)
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, FAIL, "unable to find target object")
+            expanded_link_open = TRUE;
+
+            /* Convert symbolic link to hard link */
+            if(tmp_src_lnk.type == H5L_TYPE_SOFT)
+                tmp_src_lnk.u.soft.name =
+                        (char *)H5MM_xfree(tmp_src_lnk.u.soft.name);
+            else if(tmp_src_lnk.u.ud.size > 0)
+                tmp_src_lnk.u.ud.udata = H5MM_xfree(tmp_src_lnk.u.ud.udata);
             tmp_src_lnk.type = H5L_TYPE_HARD;
-            tmp_src_lnk.u.hard.addr = oinfo.addr;
+            tmp_src_lnk.u.hard.addr = tmp_src_oloc.addr;
             src_lnk = &tmp_src_lnk;
         } /* end if */
-        else {
-            /* Discard any errors from a dangling soft link */
-            H5E_clear_stack(NULL);
-
-            /* Release any information copied for temporary src link */
-            H5O_msg_reset(H5O_LINK_ID, &tmp_src_lnk);
-        } /* end else */
     } /* end if */
 
     /* Copy src link information to dst link information */
     if(NULL == H5O_msg_copy(H5O_LINK_ID, src_lnk, dst_lnk))
-        HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, H5_ITER_ERROR, "unable to copy message")
+        HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, FAIL, "unable to copy message")
     dst_lnk_init = TRUE;
 
     /* Check if object in source group is a hard link & copy it */
     if(H5L_TYPE_HARD == src_lnk->type) {
         H5O_loc_t new_dst_oloc;     /* Copied object location in destination */
-        H5O_loc_t tmp_src_oloc;     /* Temporary object location for source object */
 
         /* Set up copied object location to fill in */
         H5O_loc_reset(&new_dst_oloc);
         new_dst_oloc.file = dst_file;
 
-        /* Build temporary object location for source */
-        H5O_loc_reset(&tmp_src_oloc);
-        tmp_src_oloc.file = src_oloc->file;
-        HDassert(H5F_addr_defined(src_lnk->u.hard.addr));
-        tmp_src_oloc.addr = src_lnk->u.hard.addr;
+        if(!expanded_link_open) {
+            /* Build temporary object location for source */
+            H5O_loc_reset(&tmp_src_oloc);
+            tmp_src_oloc.file = src_oloc->file;
+            tmp_src_oloc.addr = src_lnk->u.hard.addr;
+        } /* end if */
+        HDassert(H5F_addr_defined(tmp_src_oloc.addr));
 
         /* Copy the shared object from source to destination */
         if(H5O_copy_header_map(&tmp_src_oloc, &new_dst_oloc, dxpl_id, cpy_info, TRUE) < 0)
-            HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, H5_ITER_ERROR, "unable to copy object")
+            HGOTO_ERROR(H5E_OHDR, H5E_CANTCOPY, FAIL, "unable to copy object")
 
         /* Copy new destination object's information for eventual insertion */
         dst_lnk->u.hard.addr = new_dst_oloc.addr;
@@ -538,6 +507,10 @@ done:
     if(ret_value < 0)
         if(dst_lnk_init)
             H5O_msg_reset(H5O_LINK_ID, dst_lnk);
+    /* Check if we need to free the temp source oloc */
+    if(expanded_link_open)
+        if(H5G_loc_free(&tmp_src_loc) < 0)
+            HDONE_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free object")
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5G_link_copy_file() */
@@ -609,7 +582,7 @@ H5G_link_iterate_table(const H5G_link_table_t *ltable, hsize_t skip,
     size_t u;                           /* Local index variable */
     herr_t ret_value = H5_ITER_CONT;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5G_link_iterate_table, FAIL)
+    FUNC_ENTER_NOAPI_NOERR(H5G_link_iterate_table, -)
 
     /* Sanity check */
     HDassert(ltable);

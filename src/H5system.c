@@ -138,23 +138,26 @@ HDfprintf(FILE *stream, const char *fmt, ...)
 	    s = fmt + 1;
 
 	    /* Flags */
-	    while (HDstrchr ("-+ #", *s)) {
-		switch (*s) {
-		case '-':
-		    leftjust = 1;
-		    break;
-		case '+':
-		    plussign = 1;
-		    break;
-		case ' ':
-		    ldspace = 1;
-		    break;
-		case '#':
-		    prefix = 1;
-		    break;
-		} /*lint !e744 Switch statement doesn't _need_ default */
+	    while(HDstrchr ("-+ #", *s)) {
+		switch(*s) {
+                    case '-':
+                        leftjust = 1;
+                        break;
+
+                    case '+':
+                        plussign = 1;
+                        break;
+
+                    case ' ':
+                        ldspace = 1;
+                        break;
+
+                    case '#':
+                        prefix = 1;
+                        break;
+		} /* end switch */ /*lint !e744 Switch statement doesn't _need_ default */
 		s++;
-	    }
+	    } /* end while */
 
 	    /* Field width */
 	    if (HDisdigit (*s)) {
@@ -592,7 +595,7 @@ HDremove_all(const char *fname)
  *      This implementation is taken from the Cygwin source distribution at
  *          src/winsup/mingw/mingwex/gettimeofday.c
  *
- *      The original source code was contributed by 
+ *      The original source code was contributed by
  *          Danny Smith <dannysmith@users.sourceforge.net>
  *      and released in the public domain.
  *
@@ -606,7 +609,7 @@ HDremove_all(const char *fname)
 /* Offset between 1/1/1601 and 1/1/1970 in 100 nanosec units */
 #define _W32_FT_OFFSET (116444736000000000ULL)
 
-int 
+int
 HDgettimeofday(struct timeval *tv, void *tz)
  {
   union {
@@ -627,28 +630,21 @@ HDgettimeofday(struct timeval *tv, void *tz)
 #endif
 
 
-/*
- *-------------------------------------------------------------------------
- *
+/*-------------------------------------------------------------------------
  * Function: H5_build_extpath
  *
- * Purpose:  To build the path for later searching of target file for external link.
- *   	     This path can be either:
- *                      1. The absolute path of NAME
+ * Purpose:  To build the path for later searching of target file for external
+ *		link.  This path can be either:
+ *                  1. The absolute path of NAME
  *                      or
- *                      2. The current working directory + relative path of NAME
+ *                  2. The current working directory + relative path of NAME
  *
  * Return:	Success:        0
  *		Failure:	-1
  *
  * Programmer:	Vailin Choi
  *		April 2, 2008
- * Modifications: 2nd Oct, 2008; Vailin Choi
- *		Remove compiler warning for "if condition"
- * 
- *              Raymond Lu
- *              14 Jan. 2009
- *              Add support for OpenVMS pathname  
+ *
  *-------------------------------------------------------------------------
  */
 #define MAX_PATH_LEN     1024
@@ -656,14 +652,14 @@ HDgettimeofday(struct timeval *tv, void *tz)
 herr_t
 H5_build_extpath(const char *name, char **extpath/*out*/)
 {
-    char        *full_path=NULL, *ptr=NULL;
-    char        *retcwd=NULL, *cwdpath=NULL, *new_name=NULL;
-    int         drive;
-    size_t      cwdlen, path_len;
+    char        *full_path = NULL;      /* Pointer to the full path, as built or passed in */
+    char        *cwdpath = NULL;        /* Pointer to the current working directory path */
+    char        *new_name = NULL;       /* Pointer to the name of the file */
     herr_t      ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5_build_extpath)
 
+    /* Clear external path pointer to begin with */
     *extpath = NULL;
 
     /*
@@ -672,14 +668,18 @@ H5_build_extpath(const char *name, char **extpath/*out*/)
      * OpenVMS: <disk name>$<partition>:[path]<file name>
      *     i.g. SYS$SYSUSERS:[LU.HDF5.SRC]H5system.c
      */
-    if (CHECK_ABSOLUTE(name)) {
-        if ((full_path=H5MM_strdup(name)) == NULL)
-            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
-    } else { /* relative pathname */
-        if (NULL == (cwdpath = (char *)H5MM_malloc(MAX_PATH_LEN)))
-            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
-        if (NULL == (new_name = (char *)H5MM_strdup(name)))
-            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+    if(CHECK_ABSOLUTE(name)) {
+        if(NULL == (full_path = (char *)H5MM_strdup(name)))
+            HGOTO_ERROR(H5E_INTERNAL, H5E_NOSPACE, FAIL, "memory allocation failed")
+    } /* end if */
+    else { /* relative pathname */
+        char *retcwd;
+        int drive;
+
+        if(NULL == (cwdpath = (char *)H5MM_malloc(MAX_PATH_LEN)))
+            HGOTO_ERROR(H5E_INTERNAL, H5E_NOSPACE, FAIL, "memory allocation failed")
+        if(NULL == (new_name = (char *)H5MM_strdup(name)))
+            HGOTO_ERROR(H5E_INTERNAL, H5E_NOSPACE, FAIL, "memory allocation failed")
 
 	/*
 	 * Windows: name[0-1] is "<drive-letter>:"
@@ -687,29 +687,35 @@ H5_build_extpath(const char *name, char **extpath/*out*/)
 	 * Unix: does not apply
          * OpenVMS: does not apply
 	 */
-        if (CHECK_ABS_DRIVE(name)) {
+        if(CHECK_ABS_DRIVE(name)) {
             drive = name[0] - 'A' + 1;
             retcwd = HDgetdcwd(drive, cwdpath, MAX_PATH_LEN);
             HDstrcpy(new_name, &name[2]);
+        } /* end if */
 	/*
 	 * Windows: name[0] is a '/' or '\'
 	 *	Get current drive
 	 * Unix: does not apply
          * OpenVMS: does not apply
 	 */
-        } else if (CHECK_ABS_PATH(name) && ((drive=HDgetdrive()) != 0)) {
+        else if(CHECK_ABS_PATH(name) && (0 != (drive = HDgetdrive()))) {
             sprintf(cwdpath, "%c:%c", (drive+'A'-1), name[0]);
             retcwd = cwdpath;
             HDstrcpy(new_name, &name[1]);
-        } else /* totally relative for Unix, Windows, and OpenVMS: get current working directory  */
+        }
+        /* totally relative for Unix, Windows, and OpenVMS: get current working directory  */
+        else
             retcwd = HDgetcwd(cwdpath, MAX_PATH_LEN);
 
-        if (retcwd != NULL) {
+        if(retcwd != NULL) {
+            size_t cwdlen;
+            size_t path_len;
+
             cwdlen = HDstrlen(cwdpath);
             HDassert(cwdlen);
             path_len = cwdlen + HDstrlen(new_name) + 2;
-            if (NULL == (full_path = (char *)H5MM_malloc(path_len)))
-                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+            if(NULL == (full_path = (char *)H5MM_malloc(path_len)))
+                HGOTO_ERROR(H5E_INTERNAL, H5E_NOSPACE, FAIL, "memory allocation failed")
 
             HDstrcpy(full_path, cwdpath);
 #ifdef H5_VMS
@@ -721,30 +727,36 @@ H5_build_extpath(const char *name, char **extpath/*out*/)
              */
             if(new_name[0] == '[') {
                 char *tmp = new_name;
-                full_path[cwdlen-1] = '\0';
+                full_path[cwdlen - 1] = '\0';
                 HDstrcat(full_path, ++tmp);
-            } else
+            } /* end if */
+            else
                 HDstrcat(full_path, new_name);
 #else
-            if (!CHECK_DELIMITER(cwdpath[cwdlen-1]))
+            if(!CHECK_DELIMITER(cwdpath[cwdlen - 1]))
                 HDstrcat(full_path, DIR_SEPS);
             HDstrcat(full_path, new_name);
 #endif
-        }
-    }
+        } /* end if */
+    } /* end else */
 
     /* strip out the last component (the file name itself) from the path */
-    if (full_path) {
+    if(full_path) {
+        char *ptr = NULL;
+
         GET_LAST_DELIMITER(full_path, ptr)
         HDassert(ptr);
         *++ptr = '\0';
         *extpath = full_path;
-    }
+    } /* end if */
 
 done:
-    if (cwdpath)
+    /* Release resources */
+    if(cwdpath)
 	H5MM_xfree(cwdpath);
-    if (new_name)
+    if(new_name)
 	H5MM_xfree(new_name);
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5_build_extpath() */
+

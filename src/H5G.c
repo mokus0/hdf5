@@ -83,6 +83,7 @@
 
 /* Packages needed by this file... */
 #include "H5private.h"		/* Generic Functions			*/
+#include "H5ACprivate.h"	/* Metadata cache			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5Fpkg.h"		/* File access				*/
 #include "H5Gpkg.h"		/* Groups		  		*/
@@ -432,6 +433,7 @@ H5Gget_create_plist(hid_t group_id)
     H5O_linfo_t         linfo;		        /* Link info message            */
     htri_t	        ginfo_exists;
     htri_t	        linfo_exists;
+    htri_t              pline_exists;
     H5G_t		*grp = NULL;
     H5P_genplist_t      *gcpl_plist;
     H5P_genplist_t      *new_plist;
@@ -479,6 +481,21 @@ H5Gget_create_plist(hid_t group_id)
         /* Set the link info for the property list */
         if(H5P_set(new_plist, H5G_CRT_LINK_INFO_NAME, &linfo) < 0)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set link info")
+    } /* end if */
+
+    /* Check for the group having a pipeline message */
+    if((pline_exists = H5O_msg_exists(&(grp->oloc), H5O_PLINE_ID, H5AC_ind_dxpl_id)) < 0)
+        HGOTO_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "unable to read object header")
+    if(pline_exists) {
+        H5O_pline_t pline;      /* Pipeline message */
+
+        /* Read the pipeline */
+        if(NULL == H5O_msg_read(&(grp->oloc), H5O_PLINE_ID, &pline, H5AC_ind_dxpl_id))
+            HGOTO_ERROR(H5E_SYM, H5E_BADMESG, FAIL, "can't get link pipeline")
+
+        /* Set the pipeline for the property list */
+        if(H5P_set(new_plist, H5O_CRT_PIPELINE_NAME, &pline) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set link pipeline")
     } /* end if */
 
     /* Set the return value */
@@ -838,9 +855,6 @@ H5G_t *
 H5G_create(H5F_t *file, hid_t gcpl_id, hid_t dxpl_id)
 {
     H5G_t	*grp = NULL;	/*new group			*/
-    H5P_genplist_t  *gc_plist;  /* Property list created */
-    H5O_ginfo_t ginfo;          /* Group info */
-    H5O_linfo_t linfo;          /* Link info */
     unsigned    oloc_init = 0;  /* Flag to indicate that the group object location was created successfully */
     H5G_t	*ret_value;	/* Return value */
 
@@ -857,20 +871,8 @@ H5G_create(H5F_t *file, hid_t gcpl_id, hid_t dxpl_id)
     if(NULL == (grp->shared = H5FL_CALLOC(H5G_shared_t)))
         HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
 
-    /* Get the property list */
-    if(NULL == (gc_plist = (H5P_genplist_t *)H5I_object(gcpl_id)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, NULL, "not a property list")
-
-    /* Get the group info property */
-    if(H5P_get(gc_plist, H5G_CRT_GROUP_INFO_NAME, &ginfo) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get group info")
-
-    /* Get the link info property */
-    if(H5P_get(gc_plist, H5G_CRT_LINK_INFO_NAME, &linfo) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get group info")
-
     /* Create the group object header */
-    if(H5G_obj_create(file, dxpl_id, &ginfo, &linfo, gcpl_id, &(grp->oloc)/*out*/) < 0)
+    if(H5G_obj_create(file, dxpl_id, gcpl_id, &(grp->oloc)/*out*/) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, NULL, "unable to create group object header")
     oloc_init = 1;    /* Indicate that the object location information is valid */
 
@@ -897,8 +899,8 @@ done:
         } /* end if */
         if(grp != NULL) {
             if(grp->shared != NULL)
-                (void)H5FL_FREE(H5G_shared_t, grp->shared);
-            (void)H5FL_FREE(H5G_t,grp);
+                grp->shared = H5FL_FREE(H5G_shared_t, grp->shared);
+            grp = H5FL_FREE(H5G_t, grp);
         } /* end if */
     } /* end if */
 
@@ -1019,7 +1021,7 @@ H5G_open(const H5G_loc_t *loc, hid_t dxpl_id)
 
         /* Add group to list of open objects in file */
         if(H5FO_insert(grp->oloc.file, grp->oloc.addr, grp->shared, FALSE) < 0) {
-            (void)H5FL_FREE(H5G_shared_t, grp->shared);
+            grp->shared = H5FL_FREE(H5G_shared_t, grp->shared);
             HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group into list of open objects")
         } /* end if */
 
@@ -1056,7 +1058,7 @@ done:
     if(!ret_value && grp) {
         H5O_loc_free(&(grp->oloc));
         H5G_name_free(&(grp->path));
-        (void)H5FL_FREE(H5G_t,grp);
+        grp = H5FL_FREE(H5G_t, grp);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1108,7 +1110,7 @@ done:
         if(obj_opened)
             H5O_close(&(grp->oloc));
         if(grp->shared)
-            (void)H5FL_FREE(H5G_shared_t, grp->shared);
+            grp->shared = H5FL_FREE(H5G_shared_t, grp->shared);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1150,7 +1152,7 @@ H5G_close(H5G_t *grp)
             HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "can't remove group from list of open objects")
         if(H5O_close(&(grp->oloc)) < 0)
             HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close")
-        (void)H5FL_FREE(H5G_shared_t, grp->shared);
+        grp->shared = H5FL_FREE(H5G_shared_t, grp->shared);
     } else {
         /* Decrement the ref. count for this object in the top file */
         if(H5FO_top_decr(grp->oloc.file, grp->oloc.addr) < 0)
@@ -1172,11 +1174,11 @@ H5G_close(H5G_t *grp)
     } /* end else */
 
     if(H5G_name_free(&(grp->path)) < 0) {
-        (void)H5FL_FREE(H5G_t, grp);
+        grp = H5FL_FREE(H5G_t, grp);
         HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't free group entry name")
     } /* end if */
 
-    (void)H5FL_FREE(H5G_t, grp);
+    grp = H5FL_FREE(H5G_t, grp);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1207,8 +1209,8 @@ H5G_free(H5G_t *grp)
 
     HDassert(grp && grp->shared);
 
-    (void)H5FL_FREE(H5G_shared_t, grp->shared);
-    (void)H5FL_FREE(H5G_t, grp);
+    grp->shared = H5FL_FREE(H5G_shared_t, grp->shared);
+    grp = H5FL_FREE(H5G_t, grp);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1561,7 +1563,7 @@ H5G_free_visit_visited(void *item, void UNUSED *key, void UNUSED *operator_data/
 {
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_free_visit_visited)
 
-    (void)H5FL_FREE(H5_obj_t, item);
+    item = H5FL_FREE(H5_obj_t, item);
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5G_free_visit_visited() */
@@ -1771,8 +1773,7 @@ H5G_visit(hid_t loc_id, const char *group_name, H5_index_t idx_type,
     H5G_t      *grp = NULL;         /* Group opened */
     H5G_loc_t	loc;                /* Location of group passed in */
     H5G_loc_t	start_loc;          /* Location of starting group */
-    H5O_type_t otype;               /* Basic object type (group, dataset, etc.) */
-    unsigned rc;		    /* Reference count of object    */
+    unsigned    rc;		    /* Reference count of object    */
     herr_t      ret_value;          /* Return value */
 
     FUNC_ENTER_NOAPI(H5G_visit, FAIL)
@@ -1813,8 +1814,8 @@ H5G_visit(hid_t loc_id, const char *group_name, H5_index_t idx_type,
     if((udata.visited = H5SL_create(H5SL_TYPE_OBJ)) == NULL)
         HGOTO_ERROR(H5E_SYM, H5E_CANTCREATE, FAIL, "can't create skip list for visited objects")
 
-    /* Get the group's reference count and type */
-    if(H5O_get_rc_and_type(&grp->oloc, dxpl_id, &rc, &otype) < 0)
+    /* Get the group's reference count */
+    if(H5O_get_rc_and_type(&grp->oloc, dxpl_id, &rc, NULL) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "unable to get object info")
 
     /* If its ref count is > 1, we add it to the list of visited objects */

@@ -102,11 +102,11 @@ typedef struct {
  H5D_layout_t    layout_g;    /*global layout information for the ALL case */
  int             verbose;     /*verbose mode */
  hsize_t         min_comp;    /*minimum size to compress, in bytes */
- int             use_native;  /*use a native type in write */  
+ int             use_native;  /*use a native type in write */
  int             latest;      /*pack file with the latest file format */
  int             grp_compact; /* Set the maximum number of links to store as header messages in the group */
  int             grp_indexed; /* Set the minimum number of links to store in the indexed format */
- int             msg_size[8]; /* Minimum size of shared messages: dataspace, 
+ int             msg_size[8]; /* Minimum size of shared messages: dataspace,
                                  datatype, fill value, filter pipleline, attribute */
  const char      *ublock_filename; /* user block file name */
  hsize_t         ublock_size;      /* user block size */
@@ -115,6 +115,11 @@ typedef struct {
 } pack_opt_t;
 
 
+typedef struct named_dt_t {
+    haddr_t             addr_in;    /* Address of the named dtype in the in file */
+    hid_t               id_out;     /* Open identifier for the dtype in the out file */
+    struct named_dt_t   *next;      /* Next dtype */
+} named_dt_t;
 
 /*-------------------------------------------------------------------------
  * public functions
@@ -134,6 +139,17 @@ int h5repack_verify    (const char *fname,pack_opt_t *options);
 int h5repack_cmp_pl   (const char *fname1,
                         const char *fname2);
 
+/* Note: The below copy_named_datatype(), named_datatype_free(), copy_attr() 
+ * and struct named_dt_t were located in h5repack_copy.c as static prior to 
+ * bugfix1726. 
+ * Made shared functions as copy_attr() was needed in h5repack_refs.c. 
+ * However copy_attr() may be obsoleted when H5Acopy is available and put back
+ * others to static in h5repack_copy.c.
+ */
+hid_t copy_named_datatype(hid_t type_in, hid_t fidout, named_dt_t **named_dt_head_p, trav_table_t *travt, pack_opt_t *options);
+int named_datatype_free(named_dt_t **named_dt_head_p, int ignore_err);
+int copy_attr(hid_t loc_in, hid_t loc_out, named_dt_t **named_dt_head_p,
+              trav_table_t *travt, pack_opt_t *options);
 
 #ifdef __cplusplus
 }
@@ -159,7 +175,7 @@ int copy_objects   (const char* fnamein,
 int do_copy_refobjs(hid_t fidin,
                     hid_t fidout,
                     trav_table_t *travt,
-                    pack_opt_t *options); 
+                    pack_opt_t *options);
 
 /*-------------------------------------------------------------------------
  * filters and verify module

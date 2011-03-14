@@ -16,8 +16,8 @@
 # HDF Utilities Test script
 
 
-TESTFILE1="$srcdir/../testfiles/h52giftst.h5"
-TESTFILE2="$srcdir/../testfiles/image1.gif"
+TESTFILE1="$srcdir/testfiles/h52giftst.h5"
+TESTFILE2="$srcdir/testfiles/image1.gif"
 
 # initialize errors variable
 errors=0
@@ -64,4 +64,10 @@ TESTING "./gif2h5 image1.gif image1.h5"
 TOOLTEST2 $TESTFILE2 image1.h5
 
 
-exit $errors
+if test $errors -eq 0 ; then
+    echo "All h52gif tests passed."
+    exit 0
+else
+    echo "h52gif tests failed with $errors errors."
+    exit 1
+fi

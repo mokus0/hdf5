@@ -22,6 +22,7 @@
 
 #include <time.h>
 #include "h5test.h"
+#include "H5srcdir.h"
 
 /*
  * This file needs to access private information from the H5S package.
@@ -103,8 +104,11 @@ const char *FILENAME[] = {
 #define NAME_LINK_SOFT		"/g_links/soft_link_to_dataset_simple"
 #define NAME_LINK_SOFT2		"/g_links2/soft_link_to_dataset_simple"
 #define NAME_LINK_EXTERN	"/g_links/external_link_to_dataset_simple"
+#define NAME_LINK_EXTERN2       "/g_links2/external_link_to_dataset_simple"
 #define NAME_LINK_SOFT_DANGLE	"/g_links/soft_link_to_nowhere"
 #define NAME_LINK_SOFT_DANGLE2	"/g_links2/soft_link_to_nowhere"
+#define NAME_LINK_EXTERN_DANGLE "/g_links/external_link_to_nowhere"
+#define NAME_LINK_EXTERN_DANGLE2        "/g_links2/external_link_to_nowhere"
 #define NAME_OLD_FORMAT		"/dset1"
 
 #define NAME_BUF_SIZE   1024
@@ -713,7 +717,9 @@ compare_attribute(hid_t aid, hid_t aid2, hid_t pid, const void *wbuf, hid_t obj_
 
     /* Release raw data buffers */
     HDfree(rbuf);
+    rbuf = NULL;
     HDfree(rbuf2);
+    rbuf2 = NULL;
 
     /* close the source dataspace */
     if(H5Sclose(sid) < 0) TEST_ERROR
@@ -730,11 +736,11 @@ compare_attribute(hid_t aid, hid_t aid2, hid_t pid, const void *wbuf, hid_t obj_
     return TRUE;
 
 error:
+    if(rbuf)
+        HDfree(rbuf);
+    if(rbuf2)
+        HDfree(rbuf2);
     H5E_BEGIN_TRY {
-        if(rbuf)
-            HDfree(rbuf);
-        if(rbuf2)
-            HDfree(rbuf2);
         H5Sclose(sid2);
         H5Sclose(sid);
         H5Tclose(tid2);
@@ -5227,21 +5233,32 @@ error:
  *              Friday, September 30, 2005
  *
  * Modifications:
+ *              Neil Fortner
+ *              Tuesday, February 16, 2010
+ *              Modified test to test flags for expanding soft and external
+ *              links.
  *
  *-------------------------------------------------------------------------
  */
 static int
 test_copy_group_links(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
 {
-    hid_t fid_src = -1, fid_dst = -1;           /* File IDs */
+    hid_t fid_src = -1, fid_dst = -1, fid_ext = -1; /* File IDs */
     hid_t sid = -1;                             /* Dataspace ID */
-    hid_t did = -1;                             /* Dataset ID */
+    hid_t did = -1, did2 = -1;                  /* Dataset ID */
     hid_t gid = -1, gid2 = -1;                  /* Group IDs */
+    hid_t plid = -1;                            /* Object copy plist ID */
     hsize_t dim2d[2];
+    hsize_t dim1d[1];
+    H5L_info_t linfo;
     int buf[DIM_SIZE_1][DIM_SIZE_2];
     int i, j;
+    unsigned expand_soft;
+    unsigned expand_ext;
+    unsigned copy_options;
     char src_filename[NAME_BUF_SIZE];
     char dst_filename[NAME_BUF_SIZE];
+    char ext_filename[NAME_BUF_SIZE];
 
     TESTING("H5Ocopy(): group with links");
 
@@ -5253,6 +5270,7 @@ test_copy_group_links(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
     /* Initialize the filenames */
     h5_fixname(FILENAME[0], fapl, src_filename, sizeof src_filename);
     h5_fixname(FILENAME[1], fapl, dst_filename, sizeof dst_filename);
+    h5_fixname(FILENAME[2], fapl, ext_filename, sizeof ext_filename);
 
     /* Reset file address checking info */
     addr_reset();
@@ -5260,11 +5278,16 @@ test_copy_group_links(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
     /* create source file */
     if((fid_src = H5Fcreate(src_filename, H5F_ACC_TRUNC, fcpl_src, fapl)) < 0) TEST_ERROR
 
-    /* create group at the SRC file */
-    if((gid = H5Gcreate2(fid_src, NAME_GROUP_LINK, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+    /* create file to hold external dataset */
+    if((fid_ext = H5Fcreate(ext_filename, H5F_ACC_TRUNC, fcpl_src, fapl)) < 0) TEST_ERROR
 
-    /* attach attributes to the group */
+    /* create groups at the SRC file.  Group 2 will hold dangling links. */
+    if((gid = H5Gcreate2(fid_src, NAME_GROUP_LINK, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+    if((gid2 = H5Gcreate2(fid_src, NAME_GROUP_LINK2, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* attach attributes to the groups */
     if(test_copy_attach_attributes(gid, H5T_NATIVE_INT) < 0) TEST_ERROR
+    if(test_copy_attach_attributes(gid2, H5T_NATIVE_INT) < 0) TEST_ERROR
 
     /* Set dataspace dimensions */
     dim2d[0]=DIM_SIZE_1;
@@ -5283,57 +5306,162 @@ test_copy_group_links(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
     /* close the dataset */
     if(H5Dclose(did) < 0) TEST_ERROR
 
+    /* Now create a 1-D dataset in an external file */
+    /* Set dataspace dimensions */
+    dim1d[0]=DIM_SIZE_2;
+
+    /* create dataspace */
+    if((sid = H5Screate_simple(1, dim1d, NULL)) < 0) TEST_ERROR
+
+    /* add a dataset to the external file */
+    if((did = H5Dcreate2(fid_ext, NAME_DATASET_SIMPLE, H5T_NATIVE_INT, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+    if(H5Dwrite(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf) < 0) TEST_ERROR
+
+    /* close dataspace */
+    if(H5Sclose(sid) < 0) TEST_ERROR
+
+    /* close the dataset */
+    if(H5Dclose(did) < 0) TEST_ERROR
+
     /* make a hard link to the dataset */
     if(H5Lcreate_hard(fid_src, NAME_LINK_DATASET, H5L_SAME_LOC, NAME_LINK_HARD, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
 
     /* make a soft link to the dataset */
     if(H5Lcreate_soft(NAME_LINK_DATASET, fid_src, NAME_LINK_SOFT, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
 
-    /* make a soft link to nowhere */
-    if(H5Lcreate_soft("nowhere", fid_src, NAME_LINK_SOFT_DANGLE, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+    /* make an external link to the external dataset */
+    if(H5Lcreate_external(ext_filename, NAME_DATASET_SIMPLE, fid_src, NAME_LINK_EXTERN, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+
+    /* make a dangling soft link */
+    if(H5Lcreate_soft("nowhere", fid_src, NAME_LINK_SOFT_DANGLE2, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
 
     /* make a dangling external link */
-    if(H5Lcreate_external("filename", "obj_name", fid_src, NAME_LINK_EXTERN, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+    if(H5Lcreate_external("no_file", "no_object", fid_src, NAME_LINK_EXTERN_DANGLE2, H5P_DEFAULT, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
 
-    /* close the group */
+    /* close the groups */
     if(H5Gclose(gid) < 0) TEST_ERROR
-
-    /* close the SRC file */
-    if(H5Fclose(fid_src) < 0) TEST_ERROR
-
-
-    /* open the source file with read-only */
-    if((fid_src = H5Fopen(src_filename, H5F_ACC_RDONLY, fapl)) < 0) TEST_ERROR
-
-    /* create destination file */
-    if((fid_dst = H5Fcreate(dst_filename, H5F_ACC_TRUNC, fcpl_dst, fapl)) < 0) TEST_ERROR
-
-    /* Create an uncopied object in destination file so that addresses in source and destination files aren't the same */
-    if(H5Gclose(H5Gcreate2(fid_dst, NAME_GROUP_UNCOPIED, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
-
-    /* copy the group from SRC to DST */
-    if(H5Ocopy(fid_src, NAME_GROUP_LINK, fid_dst, NAME_GROUP_LINK, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
-
-    /* open the group for copy */
-    if((gid = H5Gopen2(fid_src, NAME_GROUP_LINK, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
-
-    /* open the destination group */
-    if((gid2 = H5Gopen2(fid_dst, NAME_GROUP_LINK, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
-
-    /* Check if the groups are equal */
-    if(compare_groups(gid, gid2, H5P_DEFAULT, -1, 0) != TRUE) TEST_ERROR
-
-    /* close the destination group */
     if(H5Gclose(gid2) < 0) TEST_ERROR
 
-    /* close the source group */
-    if(H5Gclose(gid) < 0) TEST_ERROR
-
-    /* close the SRC file */
+    /* close the SRC and EXT files */
     if(H5Fclose(fid_src) < 0) TEST_ERROR
+    if(H5Fclose(fid_ext) < 0) TEST_ERROR
 
-    /* close the DST file */
-    if(H5Fclose(fid_dst) < 0) TEST_ERROR
+
+    /* Create the object copy plist */
+    if((plid = H5Pcreate(H5P_OBJECT_COPY)) < 0) TEST_ERROR
+
+    /* Loop over all configurations (expand soft/external links) */
+    for(expand_soft=0; expand_soft<=1; expand_soft++) {
+        for(expand_ext=0; expand_ext<=1; expand_ext++) {
+            /* Set the correct copy options on the obj copy plist */
+            copy_options = 0;
+            if(expand_soft)
+                copy_options |= H5O_COPY_EXPAND_SOFT_LINK_FLAG;
+            if(expand_ext)
+                copy_options |= H5O_COPY_EXPAND_EXT_LINK_FLAG;
+            if(H5Pset_copy_object(plid, copy_options) < 0) TEST_ERROR
+
+            /* open the source file with read-only */
+            if((fid_src = H5Fopen(src_filename, H5F_ACC_RDONLY, fapl)) < 0) TEST_ERROR
+
+            /* create destination file */
+            if((fid_dst = H5Fcreate(dst_filename, H5F_ACC_TRUNC, fcpl_dst, fapl)) < 0) TEST_ERROR
+
+            /* Create an uncopied object in destination file so that addresses in source and destination files aren't the same */
+            if(H5Gclose(H5Gcreate2(fid_dst, NAME_GROUP_UNCOPIED, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+            /* copy the group from SRC to DST */
+            if(H5Ocopy(fid_src, NAME_GROUP_LINK, fid_dst, NAME_GROUP_LINK, plid, H5P_DEFAULT) < 0) TEST_ERROR
+
+            /* open the group for copy */
+            if((gid = H5Gopen2(fid_src, NAME_GROUP_LINK, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
+
+            /* open the destination group */
+            if((gid2 = H5Gopen2(fid_dst, NAME_GROUP_LINK, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
+
+            /* If expand_soft is set to true, verify that the soft link is now a
+             * hard link, and compare the expanded dataset, then delete it and
+             * re-add it as a soft link so compare_groups() works */
+            if(expand_soft) {
+                /* Check link type */
+                if(H5Lget_info(fid_dst, NAME_LINK_SOFT, &linfo, H5P_DEFAULT) < 0) TEST_ERROR
+                if(linfo.type != H5L_TYPE_HARD)
+                    FAIL_PUTS_ERROR("Soft link was not expanded to a hard link")
+
+                /* Compare datasets */
+                if((did = H5Dopen2(fid_src, NAME_LINK_DATASET, H5P_DEFAULT)) < 0) TEST_ERROR
+                if((did2 = H5Dopen2(fid_dst, NAME_LINK_SOFT, H5P_DEFAULT)) < 0) TEST_ERROR
+                if(compare_datasets(did, did2, H5P_DEFAULT, NULL) != TRUE) TEST_ERROR
+
+                /* Delete expanded dataset, add soft link */
+                if(H5Ldelete(fid_dst, NAME_LINK_SOFT, H5P_DEFAULT) < 0) TEST_ERROR
+                if(H5Lcreate_soft(NAME_LINK_DATASET, fid_dst, NAME_LINK_SOFT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+
+                /* Close datasets */
+                if(H5Dclose(did) < 0) TEST_ERROR
+                if(H5Dclose(did2) < 0) TEST_ERROR
+            } /* end if */
+
+            /* If expand_ext is set to true, verify that the external link is
+             * now a hard link, and compare the expanded dataset, then delete it
+             * and re-add it as an external link so compare_groups() works */
+            if(expand_ext) {
+                /* Check link type */
+                if(H5Lget_info(fid_dst, NAME_LINK_EXTERN, &linfo, H5P_DEFAULT) < 0) TEST_ERROR
+                if(linfo.type != H5L_TYPE_HARD)
+                    FAIL_PUTS_ERROR("External link was not expanded to a hard link")
+
+                /* Compare datasets */
+                if((fid_ext = H5Fopen(ext_filename, H5F_ACC_RDONLY, fapl)) < 0) TEST_ERROR
+                if((did = H5Dopen2(fid_ext, NAME_DATASET_SIMPLE, H5P_DEFAULT)) < 0) TEST_ERROR
+                if((did2 = H5Dopen2(fid_dst, NAME_LINK_EXTERN, H5P_DEFAULT)) < 0) TEST_ERROR
+                if(compare_datasets(did, did2, H5P_DEFAULT, NULL) != TRUE) TEST_ERROR
+
+                /* Delete expanded dataset, add external link */
+                if(H5Ldelete(fid_dst, NAME_LINK_EXTERN, H5P_DEFAULT) < 0) TEST_ERROR
+                if(H5Lcreate_external(ext_filename, NAME_DATASET_SIMPLE, fid_dst, NAME_LINK_EXTERN, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+
+                /* Close datasets and external file */
+                if(H5Dclose(did) < 0) TEST_ERROR
+                if(H5Dclose(did2) < 0) TEST_ERROR
+                if(H5Fclose(fid_ext) < 0) TEST_ERROR
+            } /* end if */
+
+            /* Check if the groups are equal */
+            if(compare_groups(gid, gid2, H5P_DEFAULT, -1, 0) != TRUE) TEST_ERROR
+
+            /* close the destination group */
+            if(H5Gclose(gid2) < 0) TEST_ERROR
+
+            /* close the source group */
+            if(H5Gclose(gid) < 0) TEST_ERROR
+
+            /* Now try to copy the group containing the dangling link.  They
+             * should always be copied as the same type of link, never expanded
+             * to hard links. */
+            if(H5Ocopy(fid_src, NAME_GROUP_LINK2, fid_dst, NAME_GROUP_LINK2, plid, H5P_DEFAULT) < 0) TEST_ERROR
+
+            /* Open the original and copied groups */
+            if((gid = H5Gopen2(fid_src, NAME_GROUP_LINK2, H5P_DEFAULT)) < 0) TEST_ERROR
+            if((gid2 = H5Gopen2(fid_dst, NAME_GROUP_LINK2, H5P_DEFAULT)) < 0) TEST_ERROR
+
+            /* Compare the groups */
+            if(compare_groups(gid, gid2, H5P_DEFAULT, -1, 0) != TRUE) TEST_ERROR
+
+            /* Close groups */
+            if(H5Gclose(gid2) < 0) TEST_ERROR
+            if(H5Gclose(gid) < 0) TEST_ERROR
+
+            /* close the SRC file */
+            if(H5Fclose(fid_src) < 0) TEST_ERROR
+
+            /* close the DST file */
+            if(H5Fclose(fid_dst) < 0) TEST_ERROR
+        } /* end for */
+    } /* end for */
+
+    /* Close the object copy plist */
+    if(H5Pclose(plid) < 0) TEST_ERROR
 
     PASSED();
     return 0;
@@ -5341,11 +5469,14 @@ test_copy_group_links(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
 error:
     H5E_BEGIN_TRY {
     	H5Sclose(sid);
+    	H5Dclose(did2);
     	H5Dclose(did);
     	H5Gclose(gid2);
     	H5Gclose(gid);
+    	H5Fclose(fid_ext);
     	H5Fclose(fid_dst);
     	H5Fclose(fid_src);
+    	H5Pclose(plid);
     } H5E_END_TRY;
     return 1;
 } /* end test_copy_group_links */
@@ -5514,7 +5645,7 @@ test_copy_ext_link(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
     /* Initialize the filenames */
     h5_fixname(FILENAME[0], fapl, src_filename, sizeof src_filename);
     h5_fixname(FILENAME[1], fapl, dst_filename, sizeof dst_filename);
-    h5_fixname(FILENAME[2], fapl, ext_filename, sizeof dst_filename);
+    h5_fixname(FILENAME[2], fapl, ext_filename, sizeof ext_filename);
 
     /* Reset file address checking info */
     addr_reset();
@@ -7247,9 +7378,11 @@ static int
 test_copy_dataset_contig_cmpd_vl(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
 {
     hid_t fid_src = -1, fid_dst = -1;           /* File IDs */
-    hid_t tid = -1, tid2;                       /* Datatype IDs */
+    hid_t tid = -1;                             /* Datatype ID */
+    hid_t tid2 = -1;                            /* Datatype ID */
     hid_t sid = -1;                             /* Dataspace ID */
-    hid_t did = -1, did2 = -1;                  /* Dataset IDs */
+    hid_t did = -1;                             /* Dataset ID */
+    hid_t did2 = -1;                            /* Dataset ID */
     unsigned int i, j;                          /* Local index variables */
     hsize_t dim1d[1];                           /* Dataset dimensions */
     cmpd_vl_t buf[DIM_SIZE_1];                  /* Buffer for writing data */
@@ -7658,6 +7791,168 @@ error:
 
 
 /*-------------------------------------------------------------------------
+ * Function:    test_copy_null_ref
+ *
+ * Purpose:     Creates 2 datasets with references, one with object and
+ *              the other with region references.  Copies these datasets
+ *              to a new file without expanding references, causing them
+ *              to become NULL.  Next, copies these references to a third
+ *              file with expanding references, to verify that NULL
+ *              references are handled correctly.
+ *
+ * Return:      Success:        0
+ *              Failure:        number of errors
+ *
+ * Programmer:  Neil Fortner
+ *              Wednesday, March 31, 2005
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_copy_null_ref(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl)
+{
+    hid_t fid1 = -1, fid2 = -1;                 /* File IDs */
+    hid_t sid = -1;                             /* Dataspace ID */
+    hid_t pid = -1;                             /* Object copy property list ID */
+    hid_t did1 = -1, did2 = -1;                 /* Dataset IDs */
+    hsize_t dim1d[1] = {2};                     /* Dataset dimensions */
+    hobj_ref_t obj_buf[2];                      /* Buffer for object refs */
+    hdset_reg_ref_t reg_buf[2];                 /* Buffer for region refs */
+    char zeros[MAX(sizeof(obj_buf),sizeof(reg_buf))]; /* Array of zeros, for memcmp */
+    char src_filename[NAME_BUF_SIZE];
+    char mid_filename[NAME_BUF_SIZE];
+    char dst_filename[NAME_BUF_SIZE];
+
+    TESTING("H5Ocopy(): NULL references");
+
+    /* Initialize "zeros" array */
+    HDmemset(zeros, 0, sizeof(zeros));
+
+    /* Initialize the filenames */
+    h5_fixname(FILENAME[0], fapl, src_filename, sizeof src_filename);
+    h5_fixname(FILENAME[1], fapl, mid_filename, sizeof mid_filename);
+    h5_fixname(FILENAME[2], fapl, dst_filename, sizeof dst_filename);
+
+    /* Reset file address checking info */
+    addr_reset();
+
+    /* Create source file */
+    if((fid1 = H5Fcreate(src_filename, H5F_ACC_TRUNC, fcpl_src, fapl)) < 0)
+        TEST_ERROR
+
+    /* Create dataspace */
+    if((sid = H5Screate_simple(1, dim1d, NULL)) < 0) TEST_ERROR
+
+    /* Create object reference dataset at SRC file */
+    if((did1 = H5Dcreate2(fid1, "obj_ref_dset", H5T_STD_REF_OBJ, sid,
+            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Create region reference dataset at SRC file */
+    if((did2 = H5Dcreate2(fid1, "reg_ref_dset", H5T_STD_REF_DSETREG,
+            sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Create references */
+    if(H5Rcreate(&obj_buf[0], did1, ".", H5R_OBJECT, -1) < 0) TEST_ERROR
+    if(H5Rcreate(&obj_buf[1], did2, ".", H5R_OBJECT, -1) < 0) TEST_ERROR
+    if(H5Rcreate(&reg_buf[0], did1, ".", H5R_DATASET_REGION, sid) < 0)
+        TEST_ERROR
+    if(H5Rcreate(&reg_buf[1], did2, ".", H5R_DATASET_REGION, sid) < 0)
+        TEST_ERROR
+
+    /* Write data into file */
+    if(H5Dwrite(did1, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, obj_buf)
+            < 0) TEST_ERROR
+    if(H5Dwrite(did2, H5T_STD_REF_DSETREG, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+            reg_buf) < 0) TEST_ERROR
+
+    /* Close datasets */
+    if(H5Dclose(did1) < 0) TEST_ERROR
+    if(H5Dclose(did2) < 0) TEST_ERROR
+
+    /* Create middle file */
+    if((fid2 = H5Fcreate(mid_filename, H5F_ACC_TRUNC, fcpl_src, fapl)) < 0)
+        TEST_ERROR
+
+    /* Copy the source file to the middle file.  Note the expand references
+     * flag is not set. */
+    if(H5Ocopy(fid1, "/", fid2, "/A", H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+
+    /* Close source file */
+    if(H5Fclose(fid1) < 0) TEST_ERROR
+
+    /* Open copied datasets */
+    if((did1 = H5Dopen2(fid2, "/A/obj_ref_dset", H5P_DEFAULT)) < 0) TEST_ERROR
+    if((did2 = H5Dopen2(fid2, "/A/reg_ref_dset", H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Read copied datasets */
+    if(H5Dread(did1, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, obj_buf)
+            < 0) TEST_ERROR
+    if(H5Dread(did2, H5T_STD_REF_DSETREG, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+            reg_buf) < 0) TEST_ERROR
+
+    /* Verify that the references contain only "0" bytes */
+    if(HDmemcmp(obj_buf, zeros, sizeof(obj_buf))) TEST_ERROR
+    if(HDmemcmp(reg_buf, zeros, sizeof(reg_buf))) TEST_ERROR
+
+    /* Close datasets */
+    if(H5Dclose(did1) < 0) TEST_ERROR
+    if(H5Dclose(did2) < 0) TEST_ERROR
+
+    /* Create destination file */
+    if((fid1 = H5Fcreate(dst_filename, H5F_ACC_TRUNC, fcpl_dst, fapl)) < 0)
+        TEST_ERROR
+
+    /* Create object copy property list */
+    if((pid = H5Pcreate(H5P_OBJECT_COPY)) < 0) TEST_ERROR
+
+    /* Set the "expand references" flag */
+    if(H5Pset_copy_object(pid, H5O_COPY_EXPAND_REFERENCE_FLAG) < 0) TEST_ERROR
+
+    /* Copy the middle file to the destination file.  Note the expand references
+     * flag *is* set, even though the references are now NULL. */
+    if(H5Ocopy(fid2, "/", fid1, "/AA", pid, H5P_DEFAULT) < 0) TEST_ERROR
+
+    /* Close source file */
+    if(H5Fclose(fid2) < 0) TEST_ERROR
+
+    /* Open copied datasets */
+    if((did1 = H5Dopen2(fid1, "/AA/A/obj_ref_dset", H5P_DEFAULT)) < 0) TEST_ERROR
+    if((did2 = H5Dopen2(fid1, "/AA/A/reg_ref_dset", H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Read copied datasets */
+    if(H5Dread(did1, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, obj_buf)
+            < 0) TEST_ERROR
+    if(H5Dread(did2, H5T_STD_REF_DSETREG, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+            reg_buf) < 0) TEST_ERROR
+
+    /* Verify that the references contain only "0" bytes */
+    if(HDmemcmp(obj_buf, zeros, sizeof(obj_buf))) TEST_ERROR
+    if(HDmemcmp(reg_buf, zeros, sizeof(reg_buf))) TEST_ERROR
+
+    /* Close */
+    if(H5Pclose(pid) < 0) TEST_ERROR
+    if(H5Dclose(did1) < 0) TEST_ERROR
+    if(H5Dclose(did2) < 0) TEST_ERROR
+    if(H5Fclose(fid1) < 0) TEST_ERROR
+    if(H5Sclose(sid) < 0) TEST_ERROR
+
+    PASSED();
+    return 0;
+
+error:
+    H5E_BEGIN_TRY {
+        H5Pclose(pid);
+        H5Dclose(did1);
+        H5Dclose(did2);
+        H5Fclose(fid1);
+        H5Fclose(fid2);
+        H5Sclose(sid);
+    } H5E_END_TRY;
+    return 1;
+} /* end test_copy_null_ref */
+
+
+/*-------------------------------------------------------------------------
  * Function:    test_copy_option
  *
  * Purpose:     Create a group in SRC file and copy it to DST file
@@ -7675,7 +7970,7 @@ error:
 static int
 test_copy_option(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl, unsigned flag, hbool_t crt_intermediate_grp, const char* test_desciption)
 {
-    hid_t fid_src = -1, fid_dst = -1;           /* File IDs */
+    hid_t fid_src = -1, fid_dst = -1, fid_ext = -1; /* File IDs */
     hid_t sid = -1;                             /* Dataspace ID */
     hid_t did = -1;                             /* Dataset ID */
     hid_t gid=-1, gid2=-1, gid_ref=-1;          /* Group IDs */
@@ -7766,6 +8061,45 @@ test_copy_option(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl, unsigned flag, hboo
         if(H5Gclose(gid) < 0) FAIL_STACK_ERROR
     } /* end if */
 
+    if((flag & H5O_COPY_EXPAND_EXT_LINK_FLAG) > 0) {
+        char    ext_filename[NAME_BUF_SIZE];
+
+        h5_fixname(FILENAME[2], fapl, ext_filename, sizeof ext_filename);
+
+        /* Create the external file and dataset */
+        if((fid_ext = H5Fcreate(ext_filename, H5F_ACC_TRUNC, fcpl_src, fapl)) < 0) TEST_ERROR
+        if((sid = H5Screate_simple(2, dim2d, NULL)) < 0) TEST_ERROR
+        if((did = H5Dcreate2(fid_ext, NAME_DATASET_SIMPLE, H5T_NATIVE_INT, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+        if(H5Dwrite(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf) < 0) TEST_ERROR
+        if(H5Dclose(did) < 0) TEST_ERROR
+        if(H5Fclose(fid_ext) < 0) TEST_ERROR
+
+        /* Create group to copy */
+        if(!(flag & H5O_COPY_EXPAND_SOFT_LINK_FLAG)) {
+            if((gid = H5Gcreate2(fid_src, NAME_GROUP_LINK, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+        } /* end if */
+        else
+            if((gid = H5Gopen2(fid_src, NAME_GROUP_LINK, H5P_DEFAULT)) < 0) TEST_ERROR
+        if(H5Lcreate_external(ext_filename, NAME_DATASET_SIMPLE, fid_src, NAME_LINK_EXTERN, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+        if(H5Lcreate_external("no_file", "no_object", fid_src, NAME_LINK_EXTERN_DANGLE, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+        if(H5Gclose(gid) < 0) TEST_ERROR
+
+        /* Create group to compare with */
+        if(!(flag & H5O_COPY_EXPAND_SOFT_LINK_FLAG)) {
+            if((gid = H5Gcreate2(fid_src, NAME_GROUP_LINK2, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+        } /* end if */
+        else
+            if((gid = H5Gopen2(fid_src, NAME_GROUP_LINK2, H5P_DEFAULT)) < 0) TEST_ERROR
+        if((did = H5Dcreate2(fid_src, NAME_LINK_EXTERN2, H5T_NATIVE_INT, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+        if(H5Dwrite(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf) < 0) TEST_ERROR
+        if(H5Lcreate_external("no_file", "no_object", fid_src, NAME_LINK_EXTERN_DANGLE2, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+        if(H5Dclose(did) < 0) TEST_ERROR
+        if(H5Gclose(gid) < 0) TEST_ERROR
+
+        /* Close dataspace */
+        if(H5Sclose(sid) < 0) TEST_ERROR
+    } /* end if */
+
     if((flag & H5O_COPY_EXPAND_REFERENCE_FLAG) > 0) {
         if((gid_ref = H5Gcreate2(fid_src, NAME_GROUP_REF, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
 
@@ -7826,12 +8160,14 @@ test_copy_option(hid_t fcpl_src, hid_t fcpl_dst, hid_t fapl, unsigned flag, hboo
         /* open the destination group */
         if((gid2 = H5Gopen2(fid_dst, "/new_g0/new_g00", H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
 
-    } else if((flag & H5O_COPY_EXPAND_SOFT_LINK_FLAG) > 0) {
+    } else if(((flag & H5O_COPY_EXPAND_SOFT_LINK_FLAG) > 0)
+            || ((flag & H5O_COPY_EXPAND_EXT_LINK_FLAG) > 0)) {
         if(H5Ocopy(fid_src, NAME_GROUP_LINK, fid_dst, NAME_GROUP_LINK, pid, H5P_DEFAULT) < 0) TEST_ERROR
 
-        /* Unlink dataset to copy from original location */
-        /* (So group comparison works properly) */
-        if(H5Ldelete(fid_src, NAME_DATASET_SUB_SUB, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+        if((flag & H5O_COPY_EXPAND_SOFT_LINK_FLAG) > 0)
+            /* Unlink dataset to copy from original location */
+            /* (So group comparison works properly) */
+            if(H5Ldelete(fid_src, NAME_DATASET_SUB_SUB, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
 
         /* open the group for copy */
         if((gid = H5Gopen2(fid_src, NAME_GROUP_LINK2, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
@@ -7900,6 +8236,7 @@ error:
     	H5Gclose(gid);
     	H5Fclose(fid_dst);
     	H5Fclose(fid_src);
+    	H5Fclose(fid_ext);
     } H5E_END_TRY;
     return 1;
 } /* end test_copy_option */
@@ -8039,6 +8376,11 @@ main(void)
                    "H5Ocopy(): with missing groups");
         nerrors += test_copy_option(fcpl_src, fcpl_dst, my_fapl, H5O_COPY_EXPAND_SOFT_LINK_FLAG,
                    FALSE, "H5Ocopy(): expand soft link");
+        nerrors += test_copy_option(fcpl_src, fcpl_dst, my_fapl, H5O_COPY_EXPAND_EXT_LINK_FLAG,
+                    FALSE, "H5Ocopy: expand external link");
+        nerrors += test_copy_option(fcpl_src, fcpl_dst, my_fapl,
+                    H5O_COPY_EXPAND_SOFT_LINK_FLAG | H5O_COPY_EXPAND_EXT_LINK_FLAG,
+                    FALSE, "H5Ocopy: expand soft and external links");
         nerrors += test_copy_option(fcpl_src, fcpl_dst, my_fapl, H5O_COPY_SHALLOW_HIERARCHY_FLAG,
                    FALSE, "H5Ocopy(): shallow group copy");
         nerrors += test_copy_option(fcpl_src, fcpl_dst, my_fapl, H5O_COPY_EXPAND_REFERENCE_FLAG,
@@ -8079,10 +8421,10 @@ main(void)
 
             nerrors += test_copy_same_file_named_datatype(fcpl_src, my_fapl);
             nerrors += test_copy_old_layout(fcpl_dst, my_fapl);
-        }
+            nerrors += test_copy_null_ref(fcpl_src, fcpl_dst, my_fapl);
+    }
 
 /* TODO: not implemented
-        nerrors += test_copy_option(my_fapl, H5O_COPY_EXPAND_EXT_LINK_FLAG, FALSE, "H5Ocopy: expand external link");
         nerrors += test_copy_mount(my_fapl);
 */
     } /* end for */

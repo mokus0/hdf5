@@ -205,7 +205,7 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh, unsigned UNUSED mesg_fl
     HDmemcpy(&(attr->shared->ds->extent), extent, sizeof(H5S_extent_t));
 
     /* Release temporary extent information */
-    (void)H5FL_FREE(H5S_extent_t, extent);
+    extent = H5FL_FREE(H5S_extent_t, extent);
 
     /* Default to entire dataspace being selected */
     if(H5S_select_all(attr->shared->ds, FALSE) < 0)
@@ -234,6 +234,20 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh, unsigned UNUSED mesg_fl
     ret_value = attr;
 
 done:
+    if(NULL == ret_value)
+        if(attr) {
+            if(attr->shared) {
+                /* Free any dynamicly allocated items */
+                if(H5A_free(attr) < 0)
+                    HDONE_ERROR(H5E_ATTR, H5E_CANTRELEASE, NULL, "can't release attribute info")
+
+                /* Destroy shared attribute struct */
+                attr->shared = H5FL_FREE(H5A_shared_t, attr->shared);
+            } /* end if */
+
+            attr = H5FL_FREE(H5A_t, attr);
+        } /* end if */
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_attr_decode() */
 
@@ -647,13 +661,13 @@ H5O_attr_copy_file(H5F_t *file_src, const H5O_msg_class_t UNUSED *mesg_type,
     HDassert(cpy_info);
     HDassert(!cpy_info->copy_without_attr);
 
-    /* Mark datatype as being on disk now.  This step used to be done in a lower level 
-     * by H5O_dtype_decode.  But it has been moved up.  Not an ideal place, but no better 
+    /* Mark datatype as being on disk now.  This step used to be done in a lower level
+     * by H5O_dtype_decode.  But it has been moved up.  Not an ideal place, but no better
      * place than here. */
     if(H5T_set_loc(((H5A_t *)native_src)->shared->dt, file_src, H5T_LOC_DISK) < 0)
         HGOTO_ERROR(H5E_ATTR, H5E_CANTINIT, NULL, "invalid datatype location")
 
-    if ( NULL == (ret_value=H5A_attr_copy_file((H5A_t *)native_src, file_dst, recompute_size, cpy_info,  dxpl_id)))
+    if(NULL == (ret_value = H5A_attr_copy_file((H5A_t *)native_src, file_dst, recompute_size, cpy_info,  dxpl_id)))
         HGOTO_ERROR(H5E_ATTR, H5E_CANTCOPY, NULL, "can't copy attribute")
 
 done:
@@ -796,11 +810,32 @@ H5O_attr_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream, int in
         case H5T_CSET_ASCII:
             s = "ASCII";
             break;
+
         case H5T_CSET_UTF8:
             s = "UTF-8";
             break;
-        default:
+
+        case H5T_CSET_RESERVED_2:
+        case H5T_CSET_RESERVED_3:
+        case H5T_CSET_RESERVED_4:
+        case H5T_CSET_RESERVED_5:
+        case H5T_CSET_RESERVED_6:
+        case H5T_CSET_RESERVED_7:
+        case H5T_CSET_RESERVED_8:
+        case H5T_CSET_RESERVED_9:
+        case H5T_CSET_RESERVED_10:
+        case H5T_CSET_RESERVED_11:
+        case H5T_CSET_RESERVED_12:
+        case H5T_CSET_RESERVED_13:
+        case H5T_CSET_RESERVED_14:
+        case H5T_CSET_RESERVED_15:
             sprintf(buf, "H5T_CSET_RESERVED_%d", (int)(mesg->shared->encoding));
+            s = buf;
+            break;
+
+        case H5T_CSET_ERROR:
+        default:
+            sprintf(buf, "Unknown character set: %d", (int)(mesg->shared->encoding));
             s = buf;
             break;
     } /* end switch */

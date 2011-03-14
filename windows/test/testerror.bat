@@ -150,7 +150,9 @@ rem
             call :testing PASSED %test_err%
     ) else (
         fc /w %expect2_parsed% %actual% > nul
-        if errorlevel 1 (
+        if errorlevel 0 (
+            call :testing PASSED %test_err%
+        ) else (
             call :testing *FAILED* %test_err%
             echo.    Expected result differs from actual result
             set /a nerrors=%nerrors%+1

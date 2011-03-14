@@ -68,13 +68,15 @@ int do_copy_refobjs(hid_t fidin,
     hsize_t   dims[H5S_MAX_RANK];     /* dimensions of dataset */
     unsigned int i, j;
     int       k;
+    named_dt_t *named_dt_head=NULL;   /* Pointer to the stack of named datatypes
+                                         copied */
 
     /*-------------------------------------------------------------------------
     * browse
     *-------------------------------------------------------------------------
     */
     for(i = 0; i < travt->nobjs; i++) {
-        switch(travt->objs[i].type) 
+        switch(travt->objs[i].type)
         {
             /*-------------------------------------------------------------------------
             * H5TRAV_TYPE_GROUP
@@ -194,8 +196,8 @@ int do_copy_refobjs(hid_t fidin,
                                         goto error;
                                     if(options->verbose)
                                     {
-                                        
-                                        
+
+
                                         printf(FORMAT_OBJ,"dset",travt->objs[i].name );
                                         printf("object <%s> object reference created to <%s>\n",
                                             travt->objs[i].name,
@@ -220,13 +222,20 @@ int do_copy_refobjs(hid_t fidin,
                             HDfree(buf);
                         if(refbuf)
                             HDfree(refbuf);
+
+                       /*------------------------------------------------------
+                        * copy attrs
+                        *----------------------------------------------------*/
+                        if(copy_attr(dset_in, dset_out, &named_dt_head, travt, options) < 0)
+                            goto error;
                     } /*H5T_STD_REF_OBJ*/
 
                     /*-------------------------------------------------------------------------
                     * dataset region references
                     *-------------------------------------------------------------------------
                     */
-                    else if(H5Tequal(mtype_id, H5T_STD_REF_DSETREG)) {
+                    else if(H5Tequal(mtype_id, H5T_STD_REF_DSETREG)) 
+                    {
                         hid_t            refobj_id;
                         hdset_reg_ref_t  *refbuf = NULL; /* input buffer for region references */
                         hdset_reg_ref_t  *buf = NULL;    /* output buffer */
@@ -278,9 +287,9 @@ int do_copy_refobjs(hid_t fidin,
                                         goto error;
                                     if(options->verbose)
                                     {
-                                        
-                                        
-                                        
+
+
+
                                         printf(FORMAT_OBJ,"dset",travt->objs[i].name );
                                         printf("object <%s> region reference created to <%s>\n",
                                             travt->objs[i].name,
@@ -305,6 +314,12 @@ int do_copy_refobjs(hid_t fidin,
                             HDfree(buf);
                         if(refbuf)
                             HDfree(refbuf);
+
+                       /*-----------------------------------------------------
+                        * copy attrs
+                        *----------------------------------------------------*/
+                        if(copy_attr(dset_in, dset_out, &named_dt_head, travt, options) < 0)
+                            goto error;
                     } /* H5T_STD_REF_DSETREG */
                     /*-------------------------------------------------------------------------
                     * not references, open previously created object in 1st traversal
@@ -380,6 +395,12 @@ int do_copy_refobjs(hid_t fidin,
         } /* end switch */
     } /* end for */
 
+    /* Finalize (link) the stack of named datatypes (if any) 
+     * This function is paired with copy_named_datatype() which is called
+     * in copy_attr(), so need to free.
+     */
+    named_datatype_free(&named_dt_head, 0);
+
     return 0;
 
 error:
@@ -393,6 +414,7 @@ error:
         H5Tclose(ftype_id);
         H5Tclose(mtype_id);
         H5Tclose(type_in);
+        named_datatype_free(&named_dt_head, 0);
     } H5E_END_TRY;
 
     return -1;
@@ -441,7 +463,7 @@ static int copy_refs_attr(hid_t loc_in,
     if(H5Oget_info(loc_in, &oinfo) < 0)
         goto error;
 
-    for(u = 0; u < (unsigned)oinfo.num_attrs; u++) 
+    for(u = 0; u < (unsigned)oinfo.num_attrs; u++)
     {
         /*-------------------------------------------------------------------------
         * open
@@ -488,7 +510,7 @@ static int copy_refs_attr(hid_t loc_in,
         * we cannot just copy the buffers, but instead we recreate the reference
         *-------------------------------------------------------------------------
         */
-        if(H5Tequal(mtype_id, H5T_STD_REF_OBJ)) 
+        if(H5Tequal(mtype_id, H5T_STD_REF_OBJ))
         {
             hid_t       refobj_id;
             hobj_ref_t  *refbuf = NULL;
@@ -501,10 +523,10 @@ static int copy_refs_attr(hid_t loc_in,
             *-------------------------------------------------------------------------
             */
 
-            if (nelmts) 
+            if (nelmts)
             {
                 buf = (hobj_ref_t *)HDmalloc((unsigned)(nelmts * msize));
-                if(buf == NULL) 
+                if(buf == NULL)
                 {
                     printf("cannot read into memory\n");
                     goto error;
@@ -513,15 +535,15 @@ static int copy_refs_attr(hid_t loc_in,
                     goto error;
 
                 refbuf = (hobj_ref_t *)HDcalloc((unsigned)nelmts, msize);
-                if(refbuf == NULL) 
+                if(refbuf == NULL)
                 {
                     printf( "cannot allocate memory\n" );
                     goto error;
                 } /* end if */
 
-                for(k = 0; k < nelmts; k++) 
+                for(k = 0; k < nelmts; k++)
                 {
-                    H5E_BEGIN_TRY 
+                    H5E_BEGIN_TRY
                     {
                         if((refobj_id = H5Rdereference(attr_id, H5R_OBJECT, &buf[k])) < 0)
                             goto error;
@@ -530,7 +552,7 @@ static int copy_refs_attr(hid_t loc_in,
                     /* get the name. a valid name could only occur in the
                      * second traversal of the file
                      */
-                    if((refname = MapIdToName(refobj_id, travt)) != NULL) 
+                    if((refname = MapIdToName(refobj_id, travt)) != NULL)
                     {
                         /* create the reference */
                         if(H5Rcreate(&refbuf[k], fidout, refname, H5R_OBJECT, -1) < 0)
@@ -565,7 +587,7 @@ static int copy_refs_attr(hid_t loc_in,
         * dataset region references
         *-------------------------------------------------------------------------
         */
-        else if(H5Tequal(mtype_id, H5T_STD_REF_DSETREG)) 
+        else if(H5Tequal(mtype_id, H5T_STD_REF_DSETREG))
         {
             hid_t            refobj_id;
             hdset_reg_ref_t  *refbuf = NULL; /* input buffer for region references */
@@ -577,10 +599,10 @@ static int copy_refs_attr(hid_t loc_in,
             * read input to memory
             *-------------------------------------------------------------------------
             */
-            if(nelmts) 
+            if(nelmts)
             {
                 buf = (hdset_reg_ref_t *)HDmalloc((unsigned)(nelmts * msize));
-                if(buf == NULL) 
+                if(buf == NULL)
                 {
                     printf( "cannot read into memory\n" );
                     goto error;
@@ -593,15 +615,15 @@ static int copy_refs_attr(hid_t loc_in,
                 *-------------------------------------------------------------------------
                 */
                 refbuf = (hdset_reg_ref_t *)HDcalloc(sizeof(hdset_reg_ref_t), (size_t)nelmts); /*init to zero */
-                if(refbuf == NULL) 
+                if(refbuf == NULL)
                 {
                     printf( "cannot allocate memory\n" );
                     goto error;
                 } /* end if */
 
-                for(k = 0; k < nelmts; k++) 
+                for(k = 0; k < nelmts; k++)
                 {
-                    H5E_BEGIN_TRY 
+                    H5E_BEGIN_TRY
                     {
                         if((refobj_id = H5Rdereference(attr_id, H5R_DATASET_REGION, &buf[k])) < 0)
                             continue;
@@ -610,7 +632,7 @@ static int copy_refs_attr(hid_t loc_in,
                     /* get the name. a valid name could only occur in the
                      * second traversal of the file
                      */
-                    if((refname = MapIdToName(refobj_id, travt)) != NULL) 
+                    if((refname = MapIdToName(refobj_id, travt)) != NULL)
                     {
                         hid_t region_id;    /* region id of the referenced dataset */
 
@@ -690,23 +712,31 @@ static const char* MapIdToName(hid_t refobj_id,
                                trav_table_t *travt)
 {
     unsigned int i;
+    const char* ret = NULL;
+    H5O_info_t   ref_oinfo;     /* Stat for the refobj id */
 
     /* linear search */
-    for(i = 0; i < travt->nobjs; i++) 
+    for(i = 0; i < travt->nobjs; i++)
     {
-        if(travt->objs[i].type == H5O_TYPE_DATASET) 
+        if(travt->objs[i].type == H5O_TYPE_DATASET || 
+           travt->objs[i].type == H5O_TYPE_GROUP ||
+           travt->objs[i].type == H5O_TYPE_NAMED_DATATYPE)
         {
             H5O_info_t   ref_oinfo;     /* Stat for the refobj id */
 
             /* obtain information to identify the referenced object uniquely */
             if(H5Oget_info(refobj_id, &ref_oinfo) < 0)
-                return NULL;
+                goto out;
 
             if(ref_oinfo.addr == travt->objs[i].objno)
-                return(travt->objs[i].name);
+            {
+                ret = travt->objs[i].name;
+                goto out;
+            }
         }  /* end if */
     } /* i */
 
-    return NULL;
+out:
+    return ret;
 }
 

@@ -59,6 +59,32 @@ static const char *FileHeader = "\n\
 #include "H5Rpublic.h"
 
 #define MAXDETECT 64
+
+/* The ALIGNMENT test code may generate the SIGBUS or SIGSEGV signals. We use
+ * setjmp/longjmp in the signal handlers for recovery. But setjmp/longjmp do
+ * not necessary restore the signal blocking status while sigsetjmp/siglongjmp
+ * do. If sigsetjmp/siglongjmp are not supported, need to use sigprocmask to
+ * unblock the signal before doing longjmp.
+ */
+/* Define H5SETJMP/H5LONGJMP depending on if sigsetjmp/siglongjmp are */
+/* supported. */
+#if defined(H5_HAVE_SIGSETJMP) && defined(H5_HAVE_SIGLONGJMP)
+/* Always save blocked signals to be restore by siglongjmp. */
+#define H5JMP_BUF	sigjmp_buf
+#define H5SETJMP(buf)	HDsigsetjmp(buf, 1)
+#define H5LONGJMP(buf, val)	HDsiglongjmp(buf, val)
+#define H5HAVE_SIGJMP		# sigsetjmp/siglongjmp are supported.
+#elif defined(H5_HAVE_LONGJMP)
+#define H5JMP_BUF	jmp_buf
+#define H5SETJMP(buf)	HDsetjmp(buf)
+#define H5LONGJMP(buf, val)	HDlongjmp(buf, val)
+#endif
+
+/* ALIGNMENT and signal-handling status codes */
+#define STA_NoALIGNMENT		0x0001  /* No ALIGNMENT Test */
+#define STA_NoHandlerVerify	0x0002  /* No signal handler Tests */
+
+
 /*
  * This structure holds information about a type that
  * was detected.
@@ -92,7 +118,7 @@ static volatile int	nd_g = 0, na_g = 0;
 
 static void print_results(int nd, detected_t *d, int na, malign_t *m);
 static void iprint(detected_t *);
-static int byte_cmp(int, void *, void *);
+static int byte_cmp(int, const void *, const void *);
 static int bit_cmp(int, int *, void *, void *);
 static void fix_order(int, int, int, int *, const char **);
 static int imp_bit(int, int *, void *, void *);
@@ -108,10 +134,17 @@ static void detect_C99_integers16(void);
 static void detect_C99_integers32(void);
 static void detect_C99_integers64(void);
 static void detect_alignments(void);
-static void insert_libhdf5_settings(FILE *flibinfo);
-static void make_libinfo(void);
 static size_t align_g[] = {1, 2, 4, 8, 16};
-static jmp_buf jbuf_g;
+static int align_status_g = 0;		/* ALIGNMENT Signal Status */
+static int sigbus_handler_called_g = 0;	/* how many times called */
+static int sigsegv_handler_called_g = 0;	/* how many times called */
+static int signal_handler_tested_g = 0;	/* how many times tested */
+#if defined(H5SETJMP) && defined(H5_HAVE_SIGNAL)
+static int verify_signal_handlers(int signum, void (*handler)(int));
+#endif
+#ifdef H5JMP_BUF
+static H5JMP_BUF jbuf_g;
+#endif
 
 
 /*-------------------------------------------------------------------------
@@ -246,50 +279,51 @@ precision (detected_t *d)
  *		absence of implicit mantissa bit, and exponent bias and
  *		initializes a detected_t structure with those properties.
  *
+ * Note:	'volatile' is used for the variables below to prevent the
+ *		compiler from optimizing them away.
+ *
  * Return:	void
  *
  * Programmer:	Robb Matzke
  *		matzke@llnl.gov
  *		Jun 12 1996
  *
- * Modifications:
- *
- *	Robb Matzke, 14 Aug 1996
- *	The byte order detection has been changed because on the Cray
- *	the last pass causes a rounding to occur that causes the least
- *	significant mantissa byte to change unexpectedly.
- *
- *	Robb Matzke, 5 Nov 1996
- *	Removed HFILE and CFILE arguments.
  *-------------------------------------------------------------------------
  */
 #define DETECT_F(TYPE,VAR,INFO) {					      \
-   TYPE _v1, _v2, _v3;							      \
-   int _i, _j, _first=(-1), _last=(-1);					      \
+   volatile TYPE _v1, _v2, _v3;						      \
+   unsigned char _buf1[sizeof(TYPE)], _buf3[sizeof(TYPE)];		      \
+   int _i, _j, _first = (-1), _last = (-1);				      \
    char *_mesg;								      \
 									      \
-   memset (&INFO, 0, sizeof(INFO));					      \
+   memset(&INFO, 0, sizeof(INFO));					      \
    INFO.varname = #VAR;							      \
    INFO.size = sizeof(TYPE);						      \
 									      \
    /* Completely initialize temporary variables, in case the bits used in */  \
    /* the type take less space than the number of bits used to store the type */  \
-   memset(&_v3,0,sizeof(TYPE));                                               \
-   memset(&_v2,0,sizeof(TYPE));                                               \
-   memset(&_v1,0,sizeof(TYPE));                                               \
+   memset(&_v3, 0, sizeof(TYPE));                                             \
+   memset(&_v2, 0, sizeof(TYPE));                                             \
+   memset(&_v1, 0, sizeof(TYPE));                                             \
 									      \
    /* Byte Order */							      \
-   for (_i=0,_v1=0.0,_v2=1.0; _i<(signed)sizeof(TYPE); _i++) {		      \
-      _v3 = _v1; _v1 += _v2; _v2 /= 256.0;				      \
-      if ((_j=byte_cmp(sizeof(TYPE), &_v3, &_v1))>=0) {			      \
-	 if (0==_i || INFO.perm[_i-1]!=_j) {				      \
+   for(_i = 0, _v1 = 0.0, _v2 = 1.0; _i < (int)sizeof(TYPE); _i++) {	      \
+      _v3 = _v1;							      \
+      _v1 += _v2;							      \
+      _v2 /= 256.0;							      \
+      memcpy(_buf1, (const void *)&_v1, sizeof(TYPE));			      \
+      memcpy(_buf3, (const void *)&_v3, sizeof(TYPE));			      \
+      _j = byte_cmp(sizeof(TYPE), &_buf3, &_buf1);			      \
+      if(_j >= 0) {							      \
+	 if(0 == _i || INFO.perm[_i - 1] != _j) {			      \
 	    INFO.perm[_i] = _j;						      \
 	    _last = _i;							      \
-	    if (_first<0) _first = _i;					      \
+	    if(_first < 0)						      \
+                _first = _i;						      \
 	 }								      \
       }									      \
    }									      \
-   fix_order (sizeof(TYPE), _first, _last, INFO.perm, (const char**)&_mesg);  \
+   fix_order(sizeof(TYPE), _first, _last, INFO.perm, (const char**)&_mesg);   \
                                                                               \
    if(!strcmp(_mesg, "VAX"))                                                  \
       INFO.is_vax = TRUE;                                                     \
@@ -360,20 +394,20 @@ precision (detected_t *d)
     COMP_ALIGN = (size_t)((char*)(&(s.x)) - (char*)(&s));                     \
 }
 
-#if defined(H5_HAVE_LONGJMP) && defined(H5_HAVE_SIGNAL)
+#if defined(H5SETJMP) && defined(H5_HAVE_SIGNAL)
 #define ALIGNMENT(TYPE,INFO) {						      \
     char		*volatile _buf = NULL;				      \
     volatile TYPE	_val = 1;						      \
     volatile TYPE	_val2;						      \
     volatile size_t	_ano = 0;					      \
-    void		(*_handler)(int) = signal(SIGBUS, sigbus_handler);    \
-    void		(*_handler2)(int) = signal(SIGSEGV, sigsegv_handler);	\
+    void		(*_handler)(int) = HDsignal(SIGBUS, sigbus_handler);  \
+    void		(*_handler2)(int) = HDsignal(SIGSEGV, sigsegv_handler);\
 									      \
     _buf = (char*)malloc(sizeof(TYPE) + align_g[NELMTS(align_g) - 1]);	      \
-    if(setjmp(jbuf_g)) _ano++;						      \
+    if(H5SETJMP(jbuf_g)) _ano++;					      \
     if(_ano < NELMTS(align_g)) {					      \
-	*((TYPE*)(_buf+align_g[_ano])) = _val; /*possible SIGBUS or SEGSEGV*/	\
-	_val2 = *((TYPE*)(_buf+align_g[_ano]));	/*possible SIGBUS or SEGSEGV*/	\
+	*((TYPE*)(_buf+align_g[_ano])) = _val; /*possible SIGBUS or SEGSEGV*/ \
+	_val2 = *((TYPE*)(_buf+align_g[_ano]));	/*possible SIGBUS or SEGSEGV*/\
 	/* Cray Check: This section helps detect alignment on Cray's */	      \
         /*              vector machines (like the SV1) which mask off */      \
 	/*              pointer values when pointing to non-word aligned */   \
@@ -387,7 +421,7 @@ precision (detected_t *d)
 	    memcpy(_buf+align_g[_ano]+(INFO.offset/8),((char *)&_val)+(INFO.offset/8),(size_t)(INFO.precision/8)); \
 	_val2 = *((TYPE*)(_buf+align_g[_ano]));				      \
 	if(_val!=_val2)							      \
-	    longjmp(jbuf_g, 1);			        		      \
+	    H5LONGJMP(jbuf_g, 1);		        		      \
 	/* End Cray Check */						      \
 	(INFO.align)=align_g[_ano];					      \
     } else {								      \
@@ -395,61 +429,18 @@ precision (detected_t *d)
 	fprintf(stderr, "unable to calculate alignment for %s\n", #TYPE);     \
     }									      \
     free(_buf);								      \
-    signal(SIGBUS, _handler); /*restore original handler*/		      \
-    signal(SIGSEGV, _handler2); /*restore original handler*/		      \
+    HDsignal(SIGBUS, _handler); /*restore original handler*/		      \
+    HDsignal(SIGSEGV, _handler2); /*restore original handler*/		      \
 }
 #else
-#define ALIGNMENT(TYPE,INFO) (INFO.align)=0
-#endif
-
-#if 0
-#if defined(H5_HAVE_FORK) && defined(H5_HAVE_WAITPID)
 #define ALIGNMENT(TYPE,INFO) {						      \
-    char	*_buf;							      \
-    TYPE	_val=0;							      \
-    size_t	_ano;							      \
-    pid_t	_child;							      \
-    int		_status;						      \
-									      \
-    srand((unsigned int)_val); /*suppress "set but unused" warning*/	      \
-    for (_ano=0; _ano<NELMTS(align_g); _ano++) {			      \
-	fflush(stdout);							      \
-	fflush(stderr);							      \
-	if (0==(_child=fork())) {					      \
-	    _buf = malloc(sizeof(TYPE)+align_g[NELMTS(align_g)-1]);	      \
-	    *((TYPE*)(_buf+align_g[_ano])) = _val;			      \
-	    _val = *((TYPE*)(_buf+align_g[_ano]));			      \
-	    free(_buf);							      \
-	    exit(0);							      \
-	} else if (_child<0) {						      \
-	    perror("fork");						      \
-	    exit(1);							      \
-	}								      \
-	if (waitpid(_child, &_status, 0)<0) {				      \
-	    perror("waitpid");						      \
-	    exit(1);							      \
-	}								      \
-	if (WIFEXITED(_status) && 0==WEXITSTATUS(_status)) {		      \
-	    INFO.align=align_g[_ano];					      \
-	    break;							      \
-	}								      \
-	if (WIFSIGNALED(_status) && SIGBUS==WTERMSIG(_status)) {	      \
-	    continue;							      \
-	}								      \
-	_ano=NELMTS(align_g);						      \
-	break;								      \
-    }									      \
-    if (_ano>=NELMTS(align_g)) {					      \
-	INFO.align=0;							      \
-	fprintf(stderr, "unable to calculate alignment for %s\n", #TYPE);     \
-    }									      \
+    align_status_g |= STA_NoALIGNMENT;					      \
+    (INFO.align)=0;							      \
 }
-#else
-#define ALIGNMENT(TYPE,INFO) (INFO.align)=0
-#endif
 #endif
 
 
+#if defined(H5LONGJMP) && defined(H5_HAVE_SIGNAL)
 /*-------------------------------------------------------------------------
  * Function:	sigsegv_handler
  *
@@ -458,7 +449,7 @@ precision (detected_t *d)
  *		it's not nearly as nice to work with, it does the job for
  *		this simple stuff.
  *
- * Return:	Returns via longjmp to jbuf_g.
+ * Return:	Returns via H5LONGJMP to jbuf_g.
  *
  * Programmer:	Robb Matzke
  *		Thursday, March 18, 1999
@@ -470,11 +461,24 @@ precision (detected_t *d)
 static void
 sigsegv_handler(int UNUSED signo)
 {
-    signal(SIGSEGV, sigsegv_handler);
-    longjmp(jbuf_g, 1);
+#if !defined(H5HAVE_SIGJMP) && defined(H5_HAVE_SIGPROCMASK)
+    /* Use sigprocmask to unblock the signal if sigsetjmp/siglongjmp are not */
+    /* supported. */
+    sigset_t set;
+
+    HDsigemptyset(&set);
+    HDsigaddset(&set, SIGSEGV);
+    HDsigprocmask(SIG_UNBLOCK, &set, NULL);
+#endif
+
+    sigsegv_handler_called_g++;
+    HDsignal(SIGSEGV, sigsegv_handler);
+    H5LONGJMP(jbuf_g, SIGSEGV);
 }
+#endif
 
 
+#if defined(H5LONGJMP) && defined(H5_HAVE_SIGNAL)
 /*-------------------------------------------------------------------------
  * Function:	sigbus_handler
  *
@@ -483,7 +487,7 @@ sigsegv_handler(int UNUSED signo)
  *		it's not nearly as nice to work with, it does the job for
  *		this simple stuff.
  *
- * Return:	Returns via longjmp to jbuf_g.
+ * Return:	Returns via H5LONGJMP to jbuf_g.
  *
  * Programmer:	Robb Matzke
  *		Thursday, March 18, 1999
@@ -495,105 +499,21 @@ sigsegv_handler(int UNUSED signo)
 static void
 sigbus_handler(int UNUSED signo)
 {
-    signal(SIGBUS, sigbus_handler);
-    longjmp(jbuf_g, 1);
-#ifdef H5_HAVE_SIGLONGJMP
-    siglongjmp(jbuf_g, 1);
-#endif /* H5_HAVE_SIGLONGJMP */
-}
+#if !defined(H5HAVE_SIGJMP) && defined(H5_HAVE_SIGPROCMASK)
+    /* Use sigprocmask to unblock the signal if sigsetjmp/siglongjmp are not */
+    /* supported. */
+    sigset_t set;
 
-
-/*-------------------------------------------------------------------------
- * Function:	insert_libhdf5_settings
- *
- * Purpose:	insert the contents of libhdf5.settings into a file
- *		represented by flibinfo.
- *		Make it an empty string if H5_HAVE_EMBEDDED_LIBINFO is not
- *		defined, i.e., not enabled.
- *
- * Return:	void
- *
- * Programmer:	Albert Cheng
- *		Apr 20, 2009
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-#define LIBSETTINGSFNAME "libhdf5.settings"
-static void
-insert_libhdf5_settings(FILE *flibinfo)
-{
-#ifdef H5_HAVE_EMBEDDED_LIBINFO
-    FILE *fsettings;	/* for files libhdf5.settings */
-    int inchar;
-    int	bol=0;	/* indicates the beginning of a new line */
-
-    if (NULL==(fsettings=HDfopen(LIBSETTINGSFNAME, "r"))){
-        perror(LIBSETTINGSFNAME);
-        exit(1);
-    }
-    /* print variable definition and the string */
-    fprintf(flibinfo, "char H5libhdf5_settings[]=\n");
-    bol++;
-    while (EOF != (inchar = getc(fsettings))){
-	if (bol){
-	    /* Start a new line */
-	    fprintf(flibinfo, "\t\"");
-	    bol = 0;
-	}
-	if (inchar == '\n'){
-	    /* end of a line */
-	    fprintf(flibinfo, "\\n\"\n");
-	    bol++;
-	}else{
-	    putc(inchar, flibinfo);
-	}
-    }
-    if (feof(fsettings)){
-	/* wrap up */
-	if (!bol){
-	    /* EOF found without a new line */
-	    fprintf(flibinfo, "\\n\"\n");
-	};
-	fprintf(flibinfo, ";\n\n");
-    }else{
-	fprintf(stderr, "Read errors encountered with %s\n", LIBSETTINGSFNAME);
-	exit(1);
-    }
-    if (0 != fclose(fsettings)){
-	perror(LIBSETTINGSFNAME);
-	exit(1);
-    }
-#else
-    /* print variable definition and an empty string */
-    fprintf(flibinfo, "char H5libhdf5_settings[]=\"\";\n");
+    HDsigemptyset(&set);
+    HDsigaddset(&set, SIGBUS);
+    HDsigprocmask(SIG_UNBLOCK, &set, NULL);
 #endif
-}
 
-
-/*-------------------------------------------------------------------------
- * Function:	make_libinfo
- *
- * Purpose:	Create the embedded library information definition.
- * 		This sets up for a potential extension that the declaration
- *		is printed to a file different from stdout.
- *
- * Return:	void
- *
- * Programmer:	Albert Cheng
- *		Sep 15, 2009
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static void
-make_libinfo(void)
-{
-    /* print variable definition and then the string as a macro. */
-    insert_libhdf5_settings(stdout);
+    sigbus_handler_called_g++;
+    HDsignal(SIGBUS, sigbus_handler);
+    H5LONGJMP(jbuf_g, SIGBUS);
 }
+#endif
 
 
 /*-------------------------------------------------------------------------
@@ -677,8 +597,6 @@ print_results(int nd, detected_t *d, int na, malign_t *misc_align)
 /*******************/\n\
 \n");
 
-    /* Generate embedded library information variable definition */
-    make_libinfo();
 
     /* The interface initialization function */
     printf("\n\
@@ -821,13 +739,63 @@ H5TN_init_interface(void)\n\
 done:\n\
     if(ret_value < 0) {\n\
         if(dt != NULL) {\n\
-            if(dt->shared != NULL)\n\
-                H5FL_FREE(H5T_shared_t, dt->shared);\n\
-            H5FL_FREE(H5T_t, dt);\n\
+            H5FL_FREE(H5T_shared_t, dt->shared);\n\
+            dt = H5FL_FREE(H5T_t, dt);\n\
         } /* end if */\n\
     } /* end if */\n\
 \n\
     FUNC_LEAVE_NOAPI(ret_value);\n} /* end H5TN_init_interface() */\n");
+
+    /* Print the ALIGNMENT and signal-handling status as comments */
+    printf("\n"
+	"/****************************************/\n"
+	"/* ALIGNMENT and signal-handling status */\n"
+	"/****************************************/\n");
+    if (align_status_g & STA_NoALIGNMENT)
+	printf("/* ALIGNAMENT test is not available */\n");
+    if (align_status_g & STA_NoHandlerVerify)
+	printf("/* Signal handlers verify test is not available */\n");
+    /* The following is available in H5pubconf.h. Printing them here for */
+    /* convenience. */
+#ifdef H5_HAVE_SIGNAL
+	printf("/* Signal() support: yes */\n");
+#else
+	printf("/* Signal() support: no */\n");
+#endif
+#ifdef H5_HAVE_SETJMP
+	printf("/* setjmp() support: yes */\n");
+#else
+	printf("/* setjmp() support: no */\n");
+#endif
+#ifdef H5_HAVE_LONGJMP
+	printf("/* longjmp() support: yes */\n");
+#else
+	printf("/* longjmp() support: no */\n");
+#endif
+#ifdef H5_HAVE_SIGSETJMP
+	printf("/* sigsetjmp() support: yes */\n");
+#else
+	printf("/* sigsetjmp() support: no */\n");
+#endif
+#ifdef H5_HAVE_SIGLONGJMP
+	printf("/* siglongjmp() support: yes */\n");
+#else
+	printf("/* siglongjmp() support: no */\n");
+#endif
+#ifdef H5_HAVE_SIGPROCMASK
+	printf("/* sigprocmask() support: yes */\n");
+#else
+	printf("/* sigprocmask() support: no */\n");
+#endif
+
+    /* Print the statics of signal handlers called for debugging */
+    printf("\n"
+	"/******************************/\n"
+	"/* signal handlers statistics */\n"
+	"/******************************/\n");
+    printf("/* signal_handlers tested: %d times */\n", signal_handler_tested_g);
+    printf("/* sigbus_handler called: %d times */\n", sigbus_handler_called_g);
+    printf("/* sigsegv_handler called: %d times */\n", sigsegv_handler_called_g);
 } /* end print_results() */
 
 
@@ -930,11 +898,11 @@ iprint(detected_t *d)
  *-------------------------------------------------------------------------
  */
 static int
-byte_cmp(int n, void *_a, void *_b)
+byte_cmp(int n, const void *_a, const void *_b)
 {
-    register int	i;
-    unsigned char	*a = (unsigned char *) _a;
-    unsigned char	*b = (unsigned char *) _b;
+    int	i;
+    const unsigned char	*a = (const unsigned char *) _a;
+    const unsigned char	*b = (const unsigned char *) _b;
 
     for (i = 0; i < n; i++) if (a[i] != b[i]) return i;
     return -1;
@@ -1155,8 +1123,8 @@ find_bias(int epos, int esize, int *perm, void *_a)
 
 /*-------------------------------------------------------------------------
  * Function:	print_header
-     *
-     * Purpose:	Prints the C file header for the generated file.
+ *
+ * Purpose:	Prints the C file header for the generated file.
  *
  * Return:	void
  *
@@ -1592,6 +1560,55 @@ detect_alignments(void)
 }
 
 
+#if defined(H5SETJMP) && defined(H5_HAVE_SIGNAL)
+/* Verify the signal handler for signal signum works correctly multiple times.
+ * One possible cause of failure is that the signal handling is blocked or
+ * changed to SIG_DFL after H5LONGJMP.
+ * Return  0 for success, -1 for failure.
+ */
+static int verify_signal_handlers(int signum, void (*handler)(int))
+{						      
+    void	(*save_handler)(int) = HDsignal(signum, handler);    
+    int i, val;
+    int ntries=5;
+    volatile int nfailures=0;
+    volatile int nsuccesses=0;
+									      
+    for (i=0;i<ntries; i++){    
+	val=H5SETJMP(jbuf_g);
+	if (val==0)
+	{    
+	    /* send self the signal to trigger the handler */    
+	    signal_handler_tested_g++;
+	    HDraise(signum);    
+	    /* Should not reach here. Record error. */
+	    nfailures++;
+	}else{
+	    if (val==signum){ 
+		/* return from signum handler. Record a sucess. */
+		nsuccesses++;
+	    }else{
+		fprintf(stderr, "Unknown return value (%d) from H5SETJMP",
+		    val);    
+		nfailures++;
+	    }
+	}
+    }    
+    /* restore save handler, check results and report failures */
+    HDsignal(signum, save_handler);
+    if (nfailures>0 || nsuccesses != ntries){
+	fprintf(stderr, "verify_signal_handlers for signal %d did %d tries. "
+	       "Found %d failures and %d successes\n",
+	       signum, ntries, nfailures, nsuccesses);
+	return(-1);
+    }else{
+	/* all succeeded */
+	return(0);
+    }
+}    
+#endif
+
+
 /*-------------------------------------------------------------------------
  * Function:	main
  *
@@ -1632,6 +1649,20 @@ main(void)
 		strerror(errno));
     }
 #endif
+#endif
+
+#if defined(H5SETJMP) && defined(H5_HAVE_SIGNAL)
+    /* verify the SIGBUS and SIGSEGV handlers work properly */
+    if (verify_signal_handlers (SIGBUS, sigbus_handler) != 0){
+	fprintf(stderr, "Signal handler %s for signal %d failed\n",
+	    "sigbus_handler", SIGBUS);
+    }
+    if (verify_signal_handlers (SIGSEGV, sigsegv_handler) != 0){
+	fprintf(stderr, "Signal handler %s for signal %d failed\n",
+	    "sigsegv_handler", SIGSEGV);
+    }
+#else
+    align_status_g |= STA_NoHandlerVerify;
 #endif
 
     print_header();

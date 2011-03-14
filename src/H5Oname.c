@@ -108,7 +108,7 @@ H5O_name_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
 done:
     if(NULL == ret_value) {
         if(mesg)
-            H5MM_xfree(mesg);
+            mesg = (H5O_name_t *)H5MM_xfree(mesg);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -185,12 +185,16 @@ H5O_name_copy(const void *_mesg, void *_dest)
     /* copy */
     *dest = *mesg;
     if(NULL == (dest->s = H5MM_xstrdup(mesg->s)))
-	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
 
     /* Set return value */
     ret_value = dest;
 
 done:
+    if(NULL == ret_value)
+        if(dest && NULL == _dest)
+            dest = (H5O_name_t *)H5MM_xfree(dest);
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_name_copy() */
 

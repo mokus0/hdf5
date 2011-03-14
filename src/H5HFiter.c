@@ -139,9 +139,6 @@ H5HF_man_iter_start_offset(H5HF_hdr_t *hdr, hid_t dxpl_id,
     herr_t ret_value = SUCCEED;         /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5HF_man_iter_start_offset)
-#ifdef QAK
-HDfprintf(stderr, "%s: offset = %Hu\n", FUNC, offset);
-#endif /* QAK */
 
     /*
      * Check arguments.
@@ -185,19 +182,11 @@ HDfprintf(stderr, "%s: offset = %Hu\n", FUNC, offset);
         /* Compute column */
         H5_CHECK_OVERFLOW((curr_offset / hdr->man_dtable.row_block_size[row]), hsize_t, unsigned);
         col = (unsigned)(curr_offset / hdr->man_dtable.row_block_size[row]);
-#ifdef QAK
-HDfprintf(stderr, "%s: row = %u, col = %u\n", FUNC, row, col);
-HDfprintf(stderr, "%s: offset = %Hu\n", FUNC, offset);
-HDfprintf(stderr, "%s: curr_offset = %Hu\n", FUNC, curr_offset);
-#endif /* QAK */
 
         /* Set the current level's context */
         biter->curr->row = row;
         biter->curr->col = col;
         biter->curr->entry = (row * hdr->man_dtable.cparam.width) + col;
-#ifdef QAK
-HDfprintf(stderr, "%s: biter->curr->entry = %u\n", FUNC, biter->curr->entry);
-#endif /* QAK */
 
         /* Get the context indirect block's information */
         if(root_block) {
@@ -326,7 +315,7 @@ herr_t
 H5HF_man_iter_start_entry(H5HF_hdr_t *hdr, H5HF_block_iter_t *biter,
     H5HF_indirect_t *iblock, unsigned start_entry)
 {
-    H5HF_block_loc_t *new_loc;          /* Pointer to new block location */
+    H5HF_block_loc_t *new_loc = NULL;   /* Pointer to new block location */
     herr_t ret_value = SUCCEED;         /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5HF_man_iter_start_entry)
@@ -361,6 +350,9 @@ H5HF_man_iter_start_entry(H5HF_hdr_t *hdr, H5HF_block_iter_t *biter,
     biter->ready = TRUE;
 
 done:
+    if(ret_value < 0 && new_loc)
+        new_loc = H5FL_FREE(H5HF_block_loc_t, new_loc);
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5HF_man_iter_start_entry() */
 
@@ -408,7 +400,7 @@ H5HF_man_iter_reset(H5HF_block_iter_t *biter)
                     HGOTO_ERROR(H5E_HEAP, H5E_CANTDEC, FAIL, "can't decrement reference count on shared indirect block")
 
             /* Free the current location context */
-            (void)H5FL_FREE(H5HF_block_loc_t, curr_loc);
+            curr_loc = H5FL_FREE(H5HF_block_loc_t, curr_loc);
 
             /* Advance to next location */
             curr_loc = next_loc;
@@ -457,11 +449,6 @@ H5HF_man_iter_next(H5HF_hdr_t *hdr, H5HF_block_iter_t *biter, unsigned nentries)
     biter->curr->row = biter->curr->entry / hdr->man_dtable.cparam.width;
     biter->curr->col = biter->curr->entry % hdr->man_dtable.cparam.width;
 /*    HDassert(biter->curr->row <= biter->curr->context->nrows); */
-#ifdef QAK
-HDfprintf(stderr, "%s: biter->curr->entry = %u\n", "H5HF_man_iter_next", biter->curr->entry);
-HDfprintf(stderr, "%s: biter->curr->row = %u\n", "H5HF_man_iter_next", biter->curr->row);
-HDfprintf(stderr, "%s: biter->curr->col = %u\n", "H5HF_man_iter_next", biter->curr->col);
-#endif /* QAK */
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5HF_man_iter_next() */
@@ -505,7 +492,7 @@ H5HF_man_iter_up(H5HF_block_iter_t *biter)
     up_loc = biter->curr->up;
 
     /* Release this location */
-    (void)H5FL_FREE(H5HF_block_loc_t, biter->curr);
+    biter->curr = H5FL_FREE(H5HF_block_loc_t, biter->curr);
 
     /* Point location to next location up */
     biter->curr = up_loc;
@@ -531,7 +518,7 @@ done:
 herr_t
 H5HF_man_iter_down(H5HF_block_iter_t *biter, H5HF_indirect_t *iblock)
 {
-    H5HF_block_loc_t *down_loc;         /* Pointer to new 'down' block location */
+    H5HF_block_loc_t *down_loc = NULL;  /* Pointer to new 'down' block location */
     herr_t ret_value = SUCCEED;         /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5HF_man_iter_down)
@@ -563,6 +550,9 @@ H5HF_man_iter_down(H5HF_block_iter_t *biter, H5HF_indirect_t *iblock)
     biter->curr = down_loc;
 
 done:
+    if(ret_value < 0 && down_loc)
+        down_loc = H5FL_FREE(H5HF_block_loc_t, down_loc);
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5HF_man_iter_down() */
 

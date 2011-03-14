@@ -114,8 +114,9 @@ H5MF_init_merge_flags(H5F_t *f)
     H5MF_aggr_merge_t mapping_type;     /* Type of free list mapping */
     H5FD_mem_t type;                    /* Memory type for iteration */
     hbool_t all_same;                   /* Whether all the types map to the same value */
+    herr_t ret_value = SUCCEED;        	/* Return value */
 
-    FUNC_ENTER_NOAPI_NOFUNC(H5MF_init_merge_flags)
+    FUNC_ENTER_NOAPI(H5MF_init_merge_flags, FAIL)
 
     /* check args */
     HDassert(f);
@@ -192,9 +193,13 @@ H5MF_init_merge_flags(H5F_t *f)
             /* Merge all allocation types together */
             HDmemset(f->shared->fs_aggr_merge, (H5F_FS_MERGE_METADATA | H5F_FS_MERGE_RAWDATA), sizeof(f->shared->fs_aggr_merge));
             break;
+
+        default:
+            HGOTO_ERROR(H5E_RESOURCE, H5E_BADVALUE, FAIL, "invalid mapping type")
     } /* end switch */
 
-    FUNC_LEAVE_NOAPI(SUCCEED)
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5MF_init_merge_flags() */
 
 
@@ -247,7 +252,7 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5MF_alloc_create
  *
- * Purpose:	Create free space manager of TYPE for the file by creating 
+ * Purpose:	Create free space manager of TYPE for the file by creating
  *		a free-space structure
  *
  * Return:	Success:	non-negative
@@ -639,7 +644,7 @@ HDfprintf(stderr, "%s: Trying to avoid starting up free space manager\n", FUNC);
          * Note: this drops the space to free on the floor...
          *
          */
-        if(f->shared->fs_state[fs_type] == H5F_FS_STATE_DELETING || 
+        if(f->shared->fs_state[fs_type] == H5F_FS_STATE_DELETING ||
 	        !H5F_HAVE_FREE_SPACE_MANAGER(f)) {
 #ifdef H5MF_ALLOC_DEBUG_MORE
 HDfprintf(stderr, "%s: dropping addr = %a, size = %Hu, on the floor!\n", FUNC, addr, size);
@@ -964,6 +969,7 @@ HDfprintf(stderr, "%s: Entering\n", FUNC);
     HDassert(f);
     HDassert(f->shared);
     HDassert(f->shared->lf);
+    HDassert(f->shared->sblock);
 
     /* Free the space in aggregators */
     /* (for space not at EOF, it may be put into free space managers) */

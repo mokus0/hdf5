@@ -254,7 +254,7 @@ done:
                 H5MM_xfree(lnk->u.soft.name);
             if(lnk->type >= H5L_TYPE_UD_MIN && lnk->u.ud.size > 0 && lnk->u.ud.udata != NULL)
                 H5MM_xfree(lnk->u.ud.udata);
-            (void)H5FL_FREE(H5O_link_t, lnk);
+            lnk = H5FL_FREE(H5O_link_t, lnk);
         } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -437,6 +437,14 @@ H5O_link_copy(const void *_mesg, void *_dest)
     ret_value = dest;
 
 done:
+    if(NULL == ret_value)
+        if(dest) {
+            if(dest->name && dest->name != lnk->name)
+                dest->name = (char *)H5MM_xfree(dest->name);
+            if(NULL == _dest)
+                dest = H5FL_FREE(H5O_link_t ,dest);
+        } /* end if */
+
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_link_copy() */
 
@@ -570,7 +578,7 @@ H5O_link_free(void *_mesg)
 
     /* Free information for link */
     H5O_link_reset(lnk);
-    (void)H5FL_FREE(H5O_link_t, lnk);
+    lnk = H5FL_FREE(H5O_link_t, lnk);
 
     FUNC_LEAVE_NOAPI(SUCCEED)
 } /* end H5O_link_free() */
@@ -705,7 +713,6 @@ H5O_link_copy_file(H5F_t UNUSED *file_src, void *native_src, H5F_t UNUSED *file_
     hid_t UNUSED dxpl_id)
 {
     H5O_link_t  *link_src = (H5O_link_t *)native_src;
-    H5O_link_t  *link_dst = NULL;
     void        *ret_value;          /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5O_link_copy_file)
@@ -721,17 +728,10 @@ H5O_link_copy_file(H5F_t UNUSED *file_src, void *native_src, H5F_t UNUSED *file_
 
     /* Allocate "blank" link for destination */
     /* (values will be filled in during 'post copy' operation) */
-    if(NULL == (link_dst = H5FL_CALLOC(H5O_link_t)))
+    if(NULL == (ret_value = H5FL_CALLOC(H5O_link_t)))
 	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
 
-    /* Set return value */
-    ret_value = link_dst;
-
 done:
-    if(!ret_value)
-        if(link_dst)
-            H5O_link_free(link_dst);
-
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5O_link_copy_file() */
 

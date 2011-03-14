@@ -90,19 +90,23 @@ clean-local:
 	@if test -n "$(F9XMODEXT)" && test "X$(F9XMODEXT)" != "Xo"; then \
 	  $(RM) *.$(F9XMODEXT);                                         \
 	fi
+	$(RM) $(DESTDIR)$(includedir)/H5f90i*.h
 
 install-data-local:
 	@if test -n "$(F9XMODEXT)" && test "X$(F9XMODEXT)" != "Xo"; then \
 	  $(CP) $(top_builddir)/$(subdir)/*.$(F9XMODEXT) $(DESTDIR)$(includedir)/. ; \
 	fi
+	$(CP) $(top_builddir)/$(subdir)/H5f90i_gen.h $(DESTDIR)$(includedir)/.
+	$(CP) $(top_srcdir)/fortran/src/H5f90i.h $(DESTDIR)$(includedir)/.
 
 uninstall-local:
-	@if test -n "$(F9XMODEXT)" -a "X$(F9XMODEXT)" != "Xo"; then      \
-	  if test -f "$(includedir)/hdf5.$(F9XMODEXT)" -o -f "$(includedir)/HDF5.$(F9XMODEXT)"; then \
+	@if test -n "$(DESTDIR)$(F9XMODEXT)" -a "X$(DESTDIR)$(F9XMODEXT)" != "Xo"; then      \
+	  if test -f "$(DESTDIR)$(includedir)/hdf5.$(F9XMODEXT)" -o -f "$(DESTDIR)$(includedir)/HDF5.$(F9XMODEXT)"; then \
 	    set -x; $(RM) $(DESTDIR)$(includedir)/*.$(F9XMODEXT);                 \
 	  fi;                                                           \
 	fi;								\
 	$(RM) $(DESTDIR)$(bindir)/$(H5FC_NAME)
+	$(RM) $(DESTDIR)$(includedir)/H5f90i*.h
 
 # Also install and uninstall (uninstall-local above) h5fc script
 install-exec-local:

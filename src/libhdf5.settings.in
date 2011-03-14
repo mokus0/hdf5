@@ -37,12 +37,12 @@ Compiling Options:
 Languages:
 ----------
                         Fortran: @HDF_FORTRAN@
-@BUILD_FORTRAN_CONDITIONAL_TRUE@               Fortran Compiler: @FC@
+@BUILD_FORTRAN_CONDITIONAL_TRUE@               Fortran Compiler: @FC_VERSION@
 @BUILD_FORTRAN_CONDITIONAL_TRUE@                  Fortran Flags: @FCFLAGS@
 @BUILD_FORTRAN_CONDITIONAL_TRUE@               H5 Fortran Flags: @H5_FCFLAGS@
 @BUILD_FORTRAN_CONDITIONAL_TRUE@               AM Fortran Flags: @AM_FCFLAGS@
                             C++: @HDF_CXX@
-@BUILD_CXX_CONDITIONAL_TRUE@                   C++ Compiler: @CXX@
+@BUILD_CXX_CONDITIONAL_TRUE@                   C++ Compiler: @CXX_VERSION@
 @BUILD_CXX_CONDITIONAL_TRUE@                      C++ Flags: @CXXFLAGS@
 @BUILD_CXX_CONDITIONAL_TRUE@                   H5 C++ Flags: @H5_CXXFLAGS@
 @BUILD_CXX_CONDITIONAL_TRUE@                   AM C++ Flags: @AM_CXXFLAGS@
@@ -65,4 +65,5 @@ Clear file buffers before write: @CLEARFILEBUF@
                            GPFS: @GPFS@
       Strict File Format Checks: @STRICT_FORMAT_CHECKS@
    Optimization Instrumentation: @INSTRUMENT@
- Linux Large File Support (LFS): @LINUX_LFS@
+       Large File Support (LFS): @LARGEFILE@
+             H5dump Packed Bits: @PACKED_BITS@

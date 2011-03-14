@@ -22,10 +22,6 @@
  * Purpose:		Constants and typedefs available to the rest of the
  *			library.
  *
- * Modifications:	JRM - 6/4/04
- *			Complete re-write for a new caching algorithm
- *			located in H5C.c
- *
  *-------------------------------------------------------------------------
  */
 
@@ -36,8 +32,8 @@
 
 /* Pivate headers needed by this header */
 #include "H5private.h"		/* Generic Functions			*/
+#include "H5Cprivate.h"		/* Cache				*/
 #include "H5Fprivate.h"		/* File access				*/
-#include "H5Cprivate.h"		/* cache				*/
 
 #ifdef H5_METADATA_TRACE_FILE
 #define H5AC__TRACE_FILE_ENABLED	1
@@ -49,9 +45,11 @@
 typedef enum {
     H5AC_BT_ID = 0, 	/*B-tree nodes				     */
     H5AC_SNODE_ID,	/*symbol table nodes			     */
-    H5AC_LHEAP_ID,	/*local heap				     */
+    H5AC_LHEAP_PRFX_ID, /*local heap prefix			     */
+    H5AC_LHEAP_DBLK_ID, /*local heap data block			     */
     H5AC_GHEAP_ID,	/*global heap				     */
     H5AC_OHDR_ID,	/*object header				     */
+    H5AC_OHDR_CHK_ID,	/*object header chunk			     */
     H5AC_BT2_HDR_ID,	/*v2 B-tree header			     */
     H5AC_BT2_INT_ID,	/*v2 B-tree internal node		     */
     H5AC_BT2_LEAF_ID,	/*v2 B-tree leaf node			     */
@@ -120,7 +118,7 @@ typedef enum {
 
 #define H5AC_CALLBACK__NO_FLAGS_SET             H5C_CALLBACK__NO_FLAGS_SET
 #define H5AC_CALLBACK__SIZE_CHANGED_FLAG	H5C_CALLBACK__SIZE_CHANGED_FLAG
-#define H5AC_CALLBACK__RENAMED_FLAG             H5C_CALLBACK__RENAMED_FLAG
+#define H5AC_CALLBACK__MOVED_FLAG             H5C_CALLBACK__MOVED_FLAG
 
 typedef H5C_load_func_t		H5AC_load_func_t;
 typedef H5C_flush_func_t	H5AC_flush_func_t;
@@ -128,7 +126,7 @@ typedef H5C_dest_func_t		H5AC_dest_func_t;
 typedef H5C_clear_func_t	H5AC_clear_func_t;
 typedef H5C_size_func_t		H5AC_size_func_t;
 
-typedef H5C_class_t		H5AC_class_t;
+typedef H5C_class_t			H5AC_class_t;
 
 
 /* The H5AC_NSLOTS #define is now obsolete, as the metadata cache no longer
@@ -147,7 +145,7 @@ typedef H5C_class_t		H5AC_class_t;
 #define H5AC_NSLOTS     10330           /* The library "likes" this number... */
 
 
-typedef H5C_cache_entry_t	H5AC_info_t;
+typedef H5C_cache_entry_t		H5AC_info_t;
 
 
 /*===----------------------------------------------------------------------===
@@ -198,7 +196,7 @@ extern hid_t H5AC_ind_dxpl_id;
 #ifdef H5_HAVE_PARALLEL
 #define H5AC__DEFAULT_CACHE_CONFIG                                            \
 {                                                                             \
-  /* int         version                = */ H5C__CURR_AUTO_SIZE_CTL_VER,     \
+  /* int         version                = */ H5AC__CURR_CACHE_CONFIG_VERSION, \
   /* hbool_t     rpt_fcn_enabled        = */ FALSE,                           \
   /* hbool_t     open_trace_file        = */ FALSE,                           \
   /* hbool_t     close_trace_file       = */ FALSE,                           \
@@ -208,7 +206,7 @@ extern hid_t H5AC_ind_dxpl_id;
   /* size_t      initial_size           = */ ( 2 * 1024 * 1024),              \
   /* double      min_clean_fraction     = */ 0.3,                             \
   /* size_t      max_size               = */ (32 * 1024 * 1024),              \
-  /* size_t      min_size               = */ ( 1 * 1024 * 1024),              \
+  /* size_t      min_size               = */ (1 * 1024 * 1024),               \
   /* long int    epoch_length           = */ 50000,                           \
   /* enum H5C_cache_incr_mode incr_mode = */ H5C_incr__threshold,             \
   /* double      lower_hr_threshold     = */ 0.9,                             \
@@ -219,7 +217,7 @@ extern hid_t H5AC_ind_dxpl_id;
   /*                    flash_incr_mode = */ H5C_flash_incr__add_space,       \
   /* double      flash_multiple         = */ 1.0,                             \
   /* double      flash_threshold        = */ 0.25,                            \
-  /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__age_out_with_threshold,\
+  /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__age_out_with_threshold, \
   /* double      upper_hr_threshold     = */ 0.999,                           \
   /* double      decrement              = */ 0.9,                             \
   /* hbool_t     apply_max_decrement    = */ TRUE,                            \
@@ -304,30 +302,22 @@ extern hid_t H5AC_ind_dxpl_id;
 
 H5_DLL herr_t H5AC_init(void);
 H5_DLL herr_t H5AC_create(const H5F_t *f, H5AC_cache_config_t *config_ptr);
-H5_DLL herr_t H5AC_get_entry_status(H5F_t * f, haddr_t addr,
+H5_DLL herr_t H5AC_get_entry_status(const H5F_t *f, haddr_t addr,
 				    unsigned * status_ptr);
 H5_DLL herr_t H5AC_set(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type,
                        haddr_t addr, void *thing, unsigned int flags);
-H5_DLL herr_t H5AC_pin_protected_entry(H5F_t * f, void *  thing);
+H5_DLL herr_t H5AC_pin_protected_entry(void *thing);
 H5_DLL void * H5AC_protect(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type,
-                           haddr_t addr, const void *udata1, void *udata2,
+                           haddr_t addr, void *udata,
                            H5AC_protect_t rw);
-H5_DLL herr_t H5AC_resize_pinned_entry(H5F_t * f,
-                                       void *  thing,
-                                       size_t  new_size);
-H5_DLL herr_t H5AC_unpin_entry(H5F_t * f,
-		               void *  thing);
+H5_DLL herr_t H5AC_resize_entry(void *thing, size_t new_size);
+H5_DLL herr_t H5AC_unpin_entry(void *thing);
 H5_DLL herr_t H5AC_unprotect(H5F_t *f, hid_t dxpl_id,
                              const H5AC_class_t *type, haddr_t addr,
 			     void *thing, unsigned flags);
 H5_DLL herr_t H5AC_flush(H5F_t *f, hid_t dxpl_id);
-H5_DLL herr_t H5AC_mark_pinned_entry_dirty(H5F_t * f,
-		                           void *  thing,
-					   hbool_t size_changed,
-                                           size_t  new_size);
-H5_DLL herr_t H5AC_mark_pinned_or_protected_entry_dirty(H5F_t * f,
-		                                        void *  thing);
-H5_DLL herr_t H5AC_rename(H5F_t *f, const H5AC_class_t *type,
+H5_DLL herr_t H5AC_mark_entry_dirty(void *thing);
+H5_DLL herr_t H5AC_move_entry(H5F_t *f, const H5AC_class_t *type,
 			   haddr_t old_addr, haddr_t new_addr);
 
 H5_DLL herr_t H5AC_dest(H5F_t *f, hid_t dxpl_id);
@@ -340,7 +330,7 @@ H5_DLL herr_t H5AC_set_write_done_callback(H5C_t * cache_ptr,
                                            void (* write_done)(void));
 H5_DLL herr_t H5AC_stats(const H5F_t *f);
 
-H5_DLL herr_t H5AC_get_cache_auto_resize_config(H5AC_t * cache_ptr,
+H5_DLL herr_t H5AC_get_cache_auto_resize_config(const H5AC_t * cache_ptr,
                                                H5AC_cache_config_t *config_ptr);
 
 H5_DLL herr_t H5AC_get_cache_size(H5AC_t * cache_ptr,
@@ -354,7 +344,7 @@ H5_DLL herr_t H5AC_get_cache_hit_rate(H5AC_t * cache_ptr,
 
 H5_DLL herr_t H5AC_reset_cache_hit_rate_stats(H5AC_t * cache_ptr);
 
-H5_DLL herr_t H5AC_set_cache_auto_resize_config(H5AC_t * cache_ptr,
+H5_DLL herr_t H5AC_set_cache_auto_resize_config(H5AC_t *cache_ptr,
                                                H5AC_cache_config_t *config_ptr);
 
 H5_DLL herr_t H5AC_validate_config(H5AC_cache_config_t * config_ptr);

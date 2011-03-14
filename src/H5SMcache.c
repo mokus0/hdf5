@@ -54,12 +54,12 @@
 /********************/
 
 /* Metadata cache (H5AC) callbacks */
-static H5SM_master_table_t *H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void *udata1, void *table);
+static H5SM_master_table_t *H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, void *udata);
 static herr_t H5SM_table_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5SM_master_table_t *table);
 static herr_t H5SM_table_dest(H5F_t *f, H5SM_master_table_t* table);
 static herr_t H5SM_table_clear(H5F_t *f, H5SM_master_table_t *table, hbool_t destroy);
 static herr_t H5SM_table_size(const H5F_t *f, const H5SM_master_table_t *table, size_t *size_ptr);
-static H5SM_list_t *H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void *udata1, void *udata2);
+static H5SM_list_t *H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, void *udata);
 static herr_t H5SM_list_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5SM_list_t *list);
 static herr_t H5SM_list_dest(H5F_t *f, H5SM_list_t* list);
 static herr_t H5SM_list_clear(H5F_t *f, H5SM_list_t *list, hbool_t destroy);
@@ -114,7 +114,7 @@ const H5AC_class_t H5AC_SOHM_LIST[1] = {{
  *-------------------------------------------------------------------------
  */
 static H5SM_master_table_t *
-H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1, void UNUSED *udata2)
+H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, void UNUSED *udata)
 {
     H5SM_master_table_t *table = NULL;
     size_t        size;                 /* Size of SOHM master table on disk */
@@ -136,7 +136,7 @@ H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1
 
     /* Allocate space for the master table in memory */
     if(NULL == (table = H5FL_CALLOC(H5SM_master_table_t)))
-	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+	HGOTO_ERROR(H5E_SOHM, H5E_NOSPACE, NULL, "memory allocation failed")
 
     /* Read number of indexes and version from file superblock */
     table->num_indexes = f->shared->sohm_nindexes;
@@ -173,17 +173,17 @@ H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1
     /* Don't count the checksum in the table size yet, since it comes after
      * all of the index headers
      */
-    HDassert((size_t)(p - buf) == H5SM_TABLE_SIZE(f) - H5SM_SIZEOF_CHECKSUM);
+    HDassert((size_t)(p - (const uint8_t *)buf) == H5SM_TABLE_SIZE(f) - H5SM_SIZEOF_CHECKSUM);
 
     /* Allocate space for the index headers in memory*/
     if(NULL == (table->indexes = (H5SM_index_header_t *)H5FL_ARR_MALLOC(H5SM_index_header_t, (size_t)table->num_indexes)))
-	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for SOHM indexes")
+	HGOTO_ERROR(H5E_SOHM, H5E_NOSPACE, NULL, "memory allocation failed for SOHM indexes")
 
     /* Read in the index headers */
     for(x = 0; x < table->num_indexes; ++x) {
         /* Verify correct version of index list */
         if(H5SM_LIST_VERSION != *p++)
-            HGOTO_ERROR(H5E_FILE, H5E_VERSION, NULL, "bad shared message list version number")
+            HGOTO_ERROR(H5E_SOHM, H5E_VERSION, NULL, "bad shared message list version number")
 
         /* Type of the index (list or B-tree) */
         table->indexes[x].index_type= (H5SM_index_type_t)*p++;
@@ -214,7 +214,7 @@ H5SM_table_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1
     UINT32DECODE(p, stored_chksum);
 
     /* Sanity check */
-    HDassert((size_t)(p - buf) == size);
+    HDassert((size_t)(p - (const uint8_t *)buf) == size);
 
     /* Compute checksum on entire header */
     computed_chksum = H5_checksum_metadata(buf, (size - H5SM_SIZEOF_CHECKSUM), 0);
@@ -231,7 +231,8 @@ done:
     if(wb && H5WB_unwrap(wb) < 0)
         HDONE_ERROR(H5E_SOHM, H5E_CLOSEERROR, NULL, "can't close wrapped buffer")
     if(!ret_value && table)
-        (void)H5SM_table_dest(f, table);
+        if(H5SM_table_free(table) < 0)
+	    HDONE_ERROR(H5E_SOHM, H5E_CANTFREE, NULL, "unable to destroy sohm table")
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5SM_table_load() */
@@ -255,7 +256,7 @@ H5SM_table_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5SM_ma
 {
     H5WB_t *wb = NULL;                  /* Wrapped buffer for table data */
     uint8_t tbl_buf[H5SM_TBL_BUF_SIZE]; /* Buffer for table */
-    herr_t ret_value = SUCCEED;         /* Return value */
+    herr_t ret_value = SUCCEED;  /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5SM_table_flush)
 
@@ -364,17 +365,20 @@ done:
 static herr_t
 H5SM_table_dest(H5F_t UNUSED *f, H5SM_master_table_t* table)
 {
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5SM_table_dest)
+    herr_t ret_value = SUCCEED;         /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5SM_table_dest)
 
     /* Sanity check */
     HDassert(table);
     HDassert(table->indexes);
 
-    H5FL_ARR_FREE(H5SM_index_header_t, table->indexes);
+    /* Destroy Shared Object Header Message table */
+    if(H5SM_table_free(table) < 0)
+        HGOTO_ERROR(H5E_SOHM, H5E_CANTRELEASE, FAIL, "unable to free shared message table")
 
-    (void)H5FL_FREE(H5SM_master_table_t, table);
-
-    FUNC_LEAVE_NOAPI(SUCCEED)
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5SM_table_dest() */
 
 
@@ -456,10 +460,11 @@ H5SM_table_size(const H5F_t *f, const H5SM_master_table_t *table, size_t *size_p
  *-------------------------------------------------------------------------
  */
 static H5SM_list_t *
-H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1, void *udata2)
+H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, void *_udata)
 {
     H5SM_list_t *list;          /* The SOHM list being read in */
-    H5SM_index_header_t *header = (H5SM_index_header_t *) udata2;     /* Index header for this list */
+    H5SM_list_cache_ud_t *udata = (H5SM_list_cache_ud_t *)_udata; /* User data for callback */
+    H5SM_bt2_ctx_t ctx;         /* Message encoding context */
     size_t size;                /* Size of SOHM list on disk */
     H5WB_t *wb = NULL;          /* Wrapped buffer for list index data */
     uint8_t lst_buf[H5SM_LST_BUF_SIZE]; /* Buffer for list index */
@@ -473,25 +478,25 @@ H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
     FUNC_ENTER_NOAPI_NOINIT(H5SM_list_load)
 
     /* Sanity check */
-    HDassert(header);
+    HDassert(udata->header);
 
     /* Allocate space for the SOHM list data structure */
     if(NULL == (list = H5FL_MALLOC(H5SM_list_t)))
-	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+	HGOTO_ERROR(H5E_SOHM, H5E_NOSPACE, NULL, "memory allocation failed")
     HDmemset(&list->cache_info, 0, sizeof(H5AC_info_t));
 
     /* Allocate list in memory as an array*/
-    if((list->messages = (H5SM_sohm_t *)H5FL_ARR_MALLOC(H5SM_sohm_t, header->list_max)) == NULL)
-	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "file allocation failed for SOHM list")
+    if((list->messages = (H5SM_sohm_t *)H5FL_ARR_MALLOC(H5SM_sohm_t, udata->header->list_max)) == NULL)
+	HGOTO_ERROR(H5E_SOHM, H5E_NOSPACE, NULL, "file allocation failed for SOHM list")
 
-    list->header = header;
+    list->header = udata->header;
 
     /* Wrap the local buffer for serialized list index info */
     if(NULL == (wb = H5WB_wrap(lst_buf, sizeof(lst_buf))))
         HGOTO_ERROR(H5E_SOHM, H5E_CANTINIT, NULL, "can't wrap buffer")
 
     /* Compute the size of the SOHM list on disk */
-    size = H5SM_LIST_SIZE(f, header->num_messages);
+    size = H5SM_LIST_SIZE(udata->f, udata->header->num_messages);
 
     /* Get a pointer to a buffer that's large enough for serialized list index */
     if(NULL == (buf = (uint8_t *)H5WB_actual(wb, size)))
@@ -510,10 +515,11 @@ H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
     p += H5_SIZEOF_MAGIC;
 
     /* Read messages into the list array */
-    for(x = 0; x < header->num_messages; x++) {
-        if(H5SM_message_decode(f, p, &(list->messages[x])) < 0)
+    ctx.sizeof_addr = H5F_SIZEOF_ADDR(udata->f);
+    for(x = 0; x < udata->header->num_messages; x++) {
+        if(H5SM_message_decode(p, &(list->messages[x]), &ctx) < 0)
             HGOTO_ERROR(H5E_SOHM, H5E_CANTLOAD, NULL, "can't decode shared message")
-        p += H5SM_SOHM_ENTRY_SIZE(f);
+        p += H5SM_SOHM_ENTRY_SIZE(udata->f);
     } /* end for */
 
     /* Read in checksum */
@@ -530,7 +536,7 @@ H5SM_list_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED *udata1,
         HGOTO_ERROR(H5E_SOHM, H5E_BADVALUE, NULL, "incorrect metadata checksum for shared message list")
 
     /* Initialize the rest of the array */
-    for(x = header->num_messages; x < header->list_max; x++)
+    for(x = udata->header->num_messages; x < udata->header->list_max; x++)
         list->messages[x].location = H5SM_NO_LOC;
 
     /* Set return value */
@@ -542,8 +548,8 @@ done:
         HDONE_ERROR(H5E_SOHM, H5E_CLOSEERROR, NULL, "can't close wrapped buffer")
     if(!ret_value && list) {
         if(list->messages)
-            H5FL_ARR_FREE(H5SM_sohm_t, list->messages);
-        (void)H5FL_FREE(H5SM_list_t, list);
+            list->messages = H5FL_ARR_FREE(H5SM_sohm_t, list->messages);
+        list = H5FL_FREE(H5SM_list_t, list);
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -578,6 +584,7 @@ H5SM_list_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5SM_lis
     HDassert(list->header);
 
     if(list->cache_info.is_dirty) {
+        H5SM_bt2_ctx_t ctx;         /* Message encoding context */
         uint8_t *buf;               /* Temporary buffer */
         uint8_t *p;                 /* Pointer into raw data buffer */
         size_t size;                /* Header size on disk */
@@ -604,9 +611,10 @@ H5SM_list_flush(H5F_t *f, hid_t dxpl_id, hbool_t destroy, haddr_t addr, H5SM_lis
 
         /* Write messages from the messages array to disk */
         mesgs_written = 0;
+        ctx.sizeof_addr = H5F_SIZEOF_ADDR(f);
         for(x = 0; x < list->header->list_max && mesgs_written < list->header->num_messages; x++) {
             if(list->messages[x].location != H5SM_NO_LOC) {
-                if(H5SM_message_encode(f, p, &(list->messages[x])) < 0)
+                if(H5SM_message_encode(p, &(list->messages[x]), &ctx) < 0)
                     HGOTO_ERROR(H5E_SOHM, H5E_CANTFLUSH, FAIL, "unable to write shared message to disk")
 
                 p+=H5SM_SOHM_ENTRY_SIZE(f);
@@ -675,9 +683,9 @@ H5SM_list_dest(H5F_t *f, H5SM_list_t* list)
             HGOTO_ERROR(H5E_SOHM, H5E_NOSPACE, FAIL, "unable to free shared message list")
     } /* end if */
 
-    /* Release resources */
-    H5FL_ARR_FREE(H5SM_sohm_t, list->messages);
-    (void)H5FL_FREE(H5SM_list_t, list);
+    /* Destroy Shared Object Header Message list */
+    if(H5SM_list_free(list) < 0)
+        HGOTO_ERROR(H5E_SOHM, H5E_CANTRELEASE, FAIL, "unable to free shared message list")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)

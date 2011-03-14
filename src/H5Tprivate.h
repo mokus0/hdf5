@@ -111,7 +111,7 @@ H5_DLL herr_t H5T_lock(H5T_t *dt, hbool_t immutable);
 H5_DLL herr_t H5T_close(H5T_t *dt);
 H5_DLL H5T_t *H5T_get_super(const H5T_t *dt);
 H5_DLL H5T_class_t H5T_get_class(const H5T_t *dt, htri_t internal);
-H5_DLL htri_t H5T_detect_class(const H5T_t *dt, H5T_class_t cls);
+H5_DLL htri_t H5T_detect_class(const H5T_t *dt, H5T_class_t cls, hbool_t from_api);
 H5_DLL size_t H5T_get_size(const H5T_t *dt);
 H5_DLL int    H5T_cmp(const H5T_t *dt1, const H5T_t *dt2, hbool_t superset);
 H5_DLL herr_t H5T_debug(const H5T_t *dt, FILE * stream);
@@ -129,6 +129,7 @@ H5_DLL herr_t H5T_convert(H5T_path_t *tpath, hid_t src_id, hid_t dst_id,
     size_t nelmts, size_t buf_stride, size_t bkg_stride, void *buf, void *bkg,
     hid_t dset_xfer_plist);
 H5_DLL herr_t H5T_vlen_reclaim(void *elem, hid_t type_id, unsigned ndim, const hsize_t *point, void *_op_data);
+H5_DLL herr_t H5T_vlen_reclaim_elmt(void *elem, H5T_t *dt, hid_t dxpl_id);
 H5_DLL herr_t H5T_vlen_get_alloc_info(hid_t dxpl_id, H5T_vlen_alloc_info_t **vl_alloc_info);
 H5_DLL htri_t H5T_set_loc(H5T_t *dt, H5F_t *f, H5T_loc_t loc);
 H5_DLL htri_t H5T_is_sensible(const H5T_t *dt);

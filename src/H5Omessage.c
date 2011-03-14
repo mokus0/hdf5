@@ -393,7 +393,7 @@ H5O_msg_write_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh, const H5O_msg_class_t *ty
         HGOTO_ERROR(H5E_OHDR, H5E_NOTFOUND, FAIL, "message type not found")
 
     /* Check for modifying a constant message */
-    if(idx_msg->flags & H5O_MSG_FLAG_CONSTANT)
+    if(!(update_flags & H5O_UPDATE_FORCE) && (idx_msg->flags & H5O_MSG_FLAG_CONSTANT))
 	HGOTO_ERROR(H5E_OHDR, H5E_WRITEERROR, FAIL, "unable to modify constant message")
     /* This message is shared, but it's being modified. */
     else if((idx_msg->flags & H5O_MSG_FLAG_SHARED) || (idx_msg->flags & H5O_MSG_FLAG_SHAREABLE)) {
@@ -484,12 +484,11 @@ H5O_msg_read(const H5O_loc_t *loc, unsigned type_id, void *mesg,
     HDassert(type_id < NELMTS(H5O_msg_class_g));
 
     /* Get the object header */
-    if(NULL == (oh = (H5O_t *)H5AC_protect(loc->file, dxpl_id, H5AC_OHDR, loc->addr, NULL, NULL,
-        (H5F_get_intent(loc->file) & H5F_ACC_RDWR) ? H5AC_WRITE : H5AC_READ)))
+    if(NULL == (oh = (H5O_t *)H5AC_protect(loc->file, dxpl_id, H5AC_OHDR, loc->addr, NULL, NULL, H5AC_READ)))
 	HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "unable to load object header")
 
     /* Call the "real" read routine */
-    if(NULL == (ret_value = H5O_msg_read_real(loc->file, dxpl_id, oh, type_id, mesg)))
+    if(NULL == (ret_value = H5O_msg_read_oh(loc->file, dxpl_id, oh, type_id, mesg)))
 	HGOTO_ERROR(H5E_OHDR, H5E_READERROR, NULL, "unable to load object header")
 
 done:
@@ -501,7 +500,7 @@ done:
 
 
 /*-------------------------------------------------------------------------
- * Function:	H5O_msg_read_real
+ * Function:	H5O_msg_read_oh
  *
  * Purpose:	Reads a message from an object header and returns a pointer
  *		to it.	The caller will usually supply the memory through
@@ -524,14 +523,14 @@ done:
  *-------------------------------------------------------------------------
  */
 void *
-H5O_msg_read_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh, unsigned type_id,
+H5O_msg_read_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh, unsigned type_id,
     void *mesg)
 {
     const H5O_msg_class_t *type;        /* Actual H5O class type for the ID */
     unsigned       idx;                 /* Message's index in object header */
     void           *ret_value = NULL;
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_msg_read_real)
+    FUNC_ENTER_NOAPI_NOINIT(H5O_msg_read_oh)
 
     /* check args */
     HDassert(f);
@@ -563,7 +562,7 @@ H5O_msg_read_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh, unsigned type_id,
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5O_msg_read_real() */
+} /* end H5O_msg_read_oh() */
 
 
 /*-------------------------------------------------------------------------
@@ -1231,8 +1230,7 @@ H5O_msg_iterate(const H5O_loc_t *loc, unsigned type_id,
     HDassert(op);
 
     /* Protect the object header to iterate over */
-    if(NULL == (oh = (H5O_t *)H5AC_protect(loc->file, dxpl_id, H5AC_OHDR, loc->addr, NULL, NULL,
-        (H5F_get_intent(loc->file) & H5F_ACC_RDWR) ? H5AC_WRITE : H5AC_READ)))
+    if(NULL == (oh = (H5O_t *)H5AC_protect(loc->file, dxpl_id, H5AC_OHDR, loc->addr, NULL, NULL, H5AC_READ)))
 	HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, FAIL, "unable to load object header")
 
     /* Call the "real" iterate routine */
@@ -1806,10 +1804,16 @@ done:
  *		slu@ncsa.uiuc.edu
  *		July 14, 2004
  *
+ * Modifications: Neil Fortner
+ *              Feb 4 2009
+ *              Added open_oh parameter.  This parameter is optional and
+ *              contains this message's protected object header
+ *
  *-------------------------------------------------------------------------
  */
 void *
-H5O_msg_decode(H5F_t *f, hid_t dxpl_id, unsigned type_id, const unsigned char *buf)
+H5O_msg_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh, unsigned type_id,
+    const unsigned char *buf)
 {
     const H5O_msg_class_t   *type;      /* Actual H5O class type for the ID */
     void *ret_value;                    /* Return value */
@@ -1824,7 +1828,7 @@ H5O_msg_decode(H5F_t *f, hid_t dxpl_id, unsigned type_id, const unsigned char *b
     HDassert(type);
 
     /* decode */
-    if((ret_value = (type->decode)(f, dxpl_id, 0, &ioflags, buf)) == NULL)
+    if((ret_value = (type->decode)(f, dxpl_id, open_oh, 0, &ioflags, buf)) == NULL)
         HGOTO_ERROR(H5E_OHDR, H5E_CANTDECODE, NULL, "unable to decode message")
 
 done:
@@ -2228,6 +2232,12 @@ H5O_flush_msgs(H5F_t *f, H5O_t *oh)
     /* Sanity check for the correct # of messages in object header */
     if(oh->nmesgs != u)
         HGOTO_ERROR(H5E_OHDR, H5E_CANTFLUSH, FAIL, "corrupt object header - too few messages")
+
+#ifndef NDEBUG
+        /* Reset the number of messages dirtied by decoding, as they have all
+         * been flushed */
+        oh->ndecode_dirtied = 0;
+#endif /* NDEBUG */
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)

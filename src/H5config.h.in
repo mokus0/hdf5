@@ -58,6 +58,13 @@
 /* Define to 1 if you have the `BSDgettimeofday' function. */
 #undef HAVE_BSDGETTIMEOFDAY
 
+/* Define if the compiler understands C99 designated initialization of structs
+   and unions */
+#undef HAVE_C99_DESIGNATED_INITIALIZER
+
+/* Define if the compiler understands the __func__ keyword */
+#undef HAVE_C99_FUNC
+
 /* Define if the function stack tracing code is to be compiled in */
 #undef HAVE_CODESTACK
 
@@ -76,6 +83,9 @@
 
 /* Define to 1 if you have the <dmalloc.h> header file. */
 #undef HAVE_DMALLOC_H
+
+/* Define if library information should be embedded in the executables */
+#undef HAVE_EMBEDDED_LIBINFO
 
 /* Define to 1 if you have the <features.h> header file. */
 #undef HAVE_FEATURES_H
@@ -122,7 +132,7 @@
 /* Define to 1 if you have the `ftruncate64' function. */
 #undef HAVE_FTRUNCATE64
 
-/* Define if the compiler understand the __FUNCTION__ keyword */
+/* Define if the compiler understands the __FUNCTION__ keyword */
 #undef HAVE_FUNCTION
 
 /* Define to 1 if you have the `GetConsoleScreenBufferInfo' function. */

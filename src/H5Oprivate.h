@@ -79,6 +79,7 @@ typedef struct H5O_t H5O_t;
 
 /* Flags for updating messages */
 #define H5O_UPDATE_TIME         0x01u
+#define H5O_UPDATE_FORCE        0x02u   /* Force updating the message */
 
 /* Hash value constants */
 #define H5O_HASH_SIZE 32
@@ -322,9 +323,23 @@ typedef struct H5O_efl_t {
 
 /*
  * Data Layout Message.
- * (Data structure in memory)
+ * (Data structure in file)
  */
 #define H5O_LAYOUT_NDIMS	(H5S_MAX_RANK+1)
+
+/* Initial version of the layout information.  Used when space is allocated */
+#define H5O_LAYOUT_VERSION_1	1
+
+/* This version added support for delaying allocation */
+#define H5O_LAYOUT_VERSION_2	2
+
+/* This version is revised to store just the information needed for each
+ *      storage type, and to straighten out problems with contiguous layout's
+ *      sizes (was encoding them as 4-byte values when they were really n-byte
+ *      values (where n usually is 8)).
+ */
+#define H5O_LAYOUT_VERSION_3	3
+
 
 /* Forward declaration of structs used below */
 struct H5D_layout_ops_t;                /* Defined in H5Dpkg.h               */
@@ -335,13 +350,20 @@ typedef struct H5O_layout_contig_t {
     hsize_t     size;                   /* Size of data in bytes             */
 } H5O_layout_contig_t;
 
-typedef struct H5O_layout_chunk_t {
+typedef struct H5O_layout_chunk_btree_t {
     haddr_t	addr;			/* File address of B-tree            */
+    H5RC_t     *shared;			/* Ref-counted shared info for B-tree nodes */
+} H5O_layout_chunk_btree_t;
+
+typedef struct H5O_layout_chunk_t {
+    H5D_chunk_index_t idx_type;		/* Type of chunk index               */
     unsigned	ndims;			/* Num dimensions in chunk           */
     uint32_t	dim[H5O_LAYOUT_NDIMS];	/* Size of chunk in elements         */
     uint32_t    size;                   /* Size of chunk in bytes            */
-    H5RC_t     *btree_shared;           /* Ref-counted info for B-tree nodes */
     const struct H5D_chunk_ops_t *ops;  /* Pointer to chunked layout operations */
+    union {
+        H5O_layout_chunk_btree_t btree; /* Information for v1 B-tree index   */
+    } u;
 } H5O_layout_chunk_t;
 
 typedef struct H5O_layout_compact_t {
@@ -546,6 +568,7 @@ H5_DLL herr_t H5O_create(H5F_t *f, hid_t dxpl_id, size_t size_hint,
 H5_DLL herr_t H5O_open(H5O_loc_t *loc);
 H5_DLL herr_t H5O_close(H5O_loc_t *loc);
 H5_DLL int H5O_link(const H5O_loc_t *loc, int adjust, hid_t dxpl_id);
+H5_DLL int H5O_link_oh(H5F_t *f, int adjust, hid_t dxpl_id, H5O_t *oh, unsigned *oh_flags);
 H5_DLL H5O_t *H5O_protect(H5O_loc_t *loc, hid_t dxpl_id);
 H5_DLL herr_t H5O_unprotect(H5O_loc_t *loc, H5O_t *oh);
 H5_DLL herr_t H5O_touch(H5O_loc_t *loc, hbool_t force, hid_t dxpl_id);
@@ -576,11 +599,14 @@ H5_DLL herr_t H5O_msg_write_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
     unsigned type_id, unsigned mesg_flags, unsigned update_flags, void *mesg);
 H5_DLL void *H5O_msg_read(const H5O_loc_t *loc, unsigned type_id, void *mesg,
     hid_t dxpl_id);
+H5_DLL void *H5O_msg_read_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh, unsigned type_id,
+    void *mesg);
 H5_DLL herr_t H5O_msg_reset(unsigned type_id, void *native);
 H5_DLL void *H5O_msg_free(unsigned type_id, void *mesg);
 H5_DLL void *H5O_msg_copy(unsigned type_id, const void *mesg, void *dst);
 H5_DLL int H5O_msg_count(const H5O_loc_t *loc, unsigned type_id, hid_t dxpl_id);
 H5_DLL htri_t H5O_msg_exists(const H5O_loc_t *loc, unsigned type_id, hid_t dxpl_id);
+H5_DLL htri_t H5O_msg_exists_oh(const H5O_t *oh, unsigned type_id);
 H5_DLL herr_t H5O_msg_remove(const H5O_loc_t *loc, unsigned type_id, int sequence,
     hbool_t adj_link, hid_t dxpl_id);
 H5_DLL herr_t H5O_msg_remove_op(const H5O_loc_t *loc, unsigned type_id, int sequence,
@@ -603,8 +629,8 @@ H5_DLL herr_t H5O_msg_get_crt_index(unsigned type_id, const void *mesg,
     H5O_msg_crt_idx_t *crt_idx);
 H5_DLL herr_t H5O_msg_encode(H5F_t *f, unsigned type_id, hbool_t disable_shared,
     unsigned char *buf, const void *obj);
-H5_DLL void* H5O_msg_decode(H5F_t *f, hid_t dxpl_id, unsigned type_id,
-    const unsigned char *buf);
+H5_DLL void* H5O_msg_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
+    unsigned type_id, const unsigned char *buf);
 H5_DLL herr_t H5O_msg_delete(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
     unsigned type_id, void *mesg);
 
@@ -643,9 +669,6 @@ H5_DLL herr_t H5O_link_delete(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
 
 /* Shared message operators */
 H5_DLL herr_t H5O_set_shared(H5O_shared_t *dst, const H5O_shared_t *src);
-
-/* Attribute operators */
-H5_DLL hsize_t H5O_attr_count_real(H5F_t *f, hid_t dxpl_id, H5O_t *oh);
 
 #endif /* _H5Oprivate_H */
 

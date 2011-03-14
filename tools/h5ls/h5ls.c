@@ -770,11 +770,11 @@ display_enum_type(hid_t type, int ind)
 
     /* Determine what data type to use for the native values.  To simplify
      * things we entertain three possibilities:
-     *  1. long_long -- the largest native signed integer
-     * 2. unsigned long_long -- the largest native unsigned integer
+     *  1. long long -- the largest native signed integer
+     * 2. unsigned long long -- the largest native unsigned integer
      *     3. raw format */
-    if (H5Tget_size(type)<=sizeof(long_long)) {
-        dst_size = sizeof(long_long);
+    if (H5Tget_size(type)<=sizeof(long long)) {
+        dst_size = sizeof(long long);
         if (H5T_SGN_NONE==H5Tget_sign(type)) {
             native = H5T_NATIVE_ULLONG;
         } else {
@@ -813,13 +813,13 @@ display_enum_type(hid_t type, int ind)
  	     *strangely, unless use another pointer "copy".*/
  	    copy = value+i*dst_size;
             HDfprintf(stdout,"%"H5_PRINTF_LL_WIDTH"u",
-            *((unsigned long_long*)((void*)copy)));
+            *((unsigned long long*)((void*)copy)));
         } else {
  	    /*On SGI Altix(cobalt), wrong values were printed out with "value+i*dst_size"
  	     *strangely, unless use another pointer "copy".*/
  	    copy = value+i*dst_size;
             HDfprintf(stdout,"%"H5_PRINTF_LL_WIDTH"d",
-            *((long_long*)((void*)copy)));
+            *((long long*)((void*)copy)));
         }
     }
 
@@ -952,9 +952,9 @@ display_reference_type(hid_t type, int UNUSED ind)
 {
     if (H5T_REFERENCE!=H5Tget_class(type)) return FALSE;
 
-    if (H5Tequal(type, H5T_STD_REF_OBJ)) {
+    if (H5Tequal(type, H5T_STD_REF_OBJ)==TRUE) {
         printf("object reference");
-    } else if (H5Tequal(type, H5T_STD_REF_DSETREG)) {
+    } else if (H5Tequal(type, H5T_STD_REF_DSETREG)==TRUE) {
         printf("dataset region reference");
     } else {
         printf("%lu-byte unknown reference",
@@ -1515,7 +1515,8 @@ dataset_list2(hid_t dset, const char UNUSED *name)
     int         ndims;          /* dimensionality */
     int         n, max_len;     /* max extern file name length */
     double      utilization;    /* percent utilization of storage */
-    int   i;
+    H5T_class_t tclass;         /* datatype class identifier */
+    int         i;
 
     if(verbose_g > 0) {
         dcpl = H5Dget_create_plist(dset);
@@ -1539,14 +1540,35 @@ dataset_list2(hid_t dset, const char UNUSED *name)
         /* Print total raw storage size */
         total = H5Sget_simple_extent_npoints(space) * H5Tget_size(type);
         used = H5Dget_storage_size(dset);
+        tclass = H5Tget_class(type);
         printf("    %-10s ", "Storage:");
-        printf("%lu logical byte%s, %lu allocated byte%s",
-               (unsigned long)total, 1==total?"":"s",
-               (unsigned long)used, 1==used?"":"s");
-        if (used>0) {
-            utilization = (total*100.0)/used;
-            printf(", %1.2f%% utilization", utilization);
+        switch (tclass)
+        {
+            
+        case H5T_VLEN:
+            printf("information not available");
+            break;
+
+        case H5T_REFERENCE:
+            if ( H5Tequal(type, H5T_STD_REF_DSETREG))
+            {
+                printf("information not available");
+            }
+            break;
+            
+        default:
+            printf("%lu logical byte%s, %lu allocated byte%s",
+                (unsigned long)total, 1==total?"":"s",
+                (unsigned long)used, 1==used?"":"s");
+            if (used>0) 
+            {
+                utilization = (total*100.0)/used;
+                printf(", %1.2f%% utilization", utilization);
+            }
+            
         }
+        
+       
         putchar('\n');
 
         /* Print information about external strorage */

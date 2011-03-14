@@ -129,6 +129,12 @@ long local_pins		   = 0;
  *		processes, and thus cannot be marked as dirty unless they
  *		happen to overlap some collective operation.
  *
+ *	cleared: Boolean flag that is set to true whenever the entry is 
+ *		dirty, and is cleared via a call to clear_datum().
+ *
+ *	flushed: Boolean flag that is set to true whenever the entry is 
+ *		dirty, and is flushed via a call to flush_datum().
+ *
  *	index:	Index of this instance of datum in the data_index[] array
  *		discussed below.
  *
@@ -146,6 +152,8 @@ struct datum
     hbool_t		locked;
     hbool_t		global_pinned;
     hbool_t		local_pinned;
+    hbool_t		cleared;
+    hbool_t		flushed;
     int			index;
 };
 
@@ -268,52 +276,51 @@ MPI_Datatype mpi_mssg_t;	/* for MPI derived type created from mssg */
 
 /* stats functions */
 
-void print_stats(void);
-void reset_stats(void);
+static void reset_stats(void);
 
 /* MPI setup functions */
 
-hbool_t set_up_file_communicator(void);
+static hbool_t set_up_file_communicator(void);
 
 
 /* data array manipulation functions */
 
-int addr_to_datum_index(haddr_t base_addr);
-void init_data(void);
+static int addr_to_datum_index(haddr_t base_addr);
+static void init_data(void);
 
 
 /* test coodination related functions */
 
-int do_express_test(void);
-void do_sync(void);
-int get_max_nerrors(void);
+static int do_express_test(void);
+static void do_sync(void);
+static int get_max_nerrors(void);
 
 
 /* mssg xfer related functions */
 
-hbool_t recv_mssg(struct mssg_t *mssg_ptr, int mssg_tag_offset);
-hbool_t send_mssg(struct mssg_t *mssg_ptr, hbool_t add_req_to_tag);
-hbool_t setup_derived_types(void);
-hbool_t takedown_derived_types(void);
+static hbool_t recv_mssg(struct mssg_t *mssg_ptr, int mssg_tag_offset);
+static hbool_t send_mssg(struct mssg_t *mssg_ptr, hbool_t add_req_to_tag);
+static hbool_t setup_derived_types(void);
+static hbool_t takedown_derived_types(void);
 
 
 /* server functions */
 
-hbool_t server_main(void);
-hbool_t serve_read_request(struct mssg_t * mssg_ptr);
-hbool_t serve_sync_request(struct mssg_t * mssg_ptr);
-hbool_t serve_write_request(struct mssg_t * mssg_ptr);
+static hbool_t server_main(void);
+static hbool_t serve_read_request(struct mssg_t * mssg_ptr);
+static hbool_t serve_sync_request(struct mssg_t * mssg_ptr);
+static hbool_t serve_write_request(struct mssg_t * mssg_ptr);
 
 
 /* call back functions & related data structures */
 
-herr_t clear_datum(H5F_t * f, void *  thing, hbool_t dest);
-herr_t destroy_datum(H5F_t UNUSED * f, void * thing);
-herr_t flush_datum(H5F_t *f, hid_t UNUSED dxpl_id, hbool_t dest, haddr_t addr,
+static herr_t clear_datum(H5F_t * f, void *  thing, hbool_t dest);
+static herr_t destroy_datum(H5F_t UNUSED * f, void * thing);
+static herr_t flush_datum(H5F_t *f, hid_t UNUSED dxpl_id, hbool_t dest, haddr_t addr,
                    void *thing);
-void * load_datum(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, haddr_t addr,
+static void * load_datum(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, haddr_t addr,
                   const void UNUSED *udata1, void UNUSED *udata2);
-herr_t size_datum(H5F_t UNUSED * f, void * thing, size_t * size_ptr);
+static herr_t size_datum(H5F_t UNUSED * f, void * thing, size_t * size_ptr);
 
 #define DATUM_ENTRY_TYPE	H5AC_TEST_ID
 
@@ -390,6 +397,7 @@ hbool_t trace_file_check(void);
 /****************************** stats functions ******************************/
 /*****************************************************************************/
 
+#ifdef UNUSED
 /*****************************************************************************
  *
  * Function:	print_stats()
@@ -409,7 +417,7 @@ hbool_t trace_file_check(void);
  *
  *****************************************************************************/
 
-void
+static void
 print_stats(void)
 {
     HDfprintf(stdout,
@@ -428,6 +436,7 @@ print_stats(void)
     return;
 
 } /* print_stats() */
+#endif /* UNUSED */
 
 /*****************************************************************************
  *
@@ -445,7 +454,7 @@ print_stats(void)
  *
  *****************************************************************************/
 
-void
+static void
 reset_stats(void)
 {
     datum_clears          = 0;
@@ -486,7 +495,7 @@ reset_stats(void)
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 set_up_file_communicator(void)
 {
     const char * fcn_name = "set_up_file_communicator()";
@@ -639,7 +648,7 @@ set_up_file_communicator(void)
  *
  *****************************************************************************/
 
-int
+static int
 addr_to_datum_index(haddr_t base_addr)
 {
     /* const char * fcn_name = "addr_to_datum_index()"; */
@@ -691,9 +700,12 @@ addr_to_datum_index(haddr_t base_addr)
  *		JRM -- 7/11/06
  *		Added support for the local_len field.
  *
+ *		JRM -- 2/4/09
+ *		Added initialization for the cleared and flushed fields.
+ *
  *****************************************************************************/
 
-void
+static void
 init_data(void)
 {
     /* const char * fcn_name = "init_data()"; */
@@ -728,6 +740,8 @@ init_data(void)
         data[i].locked        = FALSE;
 	data[i].global_pinned = FALSE;
 	data[i].local_pinned  = FALSE;
+	data[i].cleared       = FALSE;
+	data[i].flushed       = FALSE;
 	data[i].index         = i;
 
         data_index[i]         = i;
@@ -772,7 +786,7 @@ init_data(void)
  *
  *****************************************************************************/
 
-int
+static int
 do_express_test(void)
 {
     const char * fcn_name = "do_express_test()";
@@ -826,7 +840,7 @@ do_express_test(void)
  *
  *****************************************************************************/
 
-void
+static void
 do_sync(void)
 {
     const char * fcn_name = "do_sync()";
@@ -902,7 +916,7 @@ do_sync(void)
  *
  *****************************************************************************/
 
-int
+static int
 get_max_nerrors(void)
 {
     const char * fcn_name = "get_max_nerrors()";
@@ -957,7 +971,7 @@ get_max_nerrors(void)
 
 #define CACHE_TEST_TAG	99 /* different from any used by the library */
 
-hbool_t
+static hbool_t
 recv_mssg(struct mssg_t *mssg_ptr,
 	  int mssg_tag_offset)
 {
@@ -1042,7 +1056,7 @@ recv_mssg(struct mssg_t *mssg_ptr,
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 send_mssg(struct mssg_t *mssg_ptr,
 	  hbool_t add_req_to_tag)
 {
@@ -1116,7 +1130,7 @@ send_mssg(struct mssg_t *mssg_ptr,
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 setup_derived_types(void)
 {
     const char * fcn_name = "setup_derived_types()";
@@ -1210,7 +1224,7 @@ setup_derived_types(void)
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 takedown_derived_types(void)
 {
     const char * fcn_name = "takedown_derived_types()";
@@ -1262,7 +1276,7 @@ takedown_derived_types(void)
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 server_main(void)
 {
     const char * fcn_name = "server_main()";
@@ -1369,7 +1383,7 @@ server_main(void)
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 serve_read_request(struct mssg_t * mssg_ptr)
 {
     const char * fcn_name = "serve_read_request()";
@@ -1475,7 +1489,7 @@ serve_read_request(struct mssg_t * mssg_ptr)
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 serve_sync_request(struct mssg_t * mssg_ptr)
 {
     const char * fcn_name = "serve_sync_request()";
@@ -1543,7 +1557,7 @@ serve_sync_request(struct mssg_t * mssg_ptr)
  *
  *****************************************************************************/
 
-hbool_t
+static hbool_t
 serve_write_request(struct mssg_t * mssg_ptr)
 {
     const char * fcn_name = "serve_write_request()";
@@ -1662,13 +1676,17 @@ serve_write_request(struct mssg_t * mssg_ptr)
  * 		length of the entry, while retaining the original
  * 		value for communications with the server.
  *
+ *		JRM -- 2/4/09
+ *		Added code to set the cleared flag when a dirty entry is
+ *		cleared.
+ *
  *-------------------------------------------------------------------------
  */
 
-herr_t
+static herr_t
 clear_datum(H5F_t * f,
             void *  thing,
-             hbool_t dest)
+            hbool_t dest)
 {
     int idx;
     struct datum * entry_ptr;
@@ -1687,6 +1705,13 @@ clear_datum(H5F_t * f,
     HDassert( entry_ptr->header.addr == entry_ptr->base_addr );
     HDassert( ( entry_ptr->header.size == entry_ptr->len ) ||
 	      ( entry_ptr->header.size == entry_ptr->local_len ) );
+
+    HDassert( entry_ptr->header.is_dirty == entry_ptr->dirty );
+
+    if ( entry_ptr->header.is_dirty ) {
+
+        entry_ptr->cleared = TRUE;
+    }
 
     entry_ptr->header.is_dirty = FALSE;
     entry_ptr->dirty = FALSE;
@@ -1732,7 +1757,7 @@ clear_datum(H5F_t * f,
  *-------------------------------------------------------------------------
  */
 
-herr_t
+static herr_t
 destroy_datum(H5F_t UNUSED * f,
               void *         thing)
 {
@@ -1791,10 +1816,14 @@ destroy_datum(H5F_t UNUSED * f,
  * 		length of the entry, while retaining the original
  * 		value for communications with the server.
  *
+ *		JRM -- 2/4/09
+ *		Added code to set the flushed flag when a dirty entry 
+ *		is flushed.
+ *
  *-------------------------------------------------------------------------
  */
 
-herr_t
+static herr_t
 flush_datum(H5F_t *f,
             hid_t UNUSED dxpl_id,
             hbool_t dest,
@@ -1859,6 +1888,7 @@ flush_datum(H5F_t *f,
             {
                 entry_ptr->header.is_dirty = FALSE;
                 entry_ptr->dirty = FALSE;
+                entry_ptr->flushed = TRUE;
             }
         }
     }
@@ -1930,7 +1960,7 @@ flush_datum(H5F_t *f,
  *-------------------------------------------------------------------------
  */
 
-void *
+static void *
 load_datum(H5F_t UNUSED *f,
            hid_t UNUSED dxpl_id,
            haddr_t addr,
@@ -2100,7 +2130,7 @@ load_datum(H5F_t UNUSED *f,
  *-------------------------------------------------------------------------
  */
 
-herr_t
+static herr_t
 size_datum(H5F_t UNUSED *  f,
            void *   thing,
            size_t * size_ptr)
@@ -2174,8 +2204,6 @@ expunge_entry(H5C_t * cache_ptr,
     HDassert( !(entry_ptr->locked) );
     HDassert( !(entry_ptr->global_pinned) );
     HDassert( !(entry_ptr->local_pinned) );
-
-    entry_ptr->dirty = TRUE;
 
     if ( nerrors == 0 ) {
 
@@ -3492,7 +3520,7 @@ setup_rand(void)
     const char * fcn_name = "setup_rand()";
     hbool_t use_predefined_seeds = FALSE;
     int num_predefined_seeds = 3;
-    unsigned predefined_seeds[3] = {18669, 89925, 12577};
+    unsigned predefined_seeds[3] = {33402, 33505, 33422};
     unsigned seed;
     struct timeval tv;
     struct timezone tz;
@@ -3663,9 +3691,14 @@ unlock_entry(H5C_t * cache_ptr,
 
         HDassert( ((entry_ptr->header).type)->id == DATUM_ENTRY_TYPE );
 
-        if ( ( flags & H5AC__DIRTIED_FLAG ) != 0
-                && ( (flags & H5C__DELETED_FLAG) == 0 ) ) {
-
+        if ( ( (flags & H5AC__DIRTIED_FLAG) != 0 ) && 
+             ( (flags & H5C__DELETED_FLAG) == 0 ) &&
+             ( ! ( ( ( world_mpi_rank == 0 ) && ( entry_ptr->flushed ) ) 
+                   ||
+                   ( ( world_mpi_rank != 0 ) && ( entry_ptr->cleared ) ) 
+                 )
+             )
+           ) {
             HDassert( entry_ptr->header.is_dirty );
             HDassert( entry_ptr->dirty );
         }
@@ -4412,6 +4445,8 @@ smoke_check_3(void)
 {
     const char * fcn_name = "smoke_check_3()";
     hbool_t success = TRUE;
+    hbool_t verbose = FALSE;
+    int cp = 0;
     int i;
     int max_nerrors;
     int min_count;
@@ -4428,11 +4463,17 @@ smoke_check_3(void)
         TESTING("smoke check #3");
     }
 
+    /* 0 */
+    if ( verbose ) { HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); }
+
     nerrors = 0;
     init_data();
     reset_stats();
 
     if ( world_mpi_rank == world_server_mpi_rank ) {
+
+        /* 1 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
 	if ( ! server_main() ) {
 
@@ -4443,9 +4484,15 @@ smoke_check_3(void)
                           world_mpi_rank, fcn_name);
             }
         }
+
+        /* 2 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
     }
     else /* run the clients */
     {
+        /* 1 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
+
         if ( ! setup_cache_for_test(&fid, &file_ptr, &cache_ptr) ) {
 
             nerrors++;
@@ -4456,6 +4503,9 @@ smoke_check_3(void)
                           world_mpi_rank, fcn_name);
             }
         }
+
+        /* 2 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
         min_count = 100 / ((file_mpi_rank + 1) * (file_mpi_rank + 1));
         max_count = min_count + 50;
@@ -4471,6 +4521,9 @@ smoke_check_3(void)
                                                min_count, max_count);
             }
         }
+
+        /* 3 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
 
         min_count = 100 / ((file_mpi_rank + 2) * (file_mpi_rank + 2));
@@ -4512,6 +4565,9 @@ smoke_check_3(void)
 
 	}
 
+        /* 4 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
+
 
 	/* flush the file to be sure that we have no problems flushing
 	 * pinned entries
@@ -4523,6 +4579,9 @@ smoke_check_3(void)
                           world_mpi_rank, fcn_name);
             }
         }
+
+        /* 5 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
 
         min_idx = 0;
@@ -4558,6 +4617,9 @@ smoke_check_3(void)
 	    }
         }
 
+        /* 6 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
+
         min_idx = 0;
         max_idx = ((virt_num_data_entries / 10) /
                    ((file_mpi_rank + 3) * (file_mpi_rank + 3))) - 1;
@@ -4573,6 +4635,9 @@ smoke_check_3(void)
 	    lock_and_unlock_random_entries(cache_ptr, file_ptr,
                                            min_idx, max_idx, 0, 100);
         }
+
+        /* 7 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
         /* we can't rename pinned entries, so release any local pins now. */
         local_unpin_all_entries(cache_ptr, file_ptr, FALSE);
@@ -4592,6 +4657,9 @@ smoke_check_3(void)
                                            min_count, max_count);
         }
 
+        /* 8 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
+
         /* ...and then rename them back. */
         for ( i = (virt_num_data_entries / 2) - 1; i >= 0; i-- )
         {
@@ -4603,6 +4671,9 @@ smoke_check_3(void)
 			                   (virt_num_data_entries / 40),
                                            min_count, max_count);
         }
+
+        /* 9 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
         /* finally, do some dirty lock/unlocks while we give the cache
          * a chance t reduce its size.
@@ -4627,6 +4698,9 @@ smoke_check_3(void)
             }
         }
 
+        /* 10 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
+
         /* release any local pins before we take down the cache. */
         local_unpin_all_entries(cache_ptr, file_ptr, FALSE);
 
@@ -4641,6 +4715,9 @@ smoke_check_3(void)
                 }
             }
         }
+
+        /* 11 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
 
         /* verify that all instances of datum are back where the started
          * and are clean.
@@ -4676,6 +4753,9 @@ smoke_check_3(void)
                 }
             }
         }
+
+        /* 12 */
+        if ( verbose ) {HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++);}
     }
 
     max_nerrors = get_max_nerrors();
@@ -5043,6 +5123,8 @@ smoke_check_5(void)
 {
     const char * fcn_name = "smoke_check_5()";
     hbool_t success = TRUE;
+    hbool_t verbose = FALSE;
+    int cp = 0;
     int i;
     int max_nerrors;
     hid_t fid = -1;
@@ -5055,11 +5137,19 @@ smoke_check_5(void)
         TESTING("smoke check #5");
     }
 
+    /* 0 */
+    if ( verbose ) { HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); }
+
     nerrors = 0;
     init_data();
     reset_stats();
 
     if ( world_mpi_rank == world_server_mpi_rank ) {
+
+        /* 1 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
+        }
 
 	if ( ! server_main() ) {
 
@@ -5070,9 +5160,20 @@ smoke_check_5(void)
                           world_mpi_rank, fcn_name);
             }
         }
+
+        /* 2 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
+        }
     }
     else /* run the clients */
     {
+
+        /* 1 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
+        }
+
         if ( ! setup_cache_for_test(&fid, &file_ptr, &cache_ptr) ) {
 
             nerrors++;
@@ -5084,9 +5185,19 @@ smoke_check_5(void)
             }
         }
 
+        /* 2 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
+        }
+
         for ( i = 0; i < (virt_num_data_entries / 2); i++ )
         {
             insert_entry(cache_ptr, file_ptr, i, H5AC__NO_FLAGS_SET);
+        }
+
+        /* 3 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
         }
 
 	/* flush the file so we can lock known clean entries. */
@@ -5096,6 +5207,11 @@ smoke_check_5(void)
 	        HDfprintf(stdout, "%d:%s: H5Fflush() failed.\n",
                           world_mpi_rank, fcn_name);
             }
+        }
+
+        /* 4 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
         }
 
         for ( i = 0; i < (virt_num_data_entries / 4); i++ )
@@ -5119,6 +5235,11 @@ smoke_check_5(void)
 
 		expunge_entry(cache_ptr, file_ptr, i);
 	    }
+        }
+
+        /* 5 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
         }
 
         for ( i = (virt_num_data_entries / 2) - 1;
@@ -5154,6 +5275,11 @@ smoke_check_5(void)
 	    unpin_entry(cache_ptr, file_ptr, i, TRUE, FALSE, FALSE);
         }
 
+        /* 6 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
+        }
+
         if ( fid >= 0 ) {
 
             if ( ! take_down_cache(fid) ) {
@@ -5166,6 +5292,11 @@ smoke_check_5(void)
             }
         }
 
+        /* 7 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
+        }
+
         /* verify that all instance of datum are back where the started
          * and are clean.
          */
@@ -5174,6 +5305,11 @@ smoke_check_5(void)
         {
             HDassert( data_index[i] == i );
             HDassert( ! (data[i].dirty) );
+        }
+
+        /* 8 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
         }
 
         /* compose the done message */
@@ -5198,6 +5334,11 @@ smoke_check_5(void)
                               world_mpi_rank, fcn_name);
                 }
             }
+        }
+
+        /* 9 */
+        if ( verbose ) { 
+	    HDfprintf(stderr, "%d: cp = %d\n", world_mpi_rank, cp++); 
         }
     }
 

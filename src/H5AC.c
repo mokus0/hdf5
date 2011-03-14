@@ -584,7 +584,7 @@ H5AC_create(const H5F_t *f,
             if ( mpi_rank == 0 ) {
 
                 aux_ptr->d_slist_ptr =
-                    H5SL_create(H5SL_TYPE_HADDR,0.5,(size_t)16);
+                    H5SL_create(H5SL_TYPE_HADDR);
 
                 if ( aux_ptr->d_slist_ptr == NULL ) {
 
@@ -593,7 +593,7 @@ H5AC_create(const H5F_t *f,
                 }
 
                 aux_ptr->c_slist_ptr =
-                    H5SL_create(H5SL_TYPE_HADDR,0.5,(size_t)16);
+                    H5SL_create(H5SL_TYPE_HADDR);
 
                 if ( aux_ptr->c_slist_ptr == NULL ) {
 
@@ -2283,10 +2283,10 @@ H5AC_unprotect(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type, haddr_t addr,
 {
     herr_t		result;
     herr_t              ret_value=SUCCEED;      /* Return value */
-    hbool_t		size_changed = FALSE;
     hbool_t		dirtied;
     size_t		new_size = 0;
 #ifdef H5_HAVE_PARALLEL
+    hbool_t		size_changed = FALSE;
     H5AC_aux_t        * aux_ptr = NULL;
 #endif /* H5_HAVE_PARALLEL */
 #if H5AC__TRACE_FILE_ENABLED
@@ -2340,7 +2340,9 @@ H5AC_unprotect(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type, haddr_t addr,
 
         if ( ((H5AC_info_t *)thing)->size != new_size ) {
 
+#ifdef H5_HAVE_PARALLEL
             size_changed = TRUE;
+#endif /* H5_HAVE_PARALLEL */
             flags = flags | H5AC__SIZE_CHANGED_FLAG;
 #if H5AC__TRACE_FILE_ENABLED
 	    trace_flags = flags;

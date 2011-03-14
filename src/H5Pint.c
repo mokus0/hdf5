@@ -42,8 +42,6 @@
 /* Local Macros */
 /****************/
 
-#define H5P_DEFAULT_SKIPLIST_HEIGHT     8
-
 
 /******************/
 /* Local Typedefs */
@@ -142,22 +140,6 @@ const H5P_libclass_t H5P_CLS_GACC[1] = {{
     NULL 		        /* Class close callback info    */
 }};
 
-/* Dataset access property list class library initialization object */
-/* (move to proper source code file when used for real) */
-const H5P_libclass_t H5P_CLS_DACC[1] = {{
-    "dataset access",		/* Class name for debugging     */
-    &H5P_CLS_LINK_ACCESS_g,	/* Parent class ID              */
-    &H5P_CLS_DATASET_ACCESS_g,	/* Pointer to class ID          */
-    &H5P_LST_DATASET_ACCESS_g,	/* Pointer to default property list ID */
-    NULL,			/* Default property registration routine */
-    NULL,		        /* Class creation callback      */
-    NULL,		        /* Class creation callback info */
-    NULL,			/* Class copy callback          */
-    NULL,		        /* Class copy callback info     */
-    NULL,			/* Class close callback         */
-    NULL 		        /* Class close callback info    */
-}};
-
 /* Datatype creation property list class library initialization object */
 /* (move to proper source code file when used for real) */
 const H5P_libclass_t H5P_CLS_TCRT[1] = {{
@@ -200,6 +182,7 @@ H5_DLLVAR const H5P_libclass_t H5P_CLS_OCPY[1];         /* Object copy */
 H5_DLLVAR const H5P_libclass_t H5P_CLS_FCRT[1];         /* File creation */
 H5_DLLVAR const H5P_libclass_t H5P_CLS_FACC[1];         /* File access */
 H5_DLLVAR const H5P_libclass_t H5P_CLS_DCRT[1];         /* Dataset creation */
+H5_DLLVAR const H5P_libclass_t H5P_CLS_DACC[1];         /* Dataset access */
 H5_DLLVAR const H5P_libclass_t H5P_CLS_DXFR[1];         /* Data transfer */
 H5_DLLVAR const H5P_libclass_t H5P_CLS_FMNT[1];         /* File mount */
 H5_DLLVAR const H5P_libclass_t H5P_CLS_ACRT[1];         /* Attribute creation */
@@ -667,11 +650,11 @@ H5P_copy_plist(H5P_genplist_t *old_plist, hbool_t app_ref)
     new_plist->class_init = 0;  /* Initially, wait until the class callback finishes to set */
 
     /* Initialize the skip list to hold the changed properties */
-    if((new_plist->props = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((new_plist->props = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,FAIL,"can't create skip list for changed properties");
 
     /* Create the skip list for deleted properties */
-    if((new_plist->del = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((new_plist->del = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,FAIL,"can't create skip list for deleted properties");
 
     /* Create the skip list to hold names of properties already seen
@@ -679,7 +662,7 @@ H5P_copy_plist(H5P_genplist_t *old_plist, hbool_t app_ref)
      * 'create' callback called, if a property in the class hierarchy has
      * already been seen)
      */
-    if((seen = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT))== NULL)
+    if((seen = H5SL_create(H5SL_TYPE_STR))== NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,FAIL,"can't create skip list for seen properties");
     nseen = 0;
 
@@ -750,7 +733,7 @@ H5P_copy_plist(H5P_genplist_t *old_plist, hbool_t app_ref)
      * initialize each with default value & make property 'copy' callback.
      */
     tclass=old_plist->pclass;
-    has_parent_class=(tclass!=NULL && tclass->parent!=NULL && tclass->parent->nprops>0);
+    has_parent_class = (hbool_t)(tclass != NULL && tclass->parent != NULL && tclass->parent->nprops > 0);
     while(tclass!=NULL) {
         if(tclass->nprops>0) {
             /* Walk through the properties in the old class */
@@ -1477,7 +1460,7 @@ H5P_create_class(H5P_genclass_t *par_class, const char *name, unsigned internal,
     pclass->revision = H5P_GET_NEXT_REV;        /* Get a revision number for the class */
 
     /* Create the skip list for properties */
-    if((pclass->props = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((pclass->props = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,NULL,"can't create skip list for properties");
 
     /* Set callback functions and pass-along data */
@@ -1559,11 +1542,11 @@ H5P_create(H5P_genclass_t *pclass)
     plist->class_init = 0;  /* Initially, wait until the class callback finishes to set */
 
     /* Create the skip list for changed properties */
-    if((plist->props = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((plist->props = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,NULL,"can't create skip list for changed properties");
 
     /* Create the skip list for deleted properties */
-    if((plist->del = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((plist->del = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,NULL,"can't create skip list for deleted properties");
 
     /* Create the skip list to hold names of properties already seen
@@ -1571,7 +1554,7 @@ H5P_create(H5P_genclass_t *pclass)
      * 'create' callback called, if a property in the class hierarchy has
      * already been seen)
      */
-    if((seen = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((seen = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,NULL,"can't create skip list for seen properties");
 
     /*
@@ -3162,7 +3145,7 @@ H5P_iterate_plist(hid_t plist_id, int *idx, H5P_iterate_t iter_func, void *iter_
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a property list");
 
     /* Create the skip list to hold names of properties already seen */
-    if((seen = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((seen = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,FAIL,"can't create skip list for seen properties");
 
     /* Walk through the changed properties in the list */
@@ -4086,7 +4069,7 @@ H5P_close(void *_plist)
      * 'close' callback called, if a property in the class hierarchy has
      * already been seen)
      */
-    if((seen = H5SL_create(H5SL_TYPE_STR, 0.5, (size_t)H5P_DEFAULT_SKIPLIST_HEIGHT)) == NULL)
+    if((seen = H5SL_create(H5SL_TYPE_STR)) == NULL)
         HGOTO_ERROR(H5E_PLIST,H5E_CANTCREATE,FAIL,"can't create skip list for seen properties");
     nseen = 0;
 
@@ -4121,7 +4104,7 @@ H5P_close(void *_plist)
      * initialize each with default value & make property 'remove' callback.
      */
     tclass=plist->pclass;
-    has_parent_class=(tclass!=NULL && tclass->parent!=NULL && tclass->parent->nprops>0);
+    has_parent_class = (hbool_t)(tclass != NULL && tclass->parent != NULL && tclass->parent->nprops > 0);
     while(tclass!=NULL) {
         if(tclass->nprops>0) {
             /* Walk through the properties in the class */

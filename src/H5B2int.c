@@ -269,7 +269,7 @@ H5B2_shared_free(void *_shared)
 
     /* Free the array of offsets into the native key block */
     if(shared->nat_off)
-        H5FL_SEQ_FREE(size_t, shared->nat_off);
+        shared->nat_off = H5FL_SEQ_FREE(size_t, shared->nat_off);
 
     /* Release the node info */
     if(shared->node_info) {
@@ -286,11 +286,11 @@ H5B2_shared_free(void *_shared)
         } /* end for */
 
         /* Free the array of node info structs */
-        H5FL_SEQ_FREE(H5B2_node_info_t, shared->node_info);
+        shared->node_info = H5FL_SEQ_FREE(H5B2_node_info_t, shared->node_info);
     } /* end if */
 
     /* Free the shared B-tree info itself */
-    (void)H5FL_FREE(H5B2_shared_t, shared);
+    shared = H5FL_FREE(H5B2_shared_t, shared);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -3204,12 +3204,7 @@ H5B2_assert_leaf(H5B2_shared_t *shared, H5B2_leaf_t *leaf)
     unsigned u,v;       /* Local index variables */
 
     /* General sanity checking on node */
-    HDassert(leaf->nrec<=shared->split_leaf_nrec);
-
-    /* Sanity checking on records */
-    for(u=0; u<leaf->nrec; u++)
-        for(v=0; v<u; v++)
-            HDassert((shared->type->compare)(H5B2_LEAF_NREC(leaf,shared,u), H5B2_LEAF_NREC(leaf,shared,v))>0);
+    HDassert(leaf->nrec<=shared->node_info->split_nrec);
 
     return(0);
 } /* end H5B2_assert_leaf() */
@@ -3234,14 +3229,7 @@ H5B2_assert_leaf2(H5B2_shared_t *shared, H5B2_leaf_t *leaf, H5B2_leaf_t *leaf2)
     unsigned u,v;       /* Local index variables */
 
     /* General sanity checking on node */
-    HDassert(leaf->nrec<=shared->split_leaf_nrec);
-
-    /* Sanity checking on records */
-    for(u=0; u<leaf->nrec; u++) {
-        HDassert((shared->type->compare)(H5B2_LEAF_NREC(leaf2,shared,0), H5B2_LEAF_NREC(leaf,shared,u))>0);
-        for(v=0; v<u; v++)
-            HDassert((shared->type->compare)(H5B2_LEAF_NREC(leaf,shared,u), H5B2_LEAF_NREC(leaf,shared,v))>0);
-    } /* end for */
+    HDassert(leaf->nrec<=shared->node_info->split_nrec);
 
     return(0);
 } /* end H5B2_assert_leaf() */
@@ -3267,12 +3255,7 @@ H5B2_assert_internal(hsize_t parent_all_nrec, H5B2_shared_t *shared, H5B2_intern
     unsigned u,v;               /* Local index variables */
 
     /* General sanity checking on node */
-    HDassert(internal->nrec<=shared->split_int_nrec);
-
-    /* Sanity checking on records */
-    for(u=0; u<internal->nrec; u++)
-        for(v=0; v<u; v++)
-            HDassert((shared->type->compare)(H5B2_INT_NREC(internal,shared,u), H5B2_INT_NREC(internal,shared,v))>0);
+    HDassert(internal->nrec<=shared->node_info->split_nrec);
 
     /* Sanity checking on node pointers */
     tot_all_nrec=internal->nrec;
@@ -3313,12 +3296,7 @@ H5B2_assert_internal2(hsize_t parent_all_nrec, H5B2_shared_t *shared, H5B2_inter
     unsigned u,v;       /* Local index variables */
 
     /* General sanity checking on node */
-    HDassert(internal->nrec<=shared->split_int_nrec);
-
-    /* Sanity checking on records */
-    for(u=0; u<internal->nrec; u++)
-        for(v=0; v<u; v++)
-            HDassert((shared->type->compare)(H5B2_INT_NREC(internal,shared,u), H5B2_INT_NREC(internal,shared,v))>0);
+    HDassert(internal->nrec<=shared->node_info->split_nrec);
 
     /* Sanity checking on node pointers */
     tot_all_nrec=internal->nrec;

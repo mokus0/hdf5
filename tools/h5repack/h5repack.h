@@ -131,7 +131,7 @@ int h5repack_addlayout (const char* str, pack_opt_t *options);
 int h5repack_init      (pack_opt_t *options, int verbose);
 int h5repack_end       (pack_opt_t *options);
 int h5repack_verify    (const char *fname,pack_opt_t *options);
-int h5repack_cmpdcpl   (const char *fname1,
+int h5repack_cmp_pl   (const char *fname1,
                         const char *fname2);
 
 
@@ -176,6 +176,7 @@ void init_packobject(pack_info_t *obj);
 int apply_filters(const char* name,    /* object name from traverse list */
                   int rank,            /* rank of dataset */
                   hsize_t *dims,       /* dimensions of dataset */
+                  size_t msize,        /* size of type */
                   hid_t dcpl_id,       /* dataset creation property list */
                   pack_opt_t *options, /* repack options */
                   int *has_filter);    /* (OUT) object NAME has a filter */

@@ -144,6 +144,7 @@
 
 #define VC_EXTRALEAN		/*Exclude rarely-used stuff from Windows headers */
 #include <windows.h>
+#include <direct.h>         /* For _getcwd() */
 
 #endif /*_WIN32*/
 
@@ -401,12 +402,12 @@
  * most part.
  */
 #ifndef LLONG_MAX
-#   define LLONG_MAX	((long_long)(((unsigned long_long)1		      \
-				      <<(8*sizeof(long_long)-1))-1))
-#   define LLONG_MIN    ((long_long)(-LLONG_MAX)-1)
+#   define LLONG_MAX	((long long)(((unsigned long long)1		      \
+				      <<(8*sizeof(long long)-1))-1))
+#   define LLONG_MIN    ((long long)(-LLONG_MAX)-1)
 #endif
 #ifndef ULLONG_MAX
-#   define ULLONG_MAX	((unsigned long_long)((long_long)(-1)))
+#   define ULLONG_MAX	((unsigned long long)((long long)(-1)))
 #endif
 #ifndef SIZET_MAX
 #   define SIZET_MAX	((size_t)(ssize_t)(-1))
@@ -1369,8 +1370,7 @@ extern char *strdup(const char *s);
     #define HDpthread_self_ulong()    ((unsigned long)pthread_self())
 #endif /* HDpthread_self_ulong */
 
-
-#ifdef H5_HAVE_WINDOW_PATH
+#if defined(H5_HAVE_WINDOW_PATH)
 
 /* directory delimiter for Windows: slash and backslash are acceptable on Windows */
 #define	DIR_SLASH_SEPC 		'/'
@@ -1391,6 +1391,17 @@ extern char *strdup(const char *s);
         (ptr = slash);                                  \
 }
 
+#elif defined(H5_HAVE_VMS_PATH)
+
+/* OpenVMS pathname: <disk name>$<partition>:[path]<file name>
+ *     i.g. SYS$SYSUSERS:[LU.HDF5.SRC]H5system.c */
+#define		DIR_SEPC	'.'
+#define		DIR_SEPS	"."
+#define         CHECK_DELIMITER(SS)             (SS == DIR_SEPC)
+#define         CHECK_ABSOLUTE(NAME)            (strrchr(NAME, ':') && strrchr(NAME, '['))
+#define 	CHECK_ABS_DRIVE(NAME)           (0)
+#define 	CHECK_ABS_PATH(NAME)    	(0)
+#define         GET_LAST_DELIMITER(NAME, ptr)   ptr = strrchr(NAME, ']');
 
 #else
 

@@ -529,14 +529,14 @@ H5G_user_path_test(hid_t obj_id, char *user_path, size_t *user_path_len, unsigne
 
     /* Retrieve a copy of the user path and put it into the buffer */
     if(obj_path->user_path_r) {
-        size_t len = H5RS_len(obj_path->user_path_r);
+        ssize_t len = H5RS_len(obj_path->user_path_r);
 
         /* Set the user path, if given */
         if(user_path)
             HDstrcpy(user_path, H5RS_get_str(obj_path->user_path_r));
 
         /* Set the length of the path */
-        *user_path_len = len;
+        *user_path_len = (size_t)len;
 
         /* Set the user path hidden flag */
         *obj_hidden = obj_path->obj_hidden;
@@ -549,4 +549,60 @@ H5G_user_path_test(hid_t obj_id, char *user_path, size_t *user_path_len, unsigne
 done:
     FUNC_LEAVE_NOAPI(ret_value)
 }   /* H5G_user_path_test() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5G_verify_cached_stab_test
+ *
+ * Purpose:     Check that a that the provided group entry contains a
+ *              cached symbol table entry, that the entry matches that in
+ *              the provided group's object header, and check that the
+ *              addresses are valid.
+ *
+ * Return:	Success:        Non-negative
+ *		Failure:	Negative
+ *
+ * Programmer:	Neil Fortner
+ *	        Mar  31, 2009
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5G_verify_cached_stab_test(H5O_loc_t *grp_oloc, H5G_entry_t *ent)
+{
+    H5O_stab_t  stab;                   /* Symbol table */
+    H5HL_t      *heap = NULL;           /* Pointer to local heap */
+    herr_t	ret_value = SUCCEED;    /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5G_verify_cached_stab_test)
+
+    /* Verify that stab info is cached in ent */
+    if(ent->type != H5G_CACHED_STAB)
+        HGOTO_ERROR(H5E_SYM, H5E_BADTYPE, FAIL, "symbol table information is not cached")
+
+    /* Read the symbol table message from the group */
+    if(NULL == H5O_msg_read(grp_oloc, H5O_STAB_ID, &stab, H5AC_ind_dxpl_id))
+        HGOTO_ERROR(H5E_SYM, H5E_BADMESG, FAIL, "unable to read symbol table message")
+
+    /* Verify that the cached symbol table info matches the symbol table message
+     * in the object header */
+    if((ent->cache.stab.btree_addr != stab.btree_addr)
+            || (ent->cache.stab.heap_addr != stab.heap_addr))
+        HGOTO_ERROR(H5E_SYM, H5E_BADVALUE, FAIL, "cached stab info does not match object header")
+
+    /* Verify that the btree address is valid */
+    if(H5B_valid(grp_oloc->file, H5AC_ind_dxpl_id, H5B_SNODE, stab.btree_addr) < 0)
+        HGOTO_ERROR(H5E_BTREE, H5E_NOTFOUND, FAIL, "b-tree address is invalid")
+
+    /* Verify that the heap address is valid */
+    if(NULL == (heap = H5HL_protect(grp_oloc->file, H5AC_ind_dxpl_id, stab.heap_addr, H5AC_READ)))
+        HGOTO_ERROR(H5E_HEAP, H5E_NOTFOUND, FAIL, "heap address is invalid")
+
+done:
+    /* Release resources */
+    if(heap && H5HL_unprotect(grp_oloc->file, H5AC_ind_dxpl_id, heap, stab.heap_addr) < 0)
+        HDONE_ERROR(H5E_SYM, H5E_PROTECT, FAIL, "unable to unprotect symbol table heap")
+
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5G_verify_cached_stab_test() */
 

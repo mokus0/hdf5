@@ -130,6 +130,32 @@ H5F_get_extpath(const H5F_t *f)
 
 
 /*-------------------------------------------------------------------------
+ * Function:	H5F_get_name
+ *
+ * Purpose:	Retrieve the name of a file.
+ *
+ * Return:	Success:	The name of the file.
+ *
+ * 		Failure:	? (should not happen)
+ *
+ * Programmer:	Neil Fortner
+ *		December 15 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+char *
+H5F_get_name(const H5F_t *f)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_name)
+
+    HDassert(f);
+
+    FUNC_LEAVE_NOAPI(f->name)
+} /* end H5F_get_name() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	H5F_get_fcpl
  *
  * Purpose:	Retrieve the value of a file's FCPL.
@@ -275,14 +301,14 @@ H5F_Kvalue(const H5F_t *f, const H5B_class_t *type)
 
 
 /*-------------------------------------------------------------------------
- * Function:	H5F_rdcc_nelmts
+ * Function:	H5F_rdcc_nslots
  *
- * Purpose:	Replaced a macro to retrieve the raw data cache number of elments,
+ * Purpose:	Replaced a macro to retrieve the raw data cache number of slots,
  *              now that the generic properties are being used to store
  *              the values.
  *
  * Return:	Success:	Non-negative, and the raw data cache number of
- *                              of elemnts is returned.
+ *                              of slots is returned.
  *
  * 		Failure:	Negative (should not happen)
  *
@@ -293,15 +319,15 @@ H5F_Kvalue(const H5F_t *f, const H5B_class_t *type)
  *-------------------------------------------------------------------------
  */
 size_t
-H5F_rdcc_nelmts(const H5F_t *f)
+H5F_rdcc_nslots(const H5F_t *f)
 {
     /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_rdcc_nelmts)
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_rdcc_nslots)
 
     HDassert(f);
     HDassert(f->shared);
 
-    FUNC_LEAVE_NOAPI(f->shared->rdcc_nelmts)
+    FUNC_LEAVE_NOAPI(f->shared->rdcc_nslots)
 } /* end H5F_rdcc_nelmts() */
 
 

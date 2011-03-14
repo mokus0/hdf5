@@ -221,104 +221,13 @@ done:
 
 
 /*-------------------------------------------------------------------------
- * Function:    H5G_obj_ent_decode
- *
- * Purpose:     Decodes a symbol table entry into a object location
- *
- * Return:      Success:        Non-negative with *pp pointing to the first byte
- *                              following the symbol table entry.
- *
- *              Failure:        Negative
- *
- * Programmer:  Quincey Koziol
- *              koziol@ncsa.uiuc.edu
- *              Sep 26 2005
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5G_obj_ent_decode(H5F_t *f, const uint8_t **pp, H5O_loc_t *oloc)
-{
-    const uint8_t	*p_ret = *pp;
-
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_obj_ent_decode)
-
-    /* check arguments */
-    HDassert(f);
-    HDassert(pp);
-    HDassert(oloc);
-
-    /* Set file pointer for root object location */
-    oloc->file = f;
-    oloc->holding_file = FALSE;
-
-    /* decode header */
-    *pp += H5F_SIZEOF_SIZE(f);          /* Skip over local heap address */
-    H5F_addr_decode(f, pp, &(oloc->addr));
-    *pp += 4;                           /* Skip over "cache type" */
-    *pp += 4;                           /* Reserved */
-
-    /* Set decode pointer */
-    *pp = p_ret + H5G_SIZEOF_ENTRY(f);
-
-    FUNC_LEAVE_NOAPI(SUCCEED)
-} /* end H5G_obj_ent_decode() */
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5G_obj_ent_encode
- *
- * Purpose:     Encodes the specified object location into a symbol table
- *              entry in the buffer pointed to by *pp.
- *
- * Return:      Success:        Non-negative, with *pp pointing to the first byte
- *                              after the symbol table entry.
- *
- *              Failure:        Negative
- *
- * Programmer:  Quincey Koziol
- *              koziol@ncsa.uiuc.edu
- *              Sep 26 2005
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5G_obj_ent_encode(const H5F_t *f, uint8_t **pp, const H5O_loc_t *oloc)
-{
-    uint8_t		*p_ret = *pp + H5G_SIZEOF_ENTRY(f);
-
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_obj_ent_encode)
-
-    /* check arguments */
-    HDassert(f);
-    HDassert(pp);
-
-    /* encode header */
-    H5F_ENCODE_LENGTH(f, *pp, 0);           /* No name for root group */
-    if(oloc)
-        H5F_addr_encode(f, pp, oloc->addr);
-    else
-        H5F_addr_encode(f, pp, HADDR_UNDEF);
-    UINT32ENCODE(*pp, H5G_NOTHING_CACHED);
-    UINT32ENCODE(*pp, 0); /*reserved*/
-
-    /* fill with zero */
-    while(*pp < p_ret)
-        *(*pp)++ = 0;
-    *pp = p_ret;
-
-    FUNC_LEAVE_NOAPI(SUCCEED)
-} /* end H5G_obj_ent_encode() */
-
-
-/*-------------------------------------------------------------------------
  * Function:    H5G_obj_get_linfo
  *
  * Purpose:     Retrieves the "link info" message for an object.  Also
  *              sets the number of links correctly, if it isn't set up yet.
  *
- * Return:	Success:	Ptr to message in native format.
- *              Failure:        NULL
+ * Return:	Success:	TRUE/FALSE whether message was found & retrieved
+ *              Failure:        FAIL if error occurred
  *
  * Programmer:  Quincey Koziol
  *              koziol@hdfgroup.org
@@ -1066,9 +975,6 @@ H5G_obj_remove_by_idx(H5O_loc_t *grp_oloc, H5RS_str_t *grp_full_path_r,
         } /* end else */
     } /* end if */
     else {
-        /* Clear error stack from not finding the link info message */
-        H5E_clear_stack(NULL);
-
         /* Can only perform name lookups on groups with symbol tables */
         if(idx_type != H5_INDEX_NAME)
             HGOTO_ERROR(H5E_SYM, H5E_BADVALUE, FAIL, "no creation order index to query")

@@ -66,8 +66,7 @@ static herr_t H5D_typeinfo_init(const H5D_t *dset, const H5D_dxpl_cache_t *dxpl_
     H5D_type_info_t *type_info);
 #ifdef H5_HAVE_PARALLEL
 static herr_t H5D_ioinfo_adjust(H5D_io_info_t *io_info, const H5D_t *dset,
-    const H5D_dxpl_cache_t *dxpl_cache, hid_t dxpl_id,
-    const H5S_t *file_space, const H5S_t *mem_space,
+    hid_t dxpl_id, const H5S_t *file_space, const H5S_t *mem_space,
     const H5D_type_info_t *type_info, const H5D_chunk_map_t *fm);
 static herr_t H5D_ioinfo_term(H5D_io_info_t *io_info);
 #endif /* H5_HAVE_PARALLEL */
@@ -351,8 +350,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
      * has been overwritten.  So just proceed in reading.
      */
     if(nelmts > 0 && dataset->shared->dcpl_cache.efl.nused == 0 &&
-            ((dataset->shared->layout.type == H5D_CONTIGUOUS && !H5F_addr_defined(dataset->shared->layout.u.contig.addr))
-                || (dataset->shared->layout.type == H5D_CHUNKED && !H5F_addr_defined(dataset->shared->layout.u.chunk.addr)))) {
+            !(*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout)) {
         H5D_fill_value_t fill_status;   /* Whether/How the fill value is defined */
 
         /* Retrieve dataset's fill-value properties */
@@ -386,8 +384,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
     /* Sanity check that space is allocated, if there are elements */
     if(nelmts > 0)
-        HDassert(((dataset->shared->layout.type == H5D_CONTIGUOUS && H5F_addr_defined(dataset->shared->layout.u.contig.addr))
-                || (dataset->shared->layout.type == H5D_CHUNKED && H5F_addr_defined(dataset->shared->layout.u.chunk.addr)))
+        HDassert((*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout)
                 || dataset->shared->dcpl_cache.efl.nused > 0
                 || dataset->shared->layout.type == H5D_COMPACT);
 
@@ -398,7 +395,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
 #ifdef H5_HAVE_PARALLEL
     /* Adjust I/O info for any parallel I/O */
-    if(H5D_ioinfo_adjust(&io_info, dataset, dxpl_cache, dxpl_id, file_space, mem_space, &type_info, &fm) < 0)
+    if(H5D_ioinfo_adjust(&io_info, dataset, dxpl_id, file_space, mem_space, &type_info, &fm) < 0)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to adjust I/O info for parallel I/O")
 #endif /*H5_HAVE_PARALLEL*/
 
@@ -537,8 +534,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
     /* Allocate data space and initialize it if it hasn't been. */
     if(nelmts > 0 && dataset->shared->dcpl_cache.efl.nused == 0 &&
-            ((dataset->shared->layout.type == H5D_CONTIGUOUS && !H5F_addr_defined(dataset->shared->layout.u.contig.addr))
-                || (dataset->shared->layout.type == H5D_CHUNKED && !H5F_addr_defined(dataset->shared->layout.u.chunk.addr)))) {
+            !(*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout)) {
         hssize_t file_nelmts;   /* Number of elements in file dataset's dataspace */
         hbool_t full_overwrite; /* Whether we are over-writing all the elements */
 
@@ -550,7 +546,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
         if(H5T_detect_class(dataset->shared->type, H5T_VLEN))
             full_overwrite = FALSE;
         else
-            full_overwrite = (hsize_t)file_nelmts == nelmts ? TRUE : FALSE;
+            full_overwrite = (hbool_t)((hsize_t)file_nelmts == nelmts ? TRUE : FALSE);
 
  	/* Allocate storage */
         if(H5D_alloc_storage(dataset, dxpl_id, H5D_ALLOC_WRITE, full_overwrite) < 0)
@@ -573,7 +569,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
 #ifdef H5_HAVE_PARALLEL
     /* Adjust I/O info for any parallel I/O */
-    if(H5D_ioinfo_adjust(&io_info, dataset, dxpl_cache, dxpl_id, file_space, mem_space, &type_info, &fm) < 0)
+    if(H5D_ioinfo_adjust(&io_info, dataset, dxpl_id, file_space, mem_space, &type_info, &fm) < 0)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to adjust I/O info for parallel I/O")
 #endif /*H5_HAVE_PARALLEL*/
 
@@ -780,8 +776,8 @@ H5D_typeinfo_init(const H5D_t *dset, const H5D_dxpl_cache_t *dxpl_cache,
             hbool_t default_buffer_info;    /* Whether the buffer information are the defaults */
 
             /* Detect if we have all default settings for buffers */
-            default_buffer_info = (H5D_TEMP_BUF_SIZE == dxpl_cache->max_temp_buf)
-                    && (NULL == dxpl_cache->tconv_buf) && (NULL == dxpl_cache->bkgr_buf);
+            default_buffer_info = (hbool_t)((H5D_TEMP_BUF_SIZE == dxpl_cache->max_temp_buf)
+                    && (NULL == dxpl_cache->tconv_buf) && (NULL == dxpl_cache->bkgr_buf));
 
             /* Check if we are using the default buffer info */
             if(default_buffer_info)
@@ -848,8 +844,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5D_ioinfo_adjust(H5D_io_info_t *io_info, const H5D_t *dset,
-    const H5D_dxpl_cache_t *dxpl_cache, hid_t dxpl_id,
+H5D_ioinfo_adjust(H5D_io_info_t *io_info, const H5D_t *dset, hid_t dxpl_id,
     const H5S_t *file_space, const H5S_t *mem_space,
     const H5D_type_info_t *type_info, const H5D_chunk_map_t *fm)
 {

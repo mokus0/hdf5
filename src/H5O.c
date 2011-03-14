@@ -309,7 +309,7 @@ H5Oopen_by_idx(hid_t loc_id, const char *group_name, H5_index_t idx_type,
     loc_found = TRUE;
 
     /* Open the object */
-    if((ret_value = H5O_open_by_loc(&obj_loc, H5AC_dxpl_id, TRUE)) < 0)
+    if((ret_value = H5O_open_by_loc(&obj_loc, lapl_id, H5AC_dxpl_id, TRUE)) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open object")
 
 done:
@@ -365,6 +365,7 @@ H5Oopen_by_addr(hid_t loc_id, haddr_t addr)
     H5G_name_t  obj_path;            	/* Opened object group hier. path */
     H5O_loc_t   obj_oloc;            	/* Opened object object location */
     hbool_t     loc_found = FALSE;      /* Location at 'name' found */
+    hid_t       lapl_id = H5P_LINK_ACCESS_DEFAULT; /* lapl to use to open this object */
     hid_t       ret_value = FAIL;
 
     FUNC_ENTER_API(H5Oopen_by_addr, FAIL)
@@ -385,7 +386,7 @@ H5Oopen_by_addr(hid_t loc_id, haddr_t addr)
     H5G_name_reset(obj_loc.path);       /* objects opened through this routine don't have a path name */
 
     /* Open the object */
-    if((ret_value = H5O_open_by_loc(&obj_loc, H5AC_dxpl_id, TRUE)) < 0)
+    if((ret_value = H5O_open_by_loc(&obj_loc, lapl_id, H5AC_dxpl_id, TRUE)) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open object")
 
 done:
@@ -1286,7 +1287,7 @@ H5O_open_name(H5G_loc_t *loc, const char *name, hid_t lapl_id, hbool_t app_ref)
     loc_found = TRUE;
 
     /* Open the object */
-    if((ret_value = H5O_open_by_loc(&obj_loc, H5AC_ind_dxpl_id, app_ref)) < 0)
+    if((ret_value = H5O_open_by_loc(&obj_loc, lapl_id, H5AC_ind_dxpl_id, app_ref)) < 0)
         HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open object")
 
 done:
@@ -1312,7 +1313,7 @@ done:
  *-------------------------------------------------------------------------
  */
 hid_t
-H5O_open_by_loc(const H5G_loc_t *obj_loc, hid_t dxpl_id, hbool_t app_ref)
+H5O_open_by_loc(const H5G_loc_t *obj_loc, hid_t lapl_id, hid_t dxpl_id, hbool_t app_ref)
 {
     const H5O_obj_class_t *obj_class;   /* Class of object for location */
     hid_t      ret_value;               /* Return value */
@@ -1327,7 +1328,7 @@ H5O_open_by_loc(const H5G_loc_t *obj_loc, hid_t dxpl_id, hbool_t app_ref)
 
     /* Call the object class's 'open' routine */
     HDassert(obj_class->open);
-    if((ret_value = obj_class->open(obj_loc, dxpl_id, app_ref)) < 0)
+    if((ret_value = obj_class->open(obj_loc, lapl_id, dxpl_id, app_ref)) < 0)
         HGOTO_ERROR(H5E_OHDR, H5E_CANTOPENOBJ, FAIL, "unable to open object")
 
 done:
@@ -1392,6 +1393,110 @@ done:
 
 
 /*-------------------------------------------------------------------------
+ * Function:	H5O_link_oh
+ *
+ * Purpose:	Adjust the link count for an open object header by adding
+ *		ADJUST to the link count.
+ *
+ * Return:	Success:	New link count
+ *
+ *		Failure:	Negative
+ *
+ * Programmer:	Robb Matzke
+ *		matzke@llnl.gov
+ *		Aug  5 1997
+ *
+ *-------------------------------------------------------------------------
+ */
+int
+H5O_link_oh(H5F_t *f, int adjust, hid_t dxpl_id, H5O_t *oh, unsigned *oh_flags)
+{
+    haddr_t addr = H5O_OH_GET_ADDR(oh);     /* Object header address */
+    int	ret_value;                          /* Return value */
+
+    FUNC_ENTER_NOAPI(H5O_link_oh, FAIL)
+
+    /* Check for adjusting link count */
+    if(adjust) {
+        if(adjust < 0) {
+            /* Check for too large of an adjustment */
+            if((unsigned)(-adjust) > oh->nlink)
+                HGOTO_ERROR(H5E_OHDR, H5E_LINKCOUNT, FAIL, "link count would be negative")
+            oh->nlink += adjust;
+            *oh_flags |= H5AC__DIRTIED_FLAG;
+
+            /* Check if the object should be deleted */
+            if(oh->nlink == 0) {
+                /* Check if the object is still open by the user */
+                if(H5FO_opened(f, addr) != NULL) {
+                    /* Flag the object to be deleted when it's closed */
+                    if(H5FO_mark(f, addr, TRUE) < 0)
+                        HGOTO_ERROR(H5E_OHDR, H5E_CANTDELETE, FAIL, "can't mark object for deletion")
+                } /* end if */
+                else {
+                    /* Delete object right now */
+                    if(H5O_delete_oh(f, dxpl_id, oh) < 0)
+                        HGOTO_ERROR(H5E_OHDR, H5E_CANTDELETE, FAIL, "can't delete object from file")
+
+                    /* Mark the object header as deleted */
+                    *oh_flags = H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG;
+                } /* end else */
+            } /* end if */
+        } else {
+            /* A new object, or one that will be deleted */
+            if(oh->nlink == 0) {
+                /* Check if the object is current open, but marked for deletion */
+                if(H5FO_marked(f, addr) > 0) {
+                    /* Remove "delete me" flag on the object */
+                    if(H5FO_mark(f, addr, FALSE) < 0)
+                        HGOTO_ERROR(H5E_OHDR, H5E_CANTDELETE, FAIL, "can't mark object for deletion")
+                } /* end if */
+            } /* end if */
+
+            oh->nlink += adjust;
+            *oh_flags |= H5AC__DIRTIED_FLAG;
+        } /* end if */
+
+        /* Check for operations on refcount message */
+        if(oh->version > H5O_VERSION_1) {
+            /* Check if the object has a refcount message already */
+            if(oh->has_refcount_msg) {
+                /* Check for removing refcount message */
+                if(oh->nlink <= 1) {
+                    if(H5O_msg_remove_real(f, oh, H5O_MSG_REFCOUNT, H5O_ALL, NULL, NULL, TRUE, dxpl_id) < 0)
+                        HGOTO_ERROR(H5E_ATTR, H5E_CANTDELETE, FAIL, "unable to delete refcount message")
+                    oh->has_refcount_msg = FALSE;
+                } /* end if */
+                /* Update refcount message with new link count */
+                else {
+                    H5O_refcount_t refcount = oh->nlink;
+
+                    if(H5O_msg_write_real(f, dxpl_id, oh, H5O_MSG_REFCOUNT, H5O_MSG_FLAG_DONTSHARE, 0, &refcount) < 0)
+                        HGOTO_ERROR(H5E_ATTR, H5E_CANTUPDATE, FAIL, "unable to update refcount message")
+                } /* end else */
+            } /* end if */
+            else {
+                /* Check for adding refcount message to object */
+                if(oh->nlink > 1) {
+                    H5O_refcount_t refcount = oh->nlink;
+
+                    if(H5O_msg_append_real(f, dxpl_id, oh, H5O_MSG_REFCOUNT, H5O_MSG_FLAG_DONTSHARE, 0, &refcount) < 0)
+                        HGOTO_ERROR(H5E_ATTR, H5E_CANTINSERT, FAIL, "unable to create new refcount message")
+                    oh->has_refcount_msg = TRUE;
+                } /* end if */
+            } /* end else */
+        } /* end if */
+    } /* end if */
+
+    /* Set return value */
+    ret_value = oh->nlink;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+} /* end H5O_link_oh() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	H5O_link
  *
  * Purpose:	Adjust the link count for an object header by adding
@@ -1427,80 +1532,9 @@ H5O_link(const H5O_loc_t *loc, int adjust, hid_t dxpl_id)
     if(NULL == (oh = (H5O_t *)H5AC_protect(loc->file, dxpl_id, H5AC_OHDR, loc->addr, NULL, NULL, oh_acc)))
 	HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, FAIL, "unable to load object header")
 
-    /* Check for adjusting link count */
-    if(adjust) {
-        if(adjust < 0) {
-            /* Check for too large of an adjustment */
-            if((unsigned)(-adjust) > oh->nlink)
-                HGOTO_ERROR(H5E_OHDR, H5E_LINKCOUNT, FAIL, "link count would be negative")
-            oh->nlink += adjust;
-            oh_flags |= H5AC__DIRTIED_FLAG;
-
-            /* Check if the object should be deleted */
-            if(oh->nlink == 0) {
-                /* Check if the object is still open by the user */
-                if(H5FO_opened(loc->file, loc->addr) != NULL) {
-                    /* Flag the object to be deleted when it's closed */
-                    if(H5FO_mark(loc->file, loc->addr, TRUE) < 0)
-                        HGOTO_ERROR(H5E_OHDR, H5E_CANTDELETE, FAIL, "can't mark object for deletion")
-                } /* end if */
-                else {
-                    /* Delete object right now */
-                    if(H5O_delete_oh(loc->file, dxpl_id, oh) < 0)
-                        HGOTO_ERROR(H5E_OHDR, H5E_CANTDELETE, FAIL, "can't delete object from file")
-
-                    /* Mark the object header as deleted */
-                    oh_flags = H5AC__DELETED_FLAG | H5AC__FREE_FILE_SPACE_FLAG;
-                } /* end else */
-            } /* end if */
-        } else {
-            /* A new object, or one that will be deleted */
-            if(oh->nlink == 0) {
-                /* Check if the object is current open, but marked for deletion */
-                if(H5FO_marked(loc->file, loc->addr) > 0) {
-                    /* Remove "delete me" flag on the object */
-                    if(H5FO_mark(loc->file, loc->addr, FALSE) < 0)
-                        HGOTO_ERROR(H5E_OHDR, H5E_CANTDELETE, FAIL, "can't mark object for deletion")
-                } /* end if */
-            } /* end if */
-
-            oh->nlink += adjust;
-            oh_flags |= H5AC__DIRTIED_FLAG;
-        } /* end if */
-
-        /* Check for operations on refcount message */
-        if(oh->version > H5O_VERSION_1) {
-            /* Check if the object has a refcount message already */
-            if(oh->has_refcount_msg) {
-                /* Check for removing refcount message */
-                if(oh->nlink <= 1) {
-                    if(H5O_msg_remove_real(loc->file, oh, H5O_MSG_REFCOUNT, H5O_ALL, NULL, NULL, TRUE, dxpl_id) < 0)
-                        HGOTO_ERROR(H5E_ATTR, H5E_CANTDELETE, FAIL, "unable to delete refcount message")
-                    oh->has_refcount_msg = FALSE;
-                } /* end if */
-                /* Update refcount message with new link count */
-                else {
-                    H5O_refcount_t refcount = oh->nlink;
-
-                    if(H5O_msg_write_real(loc->file, dxpl_id, oh, H5O_MSG_REFCOUNT, H5O_MSG_FLAG_DONTSHARE, 0, &refcount) < 0)
-                        HGOTO_ERROR(H5E_ATTR, H5E_CANTUPDATE, FAIL, "unable to update refcount message")
-                } /* end else */
-            } /* end if */
-            else {
-                /* Check for adding refcount message to object */
-                if(oh->nlink > 1) {
-                    H5O_refcount_t refcount = oh->nlink;
-
-                    if(H5O_msg_append_real(loc->file, dxpl_id, oh, H5O_MSG_REFCOUNT, H5O_MSG_FLAG_DONTSHARE, 0, &refcount) < 0)
-                        HGOTO_ERROR(H5E_ATTR, H5E_CANTINSERT, FAIL, "unable to create new refcount message")
-                    oh->has_refcount_msg = TRUE;
-                } /* end if */
-            } /* end else */
-        } /* end if */
-    } /* end if */
-
-    /* Set return value */
-    ret_value = oh->nlink;
+    /* Call the "real" link routine */
+    if((ret_value = H5O_link_oh(loc->file, adjust, dxpl_id, oh, &oh_flags)) < 0)
+        HGOTO_ERROR(H5E_OHDR, H5E_LINKCOUNT, FAIL, "unable to adjust object link count")
 
 done:
     if(oh && H5AC_unprotect(loc->file, dxpl_id, H5AC_OHDR, loc->addr, oh, oh_flags) < 0)
@@ -1651,11 +1685,11 @@ H5O_touch_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh, hbool_t force)
                     HGOTO_DONE(SUCCEED);        /*nothing to do*/
 
                 /* Allocate space for the modification time message */
-                if((idx = H5O_msg_alloc(f, dxpl_id, oh, H5O_MSG_MTIME_NEW, &mesg_flags, &now)) == UFAIL)
+                if(UFAIL == (idx = H5O_msg_alloc(f, dxpl_id, oh, H5O_MSG_MTIME_NEW, &mesg_flags, &now)))
                     HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, FAIL, "unable to allocate space for modification time message")
 
                 /* Set the message's flags if appropriate */
-                oh->mesg[idx].flags = mesg_flags;
+                oh->mesg[idx].flags = (uint8_t)mesg_flags;
             } /* end if */
 
             /* Allocate 'native' space, if necessary */
@@ -1891,8 +1925,8 @@ done:
  *
  * Purpose:	Retrieves the type of object pointed to by `loc'.
  *
- * Return:	Success:	An object type defined in H5Gpublic.h
- *		Failure:	H5G_UNKNOWN
+ * Return:	Success:	Non-negative
+ *		Failure:	Negative
  *
  * Programmer:	Robb Matzke
  *              Wednesday, November  4, 1998
@@ -1928,8 +1962,8 @@ done:
  *
  * Purpose:	Returns the type of object pointed to by `oh'.
  *
- * Return:	Success:	An object type defined in H5Opublic.h
- *		Failure:	H5G_UNKNOWN
+ * Return:	Success:	Non-negative
+ *		Failure:	Negative
  *
  * Programmer:	Quincey Koziol
  *              Monday, November 21, 2005
@@ -2272,8 +2306,7 @@ H5O_get_info(H5O_loc_t *oloc, hid_t dxpl_id, hbool_t want_ih_info, H5O_info_t *o
     HDassert(oinfo);
 
     /* Get the object header */
-    if(NULL == (oh = (H5O_t *)H5AC_protect(oloc->file, dxpl_id, H5AC_OHDR, oloc->addr, NULL, NULL,
-        (H5F_get_intent(oloc->file) & H5F_ACC_RDWR) ? H5AC_WRITE : H5AC_READ)))
+    if(NULL == (oh = (H5O_t *)H5AC_protect(oloc->file, dxpl_id, H5AC_OHDR, oloc->addr, NULL, NULL, H5AC_READ)))
 	HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, FAIL, "unable to load object header")
 
     /* Reset the object info structure */
@@ -2311,6 +2344,8 @@ H5O_get_info(H5O_loc_t *oloc, hid_t dxpl_id, hbool_t want_ih_info, H5O_info_t *o
         oinfo->btime = oh->btime;
     } /* end if */
     else {
+        htri_t	exists;                 /* Flag if header message of interest exists */
+
         /* No information for access & modification fields */
         /* (we stopped updating the "modification time" header message for
          *      raw data changes, so the "modification time" header message
@@ -2321,13 +2356,25 @@ H5O_get_info(H5O_loc_t *oloc, hid_t dxpl_id, hbool_t want_ih_info, H5O_info_t *o
         oinfo->btime = 0;
 
         /* Might be information for modification time */
-        if(NULL == H5O_msg_read_real(oloc->file, dxpl_id, oh, H5O_MTIME_ID, &oinfo->ctime)) {
-            H5E_clear_stack(NULL);
-            if(NULL == H5O_msg_read_real(oloc->file, dxpl_id, oh, H5O_MTIME_NEW_ID, &oinfo->ctime)) {
-                H5E_clear_stack(NULL);
-                oinfo->ctime = 0;
-            } /* end if */
+        if((exists = H5O_msg_exists_oh(oh, H5O_MTIME_ID)) < 0)
+            HGOTO_ERROR(H5E_OHDR, H5E_NOTFOUND, FAIL, "unable to check for MTIME message")
+        if(exists > 0) {
+            /* Get "old style" modification time info */
+            if(NULL == H5O_msg_read_oh(oloc->file, dxpl_id, oh, H5O_MTIME_ID, &oinfo->ctime))
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTGET, FAIL, "can't read MTIME message")
         } /* end if */
+        else {
+            /* Check for "new style" modification time info */
+            if((exists = H5O_msg_exists_oh(oh, H5O_MTIME_NEW_ID)) < 0)
+                HGOTO_ERROR(H5E_OHDR, H5E_NOTFOUND, FAIL, "unable to check for MTIME_NEW message")
+            if(exists > 0) {
+                /* Get "new style" modification time info */
+                if(NULL == H5O_msg_read_oh(oloc->file, dxpl_id, oh, H5O_MTIME_NEW_ID, &oinfo->ctime))
+                    HGOTO_ERROR(H5E_OHDR, H5E_CANTGET, FAIL, "can't read MTIME_NEW message")
+            } /* end if */
+            else
+                oinfo->ctime = 0;
+        } /* end else */
     } /* end else */
 
     /* Set the version for the object header */
@@ -2369,7 +2416,8 @@ H5O_get_info(H5O_loc_t *oloc, hid_t dxpl_id, hbool_t want_ih_info, H5O_info_t *o
     } /* end for */
 
     /* Retrieve # of attributes */
-    oinfo->num_attrs = H5O_attr_count_real(oloc->file, dxpl_id, oh);
+    if(H5O_attr_count_real(oloc->file, dxpl_id, oh, &oinfo->num_attrs) < 0)
+        HGOTO_ERROR(H5E_ATTR, H5E_CANTGET, FAIL, "can't retrieve attribute count")
 
     /* Get B-tree & heap metadata storage size, if requested */
     if(want_ih_info) {
@@ -2803,7 +2851,7 @@ H5O_visit(hid_t loc_id, const char *obj_name, H5_index_t idx_type,
 
     /* Open the object */
     /* (Takes ownership of the obj_loc information) */
-    if((obj_id = H5O_open_by_loc(&obj_loc, dxpl_id, TRUE)) < 0)
+    if((obj_id = H5O_open_by_loc(&obj_loc, lapl_id, dxpl_id, TRUE)) < 0)
         HGOTO_ERROR(H5E_OHDR, H5E_CANTOPENOBJ, FAIL, "unable to open object")
 
     /* Make callback for starting object */
@@ -2831,7 +2879,7 @@ H5O_visit(hid_t loc_id, const char *obj_name, H5_index_t idx_type,
         udata.op_data = op_data;
 
         /* Create skip list to store visited object information */
-        if((udata.visited = H5SL_create(H5SL_TYPE_OBJ, 0.5, (size_t)16)) == NULL)
+        if((udata.visited = H5SL_create(H5SL_TYPE_OBJ)) == NULL)
             HGOTO_ERROR(H5E_OHDR, H5E_CANTCREATE, FAIL, "can't create skip list for visited objects")
 
         /* If its ref count is > 1, we add it to the list of visited objects */

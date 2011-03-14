@@ -250,7 +250,7 @@ typedef struct H5F_blk_aggr_t H5F_blk_aggr_t;
 #define H5F_SIZEOF_SIZE(F)      ((F)->shared->sizeof_size)
 #define H5F_SYM_LEAF_K(F)       ((F)->shared->sym_leaf_k)
 #define H5F_KVALUE(F,T)         ((F)->shared->btree_k[(T)->id])
-#define H5F_RDCC_NELMTS(F)      ((F)->shared->rdcc_nelmts)
+#define H5F_RDCC_NSLOTS(F)      ((F)->shared->rdcc_nslots)
 #define H5F_RDCC_NBYTES(F)      ((F)->shared->rdcc_nbytes)
 #define H5F_RDCC_W0(F)          ((F)->shared->rdcc_w0)
 #define H5F_BASE_ADDR(F)        ((F)->shared->base_addr)
@@ -259,6 +259,7 @@ typedef struct H5F_blk_aggr_t H5F_blk_aggr_t;
 #define H5F_GC_REF(F)           ((F)->shared->gc_ref)
 #define H5F_USE_LATEST_FORMAT(F) ((F)->shared->latest_format)
 #define H5F_EXTPATH(F)          ((F)->extpath)
+#define H5F_NAME(F)             ((F)->name)
 #define H5F_GET_FC_DEGREE(F)    ((F)->shared->fc_degree)
 #define H5F_STORE_MSG_CRT_IDX(F)    ((F)->shared->store_msg_crt_idx)
 #define H5F_HAS_FEATURE(F,FL)   ((F)->shared->lf->feature_flags & (FL))
@@ -271,7 +272,7 @@ typedef struct H5F_blk_aggr_t H5F_blk_aggr_t;
 #define H5F_SIZEOF_SIZE(F)      (H5F_sizeof_size(F))
 #define H5F_SYM_LEAF_K(F)       (H5F_sym_leaf_k(F))
 #define H5F_KVALUE(F,T)         (H5F_Kvalue(F,T))
-#define H5F_RDCC_NELMTS(F)      (H5F_rdcc_nelmts(F))
+#define H5F_RDCC_NSLOTS(F)      (H5F_rdcc_nslots(F))
 #define H5F_RDCC_NBYTES(F)      (H5F_rdcc_nbytes(F))
 #define H5F_RDCC_W0(F)          (H5F_rdcc_w0(F))
 #define H5F_BASE_ADDR(F)        (H5F_get_base_addr(F))
@@ -280,6 +281,7 @@ typedef struct H5F_blk_aggr_t H5F_blk_aggr_t;
 #define H5F_GC_REF(F)           (H5F_gc_ref(F))
 #define H5F_USE_LATEST_FORMAT(F) (H5F_use_latest_format(F))
 #define H5F_EXTPATH(F)          (H5F_get_extpath(F))
+#define H5F_NAME(F)             (H5F_get_name(F))
 #define H5F_GET_FC_DEGREE(F)    (H5F_get_fc_degree(F))
 #define H5F_STORE_MSG_CRT_IDX(F) (H5F_store_msg_crt_idx(F))
 #define H5F_HAS_FEATURE(F,FL)   (H5F_has_feature(F,FL))
@@ -358,7 +360,7 @@ typedef struct H5F_blk_aggr_t H5F_blk_aggr_t;
 
 /* ========= File Access properties ============ */
 #define H5F_ACS_META_CACHE_INIT_CONFIG_NAME	"mdc_initCacheCfg" /* Initial metadata cache resize configuration */
-#define H5F_ACS_DATA_CACHE_ELMT_SIZE_NAME       "rdcc_nelmts"   /* Size of raw data chunk cache(elements) */
+#define H5F_ACS_DATA_CACHE_NUM_SLOTS_NAME       "rdcc_nslots"   /* Size of raw data chunk cache(slots) */
 #define H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME       "rdcc_nbytes"   /* Size of raw data chunk cache(bytes) */
 #define H5F_ACS_PREEMPT_READ_CHUNKS_NAME        "rdcc_w0"       /* Preemption read chunks first */
 #define H5F_ACS_ALIGN_THRHD_NAME                "threshold"     /* Threshold for alignment */
@@ -397,7 +399,7 @@ typedef struct H5F_blk_aggr_t H5F_blk_aggr_t;
 
 /* B-tree internal 'K' values */
 #define HDF5_BTREE_SNODE_IK_DEF         16
-#define HDF5_BTREE_ISTORE_IK_DEF        32      /* Note! this value is assumed
+#define HDF5_BTREE_CHUNK_IK_DEF         32      /* Note! this value is assumed
                                                     to be 32 for version 0
                                                     of the superblock and
                                                     if it is changed, the code
@@ -465,6 +467,7 @@ H5_DLL unsigned H5F_decr_nopen_objs(H5F_t *f);
 H5_DLL unsigned H5F_get_intent(const H5F_t *f);
 H5_DLL hid_t H5F_get_access_plist(H5F_t *f, hbool_t app_ref);
 H5_DLL char *H5F_get_extpath(const H5F_t *f);
+H5_DLL char *H5F_get_name(const H5F_t *f);
 H5_DLL hid_t H5F_get_id(H5F_t *file, hbool_t app_ref);
 H5_DLL size_t H5F_get_obj_count(const H5F_t *f, unsigned types, hbool_t app_ref);
 H5_DLL size_t H5F_get_obj_ids(const H5F_t *f, unsigned types, size_t max_objs, hid_t *obj_id_list, hbool_t app_ref);
@@ -476,7 +479,7 @@ H5_DLL size_t H5F_sizeof_size(const H5F_t *f);
 H5_DLL unsigned H5F_sym_leaf_k(const H5F_t *f);
 H5_DLL unsigned H5F_Kvalue(const H5F_t *f, const struct H5B_class_t *type);
 H5_DLL size_t H5F_rdcc_nbytes(const H5F_t *f);
-H5_DLL size_t H5F_rdcc_nelmts(const H5F_t *f);
+H5_DLL size_t H5F_rdcc_nslots(const H5F_t *f);
 H5_DLL double H5F_rdcc_w0(const H5F_t *f);
 H5_DLL haddr_t H5F_get_base_addr(const H5F_t *f);
 H5_DLL struct H5RC_t *H5F_grp_btree_shared(const H5F_t *f);
@@ -504,8 +507,11 @@ H5_DLL herr_t H5F_block_write(const H5F_t *f, H5FD_mem_t type, haddr_t addr,
 
 /* Address-related functions */
 H5_DLL void H5F_addr_encode(const H5F_t *, uint8_t** /*in,out*/, haddr_t);
+H5_DLL void H5F_addr_encode_len(size_t addr_len, uint8_t** /*in,out*/, haddr_t);
 H5_DLL void H5F_addr_decode(const H5F_t *, const uint8_t** /*in,out*/,
-			     haddr_t* /*out*/);
+    haddr_t* /*out*/);
+H5_DLL void H5F_addr_decode_len(size_t addr_len, const uint8_t** /*in,out*/,
+    haddr_t* /*out*/);
 
 /* File access property list callbacks */
 H5_DLL herr_t H5P_facc_close(hid_t dxpl_id, void *close_data);

@@ -233,6 +233,7 @@ H5Iregister_type(size_t hash_size, unsigned reserved, H5I_free_t free_func)
     H5I_type_t ret_value;       /* Return value */
 
     FUNC_ENTER_API(H5Iregister_type, H5I_BADID)
+    H5TRACE3("It", "zIux", hash_size, reserved, free_func);
 
     /* Call H5I_register_type with a value of 0 to get a new type */
     ret_value = H5I_register_type((H5I_type_t)0, hash_size, reserved, free_func);
@@ -1844,6 +1845,49 @@ done:
 
 
 /*-------------------------------------------------------------------------
+ * Function:	H5Iis_valid
+ *
+ * Purpose:	Check if the given id is valid.  An id is valid if it is in
+ *              use and has an application reference count of at least 1.
+ *
+ * Return:	Success:        TRUE if the id is valid, FALSE otherwise.
+ *
+ *              Failure:	Negative (never fails currently)
+ *
+ * Programmer:  Neil Fortner
+ *              Friday, October 31, 2008 (boo)
+ *
+ * Modifications:
+ *              Raymond Lu
+ *              1 April 2009 (Believe it or not!)
+ *              Moved the argument check down to H5I_find_id because other
+ *              caller functions may pass in some invalid IDs to H5I_find_id.
+ *              It used to do assertion check.
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5Iis_valid(hid_t id)
+{
+    H5I_id_info_t   *id_ptr;            /* ptr to the ID */
+    htri_t          ret_value = TRUE;   /* Return value */
+
+    FUNC_ENTER_API(H5Iis_valid, FAIL)
+    H5TRACE1("t", "i", id);
+
+    /* Find the ID */
+    if (NULL == (id_ptr = H5I_find_id(id)))
+        ret_value = FALSE;
+
+    /* Check if the found id is an internal id */
+    else if (!id_ptr->app_count)
+        ret_value = FALSE;
+
+done:
+    FUNC_LEAVE_API(ret_value)
+} /* end H5Iis_valid() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	H5Isearch
  *
  * Purpose:	Apply function FUNC to each member of type TYPE and return a
@@ -1963,7 +2007,9 @@ done:
  * Programmer:
  *
  * Modifications:
- *
+ *              Raymond Lu
+ *              1 April 2009 (Believe it or not!)
+ *              Added argument check, took away assertion check.
  *-------------------------------------------------------------------------
  */
 static H5I_id_info_t *
@@ -1980,10 +2026,12 @@ H5I_find_id(hid_t id)
 
     /* Check arguments */
     type = H5I_TYPE(id);
-    HDassert(type > H5I_BADID && type < H5I_next_type);
-    type_ptr = H5I_id_type_list_g[type];
+    if (type <= H5I_BADID || type >= H5I_next_type)
+        HGOTO_DONE(NULL);
 
-    HDassert(type_ptr && type_ptr->count > 0);
+    type_ptr = H5I_id_type_list_g[type];
+    if (!type_ptr || type_ptr->count <= 0)
+        HGOTO_DONE(NULL);
 
     /* Get the bucket in which the ID is located */
     hash_loc = (unsigned)H5I_LOC(id, type_ptr->hash_size);
@@ -2008,6 +2056,7 @@ H5I_find_id(hid_t id)
     /* Set the return value */
     ret_value = id_ptr;
 
+done:
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5I_find_id() */
 

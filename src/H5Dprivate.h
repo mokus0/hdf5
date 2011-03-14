@@ -28,6 +28,7 @@
 #include "H5Sprivate.h"		/* Dataspaces 				*/
 #include "H5Zprivate.h"		/* Data filters				*/
 
+
 /**************************/
 /* Library Private Macros */
 /**************************/
@@ -43,12 +44,15 @@
 
 /* ========  Dataset creation property names ======== */
 #define H5D_CRT_LAYOUT_NAME        "layout"             /* Storage layout */
-#define H5D_CRT_CHUNK_DIM_NAME     "chunk_ndims"        /* Chunk dimensionality */
-#define H5D_CRT_CHUNK_SIZE_NAME    "chunk_size"         /* Chunk size */
 #define H5D_CRT_FILL_VALUE_NAME    "fill_value"         /* Fill value */
 #define H5D_CRT_ALLOC_TIME_STATE_NAME "alloc_time_state" /* Space allocation time state */
 #define H5D_CRT_EXT_FILE_LIST_NAME "efl"                /* External file list */
 #define H5D_CRT_DATA_PIPELINE_NAME "pline"              /* Data filter pipeline */
+
+/* ========  Dataset access property names ======== */
+#define H5D_ACS_DATA_CACHE_NUM_SLOTS_NAME   "rdcc_nslots"   /* Size of raw data chunk cache(slots) */
+#define H5D_ACS_DATA_CACHE_BYTE_SIZE_NAME   "rdcc_nbytes"   /* Size of raw data chunk cache(bytes) */
+#define H5D_ACS_PREEMPT_READ_CHUNKS_NAME    "rdcc_w0"       /* Preemption read chunks first */
 
 /* ======== Data transfer properties ======== */
 #define H5D_XFER_MAX_TEMP_BUF_NAME      "max_temp_buf"  /* Maximum temp buffer size */
@@ -103,6 +107,7 @@
 #define H5D_VLEN_FREE           NULL
 #define H5D_VLEN_FREE_INFO      NULL
 
+
 /****************************/
 /* Library Private Typedefs */
 /****************************/
@@ -134,16 +139,18 @@ typedef struct H5D_dcpl_cache_t {
     H5O_efl_t efl;              /* External file list info (H5D_CRT_EXT_FILE_LIST_NAME) */
 } H5D_dcpl_cache_t;
 
+
 /*****************************/
 /* Library Private Variables */
 /*****************************/
+
 
 /******************************/
 /* Library Private Prototypes */
 /******************************/
 
 H5_DLL herr_t H5D_init(void);
-H5_DLL H5D_t *H5D_open(const H5G_loc_t *loc, hid_t dxpl_id);
+H5_DLL H5D_t *H5D_open(const H5G_loc_t *loc, hid_t dapl_id, hid_t dxpl_id);
 H5_DLL herr_t H5D_close(H5D_t *dataset);
 H5_DLL H5O_loc_t *H5D_oloc(H5D_t *dataset);
 H5_DLL H5G_name_t *H5D_nameof(H5D_t *dataset);
@@ -159,10 +166,11 @@ H5_DLL herr_t H5D_contig_delete(H5F_t *f, hid_t dxpl_id,
     const H5O_layout_t *layout);
 
 /* Functions that operate on chunked storage */
+H5_DLL herr_t H5D_chunk_idx_reset(H5O_layout_t *layout);
 H5_DLL herr_t H5D_chunk_delete(H5F_t *f, hid_t dxpl_id, H5O_layout_t *layout);
 
 /* Functions that operate on indexed storage */
-H5_DLL herr_t H5D_istore_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
+H5_DLL herr_t H5D_btree_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
 				int indent, int fwidth, unsigned ndims);
 
 #endif /* _H5Dprivate_H */

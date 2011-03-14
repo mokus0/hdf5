@@ -65,6 +65,7 @@ DIFF='diff -c'
 nerrors=0
 verbose=yes
 pmode=			    # default to run h5diff tests
+mydomainname=`domainname 2>/dev/null`
 
 # The build (current) directory might be different than the source directory.
 if test -z "$srcdir"; then
@@ -561,8 +562,15 @@ TESTING $H5DIFF -v  $SRCFILE2 $SRCFILE2
 TOOLTEST h5diff_90.txt -v $FILE2 $FILE2
 
 # 10. read by hyperslab, print indexes
-TESTING $H5DIFF -v $SRCFILE9 $SRCFILE10
-TOOLTEST h5diff_100.txt -v $FILE9 $FILE10 
+# Commenting out Albert's change to skip this test on THG machines 
+# to see if printfs were the problem.  LRK 2009-1-22
+#if test -n "$pmode" -a "$mydomainname" = hdfgroup.uiuc.edu; then
+    # skip this test which sometimes hangs in some THG machines
+#    SKIP -v $SRCFILE9 $SRCFILE10
+#else
+    TESTING $H5DIFF -v $SRCFILE9 $SRCFILE10
+    TOOLTEST h5diff_100.txt -v $FILE9 $FILE10 
+#fi
 
 # 11. floating point comparison
 TESTING $H5DIFF -v  $SRCFILE1 $SRCFILE1 g1/d1  g1/d2 
@@ -570,6 +578,35 @@ TOOLTEST h5diff_101.txt -v $FILE1 $FILE1 g1/d1  g1/d2
 
 TESTING $H5DIFF -v  $SRCFILE1 $SRCFILE1  g1/fp1 g1/fp2 
 TOOLTEST h5diff_102.txt -v $FILE1 $FILE1 g1/fp1 g1/fp2 
+
+
+# not comparable -c flag
+TESTING $H5DIFF $SRCFILE2 $SRCFILE2 g2/dset1  g2/dset2
+TOOLTEST h5diff_200.txt $FILE2 $FILE2 g2/dset1  g2/dset2 
+
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset1  g2/dset2
+TOOLTEST h5diff_201.txt -c $FILE2 $FILE2 g2/dset1  g2/dset2 
+
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset2  g2/dset3
+TOOLTEST h5diff_202.txt -c $FILE2 $FILE2 g2/dset2  g2/dset3
+
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset3  g2/dset4
+TOOLTEST h5diff_203.txt -c $FILE2 $FILE2 g2/dset3  g2/dset4
+
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset4  g2/dset5
+TOOLTEST h5diff_204.txt -c $FILE2 $FILE2 g2/dset4  g2/dset5
+
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset5  g2/dset6
+TOOLTEST h5diff_205.txt -c $FILE2 $FILE2 g2/dset5  g2/dset6
+
+
+# not comparable in compound
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset7  g2/dset8
+TOOLTEST h5diff_206.txt -c $FILE2 $FILE2 g2/dset7  g2/dset8
+
+TESTING $H5DIFF -c $SRCFILE2 $SRCFILE2 g2/dset8  g2/dset9
+TOOLTEST h5diff_207.txt -c $FILE2 $FILE2 g2/dset8  g2/dset9
+
 
 
 

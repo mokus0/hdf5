@@ -29,6 +29,11 @@
 /* Public Macros */
 /*****************/
 
+/* Macros used to "unset" chunk cache configuration parameters */
+#define H5D_CHUNK_CACHE_NSLOTS_DEFAULT     ((size_t) -1)
+#define H5D_CHUNK_CACHE_NBYTES_DEFAULT      ((size_t) -1)
+#define H5D_CHUNK_CACHE_W0_DEFAULT          -1.
+
 /*******************/
 /* Public Typedefs */
 /*******************/
@@ -42,6 +47,11 @@ typedef enum H5D_layout_t {
     H5D_CHUNKED		= 2,	/*slow and fancy			     */
     H5D_NLAYOUTS	= 3	/*this one must be last!		     */
 } H5D_layout_t;
+
+/* Types of chunk index data structures */
+typedef enum H5D_chunk_index_t {
+    H5D_CHUNK_BTREE	= 0	/* v1 B-tree index			     */
+} H5D_chunk_index_t;
 
 /* Values for the space allocation time property */
 typedef enum H5D_alloc_time_t {
@@ -101,6 +111,7 @@ H5_DLL hid_t H5Dget_space(hid_t dset_id);
 H5_DLL herr_t H5Dget_space_status(hid_t dset_id, H5D_space_status_t *allocation);
 H5_DLL hid_t H5Dget_type(hid_t dset_id);
 H5_DLL hid_t H5Dget_create_plist(hid_t dset_id);
+H5_DLL hid_t H5Dget_access_plist(hid_t dset_id);
 H5_DLL hsize_t H5Dget_storage_size(hid_t dset_id);
 H5_DLL haddr_t H5Dget_offset(hid_t dset_id);
 H5_DLL herr_t H5Dread(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,

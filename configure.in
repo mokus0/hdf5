@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 16023 2008-11-03 22:54:52Z epourmal $)
+AC_REVISION($Id: configure.in 16893 2009-04-29 20:08:52Z acheng $)
 AC_PREREQ([2.53])
 
 dnl AC_INIT takes the name of the package, the version number, and an
@@ -26,7 +26,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.8.2], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.3], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AM_CONFIG_HEADER([src/H5config.h])
 
@@ -1142,39 +1142,6 @@ case "X-$enable_production" in
   X-|X-yes)
     enable_production="yes"
     AC_MSG_RESULT([production])
-
-    dnl Remove the "-g" flag from CFLAGS if it's in there.
-    dnl
-    CFLAGS_temp=""
-    if test -n "$CFLAGS"; then
-      for d in $CFLAGS ; do
-        if test "X$d" != "X-g"; then
-          CFLAGS_temp="$CFLAGS_temp $d"
-        fi
-      done
-      CFLAGS=$CFLAGS_temp
-    fi
-
-    CXXFLAGS_temp=""
-    if test -n "$CXXFLAGS"; then
-      for d in $CXXFLAGS ; do
-        if test "X$d" != "X-g"; then
-          CXXFLAGS_temp="$CXXFLAGS_temp $d"
-        fi
-      done
-      CXXFLAGS=$CXXFLAGS_temp
-    fi
-
-    FCFLAGS_temp=""
-    if test -n "$FCFLAGS"; then
-      for d in $FCFLAGS ; do
-        if test "X$d" != "X-g"; then
-          FCFLAGS_temp="$FCFLAGS_temp $d"
-        fi
-      done
-      FCFLAGS=$FCFLAGS_temp
-    fi
-
     CONFIG_MODE=production
     H5_CFLAGS="$H5_CFLAGS $PROD_CFLAGS"
     H5_CPPFLAGS="$H5_CPPFLAGS $PROD_CPPFLAGS"
@@ -2067,11 +2034,30 @@ AC_TRY_COMPILE(,[int __attribute__((unused)) x],
                          [Define if the __attribute__(()) extension is present])
                AC_MSG_RESULT([yes]),
                AC_MSG_RESULT([no]))
-
+AC_MSG_CHECKING([for __func__ extension])
+AC_TRY_COMPILE(,[ const char *fname = __func__; ],
+               AC_DEFINE([HAVE_C99_FUNC], [1],
+                         [Define if the compiler understands the __func__ keyword])
+               AC_MSG_RESULT([yes]),
+               AC_MSG_RESULT([no]))
 AC_MSG_CHECKING([for __FUNCTION__ extension])
 AC_TRY_COMPILE(,[(void)__FUNCTION__],
                AC_DEFINE([HAVE_FUNCTION], [1],
-                         [Define if the compiler understand the __FUNCTION__ keyword])
+                         [Define if the compiler understands the __FUNCTION__ keyword])
+               AC_MSG_RESULT([yes]),
+               AC_MSG_RESULT([no]))
+AC_MSG_CHECKING([for C99 designated initialization support])
+AC_TRY_COMPILE(,[
+                typedef struct {
+                    int x;
+                    union {
+                        int i;
+                        double d;
+                    } u;
+                } di_struct_t;
+                di_struct_t x = {0, { .d = 0.0}}; ],
+               AC_DEFINE([HAVE_C99_DESIGNATED_INITIALIZER], [1],
+                         [Define if the compiler understands C99 designated initialization of structs and unions])
                AC_MSG_RESULT([yes]),
                AC_MSG_RESULT([no]))
 
@@ -2193,9 +2179,7 @@ if test "X-$DEBUG_PKG" = X- ; then
 fi
 
 AC_SUBST([DEBUG_PKG])
-dnl Removed b2 temporary since b2 code has errors.
-dnl all_packages="ac,b,b2,d,e,f,g,hg,hl,i,mf,mm,o,p,s,t,v,z"
-all_packages="ac,b,d,e,f,g,hg,hl,i,mf,mm,o,p,s,t,v,z"
+all_packages="ac,b,b2,d,e,f,g,hg,hl,i,mf,mm,o,p,s,t,v,z"
 case "X-$DEBUG_PKG" in
   X-yes)
     DEBUG_PKG="d,e,f,g,hg,i,mm,o,p,s,t,v,z"
@@ -3599,6 +3583,14 @@ else
   BYTESEX="little-endian"
 fi
 
+
+if test "X$ac_cv_c_bigendian" = "Xyes"; then
+  WORDS_BIGENDIAN="yes"
+else
+  WORDS_BIGENDIAN="no"
+fi
+AC_SUBST([WORDS_BIGENDIAN])
+
 dnl Parallel support? (set above except empty if none)
 PARALLEL=${PARALLEL:-no}
 
@@ -3814,6 +3806,25 @@ esac
 
 
 dnl ----------------------------------------------------------------------
+dnl Enable embedded library information
+dnl
+AC_MSG_CHECKING([Whether to have library information embedded in the executables])
+AC_ARG_ENABLE([embedded-libinfo],
+    [AC_HELP_STRING([--enable-embedded-libinfo],
+	[Enable embedded library information [default=yes]])],
+	[enable_embedded_libinfo=$enableval],
+	[enable_embedded_libinfo=yes])
+
+   if test "${enable_embedded_libinfo}" = "yes"; then
+      AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE_EMBEDDED_LIBINFO], [1],
+                [Define if library information should be embedded in the executables])
+   else
+      AC_MSG_RESULT([no])
+    fi
+
+
+dnl ----------------------------------------------------------------------
 dnl Check if pointer alignments are enforced
 dnl
 AC_MSG_CHECKING([if alignment restrictions are strictly enforced])
@@ -3927,6 +3938,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/h5dump/Makefile
                  tools/h5dump/testh5dump.sh
                  tools/h5dump/testh5dumpxml.sh
+                 tools/h5ls/testh5ls.sh
                  tools/h5import/Makefile
                  tools/h5diff/Makefile
                  tools/h5jam/Makefile

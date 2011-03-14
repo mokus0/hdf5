@@ -43,13 +43,13 @@ DISTCLEANFILES=H5pubconf.h
 # library sources
 libhdf5_la_SOURCES= H5.c H5checksum.c H5dbg.c H5system.c H5timer.c H5trace.c \
         H5A.c H5Abtree2.c H5Adense.c H5Adeprec.c H5Aint.c H5Atest.c \
-        H5AC.c H5B.c H5Bcache.c \
+        H5AC.c H5B.c H5Bcache.c H5Bdbg.c \
         H5B2.c H5B2cache.c H5B2dbg.c H5B2int.c H5B2stat.c H5B2test.c \
         H5C.c H5CS.c \
-        H5D.c H5Dchunk.c H5Dcompact.c H5Dcontig.c H5Ddbg.c \
+        H5D.c H5Dbtree.c H5Dchunk.c H5Dcompact.c H5Dcontig.c H5Ddbg.c \
         H5Ddeprec.c H5Defl.c H5Dfill.c H5Dint.c \
         H5Dio.c \
-        H5Distore.c H5Dmpio.c H5Doh.c H5Dscatgath.c H5Dselect.c H5Dtest.c \
+        H5Dmpio.c H5Doh.c H5Dscatgath.c H5Dselect.c H5Dtest.c \
         H5E.c H5Edeprec.c H5Eint.c \
         H5F.c H5Faccum.c H5Fdbg.c H5Ffake.c H5Fio.c H5Fmount.c H5Fmpi.c H5Fquery.c \
         H5Fsfile.c H5Fsuper.c H5Ftest.c \
@@ -60,7 +60,7 @@ libhdf5_la_SOURCES= H5.c H5checksum.c H5dbg.c H5system.c H5timer.c H5trace.c \
         H5G.c H5Gbtree2.c H5Gcache.c \
         H5Gcompact.c H5Gdense.c H5Gdeprec.c H5Gent.c \
         H5Gint.c H5Glink.c \
-        H5Gloc.c H5Gname.c H5Gnode.c H5Gobj.c H5Goh.c H5Gstab.c H5Gtest.c \
+        H5Gloc.c H5Gname.c H5Gnode.c H5Gobj.c H5Goh.c H5Groot.c H5Gstab.c H5Gtest.c \
         H5Gtraverse.c \
         H5HF.c H5HFbtree2.c H5HFcache.c H5HFdbg.c H5HFdblock.c H5HFdtable.c \
         H5HFhdr.c H5HFhuge.c H5HFiblock.c H5HFiter.c H5HFman.c H5HFsection.c \
@@ -79,7 +79,7 @@ libhdf5_la_SOURCES= H5.c H5checksum.c H5dbg.c H5system.c H5timer.c H5trace.c \
         H5Oname.c H5Onull.c H5Opline.c H5Orefcount.c \
         H5Osdspace.c H5Oshared.c H5Ostab.c \
         H5Oshmesg.c H5Otest.c H5Ounknown.c \
-        H5P.c H5Pacpl.c H5Pdcpl.c \
+        H5P.c H5Pacpl.c H5Pdapl.c H5Pdcpl.c \
         H5Pdeprec.c H5Pdxpl.c H5Pfapl.c H5Pfcpl.c H5Pfmpl.c \
         H5Pgcpl.c H5Pint.c \
         H5Plapl.c H5Plcpl.c H5Pocpl.c H5Pocpypl.c H5Pstrcpl.c H5Ptest.c \

@@ -578,7 +578,6 @@ H5G_name_move_path(H5RS_str_t **path_r_ptr, const char *full_suffix, const char 
     if(full_suffix_len < path_len) {
         const char *dst_suffix;         /* Destination suffix that changes */
         const char *src_suffix;         /* Source suffix that changes */
-        const char *path_prefix;        /* Prefix for path */
         size_t path_prefix_len;         /* Length of path prefix */
         const char *path_prefix2;       /* 2nd prefix for path */
         size_t path_prefix2_len;        /* Length of 2nd path prefix */
@@ -589,7 +588,6 @@ H5G_name_move_path(H5RS_str_t **path_r_ptr, const char *full_suffix, const char 
 
 
         /* Compute path prefix before full suffix*/
-        path_prefix = path;
         path_prefix_len = path_len - full_suffix_len;
 
         /* Determine the common prefix for src & dst paths */
@@ -1147,10 +1145,8 @@ H5G_get_name_by_addr(hid_t file, hid_t lapl_id, hid_t dxpl_id, const H5O_loc_t *
 
     /* Check for finding the object */
     if(found_obj) {
-        size_t full_path_len = HDstrlen(udata.path) + 1;        /* Length of path + 1 (for "/") */
-
         /* Set the length of the full path */
-        ret_value = full_path_len;
+        ret_value = (ssize_t)(HDstrlen(udata.path) + 1);        /* Length of path + 1 (for "/") */
 
         /* If there's a buffer provided, copy into it, up to the limit of its size */
         if(name) {

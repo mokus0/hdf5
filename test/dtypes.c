@@ -64,15 +64,11 @@
  * the soft conversion list.  One must call reset_hdf5() after this.
  */
 #define CHECK_NMEMBS(NMEMBS,SRC_ID,DST_ID)                                     \
-    if (H5Tunregister(H5T_PERS_SOFT, NULL, SRC_ID, DST_ID, NULL) < 0) {        \
+    if(H5Tunregister(H5T_PERS_SOFT, NULL, SRC_ID, DST_ID, NULL) < 0)           \
         FAIL_STACK_ERROR                                                       \
-        goto error;                                                            \
-    }                                                                          \
-    if (H5Tclose(SRC_ID) < 0 || ((SRC_ID) != (DST_ID) && H5Tclose(DST_ID) < 0)) { \
+    if(H5Tclose(SRC_ID) < 0 || ((SRC_ID) != (DST_ID) && H5Tclose(DST_ID) < 0)) \
         FAIL_STACK_ERROR                                                       \
-        goto error;                                                            \
-    }                                                                          \
-    if ((NMEMBS) != H5I_nmembers(H5I_DATATYPE)) {                              \
+    if((NMEMBS) != H5I_nmembers(H5I_DATATYPE)) {                               \
         H5_FAILED();                                                           \
         printf("    #dtype ids expected: %d; found: %d\n", NMEMBS,             \
             H5I_nmembers(H5I_DATATYPE));                                       \
@@ -2959,8 +2955,6 @@ test_compound_16(void)
     } cmpd_struct;
 
     cmpd_struct wdata1 = {1254, 5471};
-    cmpd_struct rdata;
-    int         wdata2[2] = {1, 2};
     int         obj_count;
     hid_t       file;
     hid_t       cmpd_m_tid, cmpd_f_tid, int_id;
@@ -3024,6 +3018,129 @@ test_compound_16(void)
 error:
     return 1;
 } /* end test_compound_16() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    test_compound_17
+ *
+ * Purpose:     Tests that compound types are packed correctly when they
+ *              only have extra space at the end.  The compounds are
+ *              "hidden" inside arrays to make sure that they are still
+ *              detected correctly.
+ *
+ * Return:      Success:        0
+ *
+ *              Failure:        number of errors
+ *
+ * Programmer:  Neil Fortner
+ *              Tuesday, January 13, 2009
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_compound_17(void)
+{
+    hid_t       file;
+    hid_t       cmpd_int, arr_int, cmpd_ext, arr_ext, tmp_dt;
+    hsize_t     dims[1] = {2};
+    char        filename[1024];
+
+    TESTING("that H5Tpack removes trailing bytes");
+
+    /* Create inner compound datatype.  This type will be "packed" according
+     * to the internal field, but will have trailing space at the end. */
+    if((cmpd_int = H5Tcreate(H5T_COMPOUND, 4)) < 0) TEST_ERROR
+    if(H5Tinsert(cmpd_int, "c", 0, H5T_NATIVE_CHAR) < 0) TEST_ERROR
+
+    /* Create inner array datatype */
+    if((arr_int = H5Tarray_create2(cmpd_int, 1, dims)) < 0) TEST_ERROR
+
+    /* Create outer compound datatype.  This type will be truly packed, with no
+     * trailing space.  However, the internal compound contained within is not
+     * packed. */
+    if((cmpd_ext = H5Tcreate(H5T_COMPOUND, 8)) < 0) TEST_ERROR
+    if(H5Tinsert(cmpd_ext, "arr", 0, arr_int) < 0) TEST_ERROR
+
+    /* Create outer array datatype */
+    if((arr_ext = H5Tarray_create2(cmpd_ext, 1, dims)) < 0) TEST_ERROR
+
+    /* Try packing the internal array.  Size should be 2 after packing. */
+    if((tmp_dt = H5Tcopy(arr_int)) < 0) TEST_ERROR
+    if(H5Tpack(tmp_dt) < 0) TEST_ERROR
+    if(2 != H5Tget_size(tmp_dt)) {
+        H5_FAILED(); AT();
+        printf("    Size after packing: %d; expected: 2\n", H5Tget_size(tmp_dt));
+        goto error;
+    }
+    if(H5Tclose(tmp_dt) < 0) TEST_ERROR
+
+    /* Try packing the external array.  Size should be 4 after packing. */
+    if((tmp_dt = H5Tcopy(arr_ext)) < 0) TEST_ERROR
+    if(H5Tpack(tmp_dt) < 0) TEST_ERROR
+    if(4 != H5Tget_size(tmp_dt)) {
+        H5_FAILED(); AT();
+        printf("    Size after packing: %d; expected: 4\n", H5Tget_size(tmp_dt));
+        goto error;
+    }
+    if(H5Tclose(tmp_dt) < 0) TEST_ERROR
+
+    /* Now we will commit arr_int and arr_ext to a file, and verify that they
+     * are still packed correctly after opening them from the file */
+    /* Create File */
+    h5_fixname(FILENAME[3], H5P_DEFAULT, filename, sizeof filename);
+    if((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Commit the datatypes.  Note that they are still unpacked. */
+    if(H5Tcommit2(file, "arr_int", arr_int, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+    if(H5Tcommit2(file, "arr_ext", arr_ext, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+
+    /* Close IDs */
+    if(H5Tclose(cmpd_int) < 0) TEST_ERROR
+    if(H5Tclose(arr_int) < 0) TEST_ERROR
+    if(H5Tclose(cmpd_ext) < 0) TEST_ERROR
+    if(H5Tclose(arr_ext) < 0) TEST_ERROR
+    if(H5Fclose(file) < 0) TEST_ERROR
+
+    /* Reopen file */
+    if((file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Open committed array datatypes */
+    if((arr_int = H5Topen2(file, "arr_int", H5P_DEFAULT)) < 0) TEST_ERROR
+    if((arr_ext = H5Topen2(file, "arr_ext", H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Try packing the internal array.  Size should be 2 after packing. */
+    if((tmp_dt = H5Tcopy(arr_int)) < 0) TEST_ERROR
+    if(H5Tpack(tmp_dt) < 0) TEST_ERROR
+    if(2 != H5Tget_size(tmp_dt)) {
+        H5_FAILED(); AT();
+        printf("    Size after packing: %d; expected: 2\n", H5Tget_size(tmp_dt));
+        goto error;
+    }
+    if(H5Tclose(tmp_dt) < 0) TEST_ERROR
+
+    /* Try packing the external array.  Size should be 4 after packing. */
+    if((tmp_dt = H5Tcopy(arr_ext)) < 0) TEST_ERROR
+    if(H5Tpack(tmp_dt) < 0) TEST_ERROR
+    if(4 != H5Tget_size(tmp_dt)) {
+        H5_FAILED(); AT();
+        printf("    Size after packing: %d; expected: 4\n", H5Tget_size(tmp_dt));
+        goto error;
+    }
+    if(H5Tclose(tmp_dt) < 0) TEST_ERROR
+
+    /* Close IDs */
+    if(H5Tclose(arr_int) < 0) TEST_ERROR
+    if(H5Tclose(arr_ext) < 0) TEST_ERROR
+    if(H5Fclose(file) < 0) TEST_ERROR
+
+    PASSED();
+    return 0;
+
+error:
+    return 1;
+} /* end test_compound_17() */
 
 
 /*-------------------------------------------------------------------------
@@ -3976,7 +4093,6 @@ test_conv_str_3(void)
     int			ret_value = 1;
     int                 size;
     H5T_pad_t           inpad;
-    H5T_cset_t          cset;
     H5T_sign_t          sign;
     char*               tag;
     herr_t              ret;
@@ -3996,13 +4112,13 @@ test_conv_str_3(void)
             buf[i*8+j++] = '\0';
     }
 
-    if ((size=H5Tget_precision(type))==0) goto error;
-    if ((size=H5Tget_size(type))==0) goto error;
-    if (H5Tset_pad(type, H5T_PAD_ZERO, H5T_PAD_ONE) < 0) goto error;
-    if ((cset=H5Tget_cset(type)) < 0) goto error;
-    if (H5Tget_strpad(type) < 0) goto error;
-    if (H5Tset_offset(type, 0) < 0) goto error;
-    if (H5Tget_order(type) < 0) goto error;
+    if(H5Tget_precision(type) == 0) FAIL_STACK_ERROR
+    if(H5Tget_size(type) == 0) FAIL_STACK_ERROR
+    if(H5Tset_pad(type, H5T_PAD_ZERO, H5T_PAD_ONE) < 0) FAIL_STACK_ERROR
+    if(H5Tget_cset(type) < 0) FAIL_STACK_ERROR
+    if(H5Tget_strpad(type) < 0) FAIL_STACK_ERROR
+    if(H5Tset_offset(type, 0) < 0) FAIL_STACK_ERROR
+    if(H5Tget_order(type) < 0) FAIL_STACK_ERROR
 
     H5E_BEGIN_TRY {
         ret=H5Tset_precision(type, nelmts);
@@ -4014,7 +4130,7 @@ test_conv_str_3(void)
     } /* end if */
 
     H5E_BEGIN_TRY {
-        size=H5Tget_ebias(type);
+        size = H5Tget_ebias(type);
     } H5E_END_TRY;
     if (size>0) {
         H5_FAILED();
@@ -5524,6 +5640,172 @@ error:
 
 
 /*-------------------------------------------------------------------------
+ * Function:    test_set_order
+ *
+ * Purpose:     Tests H5Tset_order/H5Tget_order.  Verifies that
+ *              H5T_ORDER_NONE cannot be set.
+ *
+ * Return:      Success:        0
+ *
+ *              Failure:        number of errors
+ *
+ * Programmer:  Neil Fortner
+ *              January 23, 2009
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_set_order(void)
+{
+    hid_t       dtype;              /* Datatype ID */
+    H5T_order_t order;              /* Byte order */
+    hsize_t     dims[2] = {3, 4};   /* Array dimenstions */
+    herr_t      ret;                /* Generic return value */
+
+    TESTING("H5Tset/get_order");
+
+    /* Integer */
+    if ((dtype = H5Tcopy(H5T_STD_I32BE)) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_LE) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Float */
+    if ((dtype = H5Tcopy(H5T_IEEE_F64LE)) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_BE) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Time */
+    if ((dtype = H5Tcopy(H5T_UNIX_D64BE)) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_LE) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Fixed length string */
+    if ((dtype = H5Tcopy(H5T_C_S1)) < 0) TEST_ERROR
+    if (H5Tset_size(dtype, 5) < 0) TEST_ERROR
+    if (H5T_ORDER_NONE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tset_order(dtype, H5T_ORDER_NONE) < 0) TEST_ERROR;
+    if (H5T_ORDER_NONE != H5Tget_order(dtype)) TEST_ERROR;
+
+    /* Variable length string */
+    if (H5Tset_size(dtype, H5T_VARIABLE) < 0) TEST_ERROR
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_BE) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Bitfield */
+    if ((dtype = H5Tcopy(H5T_STD_B16LE)) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_BE) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Opaque - functions should fail */
+    if ((dtype = H5Tcreate(H5T_OPAQUE, 96)) < 0) TEST_ERROR
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_LE);
+        order = H5Tget_order(dtype);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (order >= 0) TEST_ERROR
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Compound - functions should fail */
+    if ((dtype = H5Tcreate(H5T_COMPOUND, 48)) < 0) TEST_ERROR
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_LE);
+        order = H5Tget_order(dtype);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (order >= 0) TEST_ERROR
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Object reference */
+    if ((dtype = H5Tcopy(H5T_STD_REF_OBJ)) < 0) TEST_ERROR
+    if (H5T_ORDER_NONE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tset_order(dtype, H5T_ORDER_NONE) < 0) TEST_ERROR;
+    if (H5T_ORDER_NONE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Region reference */
+    if ((dtype = H5Tcopy(H5T_STD_REF_DSETREG)) < 0) TEST_ERROR
+    if (H5T_ORDER_NONE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tset_order(dtype, H5T_ORDER_NONE) < 0) TEST_ERROR;
+    if (H5T_ORDER_NONE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Enum */
+    if ((dtype = H5Tenum_create(H5T_STD_I16BE)) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_LE) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Vlen */
+    if ((dtype = H5Tvlen_create(H5T_STD_U64LE)) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_BE) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    /* Array */
+    if ((dtype = H5Tarray_create2(H5T_IEEE_F64BE, 2, dims)) < 0) TEST_ERROR
+    if (H5T_ORDER_BE != H5Tget_order(dtype)) TEST_ERROR;
+    H5E_BEGIN_TRY
+        ret = H5Tset_order(dtype, H5T_ORDER_NONE);
+    H5E_END_TRY
+    if (ret >= 0) TEST_ERROR
+    if (H5Tset_order(dtype, H5T_ORDER_LE) < 0) TEST_ERROR
+    if (H5T_ORDER_LE != H5Tget_order(dtype)) TEST_ERROR;
+    if (H5Tclose(dtype) < 0) TEST_ERROR
+
+    PASSED();
+    return 0;
+
+error:
+    H5E_BEGIN_TRY
+        H5Tclose (dtype);
+    H5E_END_TRY;
+    return 1;
+} /* end test_set_order() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	test_deprec
  *
  * Purpose:	Tests deprecated API routines for datatypes.
@@ -5720,11 +6002,13 @@ main(void)
     nerrors += test_compound_14();
     nerrors += test_compound_15();
     nerrors += test_compound_16();
+    nerrors += test_compound_17();
     nerrors += test_conv_enum_1();
     nerrors += test_conv_enum_2();
     nerrors += test_conv_bitfield();
     nerrors += test_bitfield_funcs();
     nerrors += test_opaque();
+    nerrors += test_set_order();
 
     if(nerrors) {
         printf("***** %lu FAILURE%s! *****\n",

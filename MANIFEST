@@ -213,7 +213,6 @@
 ./fortran/src/H5f90proto.h
 ./fortran/src/H5test_kind.f90
 ./fortran/src/H5test_kind_SIZEOF.f90
-./fortran/src/H5fortran_flags.f90
 ./fortran/src/H5match_types.c
 ./fortran/src/HDF5.f90
 ./fortran/src/HDF5mpio.f90
@@ -450,6 +449,7 @@
 ./src/H5ACpublic.h
 ./src/H5B.c
 ./src/H5Bcache.c
+./src/H5Bdbg.c
 ./src/H5Bpkg.h
 ./src/H5Bprivate.h
 ./src/H5Bpublic.h			
@@ -469,6 +469,7 @@
 ./src/H5CS.c
 ./src/H5CSprivate.h
 ./src/H5D.c
+./src/H5Dbtree.c
 ./src/H5Dchunk.c
 ./src/H5Dcompact.c
 ./src/H5Dcontig.c
@@ -478,7 +479,6 @@
 ./src/H5Dfill.c
 ./src/H5Dint.c
 ./src/H5Dio.c
-./src/H5Distore.c
 ./src/H5Dmpio.c
 ./src/H5Doh.c
 ./src/H5Dpkg.h
@@ -569,6 +569,7 @@
 ./src/H5Gpkg.h
 ./src/H5Gprivate.h
 ./src/H5Gpublic.h
+./src/H5Groot.c
 ./src/H5Gstab.c
 ./src/H5Gtest.c
 ./src/H5Gtraverse.c
@@ -664,6 +665,7 @@
 ./src/H5Ounknown.c
 ./src/H5P.c
 ./src/H5Pacpl.c
+./src/H5Pdapl.c
 ./src/H5Pdcpl.c
 ./src/H5Pdeprec.c
 ./src/H5Pdxpl.c
@@ -776,6 +778,7 @@
 ./test/cache_common.c
 ./test/cache_common.h
 ./test/cmpd_dset.c
+./test/corrupt_stab_msg.h5
 ./test/cross_read.c
 ./test/dangle.c
 ./test/deflate.h5
@@ -1007,7 +1010,7 @@
 ./tools/h5ls/Makefile.am
 ./tools/h5ls/Makefile.in
 ./tools/h5ls/h5ls.c
-./tools/h5ls/testh5ls.sh
+./tools/h5ls/testh5ls.sh.in
 
 ./tools/h5copy/testh5copy.sh
 ./tools/h5copy/Makefile.in
@@ -1311,6 +1314,11 @@
 ./tools/testfiles/tslink-1.ls
 ./tools/testfiles/tstr-1.ls
 ./tools/testfiles/tattr2.ls
+./tools/testfiles/tvldtypes2le.ls
+./tools/testfiles/tdataregle.ls
+./tools/testfiles/tvldtypes2be.ls
+./tools/testfiles/tdataregbe.ls
+
 
 #additional test input and output for h5dump XML
 ./tools/testfiles/tall.h5.xml
@@ -1463,6 +1471,16 @@
 ./tools/h5diff/testfiles/h5diff_58.txt
 ./tools/h5diff/testfiles/h5diff_basic2.h5
 ./tools/h5diff/testfiles/h5diff_hyper1.h5
+./tools/h5diff/testfiles/h5diff_200.txt
+./tools/h5diff/testfiles/h5diff_201.txt
+./tools/h5diff/testfiles/h5diff_202.txt
+./tools/h5diff/testfiles/h5diff_203.txt
+./tools/h5diff/testfiles/h5diff_204.txt
+./tools/h5diff/testfiles/h5diff_205.txt
+./tools/h5diff/testfiles/h5diff_206.txt
+./tools/h5diff/testfiles/h5diff_207.txt
+
+
 
 
 
@@ -1484,6 +1502,8 @@
 ./tools/h5repack/testfiles/h5repack_attr.h5
 ./tools/h5repack/testfiles/h5repack_early.h5
 ./tools/h5repack/testfiles/h5repack_layout.h5
+./tools/h5repack/testfiles/h5repack_layouto.h5
+./tools/h5repack/testfiles/h5repack_named_dtypes.h5
 
 
 
@@ -1694,7 +1714,6 @@
 ./vms/tools/h5copy/check_h5copy.com
 ./vms/tools/h5dump/make.com
 ./vms/tools/h5dump/check_h5dump.com
-./vms/tools/h5ls/check.com
 ./vms/tools/h5ls/check_h5ls.com
 ./vms/tools/h5ls/make.com
 ./vms/tools/h5diff/check_h5diff.com
@@ -1705,7 +1724,9 @@
 ./vms/tools/h5jam/make.com
 ./vms/tools/h5repack/check_h5repack.com
 ./vms/tools/h5repack/make.com
+./vms/tools/h5stat/make.com
 ./vms/tools/lib/make.com
+./vms/tools/misc/make.com
 ./vms/tools/testfiles/tattr-3.ddl
 ./vms/tools/testfiles/tdset-2.ddl
 ./vms/tools/testfiles/tgroup-2.ddl

@@ -19,9 +19,9 @@
 #include "h5diff_common.h"
 #include "h5tools_utils.h"
 
-int check_n_input( const char* );
-int check_p_input( const char* );
-int check_d_input( const char* );
+static int check_n_input( const char* );
+static int check_p_input( const char* );
+static int check_d_input( const char* );
 
 
 /* module-scoped variables */
@@ -31,7 +31,7 @@ const char  *progname = "h5diff";
  * Command-line options: The user can specify short or long-named
  * parameters.
  */
-static const char *s_opts = "hVrvqn:d:p:";
+static const char *s_opts = "hVrvqn:d:p:Nc";
 static struct long_options l_opts[] = {
     { "help", no_arg, 'h' },
     { "version", no_arg, 'V' },
@@ -41,6 +41,8 @@ static struct long_options l_opts[] = {
     { "count", require_arg, 'n' },
     { "delta", require_arg, 'd' },
     { "relative", require_arg, 'p' },
+    { "nan", no_arg, 'N' },
+    { "compare", no_arg, 'c' },
     { NULL, 0, '\0' }
 };
 
@@ -69,6 +71,9 @@ void parse_command_line(int argc,
 
     /* assume equal contents initially */
     options->contents = 1;
+
+    /* NaNs are handled by default */
+    options->do_nans = 1;
 
     /* parse command line options */
     while ((opt = get_option(argc, argv, s_opts, l_opts)) != EOF)
@@ -130,6 +135,13 @@ void parse_command_line(int argc,
             options->count = atol( opt_arg );
 
             break;
+
+        case 'N':
+            options->do_nans = 0;
+            break;
+        case 'c':
+            options->m_list_not_cmp = 1;
+            break;
         }
     }
 
@@ -186,11 +198,15 @@ void parse_command_line(int argc,
 
      if (options->not_cmp==1)
      {
-         printf("--------------------------------\n");
-         printf("Some objects are not comparable\n");
-         printf("--------------------------------\n");
-         if (!options->m_verbose)
-             printf("Use -v for a list of objects.\n");
+         if ( options->m_list_not_cmp == 0 )
+         {
+             printf("--------------------------------\n");
+             printf("Some objects are not comparable\n");
+             printf("--------------------------------\n");
+             printf("Use -c for a list of objects.\n");
+         }
+        
+             
      }
 
  }
@@ -212,7 +228,8 @@ void parse_command_line(int argc,
  *
  *-------------------------------------------------------------------------
  */
-int check_n_input( const char *str )
+static int
+check_n_input( const char *str )
 {
     unsigned i;
     char c;
@@ -247,7 +264,8 @@ int check_n_input( const char *str )
  *
  *-------------------------------------------------------------------------
  */
-int check_p_input( const char *str )
+static int
+check_p_input( const char *str )
 {
     double x;
 
@@ -280,7 +298,8 @@ int check_p_input( const char *str )
  *
  *-------------------------------------------------------------------------
  */
-int check_d_input( const char *str )
+static int
+check_d_input( const char *str )
 {
     double x;
 
@@ -323,6 +342,8 @@ void usage(void)
  printf("   -r, --report            Report mode. Print differences\n");
  printf("   -v, --verbose           Verbose mode. Print differences, list of objects\n");
  printf("   -q, --quiet             Quiet mode. Do not do output\n");
+ printf("   -c, --compare           List objects that are not comparable\n");
+ printf("   -N, --nan               Avoid NaNs detection\n");
 
  printf("   -n C, --count=C         Print differences up to C number\n");
  printf("   -d D, --delta=D         Print difference when greater than limit D\n");
@@ -354,7 +375,7 @@ void usage(void)
 
  printf(" The compare criteria is:\n");
  printf("   1) datasets: numerical array differences 2) groups: name string difference\n");
- printf("   3) datatypes: the return value of H5Tequal 2) links: name string difference\n");
+ printf("   3) datatypes: the return value of H5Tequal 4) links: name string difference\n");
  printf("   of the linked value\n");
 
  printf("\n");

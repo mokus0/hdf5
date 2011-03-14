@@ -35,9 +35,11 @@ typedef struct {
     int    n;         /* count, compare up to count */
     hsize_t count;    /* count value */
     int    err_stat;  /* an error ocurred (1, error, 0, no error) */
-    int    cmn_objs;  /* do we have comparable objects */
+    int    cmn_objs;  /* do we have common objects */
     int    not_cmp;   /* are the objects comparable */
     int    contents;  /* equal contents */
+    int    do_nans;   /* consider Nans while diffing floats */
+    int    m_list_not_cmp;   /* list not comparable messages */
 } diff_opt_t;
 
 
@@ -132,7 +134,8 @@ int diff_can_type( hid_t       f_type1, /* file data type */
                    hsize_t     *maxdim2,
                    const char  *obj1_name,
                    const char  *obj2_name,
-                   diff_opt_t  *options );
+                   diff_opt_t  *options,
+                   int         is_compound);
 
 
 hsize_t diff_attr(hid_t loc1_id,

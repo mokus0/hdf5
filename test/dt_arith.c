@@ -617,12 +617,10 @@ generates_sigfpe(void)
 static int
 test_hard_query(void)
 {
-    htri_t      ret;
-
     TESTING("query functions of compiler conversion");
 
     /* Verify the conversion from int to float is a hard conversion. */
-    if((ret = H5Tcompiler_conv(H5T_NATIVE_INT, H5T_NATIVE_FLOAT))!=TRUE) {
+    if(H5Tcompiler_conv(H5T_NATIVE_INT, H5T_NATIVE_FLOAT) != TRUE) {
         H5_FAILED();
         printf("Can't query conversion function\n");
         goto error;
@@ -631,7 +629,7 @@ test_hard_query(void)
     /* Unregister the hard conversion from int to float.  Verify the conversion
      * is a soft conversion. */
     H5Tunregister(H5T_PERS_HARD, NULL, H5T_NATIVE_INT, H5T_NATIVE_FLOAT, H5T_conv_int_float);
-    if((ret = H5Tcompiler_conv(H5T_NATIVE_INT, H5T_NATIVE_FLOAT))!=FALSE) {
+    if(H5Tcompiler_conv(H5T_NATIVE_INT, H5T_NATIVE_FLOAT) != FALSE) {
         H5_FAILED();
         printf("Can't query conversion function\n");
         goto error;
@@ -640,7 +638,7 @@ test_hard_query(void)
     /* Register the hard conversion from int to float.  Verify the conversion
      * is a hard conversion. */
     H5Tregister(H5T_PERS_HARD, "int_flt", H5T_NATIVE_INT, H5T_NATIVE_FLOAT, H5T_conv_int_float);
-    if((ret = H5Tcompiler_conv(H5T_NATIVE_INT, H5T_NATIVE_FLOAT))!=TRUE) {
+    if(H5Tcompiler_conv(H5T_NATIVE_INT, H5T_NATIVE_FLOAT) != TRUE) {
         H5_FAILED();
         printf("Can't query conversion function\n");
         goto error;
@@ -676,19 +674,18 @@ static H5T_conv_ret_t
 expt_handle(H5T_conv_except_t except_type, hid_t UNUSED src_id, hid_t UNUSED dst_id, void UNUSED *src_buf,
 		 void *dst_buf, void *user_data)
 {
-    H5T_conv_ret_t      ret = H5T_CONV_HANDLED;
     signed char         fill_value1 = 7;
     int                 fill_value2 = 13;
 
     if(except_type == H5T_CONV_EXCEPT_RANGE_HI || except_type == H5T_CONV_EXCEPT_RANGE_LOW ||
-        except_type == H5T_CONV_EXCEPT_TRUNCATE) {
+            except_type == H5T_CONV_EXCEPT_TRUNCATE) {
         if(*(hbool_t*)user_data)
             *(signed char*)dst_buf = fill_value1;
         else
             *(int*)dst_buf = fill_value2;
-    }
+    } /* end if */
 
-    return ret;
+    return H5T_CONV_HANDLED;
 }
 
 
@@ -1668,8 +1665,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     unsigned		hw_uint;
     long		hw_long;
     unsigned long	hw_ulong;
-    long_long		hw_llong;
-    unsigned long_long	hw_ullong;
+    long long		hw_llong;
+    unsigned long long	hw_ullong;
 
     /* What are the names of the source and destination types */
     if (H5Tequal(src, H5T_NATIVE_SCHAR)) {
@@ -1766,7 +1763,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     dst_nbits = H5Tget_precision(dst); /* not 8*dst_size, esp on J90 - QAK */
     src_sign = H5Tget_sign(src);
     dst_sign = H5Tget_sign(dst);
-    aligned = HDcalloc(1, sizeof(long_long));
+    aligned = HDcalloc(1, sizeof(long long));
 
     /* Allocate and initialize the source buffer through macro INIT_INTEGER.  The BUF
      * will be used for the conversion while the SAVED buffer will be
@@ -1789,9 +1786,9 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     } else if(src_type == INT_ULONG) {
         INIT_INTEGER(unsigned long, ULONG_MAX, 0, src_size, dst_size, src_nbits, buf, saved, nelmts);
     } else if(src_type == INT_LLONG) {
-        INIT_INTEGER(long_long, LLONG_MAX, LLONG_MIN, src_size, dst_size, src_nbits, buf, saved, nelmts);
+        INIT_INTEGER(long long, LLONG_MAX, LLONG_MIN, src_size, dst_size, src_nbits, buf, saved, nelmts);
     } else if(src_type == INT_ULLONG) {
-        INIT_INTEGER(unsigned long_long, ULLONG_MAX, 0, src_size, dst_size, src_nbits, buf, saved, nelmts);
+        INIT_INTEGER(unsigned long long, ULLONG_MAX, 0, src_size, dst_size, src_nbits, buf, saved, nelmts);
     } else
         goto error;
 
@@ -1837,12 +1834,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_char = (signed char)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_char = (signed char)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_char = (signed char)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_char = (signed char)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_char = (signed char)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -1883,12 +1880,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_uchar = (unsigned char)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_uchar = (unsigned char)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_uchar = (unsigned char)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_uchar = (unsigned char)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_uchar = (unsigned char)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -1929,12 +1926,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_short = (short)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_short = (short)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_short = (short)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_short = (short)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_short = (short)(*((unsigned long long*)aligned));
                 break;
 
             default:
@@ -1976,12 +1973,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_ushort = (unsigned short)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_ushort = (unsigned short)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_ushort = (unsigned short)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_ushort = (unsigned short)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_ushort = (unsigned short)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2022,12 +2019,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_int = (int)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_int = (int)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_int = (int)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_int = (int)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_int = (int)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2068,12 +2065,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_uint = (unsigned int)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_uint = (unsigned int)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_uint = (unsigned int)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_uint = (unsigned int)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_uint = (unsigned int)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2114,12 +2111,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_long = (long int)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_long = (long int)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_long = (long int)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_long = (long int)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_long = (long int)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2160,12 +2157,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 hw_ulong = (unsigned long)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_ulong = (unsigned long)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_ulong = (unsigned long)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_ulong = (unsigned long)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_ulong = (unsigned long)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2175,43 +2172,43 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             switch (src_type) {
             case INT_SCHAR:
                 HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
-                hw_llong = (long_long)(*((char*)aligned));
+                hw_llong = (long long)(*((char*)aligned));
                 break;
             case INT_UCHAR:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
-                hw_llong = (long_long)(*((unsigned char*)aligned));
+                hw_llong = (long long)(*((unsigned char*)aligned));
                 break;
             case INT_SHORT:
                 HDmemcpy(aligned, saved+j*sizeof(short), sizeof(short));
-                hw_llong = (long_long)(*((short*)aligned));
+                hw_llong = (long long)(*((short*)aligned));
                 break;
             case INT_USHORT:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned short), sizeof(unsigned short));
-                hw_llong = (long_long)(*((unsigned short*)aligned));
+                hw_llong = (long long)(*((unsigned short*)aligned));
                 break;
             case INT_INT:
                 HDmemcpy(aligned, saved+j*sizeof(int), sizeof(int));
-                hw_llong = (long_long)(*((int*)aligned));
+                hw_llong = (long long)(*((int*)aligned));
                 break;
             case INT_UINT:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned), sizeof(unsigned));
-                hw_llong = (long_long)(*((unsigned*)aligned));
+                hw_llong = (long long)(*((unsigned*)aligned));
                 break;
             case INT_LONG:
                 HDmemcpy(aligned, saved+j*sizeof(long), sizeof(long));
-                hw_llong = (long_long)(*((long*)aligned));
+                hw_llong = (long long)(*((long*)aligned));
                 break;
             case INT_ULONG:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned long), sizeof(unsigned long));
-                hw_llong = (long_long)(*((unsigned long*)aligned));
+                hw_llong = (long long)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_llong = (long_long)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_llong = (long long)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_llong = (long_long)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_llong = (long long)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2221,43 +2218,43 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             switch (src_type) {
             case INT_SCHAR:
                 HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-                hw_ullong = (unsigned long_long)(*((signed char*)aligned));
+                hw_ullong = (unsigned long long)(*((signed char*)aligned));
                 break;
             case INT_UCHAR:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
-                hw_ullong = (unsigned long_long)(*((unsigned char*)aligned));
+                hw_ullong = (unsigned long long)(*((unsigned char*)aligned));
                 break;
             case INT_SHORT:
                 HDmemcpy(aligned, saved+j*sizeof(short), sizeof(short));
-                hw_ullong = (unsigned long_long)(*((short*)aligned));
+                hw_ullong = (unsigned long long)(*((short*)aligned));
                 break;
             case INT_USHORT:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned short), sizeof(unsigned short));
-                hw_ullong = (unsigned long_long)(*((unsigned short*)aligned));
+                hw_ullong = (unsigned long long)(*((unsigned short*)aligned));
                 break;
             case INT_INT:
                 HDmemcpy(aligned, saved+j*sizeof(int), sizeof(int));
-                hw_ullong = (unsigned long_long)(*((int*)aligned));
+                hw_ullong = (unsigned long long)(*((int*)aligned));
                 break;
             case INT_UINT:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned), sizeof(unsigned));
-                hw_ullong = (unsigned long_long)(*((unsigned*)aligned));
+                hw_ullong = (unsigned long long)(*((unsigned*)aligned));
                 break;
             case INT_LONG:
                 HDmemcpy(aligned, saved+j*sizeof(long), sizeof(long));
-                hw_ullong = (unsigned long_long)(*((long*)aligned));
+                hw_ullong = (unsigned long long)(*((long*)aligned));
                 break;
             case INT_ULONG:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned long), sizeof(unsigned long));
-                hw_ullong = (unsigned long_long)(*((unsigned long*)aligned));
+                hw_ullong = (unsigned long long)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_ullong = (unsigned long_long)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_ullong = (unsigned long long)(*((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_ullong = (unsigned long_long)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_ullong = (unsigned long long)(*((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2426,12 +2423,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2475,12 +2472,12 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+                HDmemcpy(aligned, buf+j*sizeof(long long), sizeof(long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(unsigned long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
+                HDmemcpy(aligned, buf+j*sizeof(long long), sizeof(unsigned long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)aligned));
                 break;
             default:
                 break;
@@ -2516,10 +2513,10 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)hw));
                 break;
             case INT_LLONG:
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)hw));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)hw));
                 break;
             case INT_ULLONG:
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)hw));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)hw));
                 break;
             default:
                 break;
@@ -2710,7 +2707,6 @@ my_isinf(int endian, unsigned char *val, size_t size,
     unsigned char *bits;
     int retval = 0;
     size_t i;
-    ssize_t ret1=0, ret2=0;
 
     bits = (unsigned char*)calloc(1, size);
 
@@ -2732,8 +2728,8 @@ my_isinf(int endian, unsigned char *val, size_t size,
         bits[size-(i+1)] = *(val + ENDIAN(size, i, endian));
 #endif /*H5_VMS*/
 
-    if((ret1=H5T_bit_find(bits, mpos, msize, H5T_BIT_LSB, 1))<0 &&
-       (ret2=H5T_bit_find(bits, epos, esize, H5T_BIT_LSB, 0))<0)
+    if(H5T_bit_find(bits, mpos, msize, H5T_BIT_LSB, 1) < 0 &&
+            H5T_bit_find(bits, epos, esize, H5T_BIT_LSB, 0) < 0)
         retval = 1;
 
     free(bits);
@@ -3478,8 +3474,8 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
     unsigned		hw_uint=0;
     long		hw_long=0;
     unsigned long	hw_ulong=0;
-    long_long		hw_llong=0;
-    unsigned long_long	hw_ullong=0;
+    long long		hw_llong=0;
+    unsigned long long	hw_ullong=0;
 
     /* What is the name of the source type */
     if (H5Tequal(src, H5T_NATIVE_SCHAR)) {
@@ -3650,7 +3646,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
     dst_size = H5Tget_size(dst);
     src_nbits = H5Tget_precision(src); /* not 8*src_size, esp on J90 - QAK */
     dst_nbits = H5Tget_precision(dst); /* not 8*dst_size, esp on J90 - QAK */
-    aligned = HDcalloc(1, MAX(sizeof(long double), sizeof(long_long)));
+    aligned = HDcalloc(1, MAX(sizeof(long double), sizeof(long long)));
 #ifdef SHOW_OVERFLOWS
     noverflows_g = 0;
 #endif
@@ -3707,9 +3703,9 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
     } else if(src_type == INT_ULONG) {
         INIT_INTEGER(unsigned long, ULONG_MAX, 0, src_size, dst_size, src_nbits, buf, saved, nelmts);
     } else if(src_type == INT_LLONG) {
-        INIT_INTEGER(long_long, LLONG_MAX, LLONG_MIN, src_size, dst_size, src_nbits, buf, saved, nelmts);
+        INIT_INTEGER(long long, LLONG_MAX, LLONG_MIN, src_size, dst_size, src_nbits, buf, saved, nelmts);
     } else if(src_type == INT_ULLONG) {
-        INIT_INTEGER(unsigned long_long, ULLONG_MAX, 0, src_size, dst_size, src_nbits, buf, saved, nelmts);
+        INIT_INTEGER(unsigned long long, ULLONG_MAX, 0, src_size, dst_size, src_nbits, buf, saved, nelmts);
     } else if(src_type == FLT_FLOAT) {
         if(run_test==TEST_NORMAL) {
             INIT_FP_NORM(float, FLT_MAX, FLT_MIN, FLT_MAX_10_EXP, FLT_MIN_10_EXP,
@@ -3795,13 +3791,13 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 hw_float = (float)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_float = (float)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_float = (float)(*((long long*)aligned));
                 break;
 #ifdef H5_ULLONG_TO_FP_CAST_WORKS
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_float = (float)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_float = (float)(*((unsigned long long*)aligned));
                 break;
 #endif /* H5_ULLONG_TO_FP_CAST_WORKS */
             default:
@@ -3843,13 +3839,13 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 hw_double = (double)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_double = (double)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_double = (double)(*((long long*)aligned));
                 break;
 #ifdef H5_ULLONG_TO_FP_CAST_WORKS
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_double = (double)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_double = (double)(*((unsigned long long*)aligned));
                 break;
 #endif /* H5_ULLONG_TO_FP_CAST_WORKS */
             default:
@@ -3892,13 +3888,13 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 hw_ldouble = (long double)(*((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                hw_ldouble = (long double)(*((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                hw_ldouble = (long double)(*((long long*)aligned));
                 break;
 #ifdef H5_ULLONG_TO_FP_CAST_WORKS
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                hw_ldouble = (long double)(*((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                hw_ldouble = (long double)(*((unsigned long long*)aligned));
                 break;
 #endif /* H5_ULLONG_TO_FP_CAST_WORKS */
             default:
@@ -4070,16 +4066,16 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             switch (src_type) {
             case FLT_FLOAT:
                 HDmemcpy(aligned, saved+j*sizeof(float), sizeof(float));
-                hw_llong = (long_long)(*((float*)aligned));
+                hw_llong = (long long)(*((float*)aligned));
                 break;
             case FLT_DOUBLE:
                 HDmemcpy(aligned, saved+j*sizeof(double), sizeof(double));
-                hw_llong = (long_long)(*((double*)aligned));
+                hw_llong = (long long)(*((double*)aligned));
                 break;
 #if H5_SIZEOF_LONG_DOUBLE !=0
             case FLT_LDOUBLE:
                 HDmemcpy(aligned, saved+j*sizeof(long double), sizeof(long double));
-                hw_llong = (long_long)(*((long double*)aligned));
+                hw_llong = (long long)(*((long double*)aligned));
                 break;
 #endif
             default:
@@ -4090,16 +4086,16 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             switch (src_type) {
             case FLT_FLOAT:
                 HDmemcpy(aligned, saved+j*sizeof(float), sizeof(float));
-                hw_ullong = (unsigned long_long)(*((float*)aligned));
+                hw_ullong = (unsigned long long)(*((float*)aligned));
                 break;
             case FLT_DOUBLE:
                 HDmemcpy(aligned, saved+j*sizeof(double), sizeof(double));
-                hw_ullong = (unsigned long_long)(*((double*)aligned));
+                hw_ullong = (unsigned long long)(*((double*)aligned));
                 break;
 #if H5_SIZEOF_LONG_DOUBLE !=0
             case FLT_LDOUBLE:
                 HDmemcpy(aligned, saved+j*sizeof(long double), sizeof(long double));
-                hw_ullong = (unsigned long_long)(*((long double*)aligned));
+                hw_ullong = (unsigned long long)(*((long double*)aligned));
                 break;
 #endif
             default:
@@ -4258,10 +4254,10 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             if((tmp_s+1)==tmp_h || (tmp_s-1)==tmp_h)
                 continue; /*no error*/
         } /* end if */
-        else if (dst_size==sizeof(unsigned long_long)) {
-            unsigned long_long tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long_long));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long_long));
+        else if (dst_size==sizeof(unsigned long long)) {
+            unsigned long long tmp_s, tmp_h;
+            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long long));
+            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long long));
             if((tmp_s+1)==tmp_h || (tmp_s-1)==tmp_h)
                 continue; /*no error*/
         } /* end if */
@@ -4273,9 +4269,9 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
 */
 #ifndef H5_FP_TO_ULLONG_BOTTOM_BIT_WORKS
         if((src_type==FLT_FLOAT || src_type==FLT_DOUBLE) && dst_type==INT_ULLONG) {
-            unsigned long_long tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long_long));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long_long));
+            unsigned long long tmp_s, tmp_h;
+            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long long));
+            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long long));
             if((tmp_s+1)==tmp_h)
                 continue; /*no error*/
         }
@@ -4347,12 +4343,12 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
+                HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)aligned));
                 break;
             case FLT_FLOAT:
                 HDmemcpy(aligned, saved+j*sizeof(float), sizeof(float));
@@ -4410,12 +4406,12 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)aligned));
                 break;
             case INT_LLONG:
-                HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+                HDmemcpy(aligned, buf+j*sizeof(long long), sizeof(long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)aligned));
                 break;
             case INT_ULLONG:
-                HDmemcpy(aligned, buf+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
+                HDmemcpy(aligned, buf+j*sizeof(unsigned long long), sizeof(unsigned long long));
+                HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)aligned));
                 break;
             case FLT_FLOAT:
                 HDmemcpy(aligned, buf+j*sizeof(float), sizeof(float));
@@ -4465,10 +4461,10 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)hw));
                 break;
             case INT_LLONG:
-                printf(" %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)hw));
+                printf(" %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)hw));
                 break;
             case INT_ULLONG:
-                printf(" %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)hw));
+                printf(" %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)hw));
                 break;
             case FLT_FLOAT:
                 printf(" %29f\n", *((float*)hw));

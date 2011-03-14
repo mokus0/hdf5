@@ -536,7 +536,7 @@ H5O_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED * _udata1,
                 unsigned ioflags = 0;   /* Flags for decode routine */
 
                 /* Decode continuation message */
-                cont = (H5O_cont_t *)(H5O_MSG_CONT->decode)(f, dxpl_id, 0, &ioflags, oh->mesg[curmesg].raw);
+                cont = (H5O_cont_t *)(H5O_MSG_CONT->decode)(f, dxpl_id, NULL, 0, &ioflags, oh->mesg[curmesg].raw);
                 cont->chunkno = oh->nchunks;	/*the next chunk to allocate */
 
                 /* Save 'native' form of continuation message */
@@ -559,7 +559,7 @@ H5O_load(H5F_t *f, hid_t dxpl_id, haddr_t addr, const void UNUSED * _udata1,
 
                 /* Decode ref. count message */
                 HDassert(oh->version > H5O_VERSION_1);
-                refcount = (H5O_refcount_t *)(H5O_MSG_REFCOUNT->decode)(f, dxpl_id, 0, &ioflags, oh->mesg[curmesg].raw);
+                refcount = (H5O_refcount_t *)(H5O_MSG_REFCOUNT->decode)(f, dxpl_id, NULL, 0, &ioflags, oh->mesg[curmesg].raw);
 
                 /* Save 'native' form of ref. count message */
                 oh->mesg[curmesg].native = refcount;
@@ -706,7 +706,7 @@ H5O_assert(oh);
             switch(oh->flags & H5O_HDR_CHUNK0_SIZE) {
                 case 0:     /* 1 byte size */
                     HDassert(chunk0_size < 256);
-                    *p++ = chunk0_size;
+                    *p++ = (uint8_t)chunk0_size;
                     break;
 
                 case 1:     /* 2 byte size */
@@ -880,11 +880,20 @@ HDfprintf(stderr, "%s: oh->cache_info.free_file_space_on_destroy = %t\n", FUNC, 
     /* destroy messages */
     if(oh->mesg) {
         for(u = 0; u < oh->nmesgs; u++) {
-            /* Verify that message is clean */
-            HDassert(oh->mesg[u].dirty == 0);
+            /* Verify that message is clean, unless it could have been marked
+             * dirty by decoding */
+#ifndef NDEBUG
+            if(oh->ndecode_dirtied && oh->mesg[u].dirty)
+                oh->ndecode_dirtied--;
+            else
+                HDassert(oh->mesg[u].dirty == 0);
+#endif /* NDEBUG */
 
             H5O_msg_free_mesg(&oh->mesg[u]);
         } /* end for */
+
+        /* Make sure we accounted for all the messages dirtied by decoding */
+        HDassert(!oh->ndecode_dirtied);
 
         oh->mesg = (H5O_mesg_t *)H5FL_SEQ_FREE(H5O_mesg_t, oh->mesg);
     } /* end if */
@@ -928,6 +937,11 @@ H5O_clear(H5F_t *f, H5O_t *oh, hbool_t destroy)
     /* Mark messages as clean */
     for(u = 0; u < oh->nmesgs; u++)
         oh->mesg[u].dirty = FALSE;
+
+#ifndef NDEBUG
+        /* Reset the number of messages dirtied by decoding */
+        oh->ndecode_dirtied = 0;
+#endif /* NDEBUG */
 
     /* Mark whole header as clean */
     oh->cache_info.is_dirty = FALSE;

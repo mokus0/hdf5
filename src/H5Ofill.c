@@ -33,12 +33,12 @@
 #include "H5Sprivate.h"		/* Dataspaces				*/
 
 
-static void  *H5O_fill_old_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags,
-    unsigned *ioflags, const uint8_t *p);
+static void  *H5O_fill_old_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
+    unsigned mesg_flags, unsigned *ioflags, const uint8_t *p);
 static herr_t H5O_fill_old_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static size_t H5O_fill_old_size(const H5F_t *f, const void *_mesg);
-static void  *H5O_fill_new_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags,
-    unsigned *ioflags, const uint8_t *p);
+static void  *H5O_fill_new_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
+    unsigned mesg_flags, unsigned *ioflags, const uint8_t *p);
 static herr_t H5O_fill_new_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static size_t H5O_fill_new_size(const H5F_t *f, const void *_mesg);
 static void  *H5O_fill_copy(const void *_mesg, void *_dest);
@@ -182,8 +182,8 @@ H5FL_BLK_EXTERN(type_conv);
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_fill_new_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
-    unsigned UNUSED *ioflags, const uint8_t *p)
+H5O_fill_new_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
+    unsigned UNUSED mesg_flags, unsigned UNUSED *ioflags, const uint8_t *p)
 {
     H5O_fill_t	*fill = NULL;
     void	*ret_value;
@@ -296,8 +296,8 @@ done:
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_fill_old_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
-    unsigned UNUSED *ioflags, const uint8_t *p)
+H5O_fill_old_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
+    unsigned UNUSED mesg_flags, unsigned UNUSED *ioflags, const uint8_t *p)
 {
     H5O_fill_t *fill = NULL;		/* Decoded fill value message */
     void *ret_value;                    /* Return value */
@@ -378,7 +378,7 @@ H5O_fill_new_encode(H5F_t UNUSED *f, uint8_t *p, const void *_fill)
         *p++ = fill->fill_time;
 
         /* Whether fill value is defined */
-        *p++ = fill->fill_defined;
+        *p++ = (uint8_t)fill->fill_defined;
 
         /* Only write out the size and fill value if it is defined */
         if(fill->fill_defined) {
@@ -624,14 +624,14 @@ H5O_fill_new_size(const H5F_t UNUSED *f, const void *_fill)
                     1; 			/* Fill value defined    */
         if(fill->fill_defined)
             ret_value += 4 +	/* Fill value size	 */
-                    (fill->size > 0 ? fill->size : 0);	/* Size of fill value	 */
+                    (fill->size > 0 ? (size_t)fill->size : 0);	/* Size of fill value	 */
     } /* end if */
     else {
         ret_value = 1 +	 		/* Version number        */
                     1;			/* Status flags          */
         if(fill->size > 0)
             ret_value += 4 +		/* Fill value size	 */
-                    fill->size;		/* Size of fill value	 */
+                    (size_t)fill->size;		/* Size of fill value	 */
     } /* end else */
 
     FUNC_LEAVE_NOAPI(ret_value)
@@ -662,7 +662,7 @@ H5O_fill_old_size(const H5F_t UNUSED *f, const void *_fill)
 
     HDassert(fill);
 
-    FUNC_LEAVE_NOAPI(4 + fill->size)
+    FUNC_LEAVE_NOAPI(4 + (size_t)fill->size)
 } /* end H5O_fill_old_size() */
 
 

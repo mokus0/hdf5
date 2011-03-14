@@ -145,7 +145,7 @@ typedef struct H5F_file_t {
                                 /* not change thereafter.               */
     hid_t       fcpl_id;	/* File creation property list ID 	*/
     H5F_close_degree_t fc_degree;   /* File close behavior degree	*/
-    size_t	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
+    size_t	rdcc_nslots;	/* Size of raw data chunk cache (slots)	*/
     size_t	rdcc_nbytes;	/* Size of raw data chunk cache	(bytes)	*/
     double	rdcc_w0;	/* Preempt read chunks first? [0.0..1.0]*/
     size_t      sieve_buf_size; /* Size of the data sieve buffer allocated (in bytes) */
@@ -158,6 +158,8 @@ typedef struct H5F_file_t {
     int	ncwfs;			/* Num entries on cwfs list		*/
     struct H5HG_heap_t **cwfs;	/* Global heap cache			*/
     struct H5G_t *root_grp;	/* Open root group			*/
+    H5G_entry_t *root_ent;      /* Root group symbol table entry        */
+    haddr_t     root_addr;      /* Root group address                   */
     H5FO_t *open_objs;          /* Open objects in file                 */
     H5RC_t *grp_btree_shared;   /* Ref-counted group B-tree node info   */
 
@@ -193,7 +195,7 @@ struct H5F_t {
     H5FO_t              *obj_count;     /* # of time each object is opened through top file structure */
     hid_t               file_id;        /* ID of this file              */
     hbool_t             closing;        /* File is in the process of being closed */
-    struct H5F_t	    *parent;        /* Parent file that this file is mounted to */
+    struct H5F_t        *parent;        /* Parent file that this file is mounted to */
     unsigned            nmounts;        /* Number of children mounted to this file */
 };
 
@@ -224,7 +226,7 @@ H5_DLL herr_t H5F_mount_count_ids(H5F_t *f, unsigned *nopen_files, unsigned *nop
 /* Superblock related routines */
 H5_DLL herr_t H5F_super_init(H5F_t *f, hid_t dxpl_id);
 H5_DLL herr_t H5F_super_write(H5F_t *f, hid_t dxpl_id);
-H5_DLL herr_t H5F_super_read(H5F_t *f, hid_t dxpl_id, H5G_loc_t *root_loc);
+H5_DLL herr_t H5F_super_read(H5F_t *f, hid_t dxpl_id);
 H5_DLL herr_t H5F_super_ext_size(H5F_t *f, hid_t dxpl_id, hsize_t *super_ext_info);
 
 /* Metadata accumulator routines */
@@ -246,6 +248,7 @@ H5_DLL herr_t H5F_sfile_remove(H5F_file_t *shared);
 #ifdef H5F_TESTING
 H5_DLL herr_t H5F_get_sohm_mesg_count_test(hid_t fid, unsigned type_id,
     size_t *mesg_count);
+H5_DLL herr_t H5F_check_cached_stab_test(hid_t file_id);
 #endif /* H5F_TESTING */
 
 #endif /* _H5Fpkg_H */

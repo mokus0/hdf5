@@ -1052,7 +1052,7 @@ H5T_init_interface(void)
     status |= H5T_register(H5T_PERS_HARD, "ldbl_dbl", native_ldouble, native_double, H5T_conv_ldouble_double, H5AC_dxpl_id, FALSE);
 #endif /*H5T_CONV_INTERNAL_FP_LDOUBLE*/
 
-    /* from long_long */
+    /* from long long */
     status |= H5T_register(H5T_PERS_HARD, "llong_ullong", native_llong, native_ullong, H5T_conv_llong_ullong, H5AC_dxpl_id, FALSE);
     status |= H5T_register(H5T_PERS_HARD, "ullong_llong", native_ullong, native_llong, H5T_conv_ullong_llong, H5AC_dxpl_id, FALSE);
     status |= H5T_register(H5T_PERS_HARD, "llong_long", native_llong, native_long, H5T_conv_llong_long, H5AC_dxpl_id, FALSE);
@@ -2920,7 +2920,7 @@ H5T_decode(const unsigned char *buf)
 	HGOTO_ERROR(H5E_DATATYPE, H5E_VERSION, NULL, "unknown version of encoded datatype")
 
     /* Decode the serialized datatype message */
-    if((ret_value = H5O_msg_decode(f, H5AC_dxpl_id, H5O_DTYPE_ID, buf)) == NULL)
+    if((ret_value = H5O_msg_decode(f, H5AC_dxpl_id, NULL, H5O_DTYPE_ID, buf)) == NULL)
 	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, NULL, "can't decode object")
 
 done:
@@ -2973,8 +2973,10 @@ H5T_create(H5T_class_t type, size_t size)
                 HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
             dt->shared->type = type;
 
-            if(type==H5T_COMPOUND)
+            if(type==H5T_COMPOUND) {
                 dt->shared->u.compnd.packed=TRUE;       /* Start out packed */
+                dt->shared->u.compnd.sorted=H5T_SORT_VALUE; /* Start out sorted by value */
+            } /* end if */
             else if(type==H5T_OPAQUE)
                 /* Initialize the tag in case it's not set later.  A null tag will
                  * cause problems for later operations. */
@@ -2990,7 +2992,7 @@ H5T_create(H5T_class_t type, size_t size)
                 subtype = H5T_NATIVE_INT_g;
             } else if (sizeof(long)==size) {
                 subtype = H5T_NATIVE_LONG_g;
-            } else if (sizeof(long_long)==size) {
+            } else if (sizeof(long long)==size) {
                 subtype = H5T_NATIVE_LLONG_g;
             } else {
                 HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "no applicable native integer type");
@@ -3173,13 +3175,16 @@ H5T_copy(const H5T_t *old_dt, H5T_copy_t method)
              * name and type fields of each new member with copied values.
              * That is, H5T_copy() is a deep copy.
              */
-            new_dt->shared->u.compnd.memb = H5MM_malloc(new_dt->shared->u.compnd.nalloc *
-                                sizeof(H5T_cmemb_t));
-            if (NULL==new_dt->shared->u.compnd.memb)
-                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+            /* Only malloc if space has been allocated for members - NAF */
+            if(new_dt->shared->u.compnd.nalloc > 0) {
+                new_dt->shared->u.compnd.memb = H5MM_malloc(new_dt->shared->u.compnd.nalloc *
+                                    sizeof(H5T_cmemb_t));
+                if (NULL==new_dt->shared->u.compnd.memb)
+                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
-            HDmemcpy(new_dt->shared->u.compnd.memb, old_dt->shared->u.compnd.memb,
-                 new_dt->shared->u.compnd.nmembs * sizeof(H5T_cmemb_t));
+                HDmemcpy(new_dt->shared->u.compnd.memb, old_dt->shared->u.compnd.memb,
+                    new_dt->shared->u.compnd.nmembs * sizeof(H5T_cmemb_t));
+            } /* end if */
 
             for(i = 0; i < new_dt->shared->u.compnd.nmembs; i++) {
                 unsigned	j;

@@ -33,8 +33,8 @@
 
 /* PRIVATE PROTOTYPES */
 static herr_t H5O_pline_encode(H5F_t *f, uint8_t *p, const void *mesg);
-static void *H5O_pline_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags,
-    unsigned *ioflags, const uint8_t *p);
+static void *H5O_pline_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
+    unsigned mesg_flags, unsigned *ioflags, const uint8_t *p);
 static void *H5O_pline_copy(const void *_mesg, void *_dest);
 static size_t H5O_pline_size(const H5F_t *f, const void *_mesg);
 static herr_t H5O_pline_reset(void *_mesg);
@@ -107,8 +107,8 @@ H5FL_DEFINE(H5O_pline_t);
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_pline_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
-    unsigned UNUSED *ioflags, const uint8_t *p)
+H5O_pline_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
+    unsigned UNUSED mesg_flags, unsigned UNUSED *ioflags, const uint8_t *p)
 {
     H5O_pline_t		*pline = NULL;          /* Pipeline message */
     H5Z_filter_info_t   *filter;                /* Filter to decode */
@@ -273,7 +273,7 @@ H5O_pline_encode(H5F_t UNUSED *f, uint8_t *p/*out*/, const void *mesg)
             name = NULL;
         } /* end if */
         else {
-            H5Z_class_t	*cls;                   /* Filter class */
+            H5Z_class2_t	*cls;                   /* Filter class */
 
             /*
              * Get the filter name.  If the pipeline message has a name in it then
@@ -453,7 +453,7 @@ H5O_pline_size(const H5F_t UNUSED *f, const void *mesg)
         if(pline->version > H5O_PLINE_VERSION_1 && pline->filter[i].id < H5Z_FILTER_RESERVED)
             name_len = 0;
         else {
-            H5Z_class_t	*cls;                   /* Filter class */
+            H5Z_class2_t	*cls;                   /* Filter class */
 
             /* Get the name of the filter, same as done with H5O_pline_encode() */
             if(NULL == (name = pline->filter[i].name) && (cls = H5Z_find(pline->filter[i].id)))

@@ -525,7 +525,7 @@ h5tools_simple_prefix(FILE *stream, const h5tool_format_t *info,
  *      Deref in h5tools_str_sprint() instead so recursive types are
  *      handled correctly.
  *
- *      Pedro Vicente Nunes, THG, 2005-10-19
+ *      Pedro Vicente Nunes, The HDF Group, 2005-10-19
  *        pass to the prefix in h5tools_simple_prefix the total position
  *        instead of the current stripmine position i; this is necessary
  *        to print the array indices
@@ -941,8 +941,12 @@ h5tools_dump_simple_subset(FILE *stream, const h5tool_format_t *info, hid_t dset
             sm_nbytes = p_type_nbytes = H5Tget_size(p_type);
 
             if (ctx.ndims > 0)
-                for (i = ctx.ndims; i > 0; --i) {
-                    sm_size[i - 1] = MIN(total_size[i - 1], H5TOOLS_BUFSIZE / sm_nbytes);
+                for (i = ctx.ndims; i > 0; --i) 
+                {
+                    hsize_t size = H5TOOLS_BUFSIZE / sm_nbytes;
+                    if ( size == 0) /* datum size > H5TOOLS_BUFSIZE */
+                        size = 1;
+                    sm_size[i - 1] = MIN(total_size[i - 1], size);
                     sm_nbytes *= sm_size[i - 1];
                     assert(sm_nbytes > 0);
                 }
@@ -1167,7 +1171,10 @@ h5tools_dump_simple_dset(FILE *stream, const h5tool_format_t *info, hid_t dset,
 
     if (ctx.ndims > 0) {
         for (i = ctx.ndims; i > 0; --i) {
-            sm_size[i - 1] = MIN(total_size[i - 1], H5TOOLS_BUFSIZE / sm_nbytes);
+            hsize_t size = H5TOOLS_BUFSIZE / sm_nbytes;
+            if ( size == 0) /* datum size > H5TOOLS_BUFSIZE */
+                size = 1;
+            sm_size[i - 1] = MIN(total_size[i - 1], size);
             sm_nbytes *= sm_size[i - 1];
             assert(sm_nbytes > 0);
         }
@@ -1556,8 +1563,8 @@ int render_bin_output(FILE *stream, hid_t tid, void *_mem)
  size_t             size;   /* datum size */
  float              tempfloat;
  double             tempdouble;
- unsigned long_long tempullong;
- long_long          templlong;
+ unsigned long long tempullong;
+ long long          templlong;
  unsigned long      tempulong;
  long               templong;
  unsigned int       tempuint;
@@ -1723,7 +1730,7 @@ int render_bin_output(FILE *stream, hid_t tid, void *_mem)
  }
  else if (H5Tequal(tid, H5T_NATIVE_LLONG))
  {
-  memcpy(&templlong, mem, sizeof(long_long));
+  memcpy(&templlong, mem, sizeof(long long));
 #ifdef DEBUG_H5DUMP_BIN
   fprintf(stream, fmt_llong, templlong);
 #else
@@ -1733,7 +1740,7 @@ int render_bin_output(FILE *stream, hid_t tid, void *_mem)
  }
  else if (H5Tequal(tid, H5T_NATIVE_ULLONG))
  {
-  memcpy(&tempullong, mem, sizeof(unsigned long_long));
+  memcpy(&tempullong, mem, sizeof(unsigned long long));
 #ifdef DEBUG_H5DUMP_BIN
   fprintf(stream, fmt_ullong, tempullong);
 #else
@@ -1765,7 +1772,7 @@ int render_bin_output(FILE *stream, hid_t tid, void *_mem)
   }
   else
   {
-   memcpy(&templlong, mem, sizeof(long_long));
+   memcpy(&templlong, mem, sizeof(long long));
 #ifdef DEBUG_H5DUMP_BIN
    fprintf(stream, fmt_llong, templlong);
 #else
@@ -1798,7 +1805,7 @@ int render_bin_output(FILE *stream, hid_t tid, void *_mem)
   }
   else
   {
-   memcpy(&tempullong, mem, sizeof(unsigned long_long));
+   memcpy(&tempullong, mem, sizeof(unsigned long long));
 #ifdef DEBUG_H5DUMP_BIN
    fprintf(stream, fmt_ullong, tempullong);
 #else

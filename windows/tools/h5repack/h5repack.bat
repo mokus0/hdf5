@@ -61,6 +61,9 @@ set file10=h5repack_fletcher.h5
 set file11=h5repack_filters.h5
 set file12=h5repack_nbit.h5
 set file13=h5repack_soffset.h5
+rem A file with an older version of the layout message (copy of test/tlayouto.h5)
+set file14=h5repack_layouto.h5
+set file15=h5repack_named_dtypes.h5
 
 
 set nerrors=0
@@ -547,8 +550,10 @@ rem
     call :tooltest %arg9%
 
     rem Native option
-    set arg=%file1% -n
-    call :tooltest %arg%
+    rem Do not use FILE1, as the named dtype will be converted to native, and h5diff will
+    rem report a difference.
+    call :tooltest %file0% -n
+    call :tooltest %file2% -n
 
 
     rem latest file format with long switches. use FILE4=h5repack_layout.h5 (no filters)
@@ -594,7 +599,18 @@ rem
     rem add alignment
     set arg=%file1% -t 1 -a 1
     call :tooltest %arg%
+
+    rem Check repacking file with old version of layout message (should get upgraded
+    rem       to new version and be readable, etc.)
+    call :tooltest %file14%
     
+    rem test for datum size > H5TOOLS_MALLOCSIZE
+    set arg=%file1% -f GZIP=1
+    call :tooltest %arg%
+    
+    rem Check repacking file with committed datatypes in odd configurations
+    call :tooltest %file15%
+
     
     if %nerrors% equ 0 (
         echo.All %h5repack% tests passed.

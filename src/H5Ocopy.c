@@ -315,8 +315,7 @@ H5O_copy_header_real(const H5O_loc_t *oloc_src, H5O_loc_t *oloc_dst /*out */,
     HDassert(cpy_info);
 
     /* Get source object header */
-    if(NULL == (oh_src = (H5O_t *)H5AC_protect(oloc_src->file, dxpl_id, H5AC_OHDR, oloc_src->addr, NULL, NULL,
-        (H5F_get_intent(oloc_src->file) & H5F_ACC_RDWR) ? H5AC_WRITE : H5AC_READ)))
+    if(NULL == (oh_src = (H5O_t *)H5AC_protect(oloc_src->file, dxpl_id, H5AC_OHDR, oloc_src->addr, NULL, NULL, H5AC_READ)))
         HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, FAIL, "unable to load object header")
 
     /* Get pointer to object class for this object */
@@ -914,7 +913,7 @@ H5O_copy_header(const H5O_loc_t *oloc_src, H5O_loc_t *oloc_dst /*out */,
         cpy_info.preserve_null = TRUE;
 
     /* Create a skip list to keep track of which objects are copied */
-    if((cpy_info.map_list = H5SL_create(H5SL_TYPE_HADDR, 0.5, (size_t)16)) == NULL)
+    if((cpy_info.map_list = H5SL_create(H5SL_TYPE_HADDR)) == NULL)
         HGOTO_ERROR(H5E_SLIST, H5E_CANTCREATE, FAIL, "cannot make skip list")
 
     /* copy the object from the source file to the destination file */
@@ -1036,7 +1035,7 @@ H5O_copy_obj_by_ref(H5O_loc_t *src_oloc, hid_t dxpl_id, H5O_loc_t *dst_oloc,
         new_oloc.addr = dst_oloc->addr;
 
         /* Pick a default name for the new object */
-        sprintf(tmp_obj_name, "~obj_pointed_by_%llu", (unsigned long_long)dst_oloc->addr);
+        sprintf(tmp_obj_name, "~obj_pointed_by_%llu", (unsigned long long)dst_oloc->addr);
 
         /* Create a link to the newly copied object */
         if(H5L_link(dst_root_loc, tmp_obj_name, &new_loc, H5P_DEFAULT, H5P_DEFAULT, dxpl_id) < 0)

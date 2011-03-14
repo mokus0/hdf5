@@ -28,8 +28,8 @@
 #include "H5Opkg.h"             /* Object headers			*/
 #include "H5MMprivate.h"	/* Memory management			*/
 
-static void  *H5O_btreek_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags,
-    unsigned *ioflags, const uint8_t *p);
+static void  *H5O_btreek_decode(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
+    unsigned mesg_flags, unsigned *ioflags, const uint8_t *p);
 static herr_t H5O_btreek_encode(H5F_t *f, hbool_t disable_shared, uint8_t *p, const void *_mesg);
 static void  *H5O_btreek_copy(const void *_mesg, void *_dest);
 static size_t H5O_btreek_size(const H5F_t *f, hbool_t disable_shared, const void *_mesg);
@@ -79,8 +79,8 @@ const H5O_msg_class_t H5O_MSG_BTREEK[1] = {{
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_btreek_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
-    unsigned UNUSED *ioflags, const uint8_t *p)
+H5O_btreek_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
+    unsigned UNUSED mesg_flags, unsigned UNUSED *ioflags, const uint8_t *p)
 {
     H5O_btreek_t	*mesg;          /* Native message */
     void                *ret_value;     /* Return value */
@@ -100,7 +100,7 @@ H5O_btreek_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_fl
 	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for v1 B-tree 'K' message")
 
     /* Retrieve non-default B-tree 'K' values */
-    UINT16DECODE(p, mesg->btree_k[H5B_ISTORE_ID]);
+    UINT16DECODE(p, mesg->btree_k[H5B_CHUNK_ID]);
     UINT16DECODE(p, mesg->btree_k[H5B_SNODE_ID]);
     UINT16DECODE(p, mesg->sym_leaf_k);
 
@@ -138,7 +138,7 @@ H5O_btreek_encode(H5F_t UNUSED *f, hbool_t UNUSED disable_shared, uint8_t *p, co
 
     /* Store version and non-default v1 B-tree 'K' values */
     *p++ = H5O_BTREEK_VERSION;
-    UINT16ENCODE(p, mesg->btree_k[H5B_ISTORE_ID]);
+    UINT16ENCODE(p, mesg->btree_k[H5B_CHUNK_ID]);
     UINT16ENCODE(p, mesg->btree_k[H5B_SNODE_ID]);
     UINT16ENCODE(p, mesg->sym_leaf_k);
 
@@ -211,7 +211,7 @@ H5O_btreek_size(const H5F_t UNUSED *f, hbool_t UNUSED disable_shared, const void
     HDassert(f);
 
     ret_value = 1 +             /* Version number */
-		2 +             /* Indexed storage internal B-tree 'K' value */
+		2 +             /* Chunked storage internal B-tree 'K' value */
 		2 +             /* Symbol table node internal B-tree 'K' value */
 		2;              /* Symbol table node leaf 'K' value */
 
@@ -247,7 +247,7 @@ H5O_btreek_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE 
     HDassert(fwidth >= 0);
 
     HDfprintf(stream, "%*s%-*s %u\n", indent, "", fwidth,
-	      "Indexed storage internal B-tree 'K' value:", mesg->btree_k[H5B_ISTORE_ID]);
+	      "Chunked storage internal B-tree 'K' value:", mesg->btree_k[H5B_CHUNK_ID]);
     HDfprintf(stream, "%*s%-*s %u\n", indent, "", fwidth,
 	      "Symbol table node internal B-tree 'K' value:", mesg->btree_k[H5B_SNODE_ID]);
     HDfprintf(stream, "%*s%-*s %u\n", indent, "", fwidth,

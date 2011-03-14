@@ -33,15 +33,20 @@
 
 <center>
 <br>
-<h1><img src="hdf2.jpg" alt="HDF Logo" align=left> HDF5 - A New Generation of HDF <br><font size=-1>The Hierarchical Data Format</font></H1>
+<table border=0 width="90%">
+<tr><td width=92>
+<A HREF="http://hdf.ncsa.uiuc.edu"><img src="hdf2.jpg" border=0 alt="HDF Logo" align=left></A> 
+</td><td>
+<h1>HDF5 - A New Generation of HDF <br><font size=-1>The Hierarchical Data Format</font></h1>
+<hr>
+</td></tr>
+<table>
 </center>
 
-
-<hr>
 <CENTER>
 
 <table border=0 width=90%>
-<tr><td rowspan=5 bgcolor="#BBFFFF" valign=top align=left width=35%>
+<tr><td rowspan=4 bgcolor="#BBFFFF" valign=top align=left width=35%>
     <center><h3>HDF Links at NCSA</h3></center>
     <dl>
     <dt><a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
@@ -71,9 +76,30 @@
     <li>Other HDF5-related papers and presentations
     </ul>
     <p>
+    <dt><a href="http://hdf.ncsa.uiuc.edu/HDF5/hdf5_hl/" 
+        target="ExtWin">High Level HDF5 APIs</a>
+    <ul>
+    <li>High level APIs for easier HDF5 application development
+    <li>Image, Table, and HDF5 Lite
+    </ul>
+    <p>
+    <dt><a href="http://hdf.ncsa.uiuc.edu/HDF5/PHDF5/" 
+        target="ExtWin">Parallel HDF5</a>
+    <ul>
+    <li>HDF5 in parallel computing environments
+    <li>Installation, tutorial, Q&amp;A, design notes
+    </ul>
+    <p>
     <dt><a href="http://hdf.ncsa.uiuc.edu/HDF5/XML/" target="ExtWin">XML and HDF5</a>
     <ul>
     <li>XML tools and standard XML DTD for HDF5 
+    </ul>
+    <p>
+    <dt><A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">Printer-friendly Docs</A>
+    <ul>
+    <li>PDF versions of selected HDF5 documents
+        will be available from the HDF5 website 
+        approximately one week after each release.
     </ul>
     <p>
     <dt><A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc_dev_snapshot/index.html">HDF5 Doc Development</A>
@@ -83,93 +109,78 @@
     <li>Errata, bugfixes, and updates for this release (if available)
     </ul>
     <p>
-    <A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">Printer-friendly Docs</A>
-    <ul>
-    <li>PDF version of the <cite>HDF5 Reference Manual</cite> for Release 1.6.1
-        will be available from the HDF5 website 
-        approximately one week after the release.
-    </ul>
-<!--
-    <p>
-    <A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">Printer-friendly Docs
-        <br>Searchable Docs</A>
-    <ul>
-    <li>PDF and PS versions of selected HDF5 Release 1.4.1 docs 
-        (includes docs indicated by *)
-    </ul>
--->
-    <p>
-<!--
-    <dt><A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc_dev_snapshot/index.html">Printable
-        and Searchable Docs</A>
-    <ul>
-    <li>PDF and PS versions of selected HDF5 docs (*)
-    </ul>
--->
     </dl>
 </td><td bgcolor="#FFFFFF" width=4%>
 </td><td bgcolor="#BBFFFF" valign=top align=left width=61%>
     <center>
-    <h3>HDF5 User Documentation<br>Release 1.6.1, October 2003</h3>
+    <h3>HDF5 User Documentation<br>Release 1.6.3, September 2004</h3>
     <!--
     <font size=-1>(Unrelased development version -- Dynamic)</font></h3>
     -->
     </center>
 <dl>
-<dt><A HREF="H5.intro.html">An Introduction to HDF5</A> *
+<dt><A HREF="H5.intro.html">An Introduction to HDF5</A> 
     <ul>
     <li>An overview of design goals behind the HDF5 library and file format
     <li>An introduction to HDF5 programming 
     </ul>
+
+<dt><A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc/Tutor/index.html" 
+             target="ExternalT">HDF5 Tutorial</a> 
+    <ul>
+    <li>A tutorial introduction to HDF5 
+        <br>
+        <i><small>(Served from the HDF5 website at NCSA)</small></i>
+    </ul>
+
 <dt><A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/">HDF5 User's Guide</A> 
     <ul>
-    <li>A new user's guide, though currently a work in progress
-    <li>This guide will be updated as work progresses; 
-        current status will always be posted on the opening page
+    <li>A new user's guide, first published with HDF5 Release 2.0
+        <br>
+        <i><small>(Served from the HDF5 website at NCSA)</small></i>
     <li>The <A HREF="H5.user.html">HDF5 Release 1.4.5 User's Guide</A> 
         remains available, though it has not been updated 
 	for the current release
     </ul>
-<dt><A HREF="RM_H5Front.html">HDF5 Reference Manual</A> *
+<dt><A HREF="RM_H5Front.html">HDF5 Reference Manuals</A> 
     <ul>
-    <li>A complete reference manual for the HDF5 APIs
+    <li>Complete reference manuals for the HDF5 APIs
+    <li><A HREF="RM_H5Front.html">The C APIs</A>, HDF5's &ldquo;native language&rdquo;
+    <li><a href="http://hdf.ncsa.uiuc.edu/HDF5/hdf5_hl/doc/RM_hdf5hl.html" 
+        target="ExtWin">High level C APIs</a>: Image, Table, and HDF5 Lite
+        <br>
+        <i><small>(Served from the HDF5 website at NCSA)</small></i>
+    <li><A HREF="RM_H5Front.html#F90andCPPlus">The Fortran90 APIs</A>
+    <li><A HREF="cpplus_RM/index.html" target="CppExternal">The C++ APIs</a>
+    <li><A href="http://hdf.ncsa.uiuc.edu/hdf-java-html/JNI/jhi5/index.html" 
+        target="ExtWin">JHI5</A>, the Java HDF5 Interface
     </ul>
-<dt><A HREF="ADGuide.html">HDF5 Application Developer's Guide</A> 
+    </ul>
+<dt>HDF5 and &ldquo;Foreign Languages&rdquo;
     <ul>
-    <li><A HREF="ADGuide/Changes.html">Changes</A> since the last release
-    <li>Standards definitions and development guidelines 
+    <li>Fortran90 <A HREF="fortran/F90UserNotes.html">User's Notes</A>, 
+        <A HREF="fortran/F90Flags.html">Flags and Datatypes</A>, and
+        <A HREF="RM_H5Front.html#F90andCPPlus">Reference Manual</A> 
+    <li>C++ <A HREF="cpplus/CppUserNotes.pdf">User's Notes</A> and 
+            <A HREF="cpplus_RM/index.html" target="CppExternal">
+                     Reference Manual</A>
+    <li><A href="http://hdf.ncsa.uiuc.edu/hdf-java-html/" 
+        target="ExtWin">Java products</A> and the 
+        <A href="http://hdf.ncsa.uiuc.edu/hdf-java-html/JNI/jhi5/index.html" 
+        target="ExtWin">Java HDF5 Interface</A>
+        <br>
+        <i><small>(Served from the HDF5 website at NCSA)</small></i>
     </ul>
-<dt><A HREF="RM_H5Front.html#F90andCPPlus">Fortran90 and C++ APIs</A> *
-    <ul>
-    <li>Non-C APIs linked from and incorporated in the 
-        <cite>HDF5 Reference Manual</cite>
-    </ul>
-<dt><A HREF="Glossary.html">HDF5 Glossary</A> *
+
+<dt><A HREF="Glossary.html">HDF5 Glossary</A> 
     <ul>
     <li>A glossary of terms as they are used in HDF5 
     </ul>
-</dl>
-</td></tr><tr><td bgcolor="#FFFFFF">
-</td><td bgcolor="#BBFFFF" valign=top align=left>
-<dl>
-<dt><A HREF="Tools.html">HDF5 Tools</a> 
+<dt><A HREF="ADGuide.html">HDF5 Application Developer's Guide</A> 
     <ul>
-    <li>HDF5 tools, including Java-based tools
-    <li><code>HDFView</code>, <code>h5dump</code>, 
-        <code>h5ls</code>, <code>h5toh4</code>, etc.
-    </ul>
-</dl>
-</td></tr><tr><td bgcolor="#FFFFFF">
-</td><td bgcolor="#BBFFFF" valign=top align=left>
-<dl>
-<dt><A HREF="http://hdf.ncsa.uiuc.edu/HDF5/doc/Tutor/index.html" 
-             target="ExternalT">HDF5 Tutorial</a> 
-<!-- For the day when we bring the Tutorial back into the distribution:
-    <dt><A HREF="Tutor/index.html">HDF5 Tutorial</a>              -->
-    <ul>
-    <li>A tutorial introduction to HDF5 
-        <br>
-        (served from the HDF5 website at NCSA)
+    <li>Standards definitions and development guidelines 
+    <li><A HREF="ADGuide/Changes.html">Changes in the HDF5 Library</A> 
+        since the last release
     </ul>
 </dl>
 </td></tr>
@@ -202,27 +213,34 @@
 </td></tr>
 
 -->
-
+<tr>
 <tr><td bgcolor="#FFFFFF">
 </td><td bgcolor="#BBFFFF" valign=top align=left>
+<center><h3>HDF5 Tools</h3></center>
 <dl>
-<dt><A HREF="ph5design.html">Parallel HDF5 Design</A>
+<dt><A HREF="Tools.html">HDF5 Tools</a> 
     <ul>
-    <li>The design specification of the parallel HDF5 APIs 
-    <li>An example program
-    </ul>
-<dt><A HREF="ph5implement.txt">Parallel HDF5 Implementation</A>
-    <ul>
-    <li>The current status of implmentation of the parallel HDF5 APIs
+    <li>HDF5 tools, including Java-based tools
+    <li><code>HDFView</code>, <code>h5dump</code>, 
+        <code>h5ls</code>, <code>h5toh4</code>, etc.
     </ul>
 </dl>
-</td></tr><tr><td bgcolor="#FFFFFF">
+</td></tr>
+
+
+<tr><td bgcolor="#FFFFFF">
 </td><td bgcolor="#BBFFFF" valign=top align=left>
     <center><h3>HDF5 Library Development Documentation</h3></center>
 <dl>
 <dt><A HREF="H5.format.html">HDF5 File Format Specification</A>
     <ul>
     <li>The complete specification of the HDF5 file format
+    </ul>
+<dt><A HREF="http:/hdf.ncsa.uiuc.edu/HDF5/doc_resource/cpplus/cpp_Design_040912.pdf">HDF5 C++ API Design Specification</A>
+    <ul>
+    <li>First draft of the design specification for the HDF5 C++ APIs
+        <br>
+        <i><small>(Served from the HDF5 website at NCSA)</small></i>
     </ul>
 <dt><A HREF="TechNotes.html">HDF5 Technical Notes</A>
     <ul>
@@ -232,10 +250,10 @@
 </dl>
 </td></tr>
 <tr><td bgcolor="#BBFFFF" valign=top align=left>
-<center><i>(Internet links)</i></center>
+<center><i><small>(Internet links)</small></i></center>
 </td><td bgcolor="#FFFFFF">
 </td><td bgcolor="#BBFFFF" valign=top align=left>
-<center><i>(Local links)</i></center>
+<center><i><small>(Local links, unless otherwise noted)</small></i></center>
 </table>
 </CENTER>   
 
@@ -254,11 +272,11 @@
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a>
 <br>
 <!-- hhmts start -->
-Last modified: 15 October 2003
+Last modified: 21 September 2004
 <!-- hhmts end -->
 
 <br>
-Describes HDF5 Release 1.6.1, October 2003
+Describes HDF5 Release 1.6.3, September 2004
 
 <p>
 Copyright by the Board of Trustees of the University of Illinois.  

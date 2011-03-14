@@ -150,9 +150,9 @@ H5O_fill_new_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
     /* Whether fill value is defined */
     mesg->fill_defined = *p++;
 
-    /* Check for version of fill value message */
-    if(version==H5O_FILL_VERSION) {
-        UINT32DECODE(p, mesg->size);
+    /* Only decode fill value information if one is defined */
+    if(mesg->fill_defined) {
+        INT32DECODE(p, mesg->size);
         if (mesg->size>0) {
             H5_CHECK_OVERFLOW(mesg->size,ssize_t,size_t);
             if (NULL==(mesg->buf=H5MM_malloc((size_t)mesg->size)))
@@ -160,22 +160,9 @@ H5O_fill_new_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
             HDmemcpy(mesg->buf, p, (size_t)mesg->size);
         }
     } /* end if */
-    else {
-        /* Only decode fill value information if one is defined */
-        if(mesg->fill_defined) {
-            UINT32DECODE(p, mesg->size);
-            if (mesg->size>0) {
-                H5_CHECK_OVERFLOW(mesg->size,ssize_t,size_t);
-                if (NULL==(mesg->buf=H5MM_malloc((size_t)mesg->size)))
-                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for fill value");
-                HDmemcpy(mesg->buf, p, (size_t)mesg->size);
-            }
-        } /* end if */
-        else
-            mesg->size=(-1);
-    } /* end else */
-    
-    
+    else
+        mesg->size=(-1);
+
     /* Set return value */
     ret_value = (void*)mesg;
     
@@ -280,7 +267,7 @@ H5O_fill_new_encode(H5F_t UNUSED *f, uint8_t *p, const void *_mesg)
     *p++ = mesg->fill_defined;
 
     /* Does it handle undefined fill value? */
-    UINT32ENCODE(p, mesg->size);
+    INT32ENCODE(p, mesg->size);
     if(mesg->size>0)
         if(mesg->buf) {
             H5_CHECK_OVERFLOW(mesg->size,ssize_t,size_t);
@@ -902,7 +889,7 @@ H5O_fill_convert(void *_fill, H5T_t *dset_type, hid_t dxpl_id)
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion");
 
         /* Do the conversion */
-        if (H5T_convert(tpath, src_id, dst_id, (hsize_t)1, 0, 0, buf, bkg, dxpl_id)<0)
+        if (H5T_convert(tpath, src_id, dst_id, 1, 0, 0, buf, bkg, dxpl_id)<0)
             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "data type conversion failed");
 
         /* Update the fill message */

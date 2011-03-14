@@ -16,6 +16,10 @@
 #define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
 #define H5S_PACKAGE	        /*suppress error about including H5Spkg	  */
 
+/* Pablo information */
+/* (Put before include files to avoid problems with inline functions) */
+#define PABLO_MASK      H5O_attr_mask
+
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Apkg.h"		/* Attributes				*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
@@ -24,8 +28,6 @@
 #include "H5MMprivate.h"	/* Memory management			*/
 #include "H5Opkg.h"             /* Object headers			*/
 #include "H5Spkg.h"		/* Dataspaces				*/
-
-#define PABLO_MASK      H5O_attr_mask
 
 /* PRIVATE PROTOTYPES */
 static herr_t H5O_attr_encode (H5F_t *f, uint8_t *p, const void *mesg);
@@ -72,8 +74,8 @@ static int		interface_initialize_g = 0;
 /* Declare external the free list for H5S_t's */
 H5FL_EXTERN(H5S_t);
 
-/* Declare external the free list for H5S_simple_t's */
-H5FL_EXTERN(H5S_simple_t);
+/* Declare external the free list for H5S_extent_t's */
+H5FL_EXTERN(H5S_extent_t);
 
 /*--------------------------------------------------------------------------
  NAME
@@ -99,12 +101,16 @@ H5FL_EXTERN(H5S_simple_t);
  *
  * 	Robb Matzke, 20 Jul 1998
  *	Added a version number at the beginning.
+ *
+ *	Raymond Lu, 8 April 2004
+ *	Changed Dataspace operation on H5S_simple_t to H5S_extent_t.
+ *
 --------------------------------------------------------------------------*/
 static void *
 H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
 {
     H5A_t		*attr = NULL;
-    H5S_simple_t	*simple;	/*simple dimensionality information  */
+    H5S_extent_t	*extent;	/*extent dimensionality information  */
     size_t		name_len;   	/*attribute name length */
     int		        version;	/*message version number*/
     unsigned            flags=0;        /* Attribute flags */
@@ -174,56 +180,38 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
     /* decode the attribute dataspace */
     if (NULL==(attr->ds = H5FL_CALLOC(H5S_t)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    if((simple=(H5O_SDSPACE->decode)(f,dxpl_id,p,NULL))!=NULL) {
-        hsize_t nelem;  /* Number of elements in extent */
-        unsigned u;     /* Local index variable */
+    
+    if((extent=(H5O_SDSPACE->decode)(f,dxpl_id,p,NULL))==NULL)
+        HGOTO_ERROR(H5E_ATTR, H5E_CANTDECODE, NULL, "can't decode attribute dataspace");
 
-        /* Set the dataspace type to be simple or scalar as appropriate */
-        if(simple->rank>0)
-            attr->ds->extent.type = H5S_SIMPLE;
-        else
-            attr->ds->extent.type = H5S_SCALAR;
+    /* Copy the extent information */
+    HDmemcpy(&(attr->ds->extent),extent, sizeof(H5S_extent_t));
 
-        /* Copy the extent information */
-        HDmemcpy(&(attr->ds->extent.u.simple),simple, sizeof(H5S_simple_t));
-
-        /* Release temporary extent information */
-        H5FL_FREE(H5S_simple_t,simple);
-
-        /* Compute the number of elements in the extent */
-        for(u=0, nelem=1; u<attr->ds->extent.u.simple.rank; u++)
-            nelem*=attr->ds->extent.u.simple.size[u];
-        attr->ds->extent.nelem = nelem;
-    } else {
-        attr->ds->extent.type = H5S_SCALAR;
-        attr->ds->extent.nelem = 1;
-    }
+    /* Release temporary extent information */
+    H5FL_FREE(H5S_extent_t,extent);
+   
     /* Default to entire dataspace being selected */
     if(H5S_select_all(attr->ds,0)<0)
         HGOTO_ERROR (H5E_DATASPACE, H5E_CANTSET, NULL, "unable to set all selection");
+
     if(version < H5O_ATTR_VERSION_NEW)
         p += H5O_ALIGN(attr->ds_size);
     else
         p += attr->ds_size;
 
     /* Compute the size of the data */
-    H5_ASSIGN_OVERFLOW(attr->data_size,H5S_get_simple_extent_npoints(attr->ds)*H5T_get_size(attr->dt),hsize_t,size_t);
+    H5_ASSIGN_OVERFLOW(attr->data_size,H5S_GET_EXTENT_NPOINTS(attr->ds)*H5T_get_size(attr->dt),hsize_t,size_t);
 
     /* Go get the data */
-    if (NULL==(attr->data = H5MM_malloc(attr->data_size)))
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    HDmemcpy(attr->data,p,attr->data_size);
+    if(attr->data_size) {
+        if (NULL==(attr->data = H5MM_malloc(attr->data_size)))
+            HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+        HDmemcpy(attr->data,p,attr->data_size);
+    }
 
     /* Indicate that the fill values aren't to be written out */
     attr->initialized=1;
     
-#ifdef LOTSLATER
-    if (hobj) {
-        attr->sh_heap = *hobj;
-        attr->sh_file = f;
-    }
-#endif 
-
     /* Set return value */
     ret_value=attr;
 
@@ -254,6 +242,11 @@ done:
  *
  * 	Robb Matzke, 20 Jul 1998
  *	Added a version number at the beginning.
+ *
+ *	Raymond Lu, 8 April 2004
+ *	For data space, changed the operation on H5S_simple_t to 
+ *	H5S_extent_t
+ *
 --------------------------------------------------------------------------*/
 static herr_t
 H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
@@ -262,7 +255,7 @@ H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
     size_t      name_len;   /* Attribute name length */
     unsigned    version;        /* Attribute version */
     hbool_t     type_shared;    /* Flag to indicate that a shared datatype is used for this attribute */
-    herr_t      ret_value=SUCCEED;       /* Return value */
+    herr_t      ret_value=SUCCEED;      /* Return value */
 
     FUNC_ENTER_NOAPI(H5O_attr_encode, FAIL);
 
@@ -341,7 +334,7 @@ H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
         p += attr->dt_size;
 
     /* encode the attribute dataspace */
-    if((H5O_SDSPACE->encode)(f,p,&(attr->ds->extent.u.simple))<0)
+    if((H5O_SDSPACE->encode)(f,p,&(attr->ds->extent))<0)
         HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL, "can't encode attribute dataspace");
     if(version < H5O_ATTR_VERSION_NEW) {
         HDmemset(p+attr->ds_size, 0, H5O_ALIGN(attr->ds_size)-attr->ds_size);

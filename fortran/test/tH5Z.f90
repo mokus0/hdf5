@@ -24,6 +24,7 @@
      LOGICAL :: status, status1
      INTEGER(HID_T)    :: crtpr_id, xfer_id
      INTEGER           :: error
+     INTEGER           :: nfilters
      INTEGER(HSIZE_T)  :: ch_dims(2)
      INTEGER           :: RANK = 2
      INTEGER           :: dlevel = 6
@@ -92,6 +93,58 @@
 
      endif
 
+!
+! Verify h5premove_filter_f
+!
+     CALL h5zfilter_avail_f(H5Z_FILTER_FLETCHER32_F, status, error)
+              CALL check("h5zfilter_avail_f", error, total_error)
+     if(status) then
+         CALL h5zfilter_avail_f(H5Z_FILTER_SHUFFLE_F, status, error)
+                  CALL check("h5zfilter_avail_f", error, total_error)
+         if(status) then
+            CALL h5pcreate_f(H5P_DATASET_CREATE_F, crtpr_id, error)
+                  CALL check("h5pcreate_f", error, total_error)
+            CALL h5pset_fletcher32_f(crtpr_id, error)
+                  CALL check("h5pset_fletcher32_f", error, total_error) 
+            CALL h5pset_shuffle_f(crtpr_id, error)
+                  CALL check("h5pset_shuffle_f", error, total_error) 
+            CALL h5pget_nfilters_f(crtpr_id, nfilters, error)
+                  CALL check("h5pget_nfilters_f", error, total_error) 
+
+            ! Verify the correct number of filters
+            if (nfilters .ne. 2) then
+                  write(*,*) "number of filters is wrong"
+                  total_error = total_error + 1
+            endif
+
+            ! Delete a single filter
+            CALL h5premove_filter_f(crtpr_id, H5Z_FILTER_SHUFFLE_F, error)
+                  CALL check("h5pset_shuffle_f", error, total_error) 
+
+            ! Verify the correct number of filters now
+            CALL h5pget_nfilters_f(crtpr_id, nfilters, error)
+                  CALL check("h5pget_nfilters_f", error, total_error) 
+            if (nfilters .ne. 1) then
+                  write(*,*) "number of filters is wrong"
+                  total_error = total_error + 1
+            endif
+
+            ! Delete all filters
+            CALL h5premove_filter_f(crtpr_id, H5Z_FILTER_ALL_F, error)
+                  CALL check("h5premove_filter_f", error, total_error) 
+
+            ! Verify the correct number of filters now
+            CALL h5pget_nfilters_f(crtpr_id, nfilters, error)
+                  CALL check("h5pget_nfilters_f", error, total_error) 
+            if (nfilters .ne. 0) then
+                  write(*,*) "number of filters is wrong"
+                  total_error = total_error + 1
+            endif
+            CALL h5pclose_f(crtpr_id,error)
+                  CALL check("h5pclose_f", error, total_error)
+         endif
+     endif
+
      RETURN
      END SUBROUTINE filters_test
 
@@ -127,8 +180,8 @@
           INTEGER     ::   num_errors = 0 ! Number of data errors
 
           INTEGER     :: i, j    !general purpose integers
-          INTEGER(HSIZE_T), DIMENSION(7) :: data_dims_b
-          INTEGER, DIMENSION(7) :: data_dims
+          INTEGER(HSIZE_T), DIMENSION(2) :: data_dims_b
+          INTEGER(HSIZE_T), DIMENSION(2) :: data_dims
           INTEGER(HID_T) ::  crp_list
           INTEGER :: options_mask, pix_per_block 
           LOGICAL :: flag
@@ -137,9 +190,38 @@
           INTEGER :: filter_flag = -1
           INTEGER(SIZE_T) :: cd_nelemnts = 4
           INTEGER(SIZE_T) :: filter_name_len = 4
-          INTEGER, DIMENSION(4) :: cd_values 
+          INTEGER, DIMENSION(4) :: cd_values
+          INTEGER :: config_flag = 0 
 
-          options_mask = H5_SZIP_NN_OM_F + H5_SZIP_CHIP_OM_F
+          !
+          ! Make sure that Szip has an encoder available
+          !
+          CALL h5zget_filter_info_f(H5Z_FILTER_SZIP_F, config_flag, error)
+              CALL check("h5zget_filter_info", error, total_error)
+          if ( IAND(config_flag,  H5Z_FILTER_ENCODE_ENABLED_F) .EQ. 0 ) then
+              szip_flag = .FALSE.
+              total_error = -1
+              return
+          endif
+          CALL h5zfilter_avail_f(H5Z_FILTER_SZIP_F, flag, error)
+              CALL check("h5zfilter_avail", error, total_error)
+
+          !
+          ! Make sure h5zget_filter_info_f returns the right flag
+          !
+          if( flag ) then
+              if ( config_flag .NE. IOR( H5Z_FILTER_ENCODE_ENABLED_F, H5Z_FILTER_DECODE_ENABLED_F) ) then
+                  error = -1
+                  CALL check("h5zget_filter_info config_flag", error, total_error)
+              endif
+          else
+              if ( config_flag .NE. 0 ) then
+                  error = -1
+                  CALL check("h5zget_filter_info config_flag", error, total_error)
+              endif
+          endif    
+
+          options_mask = H5_SZIP_NN_OM_F
           pix_per_block = 32
           !
           ! Initialize the dset_data array.

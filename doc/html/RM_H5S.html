@@ -41,8 +41,7 @@ HDF5/H5S API Specification
 </td>
 <td valign=top align=right>
 And in this document, the 
-<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;<br>
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
@@ -50,14 +49,17 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
+</td></tr>
+<tr><td colspan="2" align="right">
+<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
 </center>
@@ -235,6 +237,7 @@ of the <cite>HDF5 User's Guide.</cite>.
 -->
 
 <!-- NEW PAGE -->
+<!-- HEADER RIGHT " " -->
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Sclose" -->
 <hr>
@@ -530,16 +533,24 @@ END SUBROUTINE h5sextent_copy_f
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
 <dt><strong>Fortran90 Interface:</strong>
-    <dd>None.
-<!--
+    <dd>
 	<pre>
+SUBROUTINE  h5sget_select_bounds_f(space_id, start, end, hdferr)
+  IMPLICIT NONE
+  INTEGER(HID_T), INTENT(IN) :: space_id 
+                                   ! Dataspace identifier 
+  INTEGER(HSSIZE_T), DIMENSION(*), INTENT(OUT) :: start
+                                   ! Starting coordinates of the bounding box 
+  INTEGER(HSSIZE_T), DIMENSION(*), INTENT(OUT) :: end
+                                   ! Ending coordinates of the bounding box,
+                                   ! i.e., the coordinates of the diagonally 
+                                   ! opposite corner 
+  INTEGER, INTENT(OUT) :: hdferr   ! Error code
+END SUBROUTINE h5sget_select_bounds_f
+	</pre>
 
-	</pre>		
--->
-		
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
+<!--<dt><strong>Non-C API(s):</strong>
+    <dd>
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
@@ -639,7 +650,7 @@ END SUBROUTINE h5sget_select_elem_npoints_f
 <dt><strong>Fortran90 Interface:</strong> h5sget_select_elem_pointlist_f
     <dd>
 	<pre>
-SUBROUTINE h5sget_select_elem_pointlist_f(space_id, startpoint, num_points, &
+SUBROUTINE h5sget_select_elem_pointlist_f(space_id, startpoint, num_points, &amp; 
                                           buf, hdferr)
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN)   :: space_id   ! Dataspace identifier
@@ -714,7 +725,7 @@ END SUBROUTINE h5sget_select_elem_pointlist_f
 <dt><strong>Fortran90 Interface:</strong> h5sget_select_hyper_blocklist_f
     <dd>
 	<pre>
-SUBROUTINE h5sget_select_hyper_blocklist_f(space_id, startblock, num_blocks, &
+SUBROUTINE h5sget_select_hyper_blocklist_f(space_id, startblock, num_blocks, &amp; 
                                            buf, hdferr)
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN)   :: space_id   ! Dataspace identifier
@@ -1302,14 +1313,16 @@ END SUBROUTINE h5sselect_all_f
 <dt><strong>Fortran90 Interface:</strong> h5sselect_elements_f
     <dd>
 	<pre>
-SUBROUTINE h5sselect_elements_f(space_id, operator, num_elements, &
+SUBROUTINE h5sselect_elements_f(space_id, operator, num_elements, &amp; 
                                 coord, hdferr) 
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN) :: space_id  ! Dataspace identifier 
   INTEGER, INTENT(IN) :: op               ! Flag, valid values are:
                                           !    H5S_SELECT_SET_F 
                                           !    H5S_SELECT_OR_F 
-  INTEGER, INTENT(IN) :: num_elements     ! Number of elements to be selected
+  INTEGER, INTENT(IN) :: num_elements     ! Number of elements to be selected</pre>
+<!-- NEW PAGE -->
+<pre>
   INTEGER(HSSIZE_T), DIMENSION(*,*), INTENT(IN) :: coord 
                                           ! Array with the coordinates
                                           ! of the selected elements:
@@ -1458,7 +1471,7 @@ END SUBROUTINE h5sselect_elements_f
 <dt><strong>Fortran90 Interface:</strong> h5sselect_hyperslab_f
     <dd>
 	<pre>
-SUBROUTINE h5sselect_hyperslab_f(space_id, operator, start, count, &
+SUBROUTINE h5sselect_hyperslab_f(space_id, operator, start, count, &amp; 
                                  hdferr, stride, block) 
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN) :: space_id  ! Dataspace identifier 
@@ -1660,7 +1673,7 @@ END SUBROUTINE h5sset_extent_none_f
 <dt><strong>Fortran90 Interface:</strong> h5sset_extent_simple_f
     <dd>
 	<pre>
-SUBROUTINE h5sset_extent_simple_f(space_id, rank, current_size, &
+SUBROUTINE h5sset_extent_simple_f(space_id, rank, current_size, &amp; 
                                   maximum_size, hdferr) 
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN) :: space_id     ! Dataspace identifier 
@@ -1780,8 +1793,7 @@ END SUBROUTINE h5sset_extent_simple_f
 </td>
 <td valign=top align=right>
 And in this document, the 
-<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;<br>
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
@@ -1789,8 +1801,7 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
@@ -1798,16 +1809,20 @@ And in this document, the
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
+<tr><td colspan="2" align="right">
+<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
+</td></tr>
 </table>
 </center>
 <hr>
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.2, February 2004
+Describes HDF5 Release 1.6.3, September 2004
 </address><!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 29 October 2003");
+document.writeln("Last modified: 15 March 2004");
 -->
 </SCRIPT> 
 

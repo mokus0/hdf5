@@ -26,6 +26,7 @@
 #include "H5private.h"
 #include "h5tools.h"            /*for h5dump_t structure    */
 #include "h5tools_str.h"        /*function prototypes       */
+#include "h5tools_ref.h"
 
 /*
  * If REPEAT_VERBOSE is defined then character strings will be printed so
@@ -43,7 +44,7 @@
 /* Variable length string datatype */
 #define STR_INIT_LEN    4096    /*initial length            */
 
-static char    *h5tools_escape(char *s, size_t size, int escape_spaces);
+static char    *h5tools_escape(char *s, size_t size);
 static hbool_t  h5tools_is_zero(const void *_mem, size_t size);
 
 /*-------------------------------------------------------------------------
@@ -108,6 +109,12 @@ h5tools_str_len(h5tools_str_t *str)
  *
  * Modifications:
  *
+ *              Major change:  need to check results of vsnprintf to
+ *              handle errors, empty format, and overflows.
+ *
+ * Programmer:	REMcG Matzke
+ *              June 16, 2004
+ *
  *-------------------------------------------------------------------------
  */
 char *
@@ -126,24 +133,50 @@ h5tools_str_append(h5tools_str_t *str/*in,out*/, const char *fmt, ...)
 	str->len = 0;
     }
 
-    while (1) {
-	size_t avail = str->nalloc - str->len;
-	size_t nchars = (size_t)HDvsnprintf(str->s + str->len, avail, fmt, ap);
-
-	if (nchars < avail) {
-	    /* success */
-	    str->len += nchars;
-	    break;
-	}
-	
-	/* Try again with twice as much space */
-	str->nalloc *= 2;
-	str->s = realloc(str->s, str->nalloc);
-	assert(str->s);
+    if (strlen(fmt) == 0) {
+        /* nothing to print */
+        va_end(ap);
+        return str->s;
     }
 
-    va_end(ap);
-    return str->s;
+     /* Format the arguments and append to the value already in `str' */
+     while (1) {
+        /* How many bytes available for new value, counting the new NUL */
+	size_t avail = str->nalloc - str->len;
+
+	int nchars = HDvsnprintf(str->s + str->len, avail, fmt, ap);
+
+	if (nchars<0) {
+            /* failure, such as bad format */
+            va_end(ap);
+	    return NULL;
+        }
+
+	if ((size_t)nchars>=avail ||
+	    (0==nchars && (strcmp(fmt,"%s") ))) {
+	   /* Truncation return value as documented by C99, or zero return value with either of the
+            * following conditions, each of which indicates that the proper C99 return value probably
+            *  should have been positive when the format string is 
+            *  something other than "%s"
+            * Alocate at least twice as much space and try again.
+            */
+	   size_t newsize = MAX(str->len+nchars+1, 2*str->nalloc);
+	   assert(newsize > str->nalloc); /*overflow*/
+#ifndef H5_HAVE_VSNPRINTF
+	   /* If we even made it this far... the HDvsnprintf() clobbered memory: SIGSEGV probable*/
+	   abort();
+#endif
+	   str->s = realloc(str->s, newsize);
+	   assert(str->s);
+	   str->nalloc = newsize;
+	} else {
+	   /* Success */
+	   str->len += nchars;
+	   break;
+        }
+     }
+     va_end(ap);
+     return str->s;
 }
 
 /*-------------------------------------------------------------------------
@@ -440,25 +473,50 @@ h5tools_print_char(h5tools_str_t *str, const h5dump_t *info, unsigned char ch)
     } else {
         switch (ch) {
         case '"':
+           if (!info->do_escape)
+            h5tools_str_append(str, "\"");
+           else
             h5tools_str_append(str, "\\\"");
             break;
         case '\\':
+          if (!info->do_escape)
+            h5tools_str_append(str, "\\");
+          else
             h5tools_str_append(str, "\\\\");
             break;
         case '\b':
+           if (!info->do_escape)
+            h5tools_str_append(str, "\b");
+           else
             h5tools_str_append(str, "\\b");
             break;
         case '\f':
-            h5tools_str_append(str, "\\f");
+           if (!info->do_escape)
+             h5tools_str_append(str, "\f");
+           else
+             h5tools_str_append(str, "\\f");
             break;
         case '\n':
+           if (!info->do_escape) {
+             h5tools_str_append(str, "\n");
+             h5tools_str_append(str, "           ");
+           }
+           else
             h5tools_str_append(str, "\\n");
-            break;
+         break;
         case '\r':
+         if (!info->do_escape) {
+           h5tools_str_append(str, "\r");
+           h5tools_str_append(str, "           ");
+         }
+          else
             h5tools_str_append(str, "\\r");
             break;
         case '\t':
-            h5tools_str_append(str, "\\t");
+          if (!info->do_escape)
+           h5tools_str_append(str, "\t");
+          else
+           h5tools_str_append(str, "\\t");
             break;
         default:
             if (isprint(ch))
@@ -470,6 +528,7 @@ h5tools_print_char(h5tools_str_t *str, const h5dump_t *info, unsigned char ch)
         }
     }
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:	h5tools_str_sprint
@@ -751,7 +810,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         char enum_name[1024];
 
         if (H5Tenum_nameof(type, vp, enum_name, sizeof enum_name) >= 0) {
-            h5tools_str_append(str, h5tools_escape(enum_name, sizeof(enum_name), TRUE));
+            h5tools_str_append(str, h5tools_escape(enum_name, sizeof(enum_name)));
         } else {
             size_t i;
             n = H5Tget_size(type);
@@ -793,6 +852,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
         if (h5tools_is_zero(vp, H5Tget_size(type))) {
             h5tools_str_append(str, "NULL");
         } else {
+            char *path=NULL;
             otype = H5Rget_obj_type(container, H5R_OBJECT, vp);
             obj = H5Rdereference(container, H5R_OBJECT, vp);
             H5Gget_objinfo(obj, ".", FALSE, &sb);
@@ -822,6 +882,14 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
             } else {
                 h5tools_str_append(str, info->obj_format,
                           sb.fileno[1], sb.fileno[0], sb.objno[1], sb.objno[0]);
+            }
+
+            /* Print name */
+            path = lookup_ref_path(vp);
+            if (path) {
+             h5tools_str_append(str, " ");
+             h5tools_str_append(str, path);
+             h5tools_str_append(str, " ");
             }
         }
     } else if (H5Tget_class(type) == H5T_ARRAY) {
@@ -856,8 +924,11 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
                 h5tools_str_append(str, "%s", "\n");
 
                 /*need to indent some more here*/
-                if (ctx->indent_level >= 0)
-                    h5tools_str_append(str, "%s", OPT(info->line_pre, ""));
+                if (ctx->indent_level >= 0 )
+                {
+                 if (!info->pindex)
+                  h5tools_str_append(str, "%s", OPT(info->line_pre, ""));
+                }
 
                 for (x = 0; x < ctx->indent_level + 1; x++)
                     h5tools_str_append(str,"%s",OPT(info->line_indent,""));
@@ -940,8 +1011,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
  * Function:	h5tools_escape
  *
  * Purpose:	Changes all "funny" characters in S into standard C escape
- *		sequences. If ESCAPE_SPACES is non-zero then spaces are
- *		escaped by prepending a backslash.
+ *		sequences.
  *
  * Return:	Success:	S
  *
@@ -957,7 +1027,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info, hid_t container,
  *-------------------------------------------------------------------------
  */
 static char *
-h5tools_escape(char *s/*in,out*/, size_t size, int escape_spaces)
+h5tools_escape(char *s/*in,out*/, size_t size)
 {
     register size_t i;
     size_t n = strlen(s);
@@ -1052,3 +1122,4 @@ h5tools_is_zero(const void *_mem, size_t size)
 
     return TRUE;
 }
+

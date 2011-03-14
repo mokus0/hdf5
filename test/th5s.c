@@ -29,6 +29,8 @@
 
 #define TESTFILE   "th5s.h5"
 #define DATAFILE   "th5s1.h5"
+#define NULLFILE   "tnullspace.h5"
+#define BASICFILE  "th5s3.h5"
 
 /* 3-D dataset with fixed dimensions */
 #define SPACE1_NAME  "Space1"
@@ -72,6 +74,13 @@ struct space4_struct {
     char c2;
  } space4_data={'v',987123,(float)-3.14,'g'}; /* Test data for 4th dataspace */
 
+/* NULL dataspace info */
+#define NULLDATASET  "null_dataset"
+#define BASICDATASET "basic_dataset"
+#define BASICDATASET2 "basic_dataset2"
+#define NULLATTR   "null_attribute"
+#define BASICATTR  "basic_attribute"
+
 /****************************************************************
 **
 **  test_h5s_basic(): Test basic H5S (dataspace) code.
@@ -83,6 +92,7 @@ test_h5s_basic(void)
     hid_t		fid1;		/* HDF5 File IDs		*/
     hid_t		sid1, sid2;	/* Dataspace ID			*/
     hid_t		dset1;		/* Dataset ID			*/
+    hid_t               aid1;           /* Attribute ID                 */
     int		        rank;		/* Logical rank of dataspace	*/
     hsize_t		dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
     hsize_t		dims2[] = {SPACE2_DIM1, SPACE2_DIM2, SPACE2_DIM3,
@@ -112,7 +122,7 @@ test_h5s_basic(void)
 
     rank = H5Sget_simple_extent_dims(sid1, tdims, NULL);
     CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
-    VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(unsigned)), 0,
+    VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
 	   "H5Sget_simple_extent_dims");
 
     sid2 = H5Screate_simple(SPACE2_RANK, dims2, max2);
@@ -129,10 +139,22 @@ test_h5s_basic(void)
 
     rank = H5Sget_simple_extent_dims(sid2, tdims, tmax);
     CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
-    VERIFY(HDmemcmp(tdims, dims2, SPACE2_RANK * sizeof(unsigned)), 0,
+    VERIFY(HDmemcmp(tdims, dims2, SPACE2_RANK * sizeof(hsize_t)), 0,
 	   "H5Sget_simple_extent_dims");
-    VERIFY(HDmemcmp(tmax, max2, SPACE2_RANK * sizeof(unsigned)), 0,
+    VERIFY(HDmemcmp(tmax, max2, SPACE2_RANK * sizeof(hsize_t)), 0,
 	   "H5Sget_simple_extent_dims");
+
+    /* Change max dims from zero to non-zero and back again */
+    ret = H5Sset_extent_simple(sid1, SPACE1_RANK, dims1, max2);
+    CHECK(ret, FAIL, "H5Sset_extent_simple");
+    ret = H5Sset_extent_simple(sid1, SPACE1_RANK, dims1, NULL);
+    CHECK(ret, FAIL, "H5Sset_extent_simple");
+    rank = H5Sget_simple_extent_dims(sid1, tdims, tmax);
+    CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
+    VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
+           "H5Sget_simple_extent_dims");
+    VERIFY(HDmemcmp(tmax, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
+           "H5Sget_simple_extent_dims");
 
     ret = H5Sclose(sid1);
     CHECK(ret, FAIL, "H5Sclose");
@@ -190,6 +212,90 @@ test_h5s_basic(void)
 
     ret = H5Sclose(sid1);
     CHECK_I(ret, "H5Sclose");
+
+    /*
+     * Try writing simple dataspaces without setting their extents
+     */
+    /* Create the file */
+    fid1 = H5Fcreate(BASICFILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    dims1[0]=SPACE1_DIM1;
+
+    sid1 = H5Screate(H5S_SIMPLE);
+    CHECK(sid1, FAIL, "H5Screate");
+    sid2 = H5Screate_simple(1, dims1, dims1);
+    CHECK(sid2, FAIL, "H5Screate");
+
+    /* This dataset's space has no extent; it should not be created */
+    H5E_BEGIN_TRY {
+    dset1 = H5Dcreate(fid1, BASICDATASET, H5T_NATIVE_INT, sid1, H5P_DEFAULT);
+    } H5E_END_TRY
+    VERIFY(dset1, FAIL, "H5Dcreate");
+
+    dset1 = H5Dcreate(fid1, BASICDATASET2, H5T_NATIVE_INT, sid2, H5P_DEFAULT);
+    CHECK(dset1, FAIL, "H5Dcreate");
+
+    /* Try some writes with the bad dataspace (sid1) */
+    H5E_BEGIN_TRY {
+    ret = H5Dwrite(dset1, H5T_NATIVE_INT, sid1, H5S_ALL, H5P_DEFAULT, &n);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dwrite");
+
+    H5E_BEGIN_TRY {
+    ret = H5Dwrite(dset1, H5T_NATIVE_INT, H5S_ALL, sid1, H5P_DEFAULT, &n);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dwrite");
+
+    H5E_BEGIN_TRY {
+    ret = H5Dwrite(dset1, H5T_NATIVE_INT, sid1, sid1, H5P_DEFAULT, &n);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dwrite");
+
+    /* Try to iterate using the bad dataspace */
+    H5E_BEGIN_TRY {
+    ret = H5Diterate(&n, H5T_NATIVE_INT, sid1, NULL, NULL);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Diterate");
+
+    /* Try to fill using the bad dataspace */
+    H5E_BEGIN_TRY {
+    ret = H5Dfill(NULL, H5T_NATIVE_INT, &n, H5T_NATIVE_INT, sid1);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dfill");
+
+    /* Now use the bad dataspace as the space for an attribute */
+    H5E_BEGIN_TRY {
+    aid1 = H5Acreate(dset1, BASICATTR,
+                        H5T_NATIVE_INT, sid1, H5P_DEFAULT);
+    } H5E_END_TRY
+    VERIFY(aid1, FAIL, "H5Acreate");
+
+    /* Make sure that dataspace reads using the bad dataspace fail */
+    H5E_BEGIN_TRY {
+    ret = H5Dread(dset1, H5T_NATIVE_INT, sid1, H5S_ALL, H5P_DEFAULT, &n);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dread");
+
+    H5E_BEGIN_TRY {
+    ret = H5Dread(dset1, H5T_NATIVE_INT, H5S_ALL, sid1, H5P_DEFAULT, &n);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dread");
+
+    H5E_BEGIN_TRY {
+    ret = H5Dread(dset1, H5T_NATIVE_INT, sid1, sid1, H5P_DEFAULT, &n);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dread");
+
+    /* Clean up */
+    ret = H5Dclose(dset1);
+    CHECK(ret, FAIL, "H5Dclose");
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
 }				/* test_h5s_basic() */
 
 /****************************************************************
@@ -557,6 +663,66 @@ test_h5s_chunk(void)
 
 /****************************************************************
 **
+**  test_h5s_null_space(): Attempt to access dataset and attribute
+**      with null dataspace.  This should fail, since the 1.6.x
+**      branch doesn't understand null dataspaces.
+** 
+****************************************************************/
+static void 
+test_h5s_null_space(void)
+{
+    hid_t fid;                  /* File ID */
+    hid_t gid;                  /* Group ID */
+    hid_t aid;                  /* Attribute ID */
+    hid_t did;                  /* Dataset ID */
+    char testfile[512]="";          /* Character buffer for corrected test file name */
+    char *srcdir = HDgetenv("srcdir");    /* Pointer to the directory the source code is located within */
+    herr_t ret;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Attempting to Read NULL Dataspaces\n"));
+
+    /* Generate the correct name for the test file, by prepending the source path */
+    if (srcdir && ((HDstrlen(srcdir) + HDstrlen(NULLFILE) + 1) < sizeof(testfile))) {
+        HDstrcpy(testfile, srcdir);
+        HDstrcat(testfile, "/");
+    }
+    HDstrcat(testfile, NULLFILE);
+
+    /* Open the testfile */
+    fid = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK_I(fid, "H5Fopen");
+
+    /* Only try to proceed if the file is around */
+    if (fid >= 0) {
+        /* Open the root group */
+        gid = H5Gopen(fid,"/");
+        CHECK_I(gid, "H5Gopen");
+
+        /* Attempt to open attribute w/NULL dataspace */
+        H5E_BEGIN_TRY {
+            aid=H5Aopen_name(gid,NULLATTR);
+        } H5E_END_TRY;
+        VERIFY(aid, FAIL, "H5Aopen_name");
+
+        /* Attempt to open dataset w/NULL dataspace */
+        H5E_BEGIN_TRY {
+            did=H5Dopen(fid,NULLDATASET);
+        } H5E_END_TRY;
+        VERIFY(did, FAIL, "H5Dopen");
+
+        /* Close open objects */
+        ret=H5Gclose(gid);
+        CHECK(ret, FAIL, "H5Gclose");
+        ret=H5Fclose(fid);
+        CHECK(ret, FAIL, "H5Fclose");
+    } /* end if */
+    else
+        printf("***cannot open the pre-created NULL dataspace test file (%s)\n",testfile);
+} /* test_h5s_null_space() */
+
+/****************************************************************
+**
 **  test_h5s(): Main H5S (dataspace) testing routine.
 ** 
 ****************************************************************/
@@ -574,6 +740,9 @@ test_h5s(void)
 
     /* This test was added later to exercise a bug in chunked I/O */
     test_h5s_chunk();	        /* Exercise bug fix for chunked I/O */
+
+    /* This test is specific to the 1.6.x branch, to test backward compatibility w/null dataspaces */
+    test_h5s_null_space();
 } /* test_h5s() */
 
 
@@ -595,5 +764,6 @@ void
 cleanup_h5s(void)
 {
     remove(DATAFILE);
+    remove(BASICFILE);
 }
 

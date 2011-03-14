@@ -78,6 +78,11 @@ static herr_t list (hid_t group, const char *name, void *cd);
 static void display_type(hid_t type, int ind);
 static char *fix_name(const char *path, const char *base);
 
+hid_t thefile;
+char  *prefix;
+char  *progname;
+int   d_status;
+
 
 /*-------------------------------------------------------------------------
  * Function: usage
@@ -794,7 +799,7 @@ display_enum_type(hid_t type, int ind)
     }
 
     /* Convert values to native data type */
-    if (native>0) H5Tconvert(super, native, (hsize_t)nmembs, value, NULL, H5P_DEFAULT);
+    if (native>0) H5Tconvert(super, native, nmembs, value, NULL, H5P_DEFAULT);
 
     /* Sort members by increasing value */
     /*not implemented yet*/
@@ -1755,7 +1760,7 @@ list (hid_t group, const char *name, void *_iter)
  return 0;
     } else if (sb.type<0 || sb.type>=H5G_NTYPES) {
  printf("Unknown type(%d)", sb.type);
- sb.type = -1;
+ sb.type = H5G_UNKNOWN;
     }
     if (sb.type>=0 && dispatch_g[sb.type].name) {
  fputs(dispatch_g[sb.type].name, stdout);

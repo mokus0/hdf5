@@ -119,6 +119,8 @@
 #define color_H5Fmount "red"
 #define color_H5Funmount "red"
 #define color_H5Fget_freespace "red"
+#define color_H5Fget_filesize "red"
+#define color_H5Fget_name "red"
 
 #define color_H5Gcreate "red"
 #define color_H5Gopen "red"
@@ -136,6 +138,7 @@
 #define color_H5Gget_objtype_by_idx "red"
 
 #define color_H5Idec_ref "red"
+#define color_H5Iget_file_id "red"
 #define color_H5Iget_name "red"
 #define color_H5Iget_ref "red"
 #define color_H5Iget_type "red"
@@ -243,6 +246,7 @@
 #define color_H5FDwrite "red"
 #define color_H5FDflush "red"
 #define color_H5FDget_vfd_handle "red"
+#define color_H5Premove_filter "red"
 #define color_H5Pset_fapl_core "red"
 #define color_H5Pget_fapl_core "red"
 #define color_H5Pset_fapl_family "red"
@@ -387,6 +391,7 @@
 #define color_H5Zregister "red"
 #define color_H5Zfilter_avail "red"
 #define color_H5Zunregister "red"
+#define color_H5Zget_filter_info "red"
 
 #else
 #define MPE_LOG_VARS(func_name) /* void */   

@@ -8,8 +8,6 @@
  *
  * Purpose:	The public header file for the Stream Virtual File Driver.
  *
- * Version: $Header: /afs/ncsa/projects/hdf/cvs/hdf5/src/H5FDstream.h,v 1.8 2002/09/20 20:36:00 ymuqun Exp $
- *
  * Modifications:
  *          Thomas Radke, Thursday, October 26, 2000
  *          Added support for Windows.
@@ -69,6 +67,7 @@ typedef struct H5FD_stream_fapl_t
 
 /* prototypes of exported functions */
 H5_DLL hid_t  H5FD_stream_init (void);
+H5_DLL void H5FD_stream_term(void);
 H5_DLL herr_t H5Pset_fapl_stream (hid_t fapl_id,
                                    H5FD_stream_fapl_t *fapl);
 H5_DLL herr_t H5Pget_fapl_stream (hid_t fapl_id,

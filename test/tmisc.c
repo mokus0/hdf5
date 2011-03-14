@@ -22,8 +22,14 @@
 *
 *************************************************************/
 
+#define H5D_PACKAGE		/*suppress error about including H5Dpkg	  */
+
+/* Define this macro to indicate that the testing APIs should be available */
+#define H5D_TESTING
+
 #include "hdf5.h"
 #include "testhdf5.h"
+#include "H5Dpkg.h"		/* Datasets 				*/
 
 /* Definitions for misc. test #1 */
 #define MISC1_FILE	"tmisc1.h5"
@@ -216,6 +222,35 @@ unsigned m13_rdata[MISC13_DIM1][MISC13_DIM2];          /* Data read from dataset
 #define MISC19_DSET_NAME        "Dataset"
 #define MISC19_ATTR_NAME        "Attribute"
 #define MISC19_GROUP_NAME       "Group"
+
+/* Definitions for misc. test #20 */
+#define MISC20_FILE             "tmisc20.h5"
+#define MISC20_FILE_OLD         "tlayouto.h5"
+#define MISC20_DSET_NAME        "Dataset"
+#define MISC20_DSET2_NAME       "Dataset2"
+#define MISC20_SPACE_RANK       2
+#define MISC20_SPACE_DIM0       (8*1024*1024*(uint64_t)1024)
+#define MISC20_SPACE_DIM1       ((4*1024*1024*(uint64_t)1024)+1)
+#define MISC20_SPACE2_DIM0      8
+#define MISC20_SPACE2_DIM1      4
+
+/* Definitions for misc. test #21 */
+#define MISC21_FILE             "tmisc21.h5"
+#define MISC21_DSET_NAME        "Dataset"
+#define MISC21_SPACE_RANK       2
+#define MISC21_SPACE_DIM0       7639
+#define MISC21_SPACE_DIM1       6308
+#define MISC21_CHUNK_DIM0       2048
+#define MISC21_CHUNK_DIM1       2048
+
+/* Definitions for misc. test #21 */
+#define MISC22_FILE             "tmisc22.h5"
+#define MISC22_DSET_NAME        "Dataset"
+#define MISC22_SPACE_RANK       2
+#define MISC22_CHUNK_DIM0       512
+#define MISC22_CHUNK_DIM1       512
+#define MISC22_SPACE_DIM0       639
+#define MISC22_SPACE_DIM1       1308
 
 /****************************************************************
 **
@@ -572,12 +607,10 @@ test_misc4(void)
     VERIFY(stat1.fileno[1],stat2.fileno[1],"H5Gget_objinfo");
 
     /* Verify that the fileno values are not the same between file1 & file2 */
-    if(stat1.fileno[0]==stat3.fileno[0] && stat1.fileno[1]==stat3.fileno[1]) {
+    if(stat1.fileno[0]==stat3.fileno[0] && stat1.fileno[1]==stat3.fileno[1])
         TestErrPrintf("Error on line %d: stat1.fileno==stat3.fileno\n",__LINE__);
-    } /* end if */
-    if(stat2.fileno[0]==stat3.fileno[0] && stat2.fileno[1]==stat3.fileno[1]) {
+    if(stat2.fileno[0]==stat3.fileno[0] && stat2.fileno[1]==stat3.fileno[1])
         TestErrPrintf("Error on line %d: stat1.fileno==stat3.fileno\n",__LINE__);
-    } /* end if */
 
     /* Close the objects */
     ret = H5Gclose(group1);
@@ -1441,13 +1474,11 @@ test_misc8(void)
     storage_size=H5Dget_storage_size(did);
     CHECK(storage_size, 0, "H5Dget_storage_size");
 #ifdef H5_HAVE_FILTER_DEFLATE
-    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: data wasn't compressed! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    } 
 #else /* Compression is not configured */
-    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: wrong storage size! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    }
 #endif /* H5_HAVE_FILTER_DEFLATE */
 
     /* Close dataset ID */
@@ -1475,13 +1506,11 @@ test_misc8(void)
     storage_size=H5Dget_storage_size(did);
     CHECK(storage_size, 0, "H5Dget_storage_size");
 #ifdef H5_HAVE_FILTER_DEFLATE
-    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: data wasn't compressed! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    } 
 #else /* Compression is not configured */
-    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: wrong storage size! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    }
 #endif /* H5_HAVE_FILTER_DEFLATE */
 
     /* Write entire dataset */
@@ -1498,22 +1527,19 @@ test_misc8(void)
     tdata2=rdata;
     for(u=0; u<MISC8_DIM0; u++)
         for(v=0; v<MISC8_DIM1; v++,tdata++,tdata2++)
-            if(*tdata!=*tdata2) {
+            if(*tdata!=*tdata2)
                 TestErrPrintf("Error on line %d: u=%u, v=%d, *tdata=%d, *tdata2=%d\n",__LINE__,(unsigned)u,(unsigned)v,(int)*tdata,(int)*tdata2);
-            } 
 #endif /* VERIFY_DATA */
 
     /* Check the storage size after data is written */
     storage_size=H5Dget_storage_size(did);
     CHECK(storage_size, 0, "H5Dget_storage_size");
 #ifdef H5_HAVE_FILTER_DEFLATE
-    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: data wasn't compressed! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    } 
 #else
-    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: wrong storage size! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    }
 #endif /*H5_HAVE_FILTER_DEFLATE*/
 
     /* Close dataset ID */
@@ -1540,13 +1566,11 @@ test_misc8(void)
     storage_size=H5Dget_storage_size(did);
     CHECK(storage_size, 0, "H5Dget_storage_size");
 #ifdef H5_HAVE_FILTER_DEFLATE
-    if(storage_size>=(4*MISC8_CHUNK_DIM0*MISC8_CHUNK_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size>=(4*MISC8_CHUNK_DIM0*MISC8_CHUNK_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: data wasn't compressed! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    } 
 #else /* Compression is not configured */
-    if(storage_size!=(4*MISC8_CHUNK_DIM0*MISC8_CHUNK_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size!=(4*MISC8_CHUNK_DIM0*MISC8_CHUNK_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: wrong storage size! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    }
 #endif /* H5_HAVE_FILTER_DEFLATE */
 
     /* Write entire dataset */
@@ -1563,22 +1587,19 @@ test_misc8(void)
     tdata2=rdata;
     for(u=0; u<MISC8_DIM0; u++)
         for(v=0; v<MISC8_DIM1; v++,tdata++,tdata2++)
-            if(*tdata!=*tdata2) {
+            if(*tdata!=*tdata2)
                 TestErrPrintf("Error on line %d: u=%u, v=%d, *tdata=%d, *tdata2=%d\n",__LINE__,(unsigned)u,(unsigned)v,(int)*tdata,(int)*tdata2);
-            } 
 #endif /* VERIFY_DATA */
 
     /* Check the storage size after data is written */
     storage_size=H5Dget_storage_size(did);
     CHECK(storage_size, 0, "H5Dget_storage_size");
 #ifdef H5_HAVE_FILTER_DEFLATE
-    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size>=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: data wasn't compressed! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    } 
 #else
-    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT))) {
+    if(storage_size!=(MISC8_DIM0*MISC8_DIM1*H5Tget_size(H5T_NATIVE_INT)))
         TestErrPrintf("Error on line %d: wrong storage size! storage_size=%u\n",__LINE__,(unsigned)storage_size);
-    }
 #endif /*H5_HAVE_FILTER_DEFLATE*/
 
     /* Close dataset ID */
@@ -1960,16 +1981,17 @@ test_misc12(void)
     CHECK(ret, FAIL, "H5Dread");
 
     for(i=0; i<MISC12_SPACE1_DIM1; i++)
-        if(HDstrcmp(wdata[i],rdata[i])) {
+        if(HDstrcmp(wdata[i],rdata[i]))
             TestErrPrintf("Error on line %d: wdata[%d]=%s, rdata[%d]=%s\n",__LINE__,i,wdata[i],i,rdata[i]);
-        } /* end if */
     for(; i<(MISC12_SPACE1_DIM1+MISC12_APPEND_SIZE); i++)
-        if(HDstrcmp(wdata1[i-MISC12_SPACE1_DIM1],rdata[i])) {
+        if(HDstrcmp(wdata1[i-MISC12_SPACE1_DIM1],rdata[i]))
             TestErrPrintf("Error on line %d: wdata1[%d]=%s, rdata[%d]=%s\n",__LINE__,i-MISC12_SPACE1_DIM1,wdata1[i-MISC12_SPACE1_DIM1],i,rdata[i]);
-        } /* end if */
+
+    ret = H5Sselect_all (space);
+    CHECK(ret, FAIL, "H5Sselect_all");
 
     /* Reclaim VL data memory */
-    ret = H5Dvlen_reclaim (tid1, sid1, H5P_DEFAULT, rdata);
+    ret = H5Dvlen_reclaim (tid1, space, H5P_DEFAULT, rdata);
     CHECK(ret, FAIL, "H5Dvlen_reclaim");
 
     /* Close Everything */
@@ -2404,9 +2426,8 @@ test_misc14(void)
     /* Check data from first dataset */
     ret = H5Dread(Dataset1, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data1) {
+    if(rdata!=data1)
         TestErrPrintf("Error on line %d: data1!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Unlink second dataset */
     ret = H5Gunlink(file_id, MISC14_DSET2_NAME);
@@ -2419,9 +2440,8 @@ test_misc14(void)
     /* Verify the data from dataset #1 */
     ret = H5Dread(Dataset1, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data1) {
+    if(rdata!=data1)
         TestErrPrintf("Error on line %d: data1!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Close first dataset */
     ret = H5Dclose(Dataset1);
@@ -2454,9 +2474,8 @@ test_misc14(void)
     /* Check data from second dataset */
     ret = H5Dread(Dataset2, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data2) {
+    if(rdata!=data2)
         TestErrPrintf("Error on line %d: data2!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Unlink first dataset */
     ret = H5Gunlink(file_id, MISC14_DSET1_NAME);
@@ -2469,9 +2488,8 @@ test_misc14(void)
     /* Verify the data from dataset #2 */
     ret = H5Dread(Dataset2, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data2) {
+    if(rdata!=data2)
         TestErrPrintf("Error on line %d: data2!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Close second dataset */
     ret = H5Dclose(Dataset2);
@@ -2511,16 +2529,14 @@ test_misc14(void)
     /* Check data from first dataset */
     ret = H5Dread(Dataset1, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data1) {
+    if(rdata!=data1)
         TestErrPrintf("Error on line %d: data1!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Check data from third dataset */
     ret = H5Dread(Dataset3, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data3) {
+    if(rdata!=data3)
         TestErrPrintf("Error on line %d: data3!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Unlink second dataset */
     ret = H5Gunlink(file_id, MISC14_DSET2_NAME);
@@ -2533,16 +2549,14 @@ test_misc14(void)
     /* Verify the data from dataset #1 */
     ret = H5Dread(Dataset1, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data1) {
+    if(rdata!=data1)
         TestErrPrintf("Error on line %d: data1!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Verify the data from dataset #3 */
     ret = H5Dread(Dataset3, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata);
     CHECK(ret, FAIL, "H5Dread");
-    if(rdata!=data3) {
+    if(rdata!=data3)
         TestErrPrintf("Error on line %d: data3!=rdata\n",__LINE__);
-    } /* end if */
 
     /* Close first dataset */
     ret = H5Dclose(Dataset1);
@@ -2668,11 +2682,11 @@ test_misc16(void)
 
     /* Compare data read in */
     for(i=0; i<MISC16_SPACE_DIM; i++) {
-        if(strlen(wdata[i])!=strlen(rdata[i])) {
+        if(HDstrlen(wdata[i])!=strlen(rdata[i])) {
             TestErrPrintf("VL data length don't match!, strlen(wdata[%d])=%d, strlen(rdata[%d])=%d\n",(int)i,(int)strlen(wdata[i]),(int)i,(int)strlen(rdata[i]));
             continue;
         } /* end if */
-        if( strcmp(wdata[i],rdata[i]) != 0 ) {
+        if( HDstrcmp(wdata[i],rdata[i]) != 0 ) {
             TestErrPrintf("VL data values don't match!, wdata[%d]=%s, rdata[%d]=%s\n",(int)i,wdata[i],(int)i,rdata[i]);
             continue;
         } /* end if */
@@ -2744,11 +2758,11 @@ test_misc17(void)
 
     /* Compare data in the way of strings. */
     for(i=0; i<MISC17_SPACE_DIM1; i++) {
-        if(strlen(wdata[i])!=strlen(rdata[i])) {
+        if(HDstrlen(wdata[i])!=strlen(rdata[i])) {
             TestErrPrintf("VL data length don't match!, strlen(wdata[%d])=%d, strlen(rdata[%d])=%d\n",(int)i,(int)strlen(wdata[i]),(int)i,(int)strlen(rdata[i]));
             continue;
         } /* end if */
-        if( strcmp(wdata[i],rdata[i]) != 0 ) {
+        if( HDstrcmp(wdata[i],rdata[i]) != 0 ) {
             TestErrPrintf("VL data values don't match!, wdata[%d]=%s, rdata[%d]=%s\n",(int)i,wdata[i],(int)i,rdata[i]);
             continue;
         } /* end if */
@@ -2794,11 +2808,11 @@ test_misc18(void)
 
     /* Create dataspace for attributes */
     sid = H5Screate(H5S_SCALAR);
-    CHECK(sid, FAIL, "H5Screate_simple");
+    CHECK(sid, FAIL, "H5Screate");
 
     /* Create first dataset */
     did1 = H5Dcreate(fid, MISC18_DSET1_NAME, H5T_STD_U32LE, sid, H5P_DEFAULT);
-    CHECK(did1, FAIL, "H5Screate_simple");
+    CHECK(did1, FAIL, "H5Dcreate");
 
     /* Get object information */
     ret = H5Gget_objinfo(fid,MISC18_DSET1_NAME,0,&statbuf);
@@ -3203,6 +3217,392 @@ test_misc19(void)
 
 /****************************************************************
 **
+**  test_misc20(): Test problems with version 2 of storage layout
+**                      message truncating dimensions
+**
+****************************************************************/
+static void
+test_misc20(void)
+{
+    hid_t fid;          /* File ID */
+    hid_t sid;          /* 'Space ID */
+    hid_t did;          /* Dataset ID */
+    hid_t dcpl;         /* Dataset creation property list ID */
+    int rank=MISC20_SPACE_RANK;    /* Rank of dataspace */
+    hsize_t big_dims[MISC20_SPACE_RANK]={MISC20_SPACE_DIM0,MISC20_SPACE_DIM1};      /* Large dimensions */
+    hsize_t small_dims[MISC20_SPACE_RANK]={MISC20_SPACE2_DIM0,MISC20_SPACE2_DIM1};      /* Small dimensions */
+    unsigned version;   /* Version of storage layout info */
+    hsize_t contig_size;        /* Size of contiguous storage size from layout into */
+    char testfile[512]="";          /* Character buffer for corrected test file name */
+    char *srcdir = HDgetenv("srcdir");    /* Pointer to the directory the source code is located within */
+    herr_t ret;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing large dimension truncation fix\n"));
+
+    /* Verify that chunks with dimensions that are too large get rejected */
+
+    /* Create a dataset creation property list */
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
+    CHECK(dcpl, FAIL, "H5Pcreate"); 
+
+    /* Use chunked storage for this dataset */
+    ret = H5Pset_chunk(dcpl,rank,big_dims);
+    VERIFY(ret, FAIL, "H5Pset_chunk"); 
+
+    /* Verify that the storage for the dataset is the correct size and hasn't
+     * been truncated.
+     */
+
+    /* Create the file */
+    fid = H5Fcreate(MISC20_FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create dataspace with _really_ big dimensions */
+    sid = H5Screate_simple(rank,big_dims,NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    /* Make certain that the dataset's storage doesn't get allocated :-) */
+    ret = H5Pset_alloc_time(dcpl,H5D_ALLOC_TIME_LATE);
+    CHECK(ret, FAIL, "H5Pset_alloc_time"); 
+
+    /* Create dataset with big dataspace */
+    did = H5Dcreate(fid, MISC20_DSET_NAME, H5T_NATIVE_INT, sid, dcpl);
+    CHECK(did, FAIL, "H5Dcreate");
+
+    /* Close datasset */
+    ret=H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close dataspace */
+    ret=H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Create dataspace with small dimensions */
+    sid = H5Screate_simple(rank,small_dims,NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    /* Create dataset with big dataspace */
+    did = H5Dcreate(fid, MISC20_DSET2_NAME, H5T_NATIVE_INT, sid, dcpl);
+    CHECK(did, FAIL, "H5Dcreate");
+
+    /* Close datasset */
+    ret=H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close dataspace */
+    ret=H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close dataset creation property list */
+    ret=H5Pclose(dcpl);
+    CHECK(ret, FAIL, "H5Pclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Re-open the file */
+    fid = H5Fopen(MISC20_FILE, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Open dataset with big dimensions */
+    did = H5Dopen(fid, MISC20_DSET_NAME);
+    CHECK(did, FAIL, "H5Dopen");
+
+    /* Get the layout version */
+    ret = H5D_layout_version_test(did,&version);
+    CHECK(ret, FAIL, "H5D_layout_version_test");
+    VERIFY(version,3,"H5D_layout_version_test");
+
+    /* Get the layout contiguous storage size */
+    ret = H5D_layout_contig_size_test(did,&contig_size);
+    CHECK(ret, FAIL, "H5D_layout_contig_size_test");
+    VERIFY(contig_size, MISC20_SPACE_DIM0*MISC20_SPACE_DIM1*H5Tget_size(H5T_NATIVE_INT), "H5D_layout_contig_size_test");
+
+    /* Close datasset */
+    ret=H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Open dataset with small dimensions */
+    did = H5Dopen(fid, MISC20_DSET2_NAME);
+    CHECK(did, FAIL, "H5Dopen");
+
+    /* Get the layout version */
+    ret = H5D_layout_version_test(did,&version);
+    CHECK(ret, FAIL, "H5D_layout_version_test");
+    VERIFY(version,2,"H5D_layout_version_test");
+
+    /* Get the layout contiguous storage size */
+    ret = H5D_layout_contig_size_test(did,&contig_size);
+    CHECK(ret, FAIL, "H5D_layout_contig_size_test");
+    VERIFY(contig_size, MISC20_SPACE2_DIM0*MISC20_SPACE2_DIM1*H5Tget_size(H5T_NATIVE_INT), "H5D_layout_contig_size_test");
+
+    /* Close datasset */
+    ret=H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Verify that the storage size is computed correctly for older versions of layout info */
+
+    /* Generate the correct name for the test file, by prepending the source path */
+    if (srcdir && ((HDstrlen(srcdir) + HDstrlen(MISC20_FILE_OLD) + 1) < sizeof(testfile))) {
+        HDstrcpy(testfile, srcdir);
+        HDstrcat(testfile, "/");
+    }
+    HDstrcat(testfile, MISC20_FILE_OLD);
+
+    /*
+     * Open the old file and the dataset and get old settings.
+     */
+    fid =    H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Open dataset with small dimensions */
+    did = H5Dopen(fid, MISC20_DSET_NAME);
+    CHECK(did, FAIL, "H5Dopen");
+
+    /* Get the layout version */
+    ret = H5D_layout_version_test(did,&version);
+    CHECK(ret, FAIL, "H5D_layout_version_test");
+    VERIFY(version,2,"H5D_layout_version_test");
+
+    /* Get the layout contiguous storage size */
+    ret = H5D_layout_contig_size_test(did,&contig_size);
+    CHECK(ret, FAIL, "H5D_layout_contig_size_test");
+    VERIFY(contig_size, MISC20_SPACE_DIM0*MISC20_SPACE_DIM1*H5Tget_size(H5T_STD_I32LE), "H5D_layout_contig_size_test");
+
+    /* Close datasset */
+    ret=H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+} /* end test_misc20() */
+    
+/*
+    test_misc21 and test_misc22 should be executed only when SZIP is present
+    and encoder is available
+                             EIP 2004/8/04
+*/
+#if defined H5_HAVE_FILTER_SZIP & defined H5_SZIP_CAN_ENCODE
+/****************************************************************
+**
+**  test_misc21(): Test that late allocation time is treated the same
+**                      as incremental allocation time, for chunked datasets
+**                      when overwriting entire dataset where the chunks
+**                      don't exactly match the dataspace.
+**
+****************************************************************/
+static void
+test_misc21(void)
+{
+    hid_t fid, sid, dcpl, dsid;
+    char *buf;
+    hsize_t dims[2]={MISC21_SPACE_DIM0,MISC21_SPACE_DIM1},
+        chunk_size[2]={MISC21_CHUNK_DIM0,MISC21_CHUNK_DIM1};
+    herr_t ret;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing late allocation time w/chunks & filters\n"));
+
+    /* Allocate space for the buffer */
+    buf = (char *)HDcalloc(MISC21_SPACE_DIM0*MISC21_SPACE_DIM1,1);
+    CHECK(buf, NULL, "HDcalloc");
+
+    /* Create the file */
+    fid = H5Fcreate (MISC21_FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create the DCPL */
+    dcpl = H5Pcreate (H5P_DATASET_CREATE);
+    CHECK(dcpl, FAIL, "H5Pcreate");
+
+    /* Set custom DCPL properties */
+    ret = H5Pset_chunk (dcpl, MISC21_SPACE_RANK, chunk_size);
+    CHECK(ret, FAIL, "H5Pset_chunk");
+    ret = H5Pset_szip (dcpl, H5_SZIP_NN_OPTION_MASK, 8); 
+    CHECK(ret, FAIL, "H5Pset_deflate");
+    ret = H5Pset_alloc_time (dcpl, H5D_ALLOC_TIME_LATE); 
+    CHECK(ret, FAIL, "H5Pset_alloc_time");
+
+    /* Create the dataspace for the dataset */
+    sid = H5Screate_simple (MISC21_SPACE_RANK, dims, NULL);
+    CHECK(ret, FAIL, "H5Screate_simple");
+
+    /* Create the dataset */
+    dsid = H5Dcreate (fid, MISC21_DSET_NAME, H5T_NATIVE_UINT8, sid, dcpl);
+    CHECK(dsid, FAIL, "H5Dwrite");
+
+    /* Write out the whole dataset */
+    ret = H5Dwrite (dsid, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Close everything */
+    ret = H5Dclose (dsid);
+    CHECK(ret, FAIL, "H5Dclose");
+    ret = H5Sclose (sid);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Pclose (dcpl);
+    CHECK(ret, FAIL, "H5Pclose");
+    ret = H5Fclose (fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    HDfree(buf);
+} /* end test_misc21() */
+    
+/****************************************************************
+**
+**  test_misc22(): Test SZIP bits-per-pixel paramter.
+**                      This should be set according to the datatype. 
+**                      Tests for precision and offset combo's.
+**
+****************************************************************/
+static void
+test_misc22(void)
+{
+    hid_t fid, sid, dcpl, dsid, dcpl2;
+    char *buf;
+    hsize_t dims[2]={MISC22_SPACE_DIM0,MISC22_SPACE_DIM1},
+        chunk_size[2]={MISC22_CHUNK_DIM0,MISC22_CHUNK_DIM1};
+    herr_t ret;         /* Generic return value */
+    hid_t dtype;
+    /* should extend test to signed ints */
+    hid_t idts[4];
+/*  do the same for floats
+    hid_t fdts[2]={H5T_NATIVE_FLOAT32,  
+              H5T_NATIVE_FLOAT64}  
+*/
+    int prec[4] = {3,11,19,27};
+    int offsets[5] = {0,3,11,19,27};
+    int i,j,k;
+    unsigned int flags;
+    size_t cd_nelmts=32;
+    unsigned int cd_values[32];
+    int correct;
+
+    idts[0]=H5Tcopy(H5T_NATIVE_UINT8);
+    idts[1]=H5Tcopy(H5T_NATIVE_UINT16);
+    idts[2]=H5Tcopy(H5T_NATIVE_UINT32);
+    idts[3]=H5Tcopy(H5T_NATIVE_UINT64);
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing datatypes with SZIP filter\n"));
+
+    /* Allocate space for the buffer */
+    buf = (char *)HDcalloc(MISC22_SPACE_DIM0*MISC22_SPACE_DIM1,8);
+    CHECK(buf, NULL, "HDcalloc");
+
+    /* Create the file */
+    fid = H5Fcreate (MISC22_FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create the dataspace for the dataset */
+    sid = H5Screate_simple (MISC22_SPACE_RANK, dims, NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            if (prec[j] > (H5Tget_size(idts[i])*8)) continue; /* skip irrelevant combination */
+            for (k = 0; k < 5; k++) {
+                if (offsets[k] > (H5Tget_size(idts[i])*8)) continue; /* skip irrelevant combinations */
+                if ((prec[j]+offsets[k]) > (H5Tget_size(idts[i])*8)) continue;
+
+                MESSAGE(5, ("  Testing datatypes size=%d precision=%d offset=%d\n",H5Tget_size(idts[i]),prec[j],offsets[k]));
+
+                /* Create the DCPL */
+                dcpl = H5Pcreate (H5P_DATASET_CREATE);
+                CHECK(dcpl, FAIL, "H5Pcreate");
+            
+                /* Set DCPL properties */
+                ret = H5Pset_chunk (dcpl, MISC22_SPACE_RANK, chunk_size);
+                CHECK(ret, FAIL, "H5Pset_chunk");
+                /* Set custom DCPL properties */
+                ret = H5Pset_szip (dcpl, H5_SZIP_NN_OPTION_MASK, 32);  /* vary the PPB */
+                CHECK(ret, FAIL, "H5Pset_szip");
+            
+                /* set up the datatype according to the loop */
+                dtype = H5Tcopy(idts[i]);
+                CHECK(dtype, FAIL, "H5Tcopy");
+                ret = H5Tset_precision(dtype,prec[j]);
+                CHECK(ret, FAIL, "H5Tset_precision");
+                ret = H5Tset_offset(dtype,offsets[k]);
+                CHECK(ret, FAIL, "H5Tset_precision");
+
+                /* compute the correct PPB that should be set by SZIP */
+                if (offsets[k] == 0) {
+            	correct=prec[j];	
+                } else {
+                    correct=H5Tget_size(idts[i])*8;
+                }
+                if (correct > 24) {
+            	    if (correct <= 32) correct=32;
+            	    else if (correct <= 64) correct=64;
+                }
+            
+                /* Create the dataset */
+                dsid = H5Dcreate (fid, MISC22_DSET_NAME, dtype, sid, dcpl);
+                CHECK(dsid, FAIL, "H5Dwrite");
+            
+                /* Write out the whole dataset */
+                ret = H5Dwrite (dsid, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+                CHECK(ret, FAIL, "H5Dwrite");
+            
+                /* Close everything */
+                ret = H5Dclose (dsid);
+                CHECK(ret, FAIL, "H5Dclose");
+                ret = H5Tclose (dtype);
+                CHECK(ret, FAIL, "H5Tclose");
+                ret = H5Pclose (dcpl);
+                CHECK(ret, FAIL, "H5Pclose");
+            
+                dsid = H5Dopen (fid, MISC22_DSET_NAME);
+                CHECK(dsid, FAIL, "H5Topen");
+            
+                dcpl2 = H5Dget_create_plist(dsid);
+                CHECK(dcpl2, FAIL, "H5Dget_create_plist");
+            
+                ret= H5Pget_filter_by_id( dcpl2, H5Z_FILTER_SZIP, &flags, 
+                      &cd_nelmts, cd_values, 0, NULL );
+                CHECK(ret, FAIL, "H5Pget_filter_by_id");
+            
+                VERIFY(cd_values[2], correct, "SZIP filter returned value for precision");
+            
+                ret = H5Dclose (dsid);
+                CHECK(ret, FAIL, "H5Dclose");
+
+                ret = H5Gunlink (fid, MISC22_DSET_NAME );
+                CHECK(ret, FAIL, "H5Dunlink");
+            
+                ret = H5Pclose (dcpl2);
+                CHECK(ret, FAIL, "H5Pclose");
+            }
+        }
+    }
+    ret = H5Tclose(idts[0]);
+    CHECK(ret, FAIL, "H5Tclose");
+    ret = H5Tclose(idts[1]);
+    CHECK(ret, FAIL, "H5Tclose");
+    ret = H5Tclose(idts[2]);
+    CHECK(ret, FAIL, "H5Tclose");
+    ret = H5Tclose(idts[3]);
+    CHECK(ret, FAIL, "H5Tclose");
+    ret = H5Sclose (sid);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Fclose (fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    HDfree(buf);
+} /* end test_misc22() */
+#endif /* H5_SZIP_CAN_ENCODE & H5_HAVE_FILTER_SZIP */
+
+/****************************************************************
+**
 **  test_misc(): Main misc. test routine.
 ** 
 ****************************************************************/
@@ -3231,7 +3631,11 @@ test_misc(void)
     test_misc17();      /* Test array of ASCII character */
     test_misc18();      /* Test new object header information in H5G_stat_t struct */
     test_misc19();      /* Test incrementing & decrementing ref count on IDs */
-
+    test_misc20();      /* Test problems with truncated dimensions in version 2 of storage layout message */
+#if defined H5_HAVE_FILTER_SZIP & defined H5_SZIP_CAN_ENCODE
+    test_misc21();      /* Test that "late" allocation time is treated the same as "incremental", for chunked datasets w/a filters */
+    test_misc22();     /* check szip bits per pixel */
+#endif /* H5_SZIP_CAN_ENCODE & H5_HAVE_FILTER_SZIP */
 } /* test_misc() */
 
 
@@ -3274,4 +3678,9 @@ cleanup_misc(void)
     HDremove(MISC17_FILE);
     HDremove(MISC18_FILE);
     HDremove(MISC19_FILE);
+    HDremove(MISC20_FILE);
+#if defined H5_HAVE_FILTER_SZIP & defined H5_SZIP_CAN_ENCODE
+    HDremove(MISC21_FILE);
+    HDremove(MISC22_FILE);
+#endif /* H5_SZIP_CAN_ENCODE & H5_HAVE_FILTER_SZIP */
 }

@@ -12,10 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5R.c,v 1.66.2.1 2003/12/06 21:39:22 koziol Exp $ */
-
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
-#define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
 
 #include "H5private.h"		/* Generic Functions */
 #include "H5Iprivate.h"		/* ID Functions */
@@ -26,7 +23,7 @@
 #include "H5HGprivate.h"    /* Global Heaps */
 #include "H5MMprivate.h"    /* Memory Management */
 #include "H5Rprivate.h"		/* References */
-#include "H5Spkg.h"		/* Dataspaces */
+#include "H5Sprivate.h"		/* Dataspace functions			*/
 #include "H5Tprivate.h"		/* Datatypes */
 
 /* Interface initialization */
@@ -161,7 +158,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             uint8_t *p;       /* Pointer to OID to store */
 
             /* Set information for reference */
-            p=(uint8_t *)ref->oid;
+            p=(uint8_t *)ref;
             H5F_addr_pack(loc->file,&addr,&sb.objno[0]);
             H5F_addr_encode(loc->file,&p,addr);
             break;
@@ -183,8 +180,8 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             /* Return any previous heap block to the free list if we are garbage collecting */
             if(loc->file->shared->gc_ref) {
                 /* Check for an existing heap ID in the reference */
-                for(u=0, heapid_found=0; u<H5R_DSET_REG_REF_BUF_SIZE; u++)
-                    if(ref->heapid[u]!=0) {
+                for(u=0, heapid_found=0, p=(uint8_t *)ref; u<H5R_DSET_REG_REF_BUF_SIZE; u++)
+                    if(p[u]!=0) {
                         heapid_found=1;
                         break;
                     } /* end if */
@@ -195,10 +192,10 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             } /* end if */
 
             /* Zero the heap ID out, may leak heap space if user is re-using reference and doesn't have garbage collection on */
-            HDmemset(ref->heapid,H5R_DSET_REG_REF_BUF_SIZE,0);
+            HDmemset(ref,H5R_DSET_REG_REF_BUF_SIZE,0);
 
             /* Get the amount of space required to serialize the selection */
-            if ((buf_size = (*space->select.serial_size)(space)) < 0)
+            if ((buf_size = H5S_SELECT_SERIAL_SIZE(space)) < 0)
                 HGOTO_ERROR(H5E_REFERENCE, H5E_CANTINIT, FAIL, "Invalid amount of space for serializing selection");
 
             /* Increase buffer size to allow for the dataset OID */
@@ -215,7 +212,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             H5F_addr_encode(loc->file,&p,addr);
 
             /* Serialize the selection */
-            if ((*space->select.serialize)(space,p) < 0)
+            if (H5S_SELECT_SERIALIZE(space,p) < 0)
                 HGOTO_ERROR(H5E_REFERENCE, H5E_CANTCOPY, FAIL, "Unable to serialize selection");
 
             /* Save the serialized buffer for later */
@@ -224,7 +221,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
                 HGOTO_ERROR(H5E_REFERENCE, H5E_WRITEERROR, FAIL, "Unable to serialize selection");
 
             /* Serialize the heap ID and index for storage in the file */
-            p=(uint8_t *)ref->heapid;
+            p=(uint8_t *)ref;
             H5F_addr_encode(loc->file,&p,hobjid.addr);
             INT32ENCODE(p,hobjid.idx);
 
@@ -360,7 +357,7 @@ H5R_dereference(H5F_t *file, hid_t dxpl_id, H5R_type_t ref_type, void *_ref)
              *  open a dataset for now
              */
             /* Get the object oid */
-            p=(uint8_t *)ref->oid;
+            p=(uint8_t *)ref;
             H5F_addr_decode(ent.file,(const uint8_t **)&p,&(ent.header));
         } /* end case */
         break;
@@ -372,7 +369,7 @@ H5R_dereference(H5F_t *file, hid_t dxpl_id, H5R_type_t ref_type, void *_ref)
             uint8_t *buf;   /* Buffer to store serialized selection in */
 
             /* Get the heap ID for the dataset region */
-            p=(uint8_t *)ref->heapid;
+            p=(uint8_t *)ref;
             H5F_addr_decode(ent.file,(const uint8_t **)&p,&(hobjid.addr));
             INT32DECODE(p,hobjid.idx);
 
@@ -539,7 +536,7 @@ H5R_get_region(H5F_t *file, hid_t dxpl_id, H5R_type_t UNUSED ref_type, void *_re
     ent.file=file;
 
     /* Get the heap ID for the dataset region */
-    p=(uint8_t *)ref->heapid;
+    p=(uint8_t *)ref;
     H5F_addr_decode(ent.file,(const uint8_t **)&p,&(hobjid.addr));
     INT32DECODE(p,hobjid.idx);
 
@@ -666,7 +663,7 @@ H5R_get_object_type(H5F_t *file, hid_t dxpl_id, void *_ref)
     ent.file=file;
 
     /* Get the object oid */
-    p=(uint8_t *)ref->oid;
+    p=(uint8_t *)ref;
     H5F_addr_decode(ent.file,(const uint8_t **)&p,&(ent.header));
 
     /* Get the OID type */
@@ -775,7 +772,7 @@ H5R_get_obj_type(H5F_t *file, hid_t dxpl_id, H5R_type_t ref_type, void *_ref)
             hobj_ref_t *ref=(hobj_ref_t *)_ref; /* Only object references currently supported */
 
             /* Get the object oid */
-            p=(uint8_t *)ref->oid;
+            p=(uint8_t *)ref;
             H5F_addr_decode(ent.file,(const uint8_t **)&p,&(ent.header));
         } /* end case */
         break;
@@ -787,7 +784,7 @@ H5R_get_obj_type(H5F_t *file, hid_t dxpl_id, H5R_type_t ref_type, void *_ref)
             uint8_t *buf;   /* Buffer to store serialized selection in */
 
             /* Get the heap ID for the dataset region */
-            p=(uint8_t *)ref->heapid;
+            p=(uint8_t *)ref;
             H5F_addr_decode(ent.file,(const uint8_t **)&p,&(hobjid.addr));
             INT32DECODE(p,hobjid.idx);
 
@@ -880,7 +877,11 @@ H5Rget_obj_type(hid_t id, H5R_type_t ref_type, void *_ref)
     file=loc->file;
 
     /* Get the object information */
-    if ((ret_value=H5R_get_obj_type(file,H5AC_ind_dxpl_id,ref_type,_ref))<0)
+    if ((ret_value=
+#ifndef H5_WANT_H5_V1_4_COMPAT
+		(H5G_obj_t)
+#endif /* H5_WANT_H5_V1_4_COMPAT */
+		H5R_get_obj_type(file,H5AC_ind_dxpl_id,ref_type,_ref))<0)
 	HGOTO_ERROR(H5E_REFERENCE, H5E_CANTINIT, H5G_UNKNOWN, "unable to determine object type");
     
 done:

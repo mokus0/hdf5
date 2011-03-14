@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: t_file.c,v 1.11.2.1 2004/01/23 00:10:35 acheng Exp $ */
+/* $Id: t_file.c,v 1.11.2.2 2004/04/02 00:00:10 acheng Exp $ */
 
 /*
  * Parallel tests for file operations
@@ -32,7 +32,7 @@
  * sooner or later due to barrier mixed up.
  */
 void
-test_split_comm_access(char *filename)
+test_split_comm_access(void)
 {
     int mpi_size, mpi_rank;
     MPI_Comm comm;
@@ -43,7 +43,9 @@ test_split_comm_access(char *filename)
     hid_t acc_tpl;		/* File access properties */
     hbool_t use_gpfs = FALSE;   /* Use GPFS hints */
     herr_t ret;			/* generic return value */
+    char *filename;
 
+    filename = (char *) GetTestParameters();
     if (VERBOSE_MED)
 	printf("Split Communicator access test on file %s\n",
 	    filename);

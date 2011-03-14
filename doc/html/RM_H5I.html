@@ -41,8 +41,7 @@ HDF5/H5I API Specification
 </td>
 <td valign=top align=right>
 And in this document, the 
-<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;<br>
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
@@ -50,14 +49,17 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
+</td></tr>
+<tr><td colspan="2" align="right">
+<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
 </center>
@@ -78,17 +80,18 @@ object names.
 <table border=0>
 <tr><td valign=top>
 <ul>
-    <li><a href="#Identify-IncRef">H5Iinc_ref</a>
     <li><a href="#Identify-GetName">H5Iget_name</a>
-</ul>
-</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
-<ul>
-    <li><a href="#Identify-DecRef">H5Idec_ref</a>
     <li><a href="#Identify-GetType">H5Iget_type</a>
 </ul>
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
+    <li><a href="#Identify-GetFileId">H5Iget_file_id</a>
     <li><a href="#Identify-GetRef">H5Iget_ref</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#Identify-IncRef">H5Iinc_ref</a>
+    <li><a href="#Identify-DecRef">H5Idec_ref</a>
 </ul>
 </td></tr>
 </table>
@@ -102,7 +105,7 @@ object names.
     <td valign="top">
 	<ul>
             <li><a href="#Identify-DecRef">H5Idec_ref</a>
-            <li><a href="#Identify-GetName">H5Iget_name</a>
+            <li><a href="#Identify-GetFileId">H5Iget_file_id</a>
 	</ul>     
     </td>
     
@@ -110,8 +113,8 @@ object names.
     
     <td valign="top">
 	<ul>
+            <li><a href="#Identify-GetName">H5Iget_name</a>
             <li><a href="#Identify-GetRef">H5Iget_ref</a>
-            <li><a href="#Identify-GetType">H5Iget_type</a>
 	</ul>
     </td>
     
@@ -119,6 +122,7 @@ object names.
     
     <td valign="top">
 	<ul>
+            <li><a href="#Identify-GetType">H5Iget_type</a>
             <li><a href="#Identify-IncRef">H5Iinc_ref</a>
 	</ul>
     </td>
@@ -135,17 +139,18 @@ as the corresponding C function.
 <table border=0>
 <tr><td valign=top>
 <ul>
-    <li><a href="#Identify-IncRef">h5iinc_ref_f</a>
     <li><a href="#Identify-GetName">h5iget_name_f</a>
-</ul>
-</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
-<ul>
-    <li><a href="#Identify-DecRef">h5idec_ref_f</a>
     <li><a href="#Identify-GetType">h5iget_type_f</a>
 </ul>
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
+    <li><a href="#Identify-GetFileId">H5Iget_file_id</a>
     <li><a href="#Identify-GetRef">h5iget_ref_f</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#Identify-IncRef">h5iinc_ref_f</a>
+    <li><a href="#Identify-DecRef">h5idec_ref_f</a>
 </ul>
 </td></tr>
 </table>
@@ -224,7 +229,66 @@ END SUBROUTINE h5idec_ref_f
         -->
 </dl>
 
+
 <!-- NEW PAGE -->
+<!-- HEADER RIGHT "H5Iget_file_id" -->
+<hr>
+<dl>
+<dt><strong>Name:</strong> <a name="Identify-GetFileId">H5Iget_file_id</a>
+<dt><strong>Signature:</strong>
+    <dd><em>hid_t</em> <code>H5Iget_file_id</code>(<em>hid_t</em> <code>obj_id</code>)
+<dt><strong>Purpose:</strong>
+    <dd>Retrieves an identifier for the file containing the specified object.
+<dt><strong>Description:</strong>
+    <dd><code>H5Iget_file_id</code> returns the identifier of the file 
+        associated with the object referenced by <code>obj_id</code>.  
+        <p>
+        <code>obj_id</code> can be a file, group, dataset, named datatype, 
+        or attribute identifier.
+        <p>
+        Note that the HDF5 Library permits an application to close a file
+        while objects within the file remain open.
+        If the file containing the object <code>obj_id</code> 
+        is still open, <code>H5Iget_file_id</code> will retrieve the 
+        existing file identifier.
+        If there is no existing file identifier for the file, 
+        i.e., the file has been closed, 
+        <code>H5Iget_file_id</code> will reopen the file and 
+        return a new file identifier.
+        In either case, the file identifier must eventually be released 
+        using <code>H5Fclose</code>.  
+<dt><strong>Parameters:</strong>
+    <ul>
+    <table>
+      <tr>
+        <td valign="top"><em>hid_t</em>&nbsp;<code>obj_id&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+        <td valign="top">IN: Identifier of the object whose associated 
+            file identifier will be returned.</td>
+      </tr>
+    </table>
+    </ul>
+<dt><strong>Returns:</strong>
+    <dd>Returns a file identifier on success, negative on failure.
+<dt><strong>Fortran90 Interface:</strong>
+    <dd>
+    <pre>
+SUBROUTINE h5iget_file_id_f(obj_id, file_id, hdferr) 
+
+  IMPLICIT NONE
+  INTEGER(HID_T), INTENT(IN)  :: obj_id     ! Object identifier 
+  INTEGER(HID_T), INTENT(OUT) :: file_id    ! File identifier
+  INTEGER, INTENT(OUT) :: hdferr            ! Error code
+
+END SUBROUTINE h5iget_file_id_f
+    </pre>
+
+<!--<dt><strong>Non-C API(s):</strong>
+    <dd>
+        <img src="Graphics/Java.gif">
+        <img src="Graphics/C++.gif">
+        -->
+</dl>
+
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Iget_name" -->
 <hr>
@@ -403,13 +467,13 @@ SUBROUTINE h5iget_type_f(obj_id, type, hdferr)
   INTEGER(HID_T), INTENT(IN) :: obj_id  !Object identifier 
   INTEGER, INTENT(OUT) :: type          !type of an object. 
                                         !possible values are:
-                                        !H5I_FILE_F(1)
-                                        !H5I_GROUP_F(2)
-                                        !H5I_DATATYPE_F(3)
-                                        !H5I_DATASPACE_F(4)
-                                        !H5I_DATASET_F(5)
-                                        !H5I_ATTR_F(6)
-                                        !H5I_BADID_F(-1)
+                                        !H5I_FILE_F
+                                        !H5I_GROUP_F
+                                        !H5I_DATATYPE_F
+                                        !H5I_DATASPACE_F
+                                        !H5I_DATASET_F
+                                        !H5I_ATTR_F
+                                        !H5I_BADID_F
   INTEGER, INTENT(OUT) :: hdferr        ! E rror code
                                         ! 0 on success, and -1 on failure
 END SUBROUTINE h5iget_type_f
@@ -509,8 +573,7 @@ END SUBROUTINE h5iinc_ref_f
 </td>
 <td valign=top align=right>
 And in this document, the 
-<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;<br>
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
@@ -518,8 +581,7 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
@@ -527,16 +589,20 @@ And in this document, the
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
+<tr><td colspan="2" align="right">
+<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
+</td></tr>
 </table>
 </center>
 <hr>
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.2, February 2004
+Describes HDF5 Release 1.6.3, September 2004
 </address><!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 11 December 2003");
+document.writeln("Last modified: 8 September 2004");
 -->
 </SCRIPT>
 

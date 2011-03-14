@@ -117,6 +117,7 @@ H5FL_DEFINE_STATIC(H5I_id_info_t);
 /*--------------------- Local function prototypes ---------------------------*/
 static herr_t H5I_init_interface(void);
 static H5I_id_info_t *H5I_find_id(hid_t id);
+static hid_t H5I_get_file_id(hid_t obj_id);
 static int H5I_get_ref(hid_t id);
 #ifdef H5I_DEBUG_OUTPUT
 static herr_t H5I_debug(H5I_type_t grp);
@@ -958,7 +959,7 @@ H5I_dec_ref(hid_t id)
     /* Check arguments */
     grp = H5I_GROUP(id);
     if (grp <= H5I_BADID || grp >= H5I_NGROUPS)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, NULL, "invalid group number");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
     grp_ptr = H5I_id_group_list_g[grp];
     if (grp_ptr == NULL || grp_ptr->count <= 0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
@@ -1061,7 +1062,7 @@ H5I_inc_ref(hid_t id)
     /* Check arguments */
     grp = H5I_GROUP(id);
     if (grp <= H5I_BADID || grp >= H5I_NGROUPS)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, NULL, "invalid group number");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
     grp_ptr = H5I_id_group_list_g[grp];
     if (!grp_ptr || grp_ptr->count<=0)
 	HGOTO_ERROR(H5E_ATOM, H5E_BADGROUP, FAIL, "invalid group");
@@ -1146,7 +1147,7 @@ H5I_get_ref(hid_t id)
     /* Check arguments */
     grp = H5I_GROUP(id);
     if (grp <= H5I_BADID || grp >= H5I_NGROUPS)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, NULL, "invalid group number");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid group number");
     grp_ptr = H5I_id_group_list_g[grp];
     if (!grp_ptr || grp_ptr->count<=0)
 	HGOTO_ERROR(H5E_ATOM, H5E_BADGROUP, FAIL, "invalid group");
@@ -1433,4 +1434,97 @@ done:
     FUNC_LEAVE_NOAPI(SUCCEED);
 }
 #endif /* H5I_DEBUG_OUTPUT */
+
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5Iget_file_id
+ *
+ * Purpose:	The public version of H5I_get_file_id(), obtains the file
+ *              ID given an object ID.  User has to close this ID. 
+ *
+ * Return:	Success:	file ID
+ *
+ *		Failure:	a negative value
+ *
+ * Programmer:  Raymond Lu
+ *              Oct 27, 2003	
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+hid_t
+H5Iget_file_id(hid_t obj_id)
+{
+    hid_t		ret_value;
+
+    FUNC_ENTER_API(H5Iget_file_id, FAIL);
+    H5TRACE1("i","i",obj_id);
+
+    if((ret_value = H5I_get_file_id(obj_id))<0)
+        HGOTO_ERROR (H5E_ATOM, H5E_CANTGET, FAIL, "can't retrieve file ID");
+
+done:
+    FUNC_LEAVE_API(ret_value);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5I_get_file_id
+ *
+ * Purpose:	The private version of H5Iget_file_id(), obtains the file
+ *              ID given an object ID. 
+ *
+ * Return:	Success:	file ID
+ *
+ *		Failure:	a negative value
+ *
+ * Programmer:  Raymond Lu
+ *              Oct 27, 2003	
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static hid_t
+H5I_get_file_id(hid_t obj_id)
+{
+    H5G_entry_t         *ent;
+    hid_t		ret_value;
+
+    FUNC_ENTER_NOAPI_NOINIT(H5I_get_file_id);
+
+    /* Get object type */
+    switch(H5I_GROUP(obj_id)) {
+        case H5I_FILE:
+            ret_value = obj_id;
+            
+            /* Increment reference count on atom. */
+            if (H5I_inc_ref(ret_value)<0)
+                HGOTO_ERROR (H5E_ATOM, H5E_CANTSET, FAIL, "incrementing file ID failed");
+
+            break;
+
+        case H5I_DATATYPE:
+            if((ent = H5G_loc(obj_id))==NULL)
+                HGOTO_ERROR (H5E_ATOM, H5E_CANTGET, FAIL, "not a named datatype");
+            ret_value = H5F_get_id(ent->file);
+            break;
+
+        case H5I_GROUP:
+        case H5I_DATASET:
+        case H5I_ATTR:
+            if((ent = H5G_loc(obj_id))==NULL)
+                HGOTO_ERROR (H5E_ATOM, H5E_CANTGET, FAIL, "can't get symbol table info");
+            ret_value = H5F_get_id(ent->file);
+            break;
+
+        default:
+	    HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "invalid object ID");
+    } 
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+}
 

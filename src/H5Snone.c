@@ -37,6 +37,24 @@
 static int             interface_initialize_g = 0;
 
 /* Static function prototypes */
+
+/* Selection callbacks */
+static herr_t H5S_none_copy(H5S_t *dst, const H5S_t *src, hbool_t share_selection);
+static herr_t H5S_none_get_seq_list(const H5S_t *space, unsigned flags,
+    H5S_sel_iter_t *iter, size_t maxseq, size_t maxbytes,
+    size_t *nseq, size_t *nbytes, hsize_t *off, size_t *len);
+static herr_t H5S_none_release(H5S_t *space);
+static htri_t H5S_none_is_valid(const H5S_t *space);
+static hssize_t H5S_none_serial_size(const H5S_t *space);
+static herr_t H5S_none_serialize(const H5S_t *space, uint8_t *buf);
+static herr_t H5S_none_deserialize(H5S_t *space, const uint8_t *buf);
+static herr_t H5S_none_bounds(const H5S_t *space, hssize_t *start, hssize_t *end);
+static htri_t H5S_none_is_contiguous(const H5S_t *space);
+static htri_t H5S_none_is_single(const H5S_t *space);
+static htri_t H5S_none_is_regular(const H5S_t *space);
+static herr_t H5S_none_iter_init(H5S_sel_iter_t *iter, const H5S_t *space);
+
+/* Selection iteration callbacks */
 static herr_t H5S_none_iter_coords(const H5S_sel_iter_t *iter, hssize_t *coords);
 static herr_t H5S_none_iter_block(const H5S_sel_iter_t *iter, hssize_t *start, hssize_t *end);
 static hsize_t H5S_none_iter_nelmts(const H5S_sel_iter_t *iter);
@@ -44,6 +62,39 @@ static htri_t H5S_none_iter_has_next_block(const H5S_sel_iter_t *iter);
 static herr_t H5S_none_iter_next(H5S_sel_iter_t *sel_iter, size_t nelem);
 static herr_t H5S_none_iter_next_block(H5S_sel_iter_t *sel_iter);
 static herr_t H5S_none_iter_release(H5S_sel_iter_t *sel_iter);
+
+/* Selection properties for "none" selections */
+const H5S_select_class_t H5S_sel_none[1] = {{
+    H5S_SEL_NONE,
+
+    /* Methods on selection */
+    H5S_none_copy,
+    H5S_none_get_seq_list,
+    H5S_none_release,
+    H5S_none_is_valid,
+    H5S_none_serial_size,
+    H5S_none_serialize,
+    H5S_none_deserialize,
+    H5S_none_bounds,
+    H5S_none_is_contiguous,
+    H5S_none_is_single,
+    H5S_none_is_regular,
+    H5S_none_iter_init,
+}};
+
+/* Iteration properties for "none" selections */
+static const H5S_sel_iter_class_t H5S_sel_iter_none[1] = {{
+    H5S_SEL_NONE,
+
+    /* Methods on selection iterator */
+    H5S_none_iter_coords,
+    H5S_none_iter_block,
+    H5S_none_iter_nelmts,
+    H5S_none_iter_has_next_block,
+    H5S_none_iter_next,
+    H5S_none_iter_next_block,
+    H5S_none_iter_release,
+}};
 
 
 /*-------------------------------------------------------------------------
@@ -61,24 +112,18 @@ static herr_t H5S_none_iter_release(H5S_sel_iter_t *sel_iter);
  *-------------------------------------------------------------------------
  */
 herr_t
-H5S_none_iter_init (H5S_sel_iter_t *iter, const H5S_t UNUSED *space, size_t UNUSED elmt_size)
+H5S_none_iter_init (H5S_sel_iter_t *iter, const H5S_t UNUSED *space)
 {
     herr_t ret_value=SUCCEED;   /* Return value */
 
     FUNC_ENTER_NOAPI(H5S_none_iter_init, FAIL);
 
     /* Check args */
-    assert (space && H5S_SEL_NONE==space->select.type);
+    assert (space && H5S_SEL_NONE==H5S_GET_SELECT_TYPE(space));
     assert (iter);
 
-    /* Initialize methods for selection iterator */
-    iter->iter_coords=H5S_none_iter_coords;
-    iter->iter_block=H5S_none_iter_block;
-    iter->iter_nelmts=H5S_none_iter_nelmts;
-    iter->iter_has_next_block=H5S_none_iter_has_next_block;
-    iter->iter_next=H5S_none_iter_next;
-    iter->iter_next_block=H5S_none_iter_next_block;
-    iter->iter_release=H5S_none_iter_release;
+    /* Initialize type of selection iterator */
+    iter->type=H5S_sel_iter_none;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -320,35 +365,39 @@ done:
 
 /*--------------------------------------------------------------------------
  NAME
-    H5S_none_npoints
+    H5S_none_copy
  PURPOSE
-    Compute number of elements in current selection
+    Copy a selection from one dataspace to another
  USAGE
-    hsize_t H5S_none_npoints(space)
-        H5S_t *space;       IN: Pointer to dataspace
+    herr_t H5S_none_copy(dst, src)
+        H5S_t *dst;  OUT: Pointer to the destination dataspace
+        H5S_t *src;  IN: Pointer to the source dataspace
  RETURNS
-    The number of elements in selection on success, 0 on failure
+    Non-negative on success/Negative on failure
  DESCRIPTION
-    Compute number of elements in current selection.  For "none" selections,
-    this is always 0.
+    Copies the 'none' selection information from the source
+    dataspace to the destination dataspace.
  GLOBAL VARIABLES
  COMMENTS, BUGS, ASSUMPTIONS
  EXAMPLES
  REVISION LOG
 --------------------------------------------------------------------------*/
-hsize_t
-H5S_none_npoints (const H5S_t UNUSED *space)
+herr_t
+H5S_none_copy(H5S_t *dst, const H5S_t UNUSED *src, hbool_t UNUSED share_selection)
 {
-    hsize_t ret_value=0;   /* Return value */
+    herr_t ret_value=SUCCEED;  /* return value */
 
-    FUNC_ENTER_NOAPI(H5S_none_npoints, 0);
+    FUNC_ENTER_NOAPI(H5S_none_copy, FAIL);
 
-    /* Check args */
-    assert (space);
+    assert(src);
+    assert(dst);
+
+    /* Set number of elements in selection */
+    dst->select.num_elem=0;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
-}   /* H5S_none_npoints() */
+} /* end H5S_none_copy() */
 
 
 /*--------------------------------------------------------------------------
@@ -453,7 +502,7 @@ H5S_none_serialize (const H5S_t *space, uint8_t *buf)
     assert(space);
 
     /* Store the preamble information */
-    UINT32ENCODE(buf, (uint32_t)space->select.type);  /* Store the type of selection */
+    UINT32ENCODE(buf, (uint32_t)H5S_GET_SELECT_TYPE(space));  /* Store the type of selection */
     UINT32ENCODE(buf, (uint32_t)1);  /* Store the version number */
     UINT32ENCODE(buf, (uint32_t)0);  /* Store the un-used padding */
     UINT32ENCODE(buf, (uint32_t)0);  /* Store the additional information length */
@@ -666,24 +715,14 @@ herr_t H5S_select_none (H5S_t *space)
     assert(space);
 
     /* Remove current selection first */
-    if((*space->select.release)(space)<0)
+    if(H5S_SELECT_RELEASE(space)<0)
         HGOTO_ERROR(H5E_DATASPACE, H5E_CANTDELETE, FAIL, "can't release hyperslab");
 
-    /* Set selection type */
-    space->select.type=H5S_SEL_NONE;
+    /* Set number of elements in selection */
+    space->select.num_elem=0;
 
-    /* Set selection methods */
-    space->select.get_seq_list=H5S_none_get_seq_list;
-    space->select.get_npoints=H5S_none_npoints;
-    space->select.release=H5S_none_release;
-    space->select.is_valid=H5S_none_is_valid;
-    space->select.serial_size=H5S_none_serial_size;
-    space->select.serialize=H5S_none_serialize;
-    space->select.bounds=H5S_none_bounds;
-    space->select.is_contiguous=H5S_none_is_contiguous;
-    space->select.is_single=H5S_none_is_single;
-    space->select.is_regular=H5S_none_is_regular;
-    space->select.iter_init=H5S_none_iter_init;
+    /* Set selection type */
+    space->select.type=H5S_sel_none;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -733,17 +772,16 @@ done:
  PURPOSE
     Create a list of offsets & lengths for a selection
  USAGE
-    herr_t H5S_all_get_seq_list(space,flags,iter,elem_size,maxseq,maxbytes,nseq,nbytes,off,len)
+    herr_t H5S_all_get_seq_list(space,flags,iter,maxseq,maxelem,nseq,nelem,off,len)
         H5S_t *space;           IN: Dataspace containing selection to use.
         unsigned flags;         IN: Flags for extra information about operation
         H5S_sel_iter_t *iter;   IN/OUT: Selection iterator describing last
                                     position of interest in selection.
-        size_t elem_size;       IN: Size of an element
         size_t maxseq;          IN: Maximum number of sequences to generate
-        size_t maxbytes;        IN: Maximum number of bytes to include in the
+        size_t maxelem;         IN: Maximum number of elements to include in the
                                     generated sequences
         size_t *nseq;           OUT: Actual number of sequences generated
-        size_t *nbytes;         OUT: Actual number of bytes in sequences generated
+        size_t *nelem;          OUT: Actual number of elements in sequences generated
         hsize_t *off;           OUT: Array of offsets
         size_t *len;            OUT: Array of lengths
  RETURNS
@@ -761,7 +799,7 @@ done:
 --------------------------------------------------------------------------*/
 herr_t
 H5S_none_get_seq_list(const H5S_t UNUSED *space, unsigned UNUSED flags, H5S_sel_iter_t UNUSED *iter,
-    size_t UNUSED elem_size, size_t UNUSED maxseq, size_t UNUSED maxbytes, size_t *nseq, size_t *nbytes,
+    size_t UNUSED maxseq, size_t UNUSED maxelem, size_t *nseq, size_t *nelem,
     hsize_t UNUSED *off, size_t UNUSED *len)
 {
     herr_t ret_value=SUCCEED;   /* Return value */
@@ -771,19 +809,18 @@ H5S_none_get_seq_list(const H5S_t UNUSED *space, unsigned UNUSED flags, H5S_sel_
     /* Check args */
     assert(space);
     assert(iter);
-    assert(elem_size>0);
     assert(maxseq>0);
-    assert(maxbytes>0);
+    assert(maxelem>0);
     assert(nseq);
-    assert(nbytes);
+    assert(nelem);
     assert(off);
     assert(len);
 
-    /* "none" selection don't generate sequences of bytes */
+    /* "none" selections don't generate sequences of bytes */
     *nseq=0;
 
-    /* The don't use any bytes, either */
-    *nbytes=0;
+    /* They don't use any elements, either */
+    *nelem=0;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);

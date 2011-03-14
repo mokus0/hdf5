@@ -64,13 +64,8 @@ error_msg(const char *progname, const char *fmt, ...)
 
     va_start(ap, fmt);
     HDfflush(stdout);
-#ifdef WIN32
-    HDfprintf(stdout, "%s error: ", progname);
-    HDvfprintf(stdout, fmt, ap);
-#else
     HDfprintf(stderr, "%s error: ", progname);
     HDvfprintf(stderr, fmt, ap);
-#endif
     
     va_end(ap);
 }
@@ -251,7 +246,7 @@ get_option(int argc, const char **argv, const char *opts, const struct long_opti
 }
 
 
-/*-------------------------------------------------------------------------
+/*---------------------/----------------------------------------------------
  * Function:    indentation
  *
  * Purpose:     Print spaces for indentation

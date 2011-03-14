@@ -29,6 +29,7 @@
 typedef int H5Z_filter_t;
 #define H5Z_FILTER_ERROR	(-1)	/*no filter			*/
 #define H5Z_FILTER_NONE		0	/*reserved indefinitely		*/
+#define H5Z_FILTER_ALL	 	0	/*symbol to remove all filters in H5Premove_filter		*/
 #define H5Z_FILTER_DEFLATE	1 	/*deflation like gzip	     	*/
 #define H5Z_FILTER_SHUFFLE      2       /*shuffle the data              */
 #define H5Z_FILTER_FLETCHER32   3       /*fletcher32 checksum of EDC       */
@@ -64,6 +65,10 @@ typedef enum H5Z_EDC_t {
     H5Z_ENABLE_EDC      = 1,
     H5Z_NO_EDC          = 2     /* must be the last */
 } H5Z_EDC_t;    
+
+/* Bit flags for H5Zget_filter_info */
+#define H5Z_FILTER_CONFIG_ENCODE_ENABLED (0x0001)
+#define H5Z_FILTER_CONFIG_DECODE_ENABLED (0x0002)
 
 /* Return values for filter callback function */
 typedef enum H5Z_cb_return_t {
@@ -171,7 +176,7 @@ H5_DLL herr_t H5Zregister(const H5Z_class_t *cls);
 #endif /* H5_WANT_H5_V1_4_COMPAT */
 H5_DLL herr_t H5Zunregister(H5Z_filter_t id);
 H5_DLL htri_t H5Zfilter_avail(H5Z_filter_t id);
-
+H5_DLL herr_t H5Zget_filter_info(H5Z_filter_t filter, unsigned int *filter_config_flags);
 
 #ifdef __cplusplus
 }

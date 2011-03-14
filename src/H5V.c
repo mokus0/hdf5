@@ -413,8 +413,8 @@ done:
  */
 htri_t
 H5V_hyper_disjointp(unsigned n,
-		    const hssize_t *offset1, const hsize_t *size1,
-		    const hssize_t *offset2, const hsize_t *size2)
+		    const hssize_t *offset1, const size_t *size1,
+		    const hssize_t *offset2, const size_t *size2)
 {
     unsigned	u;
     htri_t      ret_value=FALSE;        /* Return value */
@@ -1027,7 +1027,7 @@ done:
  *-------------------------------------------------------------------------
  */
 hsize_t
-H5V_array_offset_pre(unsigned n, const hsize_t *total_size, const hsize_t *acc, const hssize_t *offset)
+H5V_array_offset_pre(unsigned n, const hsize_t *acc, const hssize_t *offset)
 {
     hsize_t	    skip;	/*starting point byte offset		*/
     int             i;		/*counter				*/
@@ -1036,7 +1036,6 @@ H5V_array_offset_pre(unsigned n, const hsize_t *total_size, const hsize_t *acc, 
     FUNC_ENTER_NOAPI(H5V_array_offset_pre, (HDabort(), 0));
 
     assert(n <= H5V_HYPER_NDIMS);
-    assert(total_size);
     assert(acc);
     assert(offset);
 
@@ -1089,7 +1088,7 @@ H5V_array_offset(unsigned n, const hsize_t *total_size, const hssize_t *offset)
         HGOTO_ERROR(H5E_INTERNAL, H5E_BADVALUE, UFAIL, "can't compute down sizes");
 
     /* Set return value */
-    ret_value=H5V_array_offset_pre(n,total_size,acc_arr,offset);
+    ret_value=H5V_array_offset_pre(n,acc_arr,offset);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -1193,8 +1192,8 @@ done:
  *-------------------------------------------------------------------------
  */
 herr_t
-H5V_chunk_index(unsigned ndims, const hssize_t *coord, const hsize_t *chunk,
-    const hsize_t *nchunks, const hsize_t *down_nchunks, hsize_t *chunk_idx)
+H5V_chunk_index(unsigned ndims, const hssize_t *coord, const size_t *chunk,
+    const hsize_t *down_nchunks, hsize_t *chunk_idx)
 {
     hssize_t	scaled_coord[H5V_HYPER_NDIMS];	/* Scaled, coordinates, in terms of chunks */
     unsigned    u;                      /* Local index variable */
@@ -1206,15 +1205,16 @@ H5V_chunk_index(unsigned ndims, const hssize_t *coord, const hsize_t *chunk,
     assert(ndims <= H5V_HYPER_NDIMS);
     assert(coord);
     assert(chunk);
-    assert(nchunks);
     assert(chunk_idx);
 
     /* Compute the scaled coordinates for actual coordinates */
-    for(u=0; u<ndims; u++)
-        scaled_coord[u]=coord[u]/chunk[u];
+    for(u=0; u<ndims; u++) {
+        H5_CHECK_OVERFLOW(chunk[u],size_t,hssize_t);
+        scaled_coord[u]=coord[u]/(hssize_t)chunk[u];
+    } /* end for */
 
     /* Compute the chunk index */
-    *chunk_idx=H5V_array_offset_pre(ndims,nchunks,down_nchunks,scaled_coord);
+    *chunk_idx=H5V_array_offset_pre(ndims,down_nchunks,scaled_coord);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);

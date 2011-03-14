@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tvltypes.c,v 1.25.2.4 2004/01/10 02:41:34 koziol Exp $ */
+/* $Id: tvltypes.c,v 1.25.2.6 2004/07/27 16:56:19 jlaird Exp $ */
 
 /***********************************************************
 *
@@ -180,6 +180,7 @@ test_vltypes_vlen_atomic(void)
     hid_t		fid1;		/* HDF5 File IDs		*/
     hid_t		dataset;	/* Dataset ID			*/
     hid_t		sid1;       /* Dataspace ID			*/
+    hid_t               sid2;       /* ID of bad dataspace (no extent set */
     hid_t		tid1;       /* Datatype ID			*/
     hid_t       dcpl_pid;   /* Dataset creation property list ID */
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
@@ -405,6 +406,10 @@ test_vltypes_vlen_atomic(void)
     tid1 = H5Dget_type(dataset);
     CHECK(tid1, FAIL, "H5Dget_type");
 
+    /* Create a "bad" dataspace with no extent set */
+    sid2 = H5Screate(H5S_SIMPLE);
+    CHECK(sid2, FAIL, "H5Screate");
+
     /* Change to the custom memory allocation routines for reading VL data */
     xfer_pid=H5Pcreate(H5P_DATASET_XFER);
     CHECK(xfer_pid, FAIL, "H5Pcreate");
@@ -415,6 +420,12 @@ test_vltypes_vlen_atomic(void)
     /* Make certain the correct amount of memory will be used */
     ret=H5Dvlen_get_buf_size(dataset,tid1,sid1,&size);
     CHECK(ret, FAIL, "H5Dvlen_get_buf_size");
+
+    /* Try to call H5Dvlen_get_buf with bad dataspace */
+    H5E_BEGIN_TRY {
+    ret=H5Dvlen_get_buf_size(dataset,tid1,sid2,&size);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dvlen_get_buf_size");
 
     /* 10 elements allocated = 1 + 2 + 3 + 4 elements for each array position */
     VERIFY(size,((SPACE1_DIM1*(SPACE1_DIM1+1))/2)*sizeof(unsigned int),"H5Dvlen_get_buf_size");
@@ -440,6 +451,13 @@ test_vltypes_vlen_atomic(void)
             } /* end if */
         } /* end for */
     } /* end for */
+
+    /* Try to reclaim read data using "bad" dataspace with no extent
+     * Should fail */
+    H5E_BEGIN_TRY {
+    ret=H5Dvlen_reclaim(tid1,sid2,xfer_pid,rdata);
+    } H5E_END_TRY
+    VERIFY(ret, FAIL, "H5Dvlen_reclaim");
 
     /* Reclaim the read VL data */
     ret=H5Dvlen_reclaim(tid1,sid1,xfer_pid,rdata);
@@ -942,12 +960,8 @@ test_vltypes_compound_vlen_vlen(void)
     hid_t	dataset;	        /* Dataset ID			*/
     hid_t	sid1;                   /* Dataspace ID			*/
     hid_t	tid1, tid2, tid3;       /* Datatype IDs         */
-    hid_t       xfer_pid;               /* Dataset transfer property list ID */
-    hid_t       dcpl_pid;               /* Dataset creation property list ID */
     hsize_t	dims1[] = {SPACE3_DIM1};
-    hsize_t     size;                   /* Number of bytes which will be used */
     unsigned    i,j,k;                  /* counting variables */
-    size_t      mem_used=0;             /* Memory used during allocation */
     hvl_t       *t1, *t2;               /* Temporary pointer to VL information */
     herr_t	ret;		        /* Generic return value		*/
 

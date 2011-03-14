@@ -120,6 +120,7 @@ H5O_mtime_new_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
 		 H5O_shared_t UNUSED *sh)
 {
     time_t	*mesg, the_time;
+    uint32_t    tmp_time;       /* Temporary copy of the time */
     int		version;        /* Version of mtime information */
     void        *ret_value;     /* Return value */
 
@@ -139,7 +140,8 @@ H5O_mtime_new_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
     p+=3;
 
     /* Get the time_t from the file */
-    UINT32DECODE(p, the_time);
+    UINT32DECODE(p, tmp_time);
+    the_time=(time_t)tmp_time;
 
     /* The return value */
     if (NULL==(mesg = H5FL_MALLOC(time_t)))
@@ -167,8 +169,6 @@ done:
  * Programmer:	Robb Matzke
  *		matzke@llnl.gov
  *		Jul 24 1998
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -231,32 +231,39 @@ H5O_mtime_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
     /* Irix5.3 */
     {
         struct timezone tz;
+
         if (HDBSDgettimeofday(NULL, &tz)<0)
             HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, NULL, "unable to obtain local timezone information");
         the_time -= tz.tz_minuteswest * 60 - (tm.tm_isdst ? 3600 : 0);
     }
-#elif defined(H5_HAVE_GETTIMEOFDAY) && defined(H5_HAVE_STRUCT_TIMEZONE)
+#elif defined(H5_HAVE_GETTIMEOFDAY) && defined(H5_HAVE_STRUCT_TIMEZONE) && defined(H5_GETTIMEOFDAY_GIVES_TZ)
     {
 	struct timezone tz;
+        struct timeval tv;  /* Used as a placebo; some systems don't like NULL */
 
-	if (HDgettimeofday(NULL, &tz) < 0)
+	if (HDgettimeofday(&tv, &tz) < 0)
 	    HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, NULL, "unable to obtain local timezone information");
 
 	the_time -= tz.tz_minuteswest * 60 - (tm.tm_isdst ? 3600 : 0);
     }
-#elif defined (WIN32) && !defined (__MWERKS__)
+#elif defined (WIN32) 
+  #if !defined (__MWERKS__) /* MSVC */
     {
-        struct timeb timebuffer;
-        long  tz;
-
-        ftime(&timebuffer);
-        tz = timebuffer.timezone;
-        /* daylight is not handled properly. Currently we just hard-code
-           the problem. */
-         the_time -= tz*60;
-/*        the_time -= tz * 60 - 3600 * _daylight;*/
+     struct timeb timebuffer;
+     long  tz;
+     
+     ftime(&timebuffer);
+     tz = timebuffer.timezone;
+     /* daylight is not handled properly. Currently we just hard-code
+     the problem. */
+     the_time -= tz * 60 - 3600;
     }
-#else
+  #else  /*__MWERKS__*/
+
+    ;
+
+  #endif /*__MWERKS__*/
+#else /* WIN32 */
     /*
      * The catch-all.  If we can't convert a character string universal
      * coordinated time to a time_t value reliably then we can't decode the

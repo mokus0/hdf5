@@ -25,23 +25,6 @@ namespace H5 {
 
 class H5_DLLCPP IdComponent {
    public:
-	// Parent classes must reset the current IdComponent copy
-	// before setting new id to control reference count
-	void setId( hid_t new_id );
-
-	// Pure virtual function so appropriate close function can
-	// be called by subclasses' for the corresponding object
-	virtual void p_close() const = 0;
-
-	// Creates an object to hold an HDF5 identifier
-	IdComponent( const hid_t h5_id );
-
-	// Copy constructor: makes copy of the original IdComponent object.
-	IdComponent( const IdComponent& original );
-
-	// Gets the value of IdComponent's data member
-	virtual hid_t getId () const;
-
 	// Increment reference counter
 	void incRefCount();
 
@@ -58,52 +41,62 @@ class H5_DLLCPP IdComponent {
 	// Assignment operator
 	IdComponent& operator=( const IdComponent& rhs );
 
-	// Resets this IdComponent instance
-	//template <class Type>
-	//void reset( Type* parent );
 	void reset();
-	void resetId();
+
+	// Sets the identifier of this object to a new value.
+	void setId( hid_t new_id );
+
+	// Creates an object to hold an HDF5 identifier
+	IdComponent( const hid_t h5_id );
+
+	// Copy constructor: makes copy of the original IdComponent object.
+	IdComponent( const IdComponent& original );
+
+	// Gets the value of IdComponent's data member
+	virtual hid_t getId () const;
+
+	// Pure virtual function so appropriate close function can
+	// be called by subclasses' for the corresponding object
+	// This function will be obsolete because its functionality
+	// is recently handled by the C library layer.
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+	virtual void p_close() const = 0;
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 	// Destructor
 	virtual ~IdComponent();
 
    protected:
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	hid_t id;	// HDF5 object id
 	RefCounter* ref_count; // used to keep track of the
 	                              // number of copies of an object
 
-	// Default constructor
+	// Default constructor.
 	IdComponent();
+
+	// Gets the name of the file, in which an HDF5 object belongs.
+#ifndef H5_NO_STD
+	std::string p_get_file_name() const;
+#else
+	string p_get_file_name() const;
+#endif  // H5_NO_STD
+
+        // Gets the id of the H5 file in which the given object is located.
+        hid_t p_get_file_id();
+
+        // Creates a reference to an HDF5 object or a dataset region.
+        void* p_reference(const char* name, hid_t space_id, H5R_type_t ref_type) const;
+
+        // Retrieves the type of object that an object reference points to.
+        H5G_obj_t p_get_obj_type(void *ref, H5R_type_t ref_type) const;
+
+        // Retrieves a dataspace with the region pointed to selected.
+        hid_t p_get_region(void *ref, H5R_type_t ref_type) const;
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 }; // end class IdComponent
 
-// BMR - including template member function implementation here to 
-// prevent compilation errors.  When the compilers support template
-// member functions in *.C files, move them to IdComponent.C.
-
-// This function makes sure that this IdComponent instance actually
-// represents an HDF5 component and that this HDF5 component is no longer
-// referenced, then calls the parent function p_close to close the
-// appropriate HDF5 component.  In addition, this identifier instance 
-// will delete itself.
-// Type is the class of the instance to whom this IdComponent object
-// belongs.
-/* 11/10/00 - BMR: commented this member function because many compilers
-   still have no support for member template function.  The function is
-   replaced by resetIdComponent in H5Idtemplates.h
-template <class Type>
-void IdComponent::reset( Type* parent ) 
-{
-   if( ref_count->noReference())  // ref_count is decremented here
-   {
-      if( id > 0 )
-         parent->p_close();  // which p_close depends on whom this 
-			     // IdComponent object belongs to
-      delete ref_count; // delete the reference counter
-      delete this;	// this IdComponent object deletes itself
-   }
-}
-*/
 #ifndef H5_NO_NAMESPACE
 }
 #endif

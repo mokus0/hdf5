@@ -36,6 +36,7 @@ typedef struct TestStruct {
 	char   Name[MAXTESTNAME];
 	void (*Call)(void);
 	void (*Cleanup)(void);
+	const void *Parameters;
 } TestStruct;
 
 
@@ -44,16 +45,29 @@ typedef struct TestStruct {
  */
 static int num_errs = 0;        /* Total number of errors during testing */
 static int Verbosity = VERBO_DEF;       /* Default Verbosity is Low */
+static int Summary = 0;		/* Show test summary. Default is no. */
+static int CleanUp = 1;		/* Do cleanup or not. Default is yes. */
 static TestStruct Test[MAXNUMOFTESTS];
 static int    Index = 0;
+static const void *Test_parameters = NULL;
+static const char *TestProgName = NULL;
+static void (*TestPrivateUsage)(void) = NULL;
+static int (*TestPrivateParser)(int ac, char *av[]) = NULL;
 
 
 /*
  * Setup a test function and add it to the list of tests.
  *      It must have no parameters and returns void.
+ * TheName--short test name.
+ *    If the name starts with '-', do not run it by default.
+ * TheCall--the test routine.
+ * Cleanup--the cleanup routine for the test.
+ * TheDescr--Long description of the test.
+ * Parameters--pointer to extra parameters. Use NULL if none used.
+ *    Since only the pointer is copied, the contents should not change.
  */
 void 
-AddTest(const char *TheName, void (*TheCall) (void), void (*Cleanup) (void), const char *TheDescr)
+AddTest(const char *TheName, void (*TheCall) (void), void (*Cleanup) (void), const char *TheDescr, const void *Parameters)
 {
     /* Sanity checking */
     if (Index >= MAXNUMOFTESTS) {
@@ -74,11 +88,18 @@ AddTest(const char *TheName, void (*TheCall) (void), void (*Cleanup) (void), con
 
     /* Set up test function */
     HDstrcpy(Test[Index].Description, TheDescr);
-    HDstrcpy(Test[Index].Name, TheName);
+    if (*TheName != '-'){
+	HDstrcpy(Test[Index].Name, TheName);
+	Test[Index].SkipFlag = 0;
+    }
+    else {	/* skip test by default */
+	HDstrcpy(Test[Index].Name, TheName+1);
+	Test[Index].SkipFlag = 1;
+    }
     Test[Index].Call = TheCall;
     Test[Index].Cleanup = Cleanup;
     Test[Index].NumErrors = -1;
-    Test[Index].SkipFlag = 0;
+    Test[Index].Parameters = Parameters;
 
     /* Increment test count */
     Index++;
@@ -87,8 +108,19 @@ AddTest(const char *TheName, void (*TheCall) (void), void (*Cleanup) (void), con
 
 /*
  * Initialize testing framework
+ *
+ * ProgName: Name of test program.
+ * private_usage: Optional routine provided by test program to print the
+ *      private portion of usage page.  Default to NULL which means none is
+ *      provided.
+ * private_parser: Optional routine provided by test program to parse the
+ *      private options.  Default to NULL which means none is provided.
+ *
+ * Modifications:
+ *     	Albert Cheng 2004/08/17
+ *     	Added the ProgName, private_usage and private_parser arguments.
  */
-void TestInit(void)
+void TestInit(const char *ProgName, void (*private_usage)(void), int (*private_parser)(int ac, char *av[]))
 {
 #if !(defined MAC || defined __MWERKS__ || defined SYMANTEC_C)
     /* Un-buffer the stdout and stderr */
@@ -102,17 +134,31 @@ void TestInit(void)
      * reporting wouldn't do much good since it's triggered at the API layer.
      */
     H5Eset_auto (NULL, NULL);
+
+    /*
+     * Record the program name and private routines if provided.
+     */
+    TestProgName = ProgName;
+    if (NULL != private_usage)
+	TestPrivateUsage = private_usage;
+    if (NULL != private_parser)
+	TestPrivateParser = private_parser;
 }
 
 
 /*
  * Print test usage.
+ *	First print the common test options, then the extra options if provided.
+ *
+ * Modification:
+ * 	2004/08/18 Albert Cheng.  Add TestPrivateUsage feature.
  */
 void TestUsage(void)
 {
 	int i;
 
-	print_func("Usage: ttsafe [-v[erbose] (l[ow]|m[edium]|h[igh]|0-9)] \n");
+	print_func("Usage: %s [-v[erbose] (l[ow]|m[edium]|h[igh]|0-9)] %s\n",
+	    TestProgName, (TestPrivateUsage ? "<extra options>" : ""));
 	print_func("              [-[e]x[clude] name+] \n");
 	print_func("              [-o[nly] name+] \n");
 	print_func("              [-b[egin] name] \n");
@@ -127,6 +173,10 @@ void TestUsage(void)
 	print_func("summary   prints a summary of test results at the end\n");
 	print_func("cleanoff  does not delete *.hdf files after execution of tests\n");
 	print_func("help      print out this information\n");
+	if (TestPrivateUsage){
+	    print_func("\nExtra options\n");
+	    TestPrivateUsage();
+	}
 	print_func("\n\n");
 	print_func("This program currently tests the following: \n\n");
 	print_func("%16s %s\n", "Name", "Description");
@@ -154,69 +204,82 @@ void TestInfo(const char *ProgName)
 
 
 /*
- * Parse command line information
+ * Parse command line information.
+ *      argc, argv: the usual command line argument count and strings
+ *
+ * Modification:
+ * 	2004/08/18 Albert Cheng.  Add extra_parse feature.
  */
-void TestParseCmdLine(int argc, char *argv[], int *Summary, int *CleanUp)
+void TestParseCmdLine(int argc, char *argv[])
 {
-    int                     CLLoop;     /* Command Line Loop */
-    int                     Loop, Loop1;
+    int ret_code;
 
-    for (CLLoop = 1; CLLoop < argc; CLLoop++) {
-        if ((argc > CLLoop + 1) && ((HDstrcmp(argv[CLLoop], "-verbose") == 0) ||
-                                    (HDstrcmp(argv[CLLoop], "-v") == 0))) {
-	    ParseTestVerbosity(argv[CLLoop + 1]);
-        }                       /* end if */
-        if ((argc > CLLoop) && ((HDstrcmp(argv[CLLoop], "-summary") == 0) ||
-                                (HDstrcmp(argv[CLLoop], "-s") == 0)))
-            *Summary = 1;
-
-        if ((argc > CLLoop) && ((HDstrcmp(argv[CLLoop], "-help") == 0) ||
-                                (HDstrcmp(argv[CLLoop], "-h") == 0))) {
+    while (argv++, --argc > 0){
+	if ((HDstrcmp(*argv, "-verbose") == 0) ||
+				(HDstrcmp(*argv, "-v") == 0)) {
+	    if (argc > 0){
+		--argc; ++argv;
+		ParseTestVerbosity(*argv);
+	    }else{
+		TestUsage();
+		exit(1);
+	    }
+	}
+	else if (((HDstrcmp(*argv, "-exclude") == 0) ||
+				    (HDstrcmp(*argv, "-x") == 0))) {
+	    if (argc > 0){
+		--argc; ++argv;
+		SetTest(*argv, SKIPTEST);
+	    }else{
+		TestUsage();
+		exit(1);
+	    }
+	}
+	else if (((HDstrcmp(*argv, "-begin") == 0) ||
+				    (HDstrcmp(*argv, "-b") == 0))) {
+	    if (argc > 0){
+		--argc; ++argv;
+		SetTest(*argv, BEGINTEST);
+	    }else{
+		TestUsage();
+		exit(1);
+	    }
+	}
+	else if (((HDstrcmp(*argv, "-only") == 0) ||
+				    (HDstrcmp(*argv, "-o") == 0))) {
+	    if (argc > 0){
+		int Loop;
+		--argc; ++argv;
+		/* Skip all tests, then activate only one. */
+		for (Loop = 0; Loop < Index; Loop++)
+		    Test[Loop].SkipFlag = 1;
+		SetTest(*argv, ONLYTEST);
+	    }else{
+		TestUsage();
+		exit(1);
+	    }
+	}
+	else if ((HDstrcmp(*argv, "-summary") == 0) || (HDstrcmp(*argv, "-s") == 0))
+            Summary = 1;
+	else if ((HDstrcmp(*argv, "-help") == 0) || (HDstrcmp(*argv, "-h") == 0)) {
             TestUsage();
             exit(0);
         }
-        if ((argc > CLLoop) && ((HDstrcmp(argv[CLLoop], "-cleanoff") == 0) ||
-                                (HDstrcmp(argv[CLLoop], "-c") == 0)))
-            *CleanUp = 0;
+	else if ((HDstrcmp(*argv, "-cleanoff") == 0) || (HDstrcmp(*argv, "-c") == 0))
+            CleanUp = 0;
+	else {
+	    /* non-standard option.  Break out. */
+	    break;
+	}
 
-        if ((argc > CLLoop + 1) && ((HDstrcmp(argv[CLLoop], "-exclude") == 0) ||
-                                    (HDstrcmp(argv[CLLoop], "-x") == 0))) {
-            Loop = CLLoop + 1;
-            while ((Loop < argc) && (argv[Loop][0] != '-')) {
-                for (Loop1 = 0; Loop1 < Index; Loop1++)
-                    if (HDstrcmp(argv[Loop], Test[Loop1].Name) == 0)
-                        Test[Loop1].SkipFlag = 1;
-                Loop++;
-            }                   /* end while */
-        }                       /* end if */
-        if ((argc > CLLoop + 1) && ((HDstrcmp(argv[CLLoop], "-begin") == 0) ||
-                                    (HDstrcmp(argv[CLLoop], "-b") == 0))) {
-            Loop = CLLoop + 1;
-            while ((Loop < argc) && (argv[Loop][0] != '-')) {
-                for (Loop1 = 0; Loop1 < Index; Loop1++) {
-                    if (HDstrcmp(argv[Loop], Test[Loop1].Name) != 0)
-                        Test[Loop1].SkipFlag = 1;
-                    if (HDstrcmp(argv[Loop], Test[Loop1].Name) == 0)
-                        Loop1 = Index;
-                }               /* end for */
-                Loop++;
-            }                   /* end while */
-        }                       /* end if */
-        if ((argc > CLLoop + 1) && ((HDstrcmp(argv[CLLoop], "-only") == 0) ||
-                                    (HDstrcmp(argv[CLLoop], "-o") == 0))) {
-            for (Loop = 0; Loop < Index; Loop++)
-                Test[Loop].SkipFlag = 1;
+    }
 
-            Loop = CLLoop + 1;
-            while ((Loop < argc) && (argv[Loop][0] != '-')) {
-                for (Loop1 = 0; Loop1 < Index; Loop1++)
-                    if (HDstrcmp(argv[Loop], Test[Loop1].Name) == 0)
-                        Test[Loop1].SkipFlag = 0;
-                Loop++;
-            }                   /* end while */
-        }                       /* end if */
-    }                           /* end for */
-
+    /* Call extra parsing function if provided. */
+    if (NULL != TestPrivateParser){
+	ret_code=TestPrivateParser(argc+1, argv-1);
+	if (ret_code != 0)
+	    exit(-1);
+    }
 }
 
 
@@ -229,17 +292,19 @@ void PerformTests(void)
 
     for (Loop = 0; Loop < Index; Loop++)
         if (Test[Loop].SkipFlag) {
-            MESSAGE(2, ("Skipping -- %s \n", Test[Loop].Description));
+            MESSAGE(2, ("Skipping -- %s (%s) \n", Test[Loop].Description, Test[Loop].Name));
         } else {
             MESSAGE(2, ("Testing  -- %s (%s) \n", Test[Loop].Description, Test[Loop].Name));
             MESSAGE(5, ("===============================================\n"));
             Test[Loop].NumErrors = num_errs;
+	    Test_parameters = Test[Loop].Parameters;
             Test[Loop].Call();
             Test[Loop].NumErrors = num_errs - Test[Loop].NumErrors;
             MESSAGE(5, ("===============================================\n"));
             MESSAGE(5, ("There were %d errors detected.\n\n", (int)Test[Loop].NumErrors));
         }
 
+    Test_parameters = NULL;     /* clear it. */
     MESSAGE(2, ("\n\n"))
 
     if (num_errs)
@@ -309,6 +374,24 @@ int SetTestVerbosity(int newval)
 }
 
 /*
+ * Retrieve Summary request value.
+ *     0 means no summary, 1 means yes.
+ */
+int GetTestSummary(void)
+{
+    return(Summary);
+}
+
+/*
+ * Retrieve Cleanup request value.
+ *     0 means no Cleanup, 1 means yes.
+ */
+int GetTestCleanup(void)
+{
+    return(CleanUp);
+}
+
+/*
  * Parse an argument string for verbosity level and set it.
  */
 void ParseTestVerbosity(char *argv)
@@ -334,6 +417,15 @@ int GetTestNumErrs(void)
 
 
 /*
+ * Retrieve the current Test Parameters pointer.
+ */
+const void *GetTestParameters(void)
+{
+    return(Test_parameters);
+}
+
+
+/*
  * This routine is designed to provide equivalent functionality to 'printf'
  * and also increment the error count for the testing framework.
  */
@@ -355,3 +447,53 @@ TestErrPrintf(const char *format, ...)
     return ret_value;
 }
 
+
+/* 
+ * Set (control) which test will be tested.
+ * SKIPTEST: skip this test
+ * ONLYTEST: do only this test
+ * BEGINETEST: skip all tests before this test
+ *
+ */
+void SetTest(const char *testname, int action)
+{
+    int Loop;
+    switch (action){
+	case SKIPTEST:
+	    for (Loop = 0; Loop < Index; Loop++)
+		if (HDstrcmp(testname, Test[Loop].Name) == 0){
+		    Test[Loop].SkipFlag = 1;
+		    break;
+		}
+	    break;
+	case BEGINTEST:
+	    for (Loop = 0; Loop < Index; Loop++) {
+		if (HDstrcmp(testname, Test[Loop].Name) != 0)
+		    Test[Loop].SkipFlag = 1;
+		else{
+		    /* Found it. Set it to run.  Done. */
+		    Test[Loop].SkipFlag = 0;
+		    break;
+		}
+	    }
+	    break;
+	case ONLYTEST:
+	    for (Loop = 0; Loop < Index; Loop++) {
+		if (HDstrcmp(testname, Test[Loop].Name) != 0)
+		    Test[Loop].SkipFlag = 1;
+		else {
+		    /* Found it. Set it to run. Break to skip the rest. */
+		    Test[Loop].SkipFlag = 0;
+		    break;
+		}
+	    }
+	    /* skip the rest */
+	    while (++Loop < Index)
+		Test[Loop].SkipFlag = 1;
+	    break;
+	default:
+	    /* error */
+	    printf("*** ERROR: Unknown action (%d) for SetTest\n", action);
+	    break;
+    }
+}

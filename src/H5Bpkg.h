@@ -31,6 +31,7 @@
 #include "H5Bprivate.h"
 
 /* Other private headers needed by this file */
+#include "H5RCprivate.h"	/* Reference counted object functions	  */
 
 /**************************/
 /* Package Private Macros */
@@ -43,25 +44,15 @@
 /*
  * The B-tree node as stored in memory...
  */
-typedef struct H5B_key_t {
-    hbool_t	dirty;	/*native key is more recent than raw key	     */
-    uint8_t	*rkey;	/*ptr into node->page for raw key		     */
-    void	*nkey;	/*null or ptr into node->native for key		     */
-} H5B_key_t;
-
 struct H5B_t {
     H5AC_info_t cache_info; /* Information for H5AC cache functions, _must_ be */
                             /* first field in structure */
-    const H5B_class_t	*type;		/*type of tree			     */
-    size_t		sizeof_rkey;	/*size of raw (disk) key	     */
-    int			ndirty;		/*num child ptrs to emit	     */
-    int			level;		/*node level			     */
+    H5RC_t		*rc_shared;	/*ref-counted shared info	     */
+    unsigned		level;		/*node level			     */
     haddr_t		left;		/*address of left sibling	     */
     haddr_t		right;		/*address of right sibling	     */
-    int			nchildren;	/*number of child pointers	     */
-    uint8_t		*page;		/*disk page			     */
+    unsigned		nchildren;	/*number of child pointers	     */
     uint8_t		*native;	/*array of keys in native format     */
-    H5B_key_t		*key;		/*2k+1 key entries		     */
     haddr_t		*child;		/*2k child pointers		     */
 };
 

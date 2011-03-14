@@ -18,7 +18,7 @@ dnl ----------------------------------------------------------------------
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.67.2.39 2004/02/02 18:17:50 epourmal Exp $)
+AC_REVISION($Id: configure.in,v 1.67.2.61 2004/09/15 17:24:53 epourmal Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -27,7 +27,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 C++], [1.6.2], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5 C++], [1.6.3], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/H5Library.cpp])
 AC_CONFIG_AUX_DIR([../bin])
 
@@ -810,3 +810,75 @@ dnl Finally the makefiles
 test "$no_create" = yes || ${CONFIG_SHELL-/bin/sh} $CONFIG_STATUS || exit 1
 
 chmod 755 src/h5c++
+
+dnl ----------------------------------------------------------------------
+dnl Print out a summary of what we are going to build.
+dnl
+if test -z "$ECHO_N" -o -z "$ECHO_C"; then
+  if (echo "testing\c"; echo 1,2,3) | grep c >/dev/null; then
+    if (echo -n testing; echo 1,2,3) | sed s/-n/xn/ | grep xn >/dev/null; then
+      ECHO_N=''
+      ECHO_C='
+'
+    else
+      ECHO_N=-n
+      ECHO_C=''
+    fi
+  else
+    ECHO_N=''
+    ECHO_C='\c'
+  fi
+fi
+
+PRINT_PLAIN() {
+  echo $ECHO_N "$1$ECHO_C"
+  echo $ECHO_N "$1$ECHO_C" 1>>src/libhdf5.settings
+}
+
+PRINT_N() {
+  echo $ECHO_N "$1:  $ECHO_C"
+  echo $ECHO_N "$1:  $ECHO_C" 1>>src/libhdf5.settings
+}
+
+PRINT() {
+  echo "$1"
+  echo "$1" 1>>src/libhdf5.settings
+}
+
+dnl ----------------------------------------------------------------------
+dnl Print "Yes" if all arguments are "yes", otherwise "No"
+dnl
+IF_YES_NO() {
+  if test $# -lt 1; then
+    PRINT "No"
+    return
+  else
+    while test $# -gt 0; do
+      if test "$1" != "yes"; then
+        PRINT "No"
+        return
+      fi
+      shift
+    done
+  fi
+  PRINT "Yes"
+}
+
+IF_ENABLED_DISABLED() {
+  if test "$1" = "yes"; then
+    PRINT "Enabled"
+  else
+    PRINT "Disabled"
+  fi
+}
+
+PRINT "C++ Configure Summary"
+PRINT "Compiling Options:"
+
+PRINT_N "                   C++ Compiler"
+PRINT "$CXX"
+
+PRINT_N "                       CXXFLAGS"
+PRINT "$CXXFLAGS"
+
+PRINT "Features:"

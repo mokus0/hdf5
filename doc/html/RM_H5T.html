@@ -41,8 +41,7 @@ HDF5/H5T API Specification
 </td>
 <td valign=top align=right>
 And in this document, the 
-<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;<br>
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
@@ -50,14 +49,17 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
 <a href="RM_H5Z.html">H5Z</a>&nbsp;&nbsp;
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
+</td></tr>
+<tr><td colspan="2" align="right">
+<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
 </center>
@@ -105,8 +107,8 @@ of a dataset.
     <li><a href="#Datatype-SetSize">H5Tset_size</a>
     <li><a href="#Datatype-GetOrder">H5Tget_order</a>
     <li><a href="#Datatype-SetOrder">H5Tset_order</a>
-    <li><a href="#Datatype-GetPrecision">H5Tget_precision</a>
-    <li><a href="#Datatype-SetPrecision">H5Tset_precision</a>
+    <li><a href="#Datatype-GetPrecision">H5Tget_precision</a>&nbsp;&nbsp;
+    <li><a href="#Datatype-SetPrecision">H5Tset_precision</a>&nbsp;&nbsp;
     <li><a href="#Datatype-GetOffset">H5Tget_offset</a>
     <li><a href="#Datatype-SetOffset">H5Tset_offset</a>
     <li><a href="#Datatype-GetPad">H5Tget_pad</a>
@@ -165,6 +167,7 @@ of a dataset.
 
 <br>
 
+<!-- NEW PAGE -->
 <i>Alphabetical Listing</i>
 <table border="0" width=100%>
   <tr>
@@ -377,6 +380,7 @@ See <a href="Datatypes.html"><cite>The Datatype Interface (H5T)</cite></a>
 in the <cite>HDF5 User's Guide</cite> for further information, including a complete list of all supported datatypes.
 
 <!-- NEW PAGE -->
+<!-- HEADER RIGHT " " -->
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Tarray_create" -->
 <hr>
@@ -593,7 +597,7 @@ END SUBROUTINE h5tcommitted_f
 <dt><strong>Signature:</strong>
     <dd><em>herr_t</em> <code>H5Tconvert</code>(<em>hid_t</em> <code>src_id</code>,
         <em>hid_t</em> <code>dst_id</code>,
-        <em>hsize_t</em> <code>nelmts</code>,
+        <em>size_t</em> <code>nelmts</code>,
         <em>void *</em><code>buf</code>,
         <em>void *</em><code>background</code>,
         <em>hid_t</em> <code>plist_id</code>
@@ -625,7 +629,7 @@ END SUBROUTINE h5tcommitted_f
             <dd>Identifier for the source datatype.
         <dt><em>hid_t</em> <code>dst_id</code>
             <dd>Identifier for the destination datatype.
-        <dt><em>hsize_t</em> <code>nelmts</code>
+        <dt><em>size_t</em> <code>nelmts</code>
             <dd>Size of array <code>buf</code>.
         <dt><em>void *</em><code>buf</code>
             <dd>Array containing pre- and post-conversion values.
@@ -1909,6 +1913,7 @@ END SUBROUTINE h5tget_member_value_f
         <dt><em>H5T_direction_t</em> <code>direction</code>
             <dd>Direction of search.
     </dl>
+<!-- NEW PAGE -->
 <dt><strong>Returns:</strong>
     <dd>Returns the native datatype identifier for the  
         specified dataset datatype if successful;
@@ -2829,7 +2834,7 @@ END SUBROUTINE h5tpack_f
 <pre><code>typedef</code> <em>herr_t </em>(<code>*H5T_conv_t</code>) (<em>hid_t </em><code>src_id</code>, 
                               <em>hid_t </em><code>dst_id</code>, 
                               <em>H5T_cdata_t *</em><code>cdata</code>,
-                              <em>hsize_t </em><code>nelmts</code>, 
+                              <em>size_t </em><code>nelmts</code>, 
                               <em>size_t </em><code>buf_stride</code>, 
                               <em>size_t </em><code>bkg_stride</code>, 
                               <em>void *</em><code>buf</code>, 
@@ -2857,6 +2862,7 @@ END SUBROUTINE h5tpack_f
         <dt><em>H5T_pers_t</em> <code>pers</code>
             <dd><code>H5T_PERS_HARD</code> for hard conversion functions;
                 <code>H5T_PERS_SOFT</code> for soft conversion functions.
+<!-- NEW PAGE -->
         <dt><em>const char *</em> <code>name</code>
             <dd>Name displayed in diagnostic output.
         <dt><em>hid_t</em> <code>src_id</code>
@@ -3820,8 +3826,7 @@ END SUBROUTINE h5tvlen_create_f
 </td>
 <td valign=top align=right>
 And in this document, the 
-<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5Front.html">HDF5 Reference Manual</a>&nbsp;&nbsp;<br>
 <a href="RM_H5.html">H5</a>&nbsp;&nbsp;
 <a href="RM_H5A.html">H5A</a>&nbsp;&nbsp;
 <a href="RM_H5D.html">H5D</a>&nbsp;&nbsp;
@@ -3829,8 +3834,7 @@ And in this document, the
 <a href="RM_H5F.html">H5F</a>&nbsp;&nbsp;
 <a href="RM_H5G.html">H5G</a>&nbsp;&nbsp;
 <a href="RM_H5I.html">H5I</a>&nbsp;&nbsp;
-<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;
-<br>
+<a href="RM_H5P.html">H5P</a>&nbsp;&nbsp;<br>
 <a href="RM_H5R.html">H5R</a>&nbsp;&nbsp;
 <a href="RM_H5S.html">H5S</a>&nbsp;&nbsp;
 <a href="RM_H5T.html">H5T</a>&nbsp;&nbsp;
@@ -3838,16 +3842,20 @@ And in this document, the
 <a href="Tools.html">Tools</a>&nbsp;&nbsp;
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
+<tr><td colspan="2" align="right">
+<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
+</td></tr>
 </table>
 </center>
 <hr>
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 <br>
-Describes HDF5 Release 1.6.2, February 2004
+Describes HDF5 Release 1.6.3, September 2004
 </address><!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 8 January 2004");
+document.writeln("Last modified: 8 September 2004");
 -->
 </SCRIPT>
  

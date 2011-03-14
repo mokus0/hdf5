@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5public.h,v 1.341.2.39 2004/02/02 18:17:59 epourmal Exp $ */
+/* $Id: H5public.h,v 1.341.2.62 2004/09/15 17:25:03 epourmal Exp $ */
 
 
 /*
@@ -41,8 +41,10 @@
 #ifdef H5_STDC_HEADERS
 #   include <limits.h>		/*for H5T_NATIVE_CHAR defn in H5Tpublic.h    */
 #endif
+#ifndef __cplusplus
 #ifdef H5_HAVE_STDINT_H
 #   include <stdint.h>		/*for C9x types				     */
+#endif
 #endif
 #ifdef H5_HAVE_INTTYPES_H 
 #   include <inttypes.h>        /* For uint64_t on some platforms            */ 
@@ -75,10 +77,10 @@ extern "C" {
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	6	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	2	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	3	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.6.2"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.6.3"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -160,7 +162,7 @@ typedef ssize_t			hssize_t;
 /*
  * File addresses have there own types.
  */
-#if H5_SIZEOF_UINT64_T>=8
+#if H5_SIZEOF_INT64_T>=8
     typedef uint64_t                haddr_t;
 #   define HADDR_UNDEF              ((haddr_t)(int64_t)(-1))
 #   ifdef H5_HAVE_PARALLEL

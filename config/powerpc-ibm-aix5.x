@@ -5,13 +5,12 @@
 # the various compile modes.
 
 # Use AIX supplied C compiler by default, xlc for serial, mpcc_r for parallel.
-# Use -D_LARGE_FILES by default to support large file size.
 if test "X-" =  "X-$CC"; then
   if test "X-$enable_parallel" = "X-yes"; then
-    CC='mpcc_r -qlanglvl=ansi -D_LARGE_FILES'
+    CC=mpcc_r
     CC_BASENAME=mpcc_r
   else
-    CC='xlc -qlanglvl=ansi -D_LARGE_FILES'
+    CC=xlc
     CC_BASENAME=xlc
   fi
 fi
@@ -31,8 +30,8 @@ case $CC_BASENAME in
     xlc|mpcc_r)
 	# Turn off shared lib option.  It causes some test suite to fail.
 	enable_shared="${enable_shared:-no}"
-	# CFLAGS must be set else configure set it to -g
-	CFLAGS="$CFLAGS"
+        # Use -D_LARGE_FILES by default to support large file size.
+        CFLAGS="-qlanglvl=ansi -D_LARGE_FILES $CFLAGS"
 	DEBUG_CFLAGS="-g"
 	DEBUG_CPPFLAGS=
 	# -O causes test/dtypes to fail badly. Turn it off for now.
@@ -83,13 +82,15 @@ ac_cv_sizeof_uint8_t=${ac_cv_sizeof_uint8_t=1}
 ac_cv_sizeof_int_least8_t=${ac_cv_sizeof_int_least8_t=1}
 ac_cv_sizeof_uint_least8_t=${ac_cv_sizeof_uint_least8_t=1}
 ac_cv_sizeof_int_fast8_t=${ac_cv_sizeof_int_fast8_t=1}
-ac_cv_sizeof_uint_fast8_t=${ac_cv_sizeof_uint_fast8_t=4}
+# removed to deal with wierdness on SDSC DataStar -- JRM 9/7/04
+#ac_cv_sizeof_uint_fast8_t=${ac_cv_sizeof_uint_fast8_t=4}
 ac_cv_sizeof_int16_t=${ac_cv_sizeof_int16_t=2}
 ac_cv_sizeof_uint16_t=${ac_cv_sizeof_uint16_t=2}
 ac_cv_sizeof_int_least16_t=${ac_cv_sizeof_int_least16_t=2}
 ac_cv_sizeof_uint_least16_t=${ac_cv_sizeof_uint_least16_t=2}
 ac_cv_sizeof_int_fast16_t=${ac_cv_sizeof_int_fast16_t=4}
-ac_cv_sizeof_uint_fast16_t=${ac_cv_sizeof_uint_fast16_t=4}
+# removed to deal with wierdness on SDSC DataStar -- JRM 9/7/04
+#ac_cv_sizeof_uint_fast16_t=${ac_cv_sizeof_uint_fast16_t=4}
 ac_cv_sizeof_int32_t=${ac_cv_sizeof_int32_t=4}
 ac_cv_sizeof_uint32_t=${ac_cv_sizeof_uint32_t=4}
 ac_cv_sizeof_int_least32_t=${ac_cv_sizeof_int_least32_t=4}

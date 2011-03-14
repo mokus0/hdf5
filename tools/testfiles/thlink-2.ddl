@@ -6,13 +6,13 @@ DATASET "/g1/dset2" {
    DATATYPE  H5T_STD_I32BE
    DATASPACE  SIMPLE { ( 5 ) / ( 5 ) }
    DATA {
-      0, 1, 2, 3, 4
+   (0): 0, 1, 2, 3, 4
    }
 }
 DATASET "/dset1" {
-   HARDLINK "/g1/dset2"
+   HARDLINK "/dset1"
 }
 DATASET "/g1/g1.1/dset3" {
-   HARDLINK "/g1/dset2"
+   HARDLINK "/dset1"
 }
 }

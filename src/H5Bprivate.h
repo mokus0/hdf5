@@ -34,6 +34,7 @@
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5ACprivate.h"	/* Metadata cache			*/
 #include "H5Fprivate.h"		/* File access				*/
+#include "H5RCprivate.h"	/* Reference counted object functions	*/
 
 /*
  * Feature: Define this constant if you want to check B-tree consistency
@@ -72,6 +73,19 @@ typedef int (*H5B_operator_t)(H5F_t *f, hid_t, void *_lt_key, haddr_t addr,
 /* Typedef for B-tree in memory (defined in H5Bpkg.h) */
 typedef struct H5B_t H5B_t;
 
+/* Each B-tree has certain information that can be shared across all
+ * the instances of nodes in that B-tree.
+ */
+typedef struct H5B_shared_t {
+    const struct H5B_class_t	*type;	/* Type of tree			     */
+    unsigned            two_k;          /* 2*"K" value for tree's nodes      */
+    size_t		sizeof_rkey;	/* Size of raw (disk) key	     */
+    size_t		sizeof_rnode;	/* Size of raw (disk) node	     */
+    size_t		sizeof_keys;	/* Size of native (memory) key node  */
+    uint8_t	        *page;	        /* Disk page */
+    size_t              *nkey;          /* Offsets of each native key in native key buffer */
+} H5B_shared_t;
+
 /*
  * Each class of object that can be pointed to by a B-link tree has a
  * variable of this type that contains class variables and methods.  Each
@@ -84,6 +98,7 @@ typedef struct H5B_class_t {
     H5B_subid_t id;					/*id as found in file*/
     size_t	sizeof_nkey;			/*size of native (memory) key*/
     size_t	(*get_sizeof_rkey)(H5F_t*, const void*);    /*raw key size   */
+    H5RC_t *    (*get_shared)(H5F_t*, const void*);    /*shared info for node */
     herr_t	(*new_node)(H5F_t*, hid_t, H5B_ins_t, void*, void*, void*, haddr_t*);
     int         (*cmp2)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 2 keys */
     int         (*cmp3)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 3 keys */
@@ -111,12 +126,14 @@ typedef struct H5B_class_t {
 /*
  * Library prototypes.
  */
+H5_DLL size_t H5B_nodesize(const H5F_t *f, const H5B_shared_t *shared,
+			   size_t *total_nkey_size);
 H5_DLL herr_t H5B_create (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, void *udata,
 			   haddr_t *addr_p/*out*/);
 H5_DLL herr_t H5B_find (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			 void *udata);
 H5_DLL herr_t H5B_insert (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
-			   const double split_ratios[], void *udata);
+                           void *udata);
 H5_DLL herr_t H5B_iterate (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, H5B_operator_t
                             op, haddr_t addr, void *udata);
 H5_DLL herr_t H5B_remove(H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,

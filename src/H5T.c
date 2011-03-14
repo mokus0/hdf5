@@ -844,7 +844,7 @@ H5T_init_interface(void)
     /* 8-byte big-endian unsigned integer */
     H5T_INIT_TYPE(UINTBE,H5T_STD_U64BE_g,COPY,native_uint,SET,8)
     std_u64be=dt;    /* Keep type for later */
-    
+
     /*------------------------------------------------------------
      * Little- & Big-endian bitfields
      *------------------------------------------------------------ 
@@ -1182,7 +1182,7 @@ H5T_term_interface(void)
 		H5T_print_stats(path, &nprint/*in,out*/);
 		path->cdata.command = H5T_CONV_FREE;
 		if ((path->func)(FAIL, FAIL, &(path->cdata),
-				 (hsize_t)0, 0, 0, NULL, NULL,H5AC_dxpl_id)<0) {
+				 0, 0, 0, NULL, NULL,H5AC_dxpl_id)<0) {
 #ifdef H5T_DEBUG
 		    if (H5DEBUG(T)) {
 			fprintf (H5DEBUG(T), "H5T: conversion function "
@@ -1195,8 +1195,10 @@ H5T_term_interface(void)
 		}
 	    }
 
-	    H5T_close (path->src);
-	    H5T_close (path->dst);
+            if(path->src)
+                H5T_close (path->src);
+            if(path->dst)
+                H5T_close (path->dst);
             H5FL_FREE(H5T_path_t,path);
 	    H5T_g.path[i] = NULL;
 	}
@@ -1547,7 +1549,7 @@ H5Tequal(hid_t type1_id, hid_t type2_id)
     htri_t		ret_value;
 
     FUNC_ENTER_API(H5Tequal, FAIL);
-    H5TRACE2("b","ii",type1_id,type2_id);
+    H5TRACE2("t","ii",type1_id,type2_id);
 
     /* check args */
     if (NULL == (dt1 = H5I_object_verify(type1_id,H5I_DATATYPE)) ||
@@ -1706,7 +1708,7 @@ H5Tdetect_class(hid_t type, H5T_class_t cls)
     htri_t      ret_value;      /* Return value */
 
     FUNC_ENTER_API(H5Tdetect_class, FAIL);
-    H5TRACE2("b","iTt",type,cls);
+    H5TRACE2("t","iTt",type,cls);
     
     /* Check args */
     if (NULL == (dt = H5I_object_verify(type,H5I_DATATYPE)))
@@ -1804,7 +1806,7 @@ H5Tis_variable_str(hid_t dtype_id)
     htri_t      ret_value;      /* Return value */
 
     FUNC_ENTER_API(H5Tis_variable_str, FAIL);
-    H5TRACE1("b","i",dtype_id);
+    H5TRACE1("t","i",dtype_id);
     
     /* Check args */
     if (NULL == (dt = H5I_object_verify(dtype_id,H5I_DATATYPE)))
@@ -1854,13 +1856,13 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5Tget_size
  *
- * Purpose:	Determines the total size of a data type in bytes.
+ * Purpose:	Determines the total size of a datatype in bytes.
  *
- * Return:	Success:	Size of the data type in bytes.	 The size of
- *				data type is the size of an instance of that
- *				data type.
+ * Return:	Success:	Size of the datatype in bytes.	 The size of
+ *				datatype is the size of an instance of that
+ *				datatype.
  *
- *		Failure:	0 (valid data types are never zero size)
+ *		Failure:	0 (valid datatypes are never zero size)
  *
  * Programmer:	Robb Matzke
  *		Monday, December  8, 1997
@@ -1880,7 +1882,7 @@ H5Tget_size(hid_t type_id)
 
     /* Check args */
     if (NULL == (dt = H5I_object_verify(type_id,H5I_DATATYPE)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, 0, "not a data type");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, 0, "not a datatype");
     
     /* size */
     ret_value = H5T_get_size(dt);
@@ -1893,12 +1895,12 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5Tset_size
  *
- * Purpose:	Sets the total size in bytes for a data type (this operation
- *		is not permitted on reference data types).  If the size is
- *		decreased so that the significant bits of the data type
+ * Purpose:	Sets the total size in bytes for a datatype (this operation
+ *		is not permitted on reference datatypes).  If the size is
+ *		decreased so that the significant bits of the datatype
  *		extend beyond the edge of the new size, then the `offset'
  *		property is decreased toward zero.  If the `offset' becomes
- *		zero and the significant bits of the data type still hang
+ *		zero and the significant bits of the datatype still hang
  *		over the edge of the new size, then the number of significant
  *		bits is decreased.
  *
@@ -2073,22 +2075,24 @@ H5T_register(H5T_pers_t pers, const char *name, H5T_t *src, H5T_t *dst,
     assert(name && *name);
 
     if (H5T_PERS_HARD==pers) {
-	/* Locate or create a new conversion path */
-	if (NULL==(new_path=H5T_path_find(src, dst, name, func, dxpl_id)))
-	    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to locate/allocate conversion path");
-	
-	/*
-	 * Notify all other functions to recalculate private data since some
-	 * functions might cache a list of conversion functions.  For
-	 * instance, the compound type converter caches a list of conversion
-	 * functions for the members, so adding a new function should cause
-	 * the list to be recalculated to use the new function.
-	 */
-	for (i=0; i<H5T_g.npaths; i++) {
-	    if (new_path != H5T_g.path[i])
-		H5T_g.path[i]->cdata.recalc = TRUE;
-	} /* end for */
-	
+        /* Only bother to register the path if it's not a no-op path (for this machine) */
+        if(H5T_cmp(src, dst)) {
+            /* Locate or create a new conversion path */
+            if (NULL==(new_path=H5T_path_find(src, dst, name, func, dxpl_id)))
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to locate/allocate conversion path");
+            
+            /*
+             * Notify all other functions to recalculate private data since some
+             * functions might cache a list of conversion functions.  For
+             * instance, the compound type converter caches a list of conversion
+             * functions for the members, so adding a new function should cause
+             * the list to be recalculated to use the new function.
+             */
+            for (i=0; i<H5T_g.npaths; i++) {
+                if (new_path != H5T_g.path[i])
+                    H5T_g.path[i]->cdata.recalc = TRUE;
+            } /* end for */
+	} /* end if */
     } else {
         /* Add function to end of soft list */
         if (H5T_g.nsoft>=H5T_g.asoft) {
@@ -2127,7 +2131,7 @@ H5T_register(H5T_pers_t pers, const char *name, H5T_t *src, H5T_t *dst,
                 HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to register data types for conv query");
             HDmemset(&cdata, 0, sizeof cdata);
             cdata.command = H5T_CONV_INIT;
-            if ((func)(tmp_sid, tmp_did, &cdata, (hsize_t)0, 0, 0, NULL, NULL, dxpl_id)<0) {
+            if ((func)(tmp_sid, tmp_did, &cdata, 0, 0, 0, NULL, NULL, dxpl_id)<0) {
                 H5I_dec_ref(tmp_sid);
                 H5I_dec_ref(tmp_did);
                 tmp_sid = tmp_did = -1;
@@ -2154,7 +2158,7 @@ H5T_register(H5T_pers_t pers, const char *name, H5T_t *src, H5T_t *dst,
             /* Free old path */
             H5T_print_stats(old_path, &nprint);
             old_path->cdata.command = H5T_CONV_FREE;
-            if ((old_path->func)(tmp_sid, tmp_did, &(old_path->cdata), (hsize_t)0, 0, 0, NULL, NULL, dxpl_id)<0) {
+            if ((old_path->func)(tmp_sid, tmp_did, &(old_path->cdata), 0, 0, 0, NULL, NULL, dxpl_id)<0) {
 #ifdef H5T_DEBUG
 		if (H5DEBUG(T)) {
 		    fprintf (H5DEBUG(T), "H5T: conversion function 0x%08lx "
@@ -2300,35 +2304,47 @@ H5T_unregister(H5T_pers_t pers, const char *name, H5T_t *src, H5T_t *dst,
     for (i=H5T_g.npaths-1; i>0; --i) {
         path = H5T_g.path[i];
         assert(path);
-        if ((H5T_PERS_SOFT==pers && path->is_hard) ||
-            (H5T_PERS_HARD==pers && !path->is_hard)) continue;
-        if (name && *name && HDstrcmp(name, path->name)) continue;
-        if (src && H5T_cmp(src, path->src)) continue;
-        if (dst && H5T_cmp(dst, path->dst)) continue;
-        if (func && func!=path->func) continue;
-        
-        /* Remove from table */
-        HDmemmove(H5T_g.path+i, H5T_g.path+i+1,
-              (H5T_g.npaths-(i+1))*sizeof(H5T_path_t*));
-        --H5T_g.npaths;
 
-        /* Shut down path */
-        H5T_print_stats(path, &nprint);
-        path->cdata.command = H5T_CONV_FREE;
-        if ((path->func)(FAIL, FAIL, &(path->cdata), (hsize_t)0, 0, 0, NULL, NULL,
-                         dxpl_id)<0) {
+        /* Not a match */
+        if (((H5T_PERS_SOFT==pers && path->is_hard) ||
+                    (H5T_PERS_HARD==pers && !path->is_hard)) ||
+                (name && *name && HDstrcmp(name, path->name)) ||
+                (src && H5T_cmp(src, path->src)) ||
+                (dst && H5T_cmp(dst, path->dst)) ||
+                (func && func!=path->func)) {
+            /*
+             * Notify all other functions to recalculate private data since some
+             * functions might cache a list of conversion functions.  For
+             * instance, the compound type converter caches a list of conversion
+             * functions for the members, so removing a function should cause
+             * the list to be recalculated to avoid the removed function.
+             */
+            path->cdata.recalc = TRUE;
+        } /* end if */
+        else {
+            /* Remove from table */
+            HDmemmove(H5T_g.path+i, H5T_g.path+i+1,
+                  (H5T_g.npaths-(i+1))*sizeof(H5T_path_t*));
+            --H5T_g.npaths;
+
+            /* Shut down path */
+            H5T_print_stats(path, &nprint);
+            path->cdata.command = H5T_CONV_FREE;
+            if ((path->func)(FAIL, FAIL, &(path->cdata), 0, 0, 0, NULL, NULL,
+                             dxpl_id)<0) {
 #ifdef H5T_DEBUG
-	    if (H5DEBUG(T)) {
-		fprintf(H5DEBUG(T), "H5T: conversion function 0x%08lx failed "
-			"to free private data for %s (ignored)\n",
-			(unsigned long)(path->func), path->name);
-	    }
+                if (H5DEBUG(T)) {
+                    fprintf(H5DEBUG(T), "H5T: conversion function 0x%08lx failed "
+                            "to free private data for %s (ignored)\n",
+                            (unsigned long)(path->func), path->name);
+                }
 #endif
-        }
-        H5T_close(path->src);
-        H5T_close(path->dst);
-        H5FL_FREE(H5T_path_t,path);
-        H5E_clear(); /*ignore all shutdown errors*/
+            }
+            H5T_close(path->src);
+            H5T_close(path->dst);
+            H5FL_FREE(H5T_path_t,path);
+            H5E_clear(); /*ignore all shutdown errors*/
+        } /* end else */
     }
 
 done:
@@ -2459,7 +2475,7 @@ done:
  *-------------------------------------------------------------------------
  */
 herr_t
-H5Tconvert(hid_t src_id, hid_t dst_id, hsize_t nelmts, void *buf,
+H5Tconvert(hid_t src_id, hid_t dst_id, size_t nelmts, void *buf,
 	    void *background, hid_t dxpl_id)
 {
     H5T_path_t		*tpath=NULL;		/*type conversion info	*/
@@ -2467,7 +2483,7 @@ H5Tconvert(hid_t src_id, hid_t dst_id, hsize_t nelmts, void *buf,
     herr_t      ret_value=SUCCEED;       /* Return value */
     
     FUNC_ENTER_API(H5Tconvert, FAIL);
-    H5TRACE6("e","iihxxi",src_id,dst_id,nelmts,buf,background,dxpl_id);
+    H5TRACE6("e","iizxxi",src_id,dst_id,nelmts,buf,background,dxpl_id);
 
     /* Check args */
     if (NULL==(src=H5I_object_verify(src_id,H5I_DATATYPE)) ||
@@ -2612,6 +2628,10 @@ H5T_create(H5T_class_t type, size_t size)
             dt->type = type;
             if(type==H5T_COMPOUND)
                 dt->u.compnd.packed=TRUE;       /* Start out packed */
+            else if(type==H5T_OPAQUE)
+                /* Initialize the tag in case it's not set later.  A null tag will 
+                 * cause problems for later operations. */
+                dt->u.opaque.tag = H5MM_strdup("");
             break;
 
         case H5T_ENUM:
@@ -2633,7 +2653,7 @@ H5T_create(H5T_class_t type, size_t size)
             dt->type = type;
             if (NULL==(dt->parent=H5T_copy(H5I_object(subtype), H5T_COPY_ALL)))
                 HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "unable to copy base data type");
-        break;
+            break;
 
         case H5T_VLEN:  /* Variable length datatype */
             HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, NULL, "base type required - use H5Tvlen_create()");
@@ -2736,6 +2756,10 @@ H5T_open (H5G_entry_t *loc, const char *name, hid_t dxpl_id)
     if ((dt=H5T_open_oid(&ent, dxpl_id)) ==NULL)
         HGOTO_ERROR(H5E_DATATYPE, H5E_NOTFOUND, NULL, "not found");
 
+    /* Mark any datatypes as being in memory now */
+    if (H5T_vlen_mark(dt, NULL, H5T_VLEN_MEMORY)<0)
+        HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "invalid datatype location")
+            
     /* Set return value */
     ret_value=dt;
 
@@ -2879,12 +2903,14 @@ H5T_copy(const H5T_t *old_dt, H5T_copy_t method)
         case H5T_COPY_REOPEN:
             /*
              * Return a transient type (locked or unlocked) or an opened named
-             * type.
+             * type.  Immutable transient types are degraded to read-only.
              */
             if (H5F_addr_defined(new_dt->ent.header)) {
                 if (H5O_open (&(new_dt->ent))<0)
                     HGOTO_ERROR (H5E_DATATYPE, H5E_CANTOPENOBJ, NULL, "unable to reopen named data type");
                 new_dt->state = H5T_STATE_OPEN;
+            } else if (H5T_STATE_IMMUTABLE==new_dt->state) {
+                new_dt->state = H5T_STATE_RDONLY;
             }
             break;
     } /* end switch */
@@ -3633,8 +3659,9 @@ H5T_cmp(const H5T_t *dt1, const H5T_t *dt2)
             break;
 
         case H5T_OPAQUE:
-            HGOTO_DONE(HDstrcmp(dt1->u.opaque.tag,dt2->u.opaque.tag));
-
+            if(dt1->u.opaque.tag && dt2->u.opaque.tag) {
+                HGOTO_DONE(HDstrcmp(dt1->u.opaque.tag,dt2->u.opaque.tag));
+            }
         case H5T_ARRAY:
             if (dt1->u.array.ndims < dt2->u.array.ndims)
                 HGOTO_DONE(-1);
@@ -3841,7 +3868,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
 	HDstrcpy(H5T_g.path[0]->name, "no-op");
 	H5T_g.path[0]->func = H5T_conv_noop;
 	H5T_g.path[0]->cdata.command = H5T_CONV_INIT;
-	if (H5T_conv_noop(FAIL, FAIL, &(H5T_g.path[0]->cdata), (hsize_t)0, 0, 0,
+	if (H5T_conv_noop(FAIL, FAIL, &(H5T_g.path[0]->cdata), 0, 0, 0,
 			  NULL, NULL, dxpl_id)<0) {
 #ifdef H5T_DEBUG
 	    if (H5DEBUG(T)) {
@@ -3851,6 +3878,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
 #endif
 	    H5E_clear(); /*ignore the error*/
 	}
+	H5T_g.path[0]->is_noop = TRUE;
 	H5T_g.npaths = 1;
     }
 
@@ -3928,7 +3956,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
                   H5T_copy(path->dst, H5T_COPY_ALL)))<0)
 	    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, NULL, "unable to register destination conversion type for query");
 	path->cdata.command = H5T_CONV_INIT;
-	if ((func)(src_id, dst_id, &(path->cdata), (hsize_t)0, 0, 0, NULL, NULL,
+	if ((func)(src_id, dst_id, &(path->cdata), 0, 0, 0, NULL, NULL,
                    dxpl_id)<0)
 	    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, NULL, "unable to initialize conversion function");
 	if (src_id>=0) H5I_dec_ref(src_id);
@@ -3957,7 +3985,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
 	    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, NULL, "unable to register conversion types for query");
 	path->cdata.command = H5T_CONV_INIT;
 	if ((H5T_g.soft[i].func) (src_id, dst_id, &(path->cdata),
-                                  (hsize_t)0, 0, 0, NULL, NULL, dxpl_id)<0) {
+                                  0, 0, 0, NULL, NULL, dxpl_id)<0) {
 	    HDmemset (&(path->cdata), 0, sizeof(H5T_cdata_t));
 	    H5E_clear(); /*ignore the error*/
 	} else {
@@ -4000,7 +4028,7 @@ H5T_path_find(const H5T_t *src, const H5T_t *dst, const char *name,
 	assert(table==H5T_g.path[md]);
 	H5T_print_stats(table, &nprint/*in,out*/);
 	table->cdata.command = H5T_CONV_FREE;
-	if ((table->func)(FAIL, FAIL, &(table->cdata), (hsize_t)0, 0, 0, NULL, NULL,
+	if ((table->func)(FAIL, FAIL, &(table->cdata), 0, 0, 0, NULL, NULL,
                           dxpl_id)<0) {
 #ifdef H5T_DEBUG
 	    if (H5DEBUG(T)) {
@@ -4075,7 +4103,7 @@ H5T_path_noop(const H5T_path_t *p)
 
     assert(p);
 
-    FUNC_LEAVE_NOAPI(p->is_hard && 0==H5T_cmp(p->src, p->dst));
+    FUNC_LEAVE_NOAPI(p->is_noop || (p->is_hard && 0==H5T_cmp(p->src, p->dst)));
 } /* end H5T_path_noop() */
 
 
@@ -4146,7 +4174,7 @@ H5T_path_bkg(const H5T_path_t *p)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5T_convert(H5T_path_t *tpath, hid_t src_id, hid_t dst_id, hsize_t nelmts,
+H5T_convert(H5T_path_t *tpath, hid_t src_id, hid_t dst_id, size_t nelmts,
 	    size_t buf_stride, size_t bkg_stride, void *buf, void *bkg,
             hid_t dset_xfer_plist)
 {
@@ -4235,7 +4263,7 @@ done:
  *-------------------------------------------------------------------------
  */
 htri_t
-H5T_is_immutable(H5T_t *dt)
+H5T_is_immutable(const H5T_t *dt)
 {
     htri_t ret_value = FALSE;
 
@@ -4268,7 +4296,7 @@ done:
  *-------------------------------------------------------------------------
  */
 htri_t
-H5T_is_named(H5T_t *dt)
+H5T_is_named(const H5T_t *dt)
 {
     htri_t ret_value = FALSE;
 
@@ -4373,6 +4401,45 @@ H5T_is_sensible(const H5T_t *dt)
 done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5T_is_relocatable
+ *
+ * Purpose:     Check if a datatype will change between disk and memory.
+ *
+ * Notes:       Currently, only variable-length and object references change
+ *              between disk & memory (see cases where things are changed in
+ *              the H5T_set_loc() code above).
+ *
+ * Return:
+ *  One of two values on success:
+ *      TRUE - If the location of any vlen types changed
+ *      FALSE - If the location of any vlen types is the same
+ *  <0 is returned on failure
+ *
+ * Programmer:  Quincey Koziol
+ *              Thursday, June 24, 2004
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5T_is_relocatable(const H5T_t *dt)
+{
+    htri_t ret_value = FALSE;
+
+    FUNC_ENTER_NOAPI(H5T_is_relocatable, FAIL);
+
+    assert(dt);
+
+    if(H5T_detect_class(dt, H5T_VLEN))
+        ret_value = TRUE;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+} /* end H5T_is_relocatable() */
 
 
 /*-------------------------------------------------------------------------

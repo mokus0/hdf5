@@ -88,6 +88,10 @@
 #define H5G_PACKAGE     /*suppress error message about including H5Gpkg.h */
 #define H5F_PACKAGE     /*suppress error about including H5Fpkg	  */
 
+/* Pablo information */
+/* (Put before include files to avoid problems with inline functions) */
+#define PABLO_MASK	H5G_mask
+
 /* Packages needed by this file... */
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Aprivate.h"		/* Attributes				*/
@@ -116,8 +120,6 @@
 #define H5G_TARGET_NORMAL	0x0000
 #define H5G_TARGET_SLINK	0x0001
 #define H5G_TARGET_MOUNT	0x0002
-
-#define PABLO_MASK		H5G_mask
 
 /* Interface initialization */
 static int interface_initialize_g = 0;
@@ -172,6 +174,7 @@ static H5G_t *H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, h
 static H5G_t *H5G_reopen(H5G_t *grp);
 #endif /* NOT_YET */
 static htri_t H5G_isa(H5G_entry_t *ent, hid_t dxpl_id);
+static htri_t H5G_link_isa(H5G_entry_t *ent, hid_t dxpl_id);
 static herr_t H5G_link(H5G_entry_t *cur_loc, const char *cur_name, 
 			H5G_entry_t *new_loc, const char *new_name, 
 			H5G_link_t type, unsigned namei_flags, hid_t dxpl_id);
@@ -595,9 +598,9 @@ H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 
     /* Check args */
     if (NULL==(loc=H5G_loc (loc_id)))
-	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location ID");
+	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "not a location ID");
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
-	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a group");
+	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "not a group");
         
     if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "unable to retrieve number of members");
@@ -605,7 +608,7 @@ H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "index out of bound");
         
     /*call private function*/
-    ret_value = H5G_get_objtype_by_idx(loc, idx, H5AC_ind_dxpl_id);
+    ret_value = (H5G_obj_t)H5G_get_objtype_by_idx(loc, idx, H5AC_ind_dxpl_id);
 
 done:
     FUNC_LEAVE_API(ret_value);
@@ -993,11 +996,12 @@ H5G_init_interface(void)
     /*
      * Initialize the type info table.  Begin with the most general types and
      * end with the most specific. For instance, any object that has a data
-     * type message is a data type but only some of them are datasets.
+     * type message is a datatype but only some of them are datasets.
      */
-    H5G_register_type(H5G_TYPE,    H5T_isa,  "data type");
+    H5G_register_type(H5G_TYPE,    H5T_isa,  "datatype");
     H5G_register_type(H5G_GROUP,   H5G_isa,  "group");
     H5G_register_type(H5G_DATASET, H5D_isa,  "dataset");
+    H5G_register_type(H5G_LINK,    H5G_link_isa,  "link");
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -1062,8 +1066,8 @@ H5G_term_interface(void)
  *
  * Purpose:	Register a new object type so H5G_get_type() can detect it.
  *		One should always register a general type before a more
- *		specific type.  For instance, any object that has a data type
- *		message is a data type, but only some of those objects are
+ *		specific type.  For instance, any object that has a datatype
+ *		message is a datatype, but only some of those objects are
  *		datasets.
  *
  * Return:	Success:	Non-negative
@@ -1389,6 +1393,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     unsigned null_grp;          /* Flag to indicate this function was called with grp_ent set to NULL */
     unsigned group_copy = 0;    /* Flag to indicate that the group entry is copied */
     unsigned last_comp = 0;     /* Flag to indicate that a component is the last component in the name */
+    unsigned did_insert = 0;     /* Flag to indicate that H5G_stab_insert was called */
     herr_t      ret_value=SUCCEED;       /* Return value */
     
     FUNC_ENTER_NOAPI_NOINIT(H5G_namei);
@@ -1511,6 +1516,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
                     }
                 } /* end if */
                 else {
+                    did_insert = 1;
                     if (H5G_stab_insert(grp_ent, H5G_comp_g, ent, dxpl_id) < 0)
                         HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, FAIL, "unable to insert name");
                     HGOTO_DONE(SUCCEED);
@@ -1546,6 +1552,11 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     /* Update the "rest of name" pointer */
     if (rest)
         *rest = name; /*final null */
+
+    /* If this was an insert, make sure that the insert function was actually
+     * called (this catches no-op names like "/" and ".")  */
+     if(action == H5G_NAMEI_INSERT && !did_insert)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "group already exists");
 
 done:
     /* If we started with a NULL obj_ent, free the entry information */
@@ -1592,6 +1603,7 @@ H5G_traverse_slink (H5G_entry_t *grp_ent/*in,out*/,
     char		*linkval = NULL;	/*the copied link value	*/
     H5G_entry_t         tmp_grp_ent;            /* Temporary copy of group entry */
     H5RS_str_t          *tmp_user_path_r=NULL, *tmp_canon_path_r=NULL; /* Temporary pointer to object's user path & canonical path */
+    const H5HL_t        *heap;
     herr_t      ret_value=SUCCEED;       /* Return value */
     
     FUNC_ENTER_NOAPI(H5G_traverse_slink, FAIL);
@@ -1602,10 +1614,17 @@ H5G_traverse_slink (H5G_entry_t *grp_ent/*in,out*/,
     /* Get the link value */
     if (NULL==H5O_read (grp_ent, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
 	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to determine local heap address");
-    if (NULL==(clv=H5HL_peek (grp_ent->file, dxpl_id, stab_mesg.heap_addr,
-			      obj_ent->cache.slink.lval_offset)))
-	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read symbolic link value");
+
+    if (NULL == (heap = H5HL_protect(grp_ent->file, dxpl_id, stab_mesg.heap_addr)))
+	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read protect link value")
+
+    clv = H5HL_offset_into(grp_ent->file, heap, obj_ent->cache.slink.lval_offset);
+
     linkval = H5MM_xstrdup (clv);
+    assert(linkval);
+
+    if (H5HL_unprotect(grp_ent->file, dxpl_id, heap, stab_mesg.heap_addr) < 0)
+	HGOTO_ERROR (H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read unprotect link value")
 		
     /* Hold the entry's name (& old_name) to restore later */
     tmp_user_path_r=obj_ent->user_path_r;
@@ -1684,6 +1703,10 @@ H5G_mkroot (H5F_t *f, hid_t dxpl_id, H5G_entry_t *ent)
     if (f->shared->root_grp)
         HGOTO_DONE(SUCCEED);
 
+    /* Create information needed for group nodes */
+    if(H5G_node_init(f)<0)
+        HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to create group node info")
+
     /*
      * If there is no root object then create one. The root group always has
      * a hard link count of one since it's pointed to by the boot block.
@@ -1761,7 +1784,7 @@ static H5G_t *
 H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id)
 {
     H5G_t	*grp = NULL;	/*new group			*/
-    H5F_t       *file=NULL;     /* File new group will be in    */
+    H5F_t       *file = NULL;   /* File new group will be in    */
     unsigned    stab_init=0;    /* Flag to indicate that the symbol stable was created successfully */
     H5G_t	*ret_value;	/* Return value */
 
@@ -1834,7 +1857,7 @@ H5G_isa(H5G_entry_t *ent, hid_t dxpl_id)
 {
     htri_t	ret_value;
     
-    FUNC_ENTER_NOAPI(H5G_isa, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5G_isa);
 
     assert(ent);
 
@@ -1844,7 +1867,43 @@ H5G_isa(H5G_entry_t *ent, hid_t dxpl_id)
 done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5G_link_isa
+ *
+ * Purpose:	Determines if an object has the requisite form for being
+ *		a soft link.
+ *
+ * Return:	Success:	TRUE if the symbol table entry is of type
+ *				H5G_LINK; FALSE otherwise.
+ *
+ *		Failure:	Shouldn't fail.
+ *
+ * Programmer:	Quincey Koziol
+ *              Wednesday, June 23, 2004
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static htri_t
+H5G_link_isa(H5G_entry_t *ent, hid_t UNUSED dxpl_id)
+{
+    htri_t	ret_value;
     
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_link_isa);
+
+    assert(ent);
+
+    if(ent->type == H5G_CACHED_SLINK)
+        ret_value=TRUE;
+    else
+        ret_value=FALSE;
+
+    FUNC_LEAVE_NOAPI(ret_value);
+} /* end H5G_link_isa() */
+
 
 /*-------------------------------------------------------------------------
  * Function:	H5G_open
@@ -2274,11 +2333,11 @@ H5G_loc (hid_t loc_id)
             if (NULL==(dt=H5I_object(loc_id)))
                 HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "invalid type ID");
             if (NULL==(ret_value=H5T_entof(dt)))
-                HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of data type");
+                HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of datatype");
             break;
 
         case H5I_DATASPACE:
-            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of data space");
+            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of dataspace");
 
         case H5I_DATASET:
             if (NULL==(dset=H5I_object(loc_id)))
@@ -2296,12 +2355,8 @@ H5G_loc (hid_t loc_id)
                 
         case H5I_TEMPBUF:
             HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of buffer");
-        
-        case H5I_NGROUPS:
-        case H5I_BADID:
-        case H5I_FILE_CLOSING:
-        case H5I_REFERENCE:
-        case H5I_VFL:
+
+        default:
             HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "invalid object ID");
     }
 
@@ -2444,7 +2499,6 @@ done:
     if(norm_new_name)
         H5MM_xfree(norm_new_name);
 
-
     FUNC_LEAVE_NOAPI(ret_value);
 }
 
@@ -2538,17 +2592,25 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
      */
     if (statbuf) {
 	if (H5G_CACHED_SLINK==obj_ent.type) {
+            const H5HL_t *heap;
+
 	    /* Named object is a symbolic link */
-	    if (NULL==H5O_read (&grp_ent, H5O_STAB_ID, 0, &stab_mesg, dxpl_id) ||
-		NULL==(s=H5HL_peek (grp_ent.file, dxpl_id, stab_mesg.heap_addr, 
-				    obj_ent.cache.slink.lval_offset)))
-		HGOTO_ERROR (H5E_SYM, H5E_CANTINIT, FAIL, "unable to read symbolic link value");
-	    statbuf->linklen = HDstrlen(s)+1; /*count the null terminator*/
+	    if (NULL == H5O_read(&grp_ent, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
+		HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to read symbolic link value")
+
+            if (NULL == (heap = H5HL_protect(grp_ent.file, dxpl_id, stab_mesg.heap_addr)))
+                HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read protect link value")
+
+            s = H5HL_offset_into(grp_ent.file, heap, obj_ent.cache.slink.lval_offset);
+
+	    statbuf->linklen = HDstrlen(s) + 1; /*count the null terminator*/
+
+            if (H5HL_unprotect(grp_ent.file, dxpl_id, heap, stab_mesg.heap_addr) < 0)
+                HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read unprotect link value")
 	    statbuf->objno[0] = statbuf->objno[1] = 0;
 	    statbuf->nlink = 0;
 	    statbuf->type = H5G_LINK;
 	    statbuf->mtime = 0;
-	    
 	} else {
 	    /* Some other type of object */
 	    statbuf->objno[0] = (unsigned long)(obj_ent.header);
@@ -2566,7 +2628,11 @@ H5G_get_objinfo (H5G_entry_t *loc, const char *name, hbool_t follow_link,
                     statbuf->mtime = 0;
                 }
 	    }
-	    statbuf->type = H5G_get_type(&obj_ent, dxpl_id);
+	    statbuf->type =
+#ifndef H5_WANT_H5_V1_4_COMPAT
+                (H5G_obj_t)
+#endif /*H5_WANT_H5_V1_4_COMPAT*/
+                H5G_get_type(&obj_ent, dxpl_id);
 	    H5E_clear(); /*clear errors resulting from checking type*/
 
             /* Get object header information */
@@ -2764,6 +2830,7 @@ H5G_linkval (H5G_entry_t *loc, const char *name, size_t size, char *buf/*out*/, 
     const char		*s = NULL;
     H5G_entry_t		grp_ent, obj_ent;
     H5O_stab_t		stab_mesg;
+    const H5HL_t        *heap;
     herr_t      ret_value=SUCCEED;       /* Return value */
     
     FUNC_ENTER_NOAPI(H5G_linkval, FAIL);
@@ -2784,13 +2851,18 @@ H5G_linkval (H5G_entry_t *loc, const char *name, size_t size, char *buf/*out*/, 
      */
     if (NULL==H5O_read (&grp_ent, H5O_STAB_ID, 0, &stab_mesg, dxpl_id))
 	HGOTO_ERROR (H5E_SYM, H5E_CANTINIT, FAIL, "unable to determine local heap address");
-    if (NULL==(s=H5HL_peek (grp_ent.file, dxpl_id, stab_mesg.heap_addr,
-			    obj_ent.cache.slink.lval_offset)))
-	HGOTO_ERROR (H5E_SYM, H5E_CANTINIT, FAIL, "unable to read symbolic link value");
+
+    if (NULL == (heap = H5HL_protect(grp_ent.file, dxpl_id, stab_mesg.heap_addr)))
+        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read protect link value")
     
+    s = H5HL_offset_into(grp_ent.file, heap, obj_ent.cache.slink.lval_offset);
+
     /* Copy to output buffer */
     if (size>0 && buf)
 	HDstrncpy (buf, s, size);
+
+    if (H5HL_unprotect(grp_ent.file, dxpl_id, heap, stab_mesg.heap_addr) < 0)
+        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "unable to read unprotect link value")
 
 done:
     /* Free the ID to name buffers */
@@ -3290,7 +3362,7 @@ H5G_replace_name(int type, H5G_entry_t *loc,
             search_dataset=1;
             break;
 
-        /* Object is a named data type */
+        /* Object is a named datatype */
         case H5G_TYPE:
             /* Search and replace names through datatype IDs */
             search_datatype=1;

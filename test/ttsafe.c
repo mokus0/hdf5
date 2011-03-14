@@ -85,32 +85,30 @@ char *gen_name(int value)
 
 int main(int argc, char *argv[])
 {
-	int Summary = 0, CleanUp = 1;
-
         /* Initialize testing framework */
-        TestInit();
+        TestInit(argv[0], NULL, NULL);
 
 	/* Tests are generally arranged from least to most complexity... */
-	AddTest("dcreate", tts_dcreate, cleanup_dcreate, "multi-dataset creation");
-	AddTest("error", tts_error, cleanup_error, "per-thread error stacks");
-	AddTest("cancel", tts_cancel, cleanup_cancel, "thread cancellation safety test");
-	AddTest("acreate", tts_acreate, cleanup_acreate, "multi-attribute creation");
+	AddTest("dcreate", tts_dcreate, cleanup_dcreate, "multi-dataset creation", NULL);
+	AddTest("error", tts_error, cleanup_error, "per-thread error stacks", NULL);
+	AddTest("cancel", tts_cancel, cleanup_cancel, "thread cancellation safety test", NULL);
+	AddTest("acreate", tts_acreate, cleanup_acreate, "multi-attribute creation", NULL);
 
         /* Display testing information */
         TestInfo(argv[0]);
 
         /* Parse command line arguments */
-        TestParseCmdLine(argc,argv,&Summary,&CleanUp);
+        TestParseCmdLine(argc,argv);
 
         /* Perform requested testing */
         PerformTests();
 
         /* Display test summary, if requested */
-	if (Summary)
+	if (GetTestSummary())
             TestSummary();
 
         /* Clean up test files, if allowed */
-	if (CleanUp && !getenv("HDF5_NOCLEANUP"))
+	if (GetTestCleanup() && !getenv("HDF5_NOCLEANUP"))
             TestCleanup();
 
 	return GetTestNumErrs();

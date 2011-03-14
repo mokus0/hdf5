@@ -21,29 +21,49 @@
 #include "H5PropList.h"
 #include "H5Object.h"
 #include "H5AbstractDs.h"
+#include "H5DcreatProp.h"
+#include "H5CommonFG.h"
 #include "H5Alltypes.h"
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
 
-// Default constructor
+//--------------------------------------------------------------------------
+// Function:	AbstractDs default constructor
+///\brief	Default constructor
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 AbstractDs::AbstractDs() : H5Object() {}
 
-// Constructor that takes an id
+//--------------------------------------------------------------------------
+// Function:	AbstractDs default constructor
+///\brief	Creates an AbstractDs instance using an existing id.
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 AbstractDs::AbstractDs( const hid_t ds_id ) : H5Object( ds_id ) {}
 
-// Copy constructor: makes copy of the original object; simply invokes
-// base-class copy constructor.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs copy constructor
+///\brief	Copy constructor: makes a copy of the original AbstractDs object.
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 AbstractDs::AbstractDs( const AbstractDs& original ) : H5Object( original ) {}
 
-// Returns the class of the datatype that is used by this dataset
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getTypeClass
+///\brief	Returns the class of the datatype that is used by this 
+///		object, which can be a dataset or an attribute.
+///\return      Datatype class identifier
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 H5T_class_t AbstractDs::getTypeClass() const
 {
    // Gets the datatype used by this dataset or attribute.
-   // p_getType calls either H5Dget_type or H5Aget_type depending on 
+   // p_get_type calls either H5Dget_type or H5Aget_type depending on 
    // which object invokes getTypeClass
-   DataType datatype( p_getType());
+   DataType datatype(p_get_type());
 
    // Gets the class of the datatype and validate it before returning
    H5T_class_t type_class = H5Tget_class( datatype.getId());
@@ -52,97 +72,105 @@ H5T_class_t AbstractDs::getTypeClass() const
    else
    {
       throw DataTypeIException("AbstractDs::getTypeClass", 
-		"H5Tget_class returns something different than H5T_NO_CLASS");
+		"H5Tget_class returns H5T_NO_CLASS");
    }
 }
 
-// Returns the generic datatype of this abstract dataset which 
-// can be a dataset or an attribute.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getDataType
+///\brief	Returns the generic datatype of this abstract dataset, which
+///		can be a dataset or an attribute.
+///\return      DataType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 DataType AbstractDs::getDataType() const
 {
    // Gets the id of the datatype used by this dataset or attribute.
-   // p_getType calls either H5Dget_type or H5Aget_type depending on 
+   // p_get_type calls either H5Dget_type or H5Aget_type depending on 
    // which object invokes getTypeClass
-   hid_t datatype_id = p_getType();  // returned value is already validated
+   hid_t datatype_id = p_get_type();  // returned value is already validated
 
    // Create and return the DataType object
    DataType datatype( datatype_id );
    return( datatype );
 }
 
-// Returns the enumeration datatype of this abstract dataset which 
-// can be a dataset or an attribute.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getEnumType
+///\brief	Returns the enumeration datatype of this abstract dataset which 
+///		can be a dataset or an attribute.
+///\return      EnumType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 EnumType AbstractDs::getEnumType() const
 {
-   EnumType enumtype( p_getType());
-   return( enumtype );
+   EnumType enumtype(p_get_type());
+   return(enumtype);
 }
 
-// Returns the compound datatype of this abstract dataset which 
-// can be a dataset or an attribute.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getCompType
+///\brief	Returns the compound datatype of this abstract dataset which 
+///		can be a dataset or an attribute.
+///\return      CompType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 CompType AbstractDs::getCompType() const
 {
-   CompType comptype( p_getType());
-   return( comptype );
+   CompType comptype(p_get_type());
+   return(comptype);
 }
 
-// Returns the integer datatype of this abstract dataset which 
-// can be a dataset or an attribute.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getIntType
+///\brief	Returns the integer datatype of this abstract dataset which 
+///		can be a dataset or an attribute.
+///\return      IntType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 IntType AbstractDs::getIntType() const
 {
-   IntType inttype( p_getType());
-   return( inttype );
+   IntType inttype(p_get_type());
+   return(inttype);
 }
 
-// Returns the floating-point datatype of this abstract dataset which 
-// can be a dataset or an attribute.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getFloatType
+///\brief	Returns the floating-point datatype of this abstract dataset,
+///		which can be a dataset or an attribute.
+///\return      FloatType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 FloatType AbstractDs::getFloatType() const
 {
-   FloatType floatype( p_getType());
-   return( floatype );
+   FloatType floatype(p_get_type());
+   return(floatype);
 }
 
-// Returns the string datatype of this abstract dataset which 
-// can be a dataset or an attribute.
+//--------------------------------------------------------------------------
+// Function:	AbstractDs::getStrType
+///\brief	Returns the string datatype of this abstract dataset which 
+///		can be a dataset or an attribute.
+///\return      StrType instance
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 StrType AbstractDs::getStrType() const
 {
-   StrType strtype( p_getType());
-   return( strtype );
+   StrType strtype(p_get_type());
+   return(strtype);
 }
 
-/* This version of getDataType is older style.  New style above doesn't
-use overloading.  Remove it when knowing for sure that the other way
-is prefered
-// Gets the specific datatype of this abstract dataset which can be a 
-// dataset or an attribute.  Several overloaded getDataType's below
-// are for specific sub-datatypes.
-void AbstractDs::getDataType( EnumType& enumtype ) const
-{
-   enumtype.setId( p_getType());
-}
-
-void AbstractDs::getDataType( CompType& comptype ) const
-{
-   comptype.setId( p_getType());
-}
-
-void AbstractDs::getDataType( IntType& inttype ) const
-{
-   inttype.setId( p_getType());
-}
-
-void AbstractDs::getDataType( FloatType& floatype ) const
-{
-   floatype.setId( p_getType());
-}
-
-void AbstractDs::getDataType( StrType& strtype ) const
-{
-   strtype.setId( p_getType());
-}
-end of old style of getDataType */
-
-// Default destructor
+//--------------------------------------------------------------------------
+// Function:	AbstractDs destructor
+///\brief	Noop destructor.
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
 AbstractDs::~AbstractDs() {}
 
 #ifndef H5_NO_NAMESPACE

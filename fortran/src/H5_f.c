@@ -396,6 +396,9 @@ nh5init_flags_c( int_f *h5d_flags, int_f *h5e_flags, int_f *h5f_flags,
       h5z_flags[8] = H5Z_NO_EDC;
       h5z_flags[9] = H5Z_FILTER_SZIP;
       h5z_flags[10] = H5Z_FLAG_OPTIONAL;
+      h5z_flags[11] = H5Z_FILTER_CONFIG_ENCODE_ENABLED;
+      h5z_flags[12] = H5Z_FILTER_CONFIG_DECODE_ENABLED;
+      h5z_flags[13] = H5Z_FILTER_ALL;
 
     ret_value = 0; 
     return ret_value;
@@ -405,14 +408,10 @@ int_f
 nh5init1_flags_c(int_f *h5lib_flags)
 {
     int ret_value = -1;
-    unsigned prm_1 = H5_SZIP_ALLOW_K13_OPTION_MASK;
-    unsigned prm_2 = H5_SZIP_CHIP_OPTION_MASK;
-    unsigned prm_3 = H5_SZIP_EC_OPTION_MASK;
-    unsigned prm_4 = H5_SZIP_NN_OPTION_MASK;
+    unsigned prm_1 = H5_SZIP_EC_OPTION_MASK;
+    unsigned prm_2 = H5_SZIP_NN_OPTION_MASK;
     h5lib_flags[0] = (int_f)prm_1;
-    h5lib_flags[1] = (int_f)prm_2; 
-    h5lib_flags[2] = (int_f)prm_3;
-    h5lib_flags[3] = (int_f)prm_4;
+    h5lib_flags[1] = (int_f)prm_2;
     ret_value = 0; 
     return ret_value;
 }

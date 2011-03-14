@@ -12,8 +12,6 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.c,v 1.53.2.8 2004/01/25 00:04:13 acheng Exp $ */
-
 /*
  * Main driver of the Parallel HDF5 tests
  */
@@ -39,14 +37,9 @@ H5E_auto_t old_func;		        /* previous error handler */
 void *old_client_data;			/* previous error handler arg.*/
 
 /* other option flags */
-int doread=1;				/* read test */
-int dowrite=1;				/* write test */
-int docompact=1;                        /* compact dataset test */
-int doindependent=1;			/* independent test */
-unsigned dobig=0;                       /* "big" dataset tests */
 
 /* FILENAME and filenames must have the same number of names */
-const char *FILENAME[10]={
+const char *FILENAME[11]={
 	    "ParaEg1",
 	    "ParaEg2",
 	    "ParaEg3",
@@ -56,8 +49,9 @@ const char *FILENAME[10]={
             "ParaIndividual",
             "ParaBig",
             "ParaFill",
+	    "ParaCC",
 	    NULL};
-char	filenames[10][PATH_MAX];
+char	filenames[11][PATH_MAX];
 hid_t	fapl;				/* file access property list */
 
 #ifdef USE_PAUSE
@@ -117,25 +111,18 @@ int MPI_Init(int *argc, char ***argv)
 static void
 usage(void)
 {
-    printf("Usage: testphdf5 [-r] [-w] [-v<verbosity>] [-m<n_datasets>] [-n<n_groups>] "
+    printf("    [-r] [-w] [-m<n_datasets>] [-n<n_groups>] "
 	"[-o] [-f <prefix>] [-d <dim0> <dim1>]\n");
-    printf("\t-r\t\tno read test\n");
-    printf("\t-w\t\tno write test\n");
     printf("\t-m<n_datasets>"
 	"\tset number of datasets for the multiple dataset test\n");
     printf("\t-n<n_groups>"
         "\tset number of groups for the multiple group test\n");  
-    printf("\t-o\t\tno compact dataset test\n");
-    printf("\t-i\t\tno independent read test\n");
-    printf("\t-b\t\trun big dataset test\n");
-    printf("\t-v<verbosity>\tset verbose level (0-9,l,m,h)\n");
     printf("\t-f <prefix>\tfilename prefix\n");
-    printf("\t-s\t\tuse Split-file together with MPIO\n");
+    printf("\t-2\t\tuse Split-file together with MPIO\n");
     printf("\t-p\t\tuse combo MPI-POSIX driver\n");
-    printf("\t-d <dim0> <dim1>\tdataset dimensions\n");
-    printf("\t-c <dim0> <dim1>\tdataset chunk dimensions\n");
-    printf("\tDefault: do write then read with dimensions %dx%d\n",
+    printf("\t-d <dim0> <dim1>\tdataset dimensions. Defaults (%d,%d)\n",
 	DIM0, DIM1);
+    printf("\t-c <dim0> <dim1>\tdataset chunk dimensions. Defaults (dim0/10,dim1/10)\n");
     printf("\n");
 }
 
@@ -160,10 +147,6 @@ parse_options(int argc, char **argv)
 	    break;
 	}else{
 	    switch(*(*argv+1)){
-		case 'r':   doread = 0;
-			    break;
-		case 'w':   dowrite = 0;
-			    break;
 		case 'm':   ndatasets = atoi((*argv+1)+1);
 			    if (ndatasets < 0){
 				nerrors++;
@@ -176,17 +159,6 @@ parse_options(int argc, char **argv)
                                 return(1);
 			    }
                             break;
-                case 'o':   docompact = 0;
-                            break;
-                case 'i':   doindependent = 0;
-                            break;
-                case 'b':   dobig = 1;
-                            break;
-		case 'v':   if (*((*argv+1)+1))
-				ParseTestVerbosity((*argv+1)+1);
-			    else
-				SetTestVerbosity(VERBO_MED);
-			    break;
 		case 'f':   if (--argc < 1) {
 				nerrors++;
 				return(1);
@@ -200,7 +172,7 @@ parse_options(int argc, char **argv)
 		case 'p':   /* Use the MPI-POSIX driver access */
 			    facc_type = FACC_MPIPOSIX;
 			    break;
-		case 's':   /* Use the split-file driver with MPIO access */
+		case '2':   /* Use the split-file driver with MPIO access */
 			    /* Can use $HDF5_METAPREFIX to define the */
 			    /* meta-file-prefix. */
 			    facc_type = FACC_MPIO | FACC_SPLIT;
@@ -228,7 +200,8 @@ parse_options(int argc, char **argv)
 			    break;
 		case 'h':   /* print help message--return with nerrors set */
 			    return(1);
-		default:    nerrors++;
+		default:    printf("Illegal option(%s)\n", *argv);
+			    nerrors++;
 			    return(1);
 	    }
 	}
@@ -363,6 +336,8 @@ done:
 int main(int argc, char **argv)
 {
     int mpi_size, mpi_rank;				/* mpi variables */
+    H5Ptest_param_t ndsets_params, ngroups_params;
+    H5Ptest_param_t collngroups_params;
 
     /* Un-buffer the stdout and stderr */
     setbuf(stderr, NULL);
@@ -380,14 +355,102 @@ int main(int argc, char **argv)
     H5open();
     h5_show_hostname();
 
+    /* Initialize testing framework */
+    TestInit(argv[0], usage, parse_options);
+
+    /* Tests are generally arranged from least to most complexity... */
+    AddTest("mpiodup", test_fapl_mpio_dup, NULL, 
+	    "fapl_mpio duplicate", NULL);
+    AddTest("posixdup", test_fapl_mpiposix_dup, NULL, 
+	    "fapl_mpiposix duplicate", NULL);
+
+    ndsets_params.name = filenames[3];
+    ndsets_params.count = ndatasets;
+    AddTest("ndsetw", multiple_dset_write, NULL, 
+	    "multiple datasets write", &ndsets_params);
+
+    ngroups_params.name = filenames[4];
+    ngroups_params.count = ngroups;
+    AddTest("ngrpw", multiple_group_write, NULL, 
+	    "multiple groups write", &ngroups_params);
+    AddTest("ngrpr", multiple_group_read, NULL, 
+	    "multiple groups read", &ngroups_params);
+
+    AddTest("split", test_split_comm_access, NULL, 
+	    "dataset using split communicators", filenames[0]);
+    AddTest("idsetw", dataset_writeInd, NULL, 
+	    "dataset independent write", filenames[0]);
+    AddTest("cdsetw", dataset_writeAll, NULL, 
+	    "dataset collective write", filenames[1]);
+    AddTest("eidsetw", extend_writeInd, NULL, 
+	    "extendible dataset independent write", filenames[2]);
+    AddTest("eidsetw2", extend_writeInd2, NULL, 
+	    "extendible dataset independent write #2", filenames[2]);
+    AddTest("ecdsetw", extend_writeAll, NULL, 
+	    "extendible dataset collective write", filenames[2]);
+
+    AddTest("idsetr", dataset_readInd, NULL, 
+	    "dataset independent read", filenames[0]);
+    AddTest("cdsetr", dataset_readAll, NULL, 
+	    "dataset collective read", filenames[1]);
+    AddTest("eidsetr", extend_readInd, NULL, 
+	    "extendible dataset independent read", filenames[2]);
+    AddTest("ecdsetr", extend_readAll, NULL, 
+	    "extendible dataset collective read", filenames[2]);
+
+    AddTest("compact", compact_dataset, NULL, 
+	    "compact dataset test", filenames[5]);
+
+    collngroups_params.name = filenames[6];
+    collngroups_params.count = ngroups;
+    AddTest("cngrpw", collective_group_write, NULL, 
+	    "collective group and dataset write", &collngroups_params);
+    AddTest("ingrpr", independent_group_read, NULL, 
+	    "independent group and dataset read", &collngroups_params);
+
+    /* By default, do not run big dataset. */
+    AddTest("-bigdset", big_dataset, NULL, 
+	    "big dataset test", filenames[7]);
+    AddTest("fill", dataset_fillvalue, NULL, 
+	    "dataset fill value", filenames[8]);
+
+    if(mpi_size > 64) {
+     if(MAINPROCESS) {
+      printf("Collective chunk IO tests haven't been tested \n");
+      printf("  for the number of process greater than 64.\n");
+      printf("Please try with the number of process \n");
+      printf("  no greater than 64 for collective chunk IO test.\n");
+      printf("Collective chunk tests will be skipped \n");
+     }
+    }
+    else {
+      AddTest("cchunk1", coll_chunk1,NULL,
+	      "simple collective chunk io",filenames[9]);
+      AddTest("cchunk2", coll_chunk2,NULL,
+	      "noncontiguous collective chunk io",filenames[9]);
+      AddTest("cchunk3", coll_chunk3,NULL,
+	      "multi-chunk collective chunk io",filenames[9]);
+      AddTest("cchunk4", coll_chunk4,NULL,
+	      "collective to independent chunk io",filenames[9]);
+    }
+
+    /* Display testing information */
+    TestInfo(argv[0]);
+
+    /* setup file access property list */
     fapl = H5Pcreate (H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL);
 
+    /* Parse command line arguments */
+    TestParseCmdLine(argc, argv);
+
+    /*
     if (parse_options(argc, argv) != 0){
 	if (MAINPROCESS)
 	    usage();
 	goto finish;
     }
+    */
 
     if (facc_type == FACC_MPIPOSIX && MAINPROCESS){
 	printf("===================================\n"
@@ -395,132 +458,50 @@ int main(int argc, char **argv)
 	       "===================================\n");
     }
 
-    MPI_BANNER("test_fapl_mpio_dup...");
-    test_fapl_mpio_dup();
-
-    MPI_BANNER("test_fapl_mpiposix_dup...");
-    test_fapl_mpiposix_dup();
-
-    if (ndatasets){
-	MPI_BANNER("multiple datasets write ...");
-        multiple_dset_write(filenames[3], ndatasets);
-    }
-    else{
-        MPI_BANNER("Multiple datasets test skipped");
-    }
-
-    if (ngroups){
-	MPI_BANNER("multiple groups write ...");
-        multiple_group_write(filenames[4], ngroups);
-        if (doread) {
-       	    MPI_BANNER("multiple groups read ...");
-            multiple_group_read(filenames[4], ngroups);
-        }
-    }
-    else{
-        MPI_BANNER("Multiple groups test skipped");
-    }
-
-    if (dowrite){
-	MPI_BANNER("dataset using split communicators...");
-	test_split_comm_access(filenames[0]);
-
-	MPI_BANNER("dataset independent write...");
-	dataset_writeInd(filenames[0]);
-
-	MPI_BANNER("dataset collective write...");
-	dataset_writeAll(filenames[1]);
-
-	MPI_BANNER("extendible dataset independent write...");
-	extend_writeInd(filenames[2]);
-
-	MPI_BANNER("extendible dataset collective write...");
-	extend_writeAll(filenames[2]);
-    }
-    else{
-	MPI_BANNER("write tests skipped");
-    }
-
-    if (doread){
-	MPI_BANNER("dataset independent read...");
-	dataset_readInd(filenames[0]);
-
-	MPI_BANNER("dataset collective read...");
-	dataset_readAll(filenames[1]);
-
-	MPI_BANNER("extendible dataset independent read...");
-	extend_readInd(filenames[2]);
-
-	MPI_BANNER("extendible dataset collective read...");
-	extend_readAll(filenames[2]);
-    }
-    else{
-	MPI_BANNER("read tests skipped");
-    }
-
-    if (docompact){
-        MPI_BANNER("compact dataset test...");
-        compact_dataset(filenames[5]); 
-    }
-    else {
-        MPI_BANNER("compact dataset test skipped");
-    }
-    
-    if (doindependent){
-	MPI_BANNER("collective group and dataset write ...");
-        collective_group_write(filenames[6], ngroups);
-        if (doread) {
-       	    MPI_BANNER("independent group and dataset read ...");
-            independent_group_read(filenames[6], ngroups);
-        }
-    }
-    else{
-        MPI_BANNER("Independent test skipped");
-    }
-        
-    if (dobig && sizeof(MPI_Offset)>4){
-        MPI_BANNER("big dataset test...");
-        big_dataset(filenames[7]); 
-    }
-    else {
-        MPI_BANNER("big dataset test skipped");
-    }
-    
-    MPI_BANNER("dataset fill value test...");
-    dataset_fillvalue(filenames[8]); 
-    
-    if (!(dowrite || doread || ndatasets || ngroups || docompact || doindependent || dobig )){
-	usage();
-	nerrors++;
-    }
+    /* Perform requested testing */
+    PerformTests();
 
 finish:
     /* make sure all processes are finished before final report, cleanup
      * and exit.
      */
     MPI_Barrier(MPI_COMM_WORLD);
-    if (MAINPROCESS){		/* only process 0 reports */
-	printf("===================================\n");
-	if (nerrors){
-	    printf("***PHDF5 tests detected %d errors***\n", nerrors);
-	}
-	else{
-	    printf("PHDF5 tests finished with no errors\n");
-	}
-	printf("===================================\n");
-    }
-    if (dowrite){
+
+    /* Display test summary, if requested */
+    if (MAINPROCESS && GetTestSummary())
+        TestSummary();
+
+    /* Clean up test files, if allowed */
+    if (GetTestCleanup() && !getenv("HDF5_NOCLEANUP"))
 	h5_cleanup(FILENAME, fapl);
-    } else {
+    else
 	/* h5_cleanup would have closed fapl.  Now must do it explicitedly */
 	H5Pclose(fapl);
+
+    nerrors += GetTestNumErrs();
+
+    /* Gather errors from all processes */
+    {
+        int temp;
+        MPI_Allreduce(&nerrors, &temp, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+	nerrors=temp;
     }
 
+    if (MAINPROCESS){		/* only process 0 reports */
+	printf("===================================\n");
+	if (nerrors)
+	    printf("***PHDF5 tests detected %d errors***\n", nerrors);
+	else
+	    printf("PHDF5 tests finished with no errors\n");
+	printf("===================================\n");
+    }
     /* close HDF5 library */
     H5close();
 
     /* MPI_Finalize must be called AFTER H5close which may use MPI calls */
     MPI_Finalize();
-    return(nerrors);
+
+    /* cannot just return (nerrors) because exit code is limited to 1byte */
+    return(nerrors!=0);
 }
 

@@ -10,7 +10,7 @@
 *									    *
 ****************************************************************************/
 
-/* $Id: H5A.c,v 1.65.2.2 2001/05/15 21:25:24 wendling Exp $ */
+/* $Id: H5A.c,v 1.65.2.5 2002/01/04 03:45:16 koziol Exp $ */
 
 #define H5A_PACKAGE		/*suppress error about including H5Apkg	*/
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	*/
@@ -32,7 +32,7 @@
 #define PABLO_MASK	H5A_mask
 
 /* Is the interface initialized? */
-static intn		interface_initialize_g = 0;
+static int		interface_initialize_g = 0;
 #define INTERFACE_INIT	H5A_init_interface
 static herr_t		H5A_init_interface(void);
 
@@ -40,7 +40,7 @@ static herr_t		H5A_init_interface(void);
 static hid_t H5A_create(const H5G_entry_t *ent, const char *name,
 			const H5T_t *type, const H5S_t *space);
 static hid_t H5A_open(H5G_entry_t *ent, unsigned idx);
-static herr_t H5A_write(H5A_t *attr, const H5T_t *mem_type, void *buf);
+static herr_t H5A_write(H5A_t *attr, const H5T_t *mem_type, const void *buf);
 static herr_t H5A_read(H5A_t *attr, const H5T_t *mem_type, void *buf);
 static int H5A_get_index(H5G_entry_t *ent, const char *name);
 
@@ -91,10 +91,10 @@ H5A_init_interface(void)
  EXAMPLES
  REVISION LOG
 --------------------------------------------------------------------------*/
-intn
+int
 H5A_term_interface(void)
 {
-    intn	n=0;
+    int	n=0;
     
     if (interface_initialize_g) {
 	if ((n=H5I_nmembers(H5I_ATTR))) {
@@ -223,7 +223,7 @@ H5A_create(const H5G_entry_t *ent, const char *name, const H5T_t *type,
 {
     H5A_t	*attr = NULL;
     H5A_t	found_attr;
-    intn	seq=0;
+    int	seq=0;
     hid_t	ret_value = FAIL;
 
     FUNC_ENTER(H5A_create, FAIL);
@@ -253,7 +253,7 @@ H5A_create(const H5G_entry_t *ent, const char *name, const H5T_t *type,
     /* Compute the internal sizes */
     attr->dt_size=(H5O_DTYPE[0].raw_size)(attr->ent.file,type);
     attr->ds_size=(H5O_SDSPACE[0].raw_size)(attr->ent.file,&(space->extent.u.simple));
-    attr->data_size=H5S_get_simple_extent_npoints(space)*H5T_get_size(type);
+    attr->data_size=H5S_get_simple_extent_npoints(attr->ds)*H5T_get_size(attr->dt);
 
     /* Hold the symbol table entry (and file) open */
     if (H5O_open(&(attr->ent)) < 0) {
@@ -388,7 +388,7 @@ hid_t
 H5Aopen_name(hid_t loc_id, const char *name)
 {
     H5G_entry_t    	*ent = NULL;   /*Symtab entry of object to attribute*/
-    intn            	idx=0;
+    int            	idx=0;
     hid_t		ret_value = FAIL;
 
     FUNC_ENTER(H5Aopen_name, FAIL);
@@ -558,7 +558,7 @@ done:
         This function writes a complete attribute to disk.
 --------------------------------------------------------------------------*/
 herr_t
-H5Awrite(hid_t attr_id, hid_t type_id, void *buf)
+H5Awrite(hid_t attr_id, hid_t type_id, const void *buf)
 {
     H5A_t		   *attr = NULL;
     const H5T_t    *mem_type = NULL;
@@ -609,7 +609,7 @@ H5Awrite(hid_t attr_id, hid_t type_id, void *buf)
     This function writes a complete attribute to disk.
 --------------------------------------------------------------------------*/
 static herr_t
-H5A_write(H5A_t *attr, const H5T_t *mem_type, void *buf)
+H5A_write(H5A_t *attr, const H5T_t *mem_type, const void *buf)
 {
     uint8_t		*tconv_buf = NULL;	/* data type conv buffer */
     uint8_t		*bkg_buf = NULL;	/* temp conversion buffer */
@@ -1158,7 +1158,7 @@ H5Aiterate(hid_t loc_id, unsigned *attr_num, H5A_operator_t op, void *op_data)
     H5G_entry_t		*ent = NULL;	/*symtab ent of object to attribute */
     H5A_t          	found_attr;
     herr_t	        ret_value = 0;
-    intn		idx;
+    int		idx;
 
     FUNC_ENTER(H5Aiterate, FAIL);
     H5TRACE4("e","i*Iuxx",loc_id,attr_num,op,op_data);
@@ -1177,7 +1177,7 @@ H5Aiterate(hid_t loc_id, unsigned *attr_num, H5A_operator_t op, void *op_data)
      * Look up the attribute for the object. Make certain the start point is
      * reasonable.
      */
-    idx = attr_num ? (intn)*attr_num : 0;
+    idx = attr_num ? (int)*attr_num : 0;
     if(idx<H5O_count(ent, H5O_ATTR)) {
         while(H5O_read(ent, H5O_ATTR, idx++, &found_attr)!=NULL) {
 	    /*
@@ -1228,7 +1228,7 @@ H5Adelete(hid_t loc_id, const char *name)
 {
     H5A_t       found_attr;
     H5G_entry_t	*ent = NULL;		/*symtab ent of object to attribute */
-    intn        idx=0, found=-1;
+    int        idx=0, found=-1;
     herr_t	ret_value = FAIL;
 
     FUNC_ENTER(H5Aopen_name, FAIL);

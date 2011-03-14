@@ -19,7 +19,7 @@
 
 /* Conversion data for H5T_conv_struct() */
 typedef struct H5T_conv_struct_t {
-    intn	*src2dst;		/*mapping from src to dst member num */
+    int	*src2dst;		/*mapping from src to dst member num */
     hid_t	*src_memb_id;		/*source member type ID's	     */
     hid_t	*dst_memb_id;		/*destination member type ID's	     */
     H5T_path_t	**memb_path;		/*conversion path for each member    */
@@ -27,9 +27,9 @@ typedef struct H5T_conv_struct_t {
 
 /* Conversion data for H5T_conv_enum() */
 typedef struct H5T_enum_struct_t {
-    intn	base;			/*lowest `in' value		     */
-    intn	length;			/*num elements in arrays	     */
-    intn	*src2dst;		/*map from src to dst index	     */
+    int	base;			/*lowest `in' value		     */
+    int	length;			/*num elements in arrays	     */
+    int	*src2dst;		/*map from src to dst index	     */
 } H5T_enum_struct_t;
 
 /* Conversion data for the hardware conversion functions */
@@ -39,7 +39,7 @@ typedef struct H5T_conv_hw_t {
 } H5T_conv_hw_t;
 
 /* Interface initialization */
-static intn interface_initialize_g = 0;
+static int interface_initialize_g = 0;
 #define INTERFACE_INIT NULL
 
 /* Declare a free list to manage pieces of vlen data */
@@ -400,6 +400,9 @@ H5FL_BLK_DEFINE_STATIC(vlen_seq);
 #   define CI_INC_DST(d) /* void */
 #endif
 
+/* Swap two elements (I & J) of an array using a temporary variable */
+#define H5_SWAP_BYTES(ARRAY,I,J) {uint8_t _tmp; _tmp=ARRAY[I]; ARRAY[I]=ARRAY[J]; ARRAY[J]=_tmp;}
+
 /*-------------------------------------------------------------------------
  * Function:	H5T_conv_noop
  *
@@ -444,6 +447,396 @@ H5T_conv_noop(hid_t UNUSED src_id, hid_t UNUSED dst_id, H5T_cdata_t *cdata,
 }
 
 /*-------------------------------------------------------------------------
+ * Function:	H5T_conv_order_opt
+ *
+ * Purpose:	Convert one type to another when byte order is the only
+ *		difference. This is the optimized version of H5T_conv_order()
+ *              for a handful of different sizes.
+ *
+ * Note:	This is a soft conversion function.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Robb Matzke
+ *		Friday, January 25, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5T_conv_order_opt(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
+                   hsize_t nelmts, size_t buf_stride,
+                   size_t UNUSED bkg_stride, void *_buf,
+                   void UNUSED *background, hid_t UNUSED dset_xfer_plist)
+{
+    uint8_t	*buf = (uint8_t*)_buf;
+    H5T_t	*src = NULL;
+    H5T_t	*dst = NULL;
+    hsize_t	i;
+
+    FUNC_ENTER(H5T_conv_order_opt, FAIL);
+
+    switch (cdata->command) {
+    case H5T_CONV_INIT:
+	/* Capability query */
+	if (H5I_DATATYPE != H5I_get_type(src_id) ||
+	    NULL == (src = H5I_object(src_id)) ||
+	    H5I_DATATYPE != H5I_get_type(dst_id) ||
+	    NULL == (dst = H5I_object(dst_id))) {
+	    HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
+	}
+	if (src->size != dst->size ||
+	    0 != src->u.atomic.offset ||
+	    0 != dst->u.atomic.offset ||
+	    !((H5T_ORDER_BE == src->u.atomic.order &&
+	       H5T_ORDER_LE == dst->u.atomic.order) ||
+	      (H5T_ORDER_LE == src->u.atomic.order &&
+	       H5T_ORDER_BE == dst->u.atomic.order))) {
+	    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
+			  "conversion not supported");
+	}
+        if (src->size!=1 && src->size!=2 && src->size!=4 &&
+            src->size!=8 && src->size!=16) {
+            HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
+                          "conversion not supported");
+        }
+	switch (src->type) {
+	case H5T_INTEGER:
+	case H5T_BITFIELD:
+	    /* nothing to check */
+	    break;
+
+	case H5T_FLOAT:
+	    if (src->u.atomic.u.f.sign != dst->u.atomic.u.f.sign ||
+		src->u.atomic.u.f.epos != dst->u.atomic.u.f.epos ||
+		src->u.atomic.u.f.esize != dst->u.atomic.u.f.esize ||
+		src->u.atomic.u.f.ebias != dst->u.atomic.u.f.ebias ||
+		src->u.atomic.u.f.mpos != dst->u.atomic.u.f.mpos ||
+		src->u.atomic.u.f.msize != dst->u.atomic.u.f.msize ||
+		src->u.atomic.u.f.norm != dst->u.atomic.u.f.norm ||
+		src->u.atomic.u.f.pad != dst->u.atomic.u.f.pad) {
+		HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
+			      "conversion not supported");
+	    }
+	    break;
+
+	default:
+	    HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
+			  "conversion not supported");
+	}
+	cdata->need_bkg = H5T_BKG_NO;
+	break;
+
+    case H5T_CONV_CONV:
+	/* The conversion */
+	if (H5I_DATATYPE != H5I_get_type(src_id) ||
+	    NULL == (src = H5I_object(src_id)) ||
+	    H5I_DATATYPE != H5I_get_type(dst_id) ||
+	    NULL == (dst = H5I_object(dst_id))) {
+	    HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
+	}
+
+        buf_stride = buf_stride ? buf_stride : src->size;
+        switch (src->size) {
+        case 1:
+            /*no-op*/
+            break;
+        case 2:
+            for (/*void*/; nelmts>=20; nelmts-=20) {
+                H5_SWAP_BYTES(buf, 0,   1); /*  0 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  1 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  2 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  3 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  4 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  5 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  6 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  7 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  8 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /*  9 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 10 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 11 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 12 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 13 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 14 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 15 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 16 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 17 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 18 */
+                buf += buf_stride; 
+                H5_SWAP_BYTES(buf, 0,   1); /* 19 */
+                buf += buf_stride;
+            }
+            for (i=0; i<nelmts; i++, buf+=buf_stride) {
+                H5_SWAP_BYTES(buf, 0, 1);
+            }
+            break;
+        case 4:
+            for (/*void*/; nelmts>=20; nelmts-=20) {
+                H5_SWAP_BYTES(buf,  0,  3); /*  0 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  1 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  2 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  3 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  4 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  5 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  6 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  7 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  8 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /*  9 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 10 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 11 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 12 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 13 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 14 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 15 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 16 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 17 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 18 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  3); /* 19 */
+                H5_SWAP_BYTES(buf,  1,  2);
+                buf += buf_stride;
+            }
+            for (i=0; i<nelmts; i++, buf+=buf_stride) {
+                H5_SWAP_BYTES(buf, 0, 3);
+                H5_SWAP_BYTES(buf, 1, 2);
+            }
+            break;
+        case 8:
+            for (/*void*/; nelmts>=10; nelmts-=10) {
+                H5_SWAP_BYTES(buf,  0,  7); /*  0 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  1 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  2 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  3 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  4 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  5 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  6 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  7 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  8 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,  0,  7); /*  9 */
+                H5_SWAP_BYTES(buf,  1,  6);
+                H5_SWAP_BYTES(buf,  2,  5);
+                H5_SWAP_BYTES(buf,  3,  4);
+                buf += buf_stride;
+            }
+            for (i=0; i<nelmts; i++, buf+=buf_stride) {
+                H5_SWAP_BYTES(buf, 0, 7);
+                H5_SWAP_BYTES(buf, 1, 6);
+                H5_SWAP_BYTES(buf, 2, 5);
+                H5_SWAP_BYTES(buf, 3, 4);
+            }
+            break;
+        case 16:
+            for (/*void*/; nelmts>=10; nelmts-=10) {
+                H5_SWAP_BYTES(buf,   0,  15); /*  0 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  1 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  2 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  3 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  4 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  5 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  6 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  7 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  8 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+                H5_SWAP_BYTES(buf,   0,  15); /*  9 */
+                H5_SWAP_BYTES(buf,   1,  14);
+                H5_SWAP_BYTES(buf,   2,  13);
+                H5_SWAP_BYTES(buf,   3,  12);
+                H5_SWAP_BYTES(buf,   4,  11);
+                H5_SWAP_BYTES(buf,   5,  10);
+                H5_SWAP_BYTES(buf,   6,   9);
+                H5_SWAP_BYTES(buf,   7,   8);
+                buf += buf_stride;
+            }
+            for (i=0; i<nelmts; i++, buf+=buf_stride) {
+                H5_SWAP_BYTES(buf, 0, 15);
+                H5_SWAP_BYTES(buf, 1, 14);
+                H5_SWAP_BYTES(buf, 2, 13);
+                H5_SWAP_BYTES(buf, 3, 12);
+                H5_SWAP_BYTES(buf, 4, 11);
+                H5_SWAP_BYTES(buf, 5, 10);
+                H5_SWAP_BYTES(buf, 6,  9);
+                H5_SWAP_BYTES(buf, 7,  8);
+            }
+            break;
+        }
+        break;
+
+    case H5T_CONV_FREE:
+	/* Free private data */
+	break;
+
+    default:
+	HRETURN_ERROR (H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
+		       "unknown conversion command");
+    }
+
+    FUNC_LEAVE(SUCCEED);
+}
+
+/*-------------------------------------------------------------------------
  * Function:	H5T_conv_order
  *
  * Purpose:	Convert one type to another when byte order is the only
@@ -464,6 +857,9 @@ H5T_conv_noop(hid_t UNUSED src_id, hid_t UNUSED dst_id, H5T_cdata_t *cdata,
  *
  * 		Robb Matzke, 1999-06-16
  *		Added support for bitfields.
+ *
+ *              Robb Matzke, 2002-01-24
+ *              Unrolled two loops by hand. Ugly code bug *much* faster.
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -472,7 +868,6 @@ H5T_conv_order(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
                void UNUSED *background, hid_t UNUSED dset_xfer_plist)
 {
     uint8_t	*buf = (uint8_t*)_buf;
-    uint8_t	tmp;
     H5T_t	*src = NULL;
     H5T_t	*dst = NULL;
     hsize_t	i;
@@ -534,14 +929,14 @@ H5T_conv_order(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
 	    NULL == (dst = H5I_object(dst_id))) {
 	    HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
 	}
-	md = src->size / 2;
-	for (i=0; i<nelmts; i++, buf+=buf_stride?buf_stride:src->size) {
-	    for (j=0; j<md; j++) {
-		tmp = buf[j];
-		buf[j] = buf[src->size-(j+1)];
-		buf[src->size-(j+1)] = tmp;
-	    }
-	}
+
+        buf_stride = buf_stride ? buf_stride : src->size;
+        md = src->size / 2;
+        for (i=0; i<nelmts; i++, buf+=buf_stride) {
+            for (j=0; j<md; j++) {
+                H5_SWAP_BYTES(buf, j, src->size-(j+1));
+            }
+        }
 	break;
 
     case H5T_CONV_FREE:
@@ -581,7 +976,7 @@ H5T_conv_b_b(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
 {
     uint8_t	*buf = (uint8_t*)_buf;
     H5T_t	*src=NULL, *dst=NULL;	/*source and dest data types	*/
-    intn	direction;		/*direction of traversal	*/
+    int	direction;		/*direction of traversal	*/
     hsize_t	elmtno;			/*element number		*/
     hsize_t	olap;			/*num overlapping elements	*/
     size_t	half_size;		/*1/2 of total size for swapping*/
@@ -850,7 +1245,7 @@ static herr_t
 H5T_conv_struct_init (H5T_t *src, H5T_t *dst, H5T_cdata_t *cdata)
 {
     H5T_conv_struct_t	*priv = (H5T_conv_struct_t*)(cdata->priv);
-    intn		i, j, *src2dst = NULL;
+    int		i, j, *src2dst = NULL;
     H5T_t		*type = NULL;
     hid_t		tid;
     
@@ -862,7 +1257,7 @@ H5T_conv_struct_init (H5T_t *src, H5T_t *dst, H5T_cdata_t *cdata)
          */
         if (NULL==(priv=cdata->priv=H5MM_calloc(sizeof(H5T_conv_struct_t))) ||
             NULL==(priv->src2dst=H5MM_malloc(src->u.compnd.nmembs *
-                             sizeof(intn))) ||
+                             sizeof(int))) ||
             NULL==(priv->src_memb_id=H5MM_malloc(src->u.compnd.nmembs *
                                 sizeof(hid_t))) ||
             NULL==(priv->dst_memb_id=H5MM_malloc(dst->u.compnd.nmembs *
@@ -995,13 +1390,13 @@ H5T_conv_struct(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
     uint8_t     *xbuf=buf, *xbkg=bkg;   /*temp pointers into buf and bkg*/
     H5T_t	*src = NULL;		/*source data type		*/
     H5T_t	*dst = NULL;		/*destination data type		*/
-    intn	*src2dst = NULL;	/*maps src member to dst member	*/
+    int	*src2dst = NULL;	/*maps src member to dst member	*/
     H5T_cmemb_t	*src_memb = NULL;	/*source struct member descript.*/
     H5T_cmemb_t	*dst_memb = NULL;	/*destination struct memb desc.	*/
     size_t	offset;			/*byte offset wrt struct	*/
     size_t	src_delta;	    /*source stride	*/
     hsize_t	elmtno;
-    intn	i;			/*counters			*/
+    int	i;			/*counters			*/
     H5T_conv_struct_t *priv = (H5T_conv_struct_t *)(cdata->priv);
 
     FUNC_ENTER (H5T_conv_struct, FAIL);
@@ -1241,12 +1636,12 @@ H5T_conv_struct_opt(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
     uint8_t	*xbkg = NULL;		/*temporary pointer into `bkg'	*/
     H5T_t	*src = NULL;		/*source data type		*/
     H5T_t	*dst = NULL;		/*destination data type		*/
-    intn	*src2dst = NULL;	/*maps src member to dst member	*/
+    int	*src2dst = NULL;	/*maps src member to dst member	*/
     H5T_cmemb_t	*src_memb = NULL;	/*source struct member descript.*/
     H5T_cmemb_t	*dst_memb = NULL;	/*destination struct memb desc.	*/
     size_t	offset;			/*byte offset wrt struct	*/
     hsize_t	elmtno;			/*element counter		*/
-    intn	i;			    /*counters			*/
+    int	i;			    /*counters			*/
     H5T_conv_struct_t *priv = NULL;	/*private data			*/
 
     FUNC_ENTER (H5T_conv_struct_opt, FAIL);
@@ -1480,12 +1875,12 @@ static herr_t
 H5T_conv_enum_init(H5T_t *src, H5T_t *dst, H5T_cdata_t *cdata)
 {
     H5T_enum_struct_t	*priv=NULL;	/*private conversion data	*/
-    intn		n;		/*src value cast as native int	*/
-    intn		domain[2];	/*min and max source values	*/
-    intn		*map=NULL;	/*map from src value to dst idx	*/
-    intn		length;		/*nelmts in map array		*/
+    int		n;		/*src value cast as native int	*/
+    int		domain[2];	/*min and max source values	*/
+    int		*map=NULL;	/*map from src value to dst idx	*/
+    int		length;		/*nelmts in map array		*/
     herr_t		ret_value=FAIL;	/*return value			*/
-    intn		i, j;		/*counters			*/
+    int		i, j;		/*counters			*/
     
     FUNC_ENTER(H5T_conv_enum_init, FAIL);
 
@@ -1632,8 +2027,8 @@ H5T_conv_enum(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
     uint8_t	*buf = (uint8_t*)_buf;	/*cast for pointer arithmetic	*/
     H5T_t	*src=NULL, *dst=NULL;	/*src and dst data types	*/
     uint8_t	*s=NULL, *d=NULL;	/*src and dst BUF pointers	*/
-    intn	src_delta, dst_delta;	/*conversion strides		*/
-    intn	n;			/*src value cast as native int	*/
+    int	src_delta, dst_delta;	/*conversion strides		*/
+    int	n;			/*src value cast as native int	*/
     hsize_t	i;			/*counters			*/
     H5T_enum_struct_t *priv = (H5T_enum_struct_t*)(cdata->priv);
     
@@ -1699,7 +2094,7 @@ H5T_conv_enum(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
 	 * Direction of conversion.
 	 */
 	if (buf_stride) {
-	    src_delta = dst_delta = (intn)buf_stride;
+	    src_delta = dst_delta = (int)buf_stride;
 	    s = d = buf;
 	} else if (dst->size <= src->size) {
 	    src_delta = (int)src->size; /*overflow shouldn't be possible*/
@@ -1824,7 +2219,7 @@ H5T_conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
     void	*conv_buf=NULL;     	/*temporary conversion buffer 	     */
     hsize_t	conv_buf_size;  	/*size of conversion buffer in bytes */
     uint8_t	dbuf[64],*dbuf_ptr=dbuf;/*temp destination buffer	     */
-    intn	direction;		/*direction of traversal	     */
+    int	direction;		/*direction of traversal	     */
     hsize_t	elmtno;			/*element number counter	     */
 
     FUNC_ENTER (H5T_conv_vlen, FAIL);
@@ -1928,7 +2323,6 @@ H5T_conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
                      "memory allocation failed for type conversion");
 
             /* Set up conversion path for base elements */
-            tpath = H5T_path_find(src->parent, dst->parent, NULL, NULL);
             if (NULL==(tpath=H5T_path_find(src->parent, dst->parent, NULL, NULL))) {
                 HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
                           "unable to convert between src and dest datatypes");
@@ -2040,9 +2434,9 @@ H5T_conv_array(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
     H5T_t	*dst = NULL;	/*destination data type		     */
     uint8_t	*sp, *dp;	    /*source and dest traversal ptrs     */
     size_t	src_delta, dst_delta;	/*source & destination stride	     */
-    intn	direction;		/*direction of traversal	     */
+    int	direction;		/*direction of traversal	     */
     hsize_t	elmtno;			/*element number counter	     */
-    intn    i;              /* local index variable */
+    int    i;              /* local index variable */
 
     FUNC_ENTER (H5T_conv_array, FAIL);
 
@@ -2119,7 +2513,6 @@ H5T_conv_array(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
             dst_delta = direction * (buf_stride ? buf_stride : dst->size);
 
             /* Set up conversion path for base elements */
-            tpath = H5T_path_find(src->parent, dst->parent, NULL, NULL);
             if (NULL==(tpath=H5T_path_find(src->parent, dst->parent,
                                            NULL, NULL))) {
                 HRETURN_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL,
@@ -2199,7 +2592,7 @@ H5T_conv_i_i (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
 {
     H5T_t	*src = NULL;		/*source data type		*/
     H5T_t	*dst = NULL;		/*destination data type		*/
-    intn	direction;		/*direction of traversal	*/
+    int	direction;		/*direction of traversal	*/
     hsize_t	elmtno;			/*element number		*/
     size_t	half_size;		/*half the type size		*/
     hsize_t	olap;			/*num overlapping elements	*/
@@ -2540,7 +2933,7 @@ H5T_conv_f_f (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
     H5T_t	*dst_p;			/*destination data type		*/
     H5T_atomic_t src;			/*atomic source info		*/
     H5T_atomic_t dst;			/*atomic destination info	*/
-    intn	direction;		/*forward or backward traversal	*/
+    int	direction;		/*forward or backward traversal	*/
     hsize_t	elmtno;			/*element number		*/
     size_t	half_size;		/*half the type size		*/
     hsize_t	olap;			/*num overlapping elements	*/
@@ -2977,7 +3370,7 @@ H5T_conv_s_s (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, hsize_t nelmts,
 {
     H5T_t	*src=NULL;		/*source data type		*/
     H5T_t	*dst=NULL;		/*destination data type		*/
-    intn	direction;		/*direction of traversal	*/
+    int	direction;		/*direction of traversal	*/
     hsize_t	elmtno;			/*element number		*/
     hsize_t	olap;			/*num overlapping elements	*/
     size_t	nchars=0;		/*number of characters copied	*/
@@ -6111,17 +6504,17 @@ H5T_conv_i32le_f64le (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
     uint8_t	tmp[8];			/*temporary destination buffer	*/
     H5T_t	*src = NULL;		/*source data type		*/
     hsize_t	elmtno;			/*element counter		*/
-    uintn	sign;			/*sign bit			*/
-    uintn	cin, cout;		/*carry in/out			*/
-    uintn	mbits=0;		/*mantissa bits			*/
-    uintn	exponent;		/*exponent			*/
-    intn	i;			/*counter			*/
+    unsigned	sign;			/*sign bit			*/
+    unsigned	cin, cout;		/*carry in/out			*/
+    unsigned	mbits=0;		/*mantissa bits			*/
+    unsigned	exponent;		/*exponent			*/
+    int	i;			/*counter			*/
 
     FUNC_ENTER (H5T_conv_i32le_f64le, FAIL);
 
     switch (cdata->command) {
         case H5T_CONV_INIT:
-            assert (sizeof(intn)>=4);
+            assert (sizeof(int)>=4);
             cdata->need_bkg = H5T_BKG_NO;
             break;
 

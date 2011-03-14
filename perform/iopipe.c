@@ -9,17 +9,15 @@
 /* See H5private.h for how to include headers */
 #undef NDEBUG
 #include "hdf5.h"
+
+#ifdef H5_HAVE_WINSOCK_H
+#include <Winsock.h>
+#endif 
+
+/*Winsock.h includes windows.h, due to the different value of
+WINVER, windows.h should be put before H5private.h. Kent yang 6/21/2001*/
+
 #include "H5private.h"
-
-#if defined (__MWERKS__)
-#ifdef H5_HAVE_SYS_TIMEB 
-#undef H5_HAVE_SYS_TIMEB
-#endif
-#ifdef H5_HAVE_SYSTEM 
-#undef H5_HAVE_SYSTEM
-#endif
-#endif /* __MWERKS__*/
-
 
 #ifdef H5_STDC_HEADERS
 #   include <assert.h>
@@ -47,14 +45,20 @@
 #   include <sys/resource.h>
 #endif
 
-#ifdef H5_HAVE_WINSOCK_H
-#   include <Winsock.h>
-#endif
 
+
+#if defined (__MWERKS__)
+#ifdef H5_HAVE_SYS_TIMEB 
+#undef H5_HAVE_SYS_TIMEB
+#endif
+#ifdef H5_HAVE_SYSTEM 
+#undef H5_HAVE_SYSTEM
+#endif
+#endif /* __MWERKS__*/
 
 
 #ifdef H5_HAVE_SYS_TIMEB 
-#   include <sys/timeb.h>
+#include <sys/timeb.h>
 #endif
 
 
@@ -163,7 +167,11 @@ synchronize (void)
 {
 #ifdef H5_HAVE_SYSTEM
 #ifdef WIN32
+#ifdef __WATCOMC__
+	flushall();
+#else /* __WATCOMC__ */
 	_flushall();
+#endif /* __WATCOMC__ */
 #else
     system ("sync");
     system ("df >/dev/null");

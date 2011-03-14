@@ -9,7 +9,7 @@
 namespace H5 {
 #endif
 
-class IdComponent {
+class __DLLCPP__ IdComponent {
    public:
 	// Parent classes must reset the current IdComponent copy
 	// before setting new id to control reference count
@@ -42,7 +42,7 @@ class IdComponent {
 	bool noReference();
 
 	// Assignment operator
-	virtual IdComponent& operator=( const IdComponent& rhs );
+	IdComponent& operator=( const IdComponent& rhs );
 
 	// Resets this IdComponent instance
 	//template <class Type>

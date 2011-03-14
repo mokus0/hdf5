@@ -96,6 +96,12 @@ converter.*/
 #define LABEL_LENG   20
 /* 7. define "IMAGE" CLASS required by image spec. */
 #define IM_CLASS    "IMAGE"
+/*7.5. define interlace mode. */
+#define INTERLACE_MODE "INTERLACE_MODE"
+#define PIXEL_INTERLACE "INTERLACE_PIXEL"
+#define LINE_INTERLACE "INTERLACE_LINE"
+#define PLANE_INTERLACE "INTERLACE_PLANE"
+
 
 /* 8. reserved group name for HDF4 dimensional scale and palette. */
 #define HDF4_DIMG           "/HDF4_DIMGROUP"
@@ -143,6 +149,9 @@ public constant for hdf lib, this constant can be released.*/
 /*12. fake sds dimension name*/
 #define fakeDim  "fakeDim"
 
+/*13. define a default first dimension chunking size when the
+  current unlimited dimensional size of SDS is set to 0. */
+#define HDF4_CHUNKSIZE 20
 extern int32 estnum_vg;
 extern int32 estnum_vd;
 extern int32 num_sds;
@@ -232,6 +241,10 @@ char* make_objname_no(char*,char*,const char*);
 char* make_objname_yes(char*,char*);
 char* correct_name(char*);
 
+/* routines for handling memory allocation of huge SDS dataset */
+int get_numslab_perD(int32,int,int);
+int h5ceil(int32,int32);
+int h4toh5pow(int,int);
 #endif
 
 

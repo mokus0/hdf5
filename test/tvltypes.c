@@ -10,7 +10,7 @@
  *									    *
  ****************************************************************************/
 
-/* $Id: tvltypes.c,v 1.13.2.3 2001/07/12 16:56:19 koziol Exp $ */
+/* $Id: tvltypes.c,v 1.13.2.4 2001/08/15 14:53:13 koziol Exp $ */
 
 /***********************************************************
 *
@@ -113,7 +113,7 @@ test_vltypes_vlen_atomic(void)
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
-    uintn       i,j;        /* counting variables */
+    unsigned       i,j;        /* counting variables */
     unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
@@ -241,7 +241,7 @@ test_vltypes_vlen_compound(void)
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
-    uintn       i,j;        /* counting variables */
+    unsigned       i,j;        /* counting variables */
     unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
@@ -391,7 +391,7 @@ test_vltypes_compound_vlen_atomic(void)
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
-    uintn       i,j;        /* counting variables */
+    unsigned       i,j;        /* counting variables */
     unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
@@ -564,7 +564,7 @@ test_vltypes_vlen_vlen_atomic(void)
     hid_t       xfer_pid;   /* Dataset transfer property list ID */
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
-    uintn       i,j,k;      /* counting variables */
+    unsigned       i,j,k;      /* counting variables */
     unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 

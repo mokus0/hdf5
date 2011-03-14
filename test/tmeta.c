@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: tmeta.c,v 1.8.4.2 2001/05/15 21:26:45 wendling Exp $ */
+/* $Id: tmeta.c,v 1.8.4.3 2001/08/15 14:52:21 koziol Exp $ */
 
 /***********************************************************
 *
@@ -76,7 +76,7 @@ test_metadata(void)
 
     /* Check if we got what we asked for */
     if (HDmemcmp(encode_buffer, compar_buffer, sizeof(compar_buffer)) != 0) {
-        uintn                   u;      /* local counting variable */
+        unsigned                   u;      /* local counting variable */
 
         for (u = 0; u < sizeof(compar_buffer); u++) {
             if (compar_buffer[u] != encode_buffer[u]) {

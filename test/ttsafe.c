@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: ttsafe.c,v 1.6.2.1 2001/03/20 22:09:43 acheng Exp $ */
+/* $Id: ttsafe.c,v 1.6.2.2 2001/08/15 14:52:56 koziol Exp $ */
 
 /*
  * FILE
@@ -95,7 +95,7 @@ static void InitTest(const char *TheName, void (*TheCall) (void),
 
 static void usage(void)
 {
-	intn i;
+	int i;
 
 	print_func("Usage: ttsafe [-v[erbose] (l[ow]|m[edium]|h[igh]|0-10)] \n");
 	print_func("              [-[e]x[clude] name+] \n");
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 {
 	int CLLoop;     /* Command Line Loop */
 	int Loop, Loop1, Summary = 0, CleanUp = 1, Cache = 1;
-	uintn major, minor, release;
+	unsigned major, minor, release;
 
 #if defined __MWERKS__
 	argc = ccommand(&argv);

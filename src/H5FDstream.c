@@ -12,7 +12,7 @@
  *          In addition to that, the memory image of the file is
  *          read from/written to a socket during an open/flush operation.
  *
- * Version: $Id: H5FDstream.c,v 1.15.2.3 2001/07/02 13:55:00 tradke Exp $
+ * Version: $Id: H5FDstream.c,v 1.15.2.4 2001/08/15 14:42:45 koziol Exp $
  *
  * Modifications:
  *          Thomas Radke, Thursday, October 26, 2000
@@ -198,7 +198,7 @@ static const H5FD_class_t H5FD_stream_g =
 
 /* Interface initialization */
 #define INTERFACE_INIT        H5FD_stream_init
-static intn interface_initialize_g = 0;
+static int interface_initialize_g = 0;
 
 
 /*-------------------------------------------------------------------------

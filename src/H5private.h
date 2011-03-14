@@ -143,12 +143,15 @@
 /*
 inline is now in C but in the C99 standard and not the old C89 version so
 MS doesn't recognize it yet (as of April 2001)
+Move H5_inline into windows version of H5pubconf.h; avoid duplicating warnings.
 */
+/*
 #if defined(__MWERKS__) || defined(__cplusplus)
 # define H5_inline   inline
 # else
 # define H5_inline 
 #endif
+*/
 
 #endif /*WIN32*/
 
@@ -406,13 +409,6 @@ MS doesn't recognize it yet (as of April 2001)
 #endif
 
 /*
- * Define a type for generic integers.	Use this instead of `int' to
- * show that some thought went into the algorithm.
- */
-typedef int intn;
-typedef unsigned uintn;
-
-/*
  * Maximum and minimum values.	These should be defined in <limits.h> for the
  * most part.
  */
@@ -609,7 +605,11 @@ __DLL__ int HDfprintf (FILE *stream, const char *fmt, ...);
 #define HDmemcpy(X,Y,Z)		memcpy((char*)(X),(const char*)(Y),Z)
 #define HDmemmove(X,Y,Z)	memmove((char*)(X),(const char*)(Y),Z)
 #define HDmemset(X,C,Z)		memset(X,C,Z)
-#define HDmkdir(S,M)		mkdir(S,M)
+#ifdef WIN32
+#define HDmkdir(S,M)		_mkdir(S)
+#else
+#define HDmkdir(S,M)            mkdir(S,M)
+#endif
 #define HDmkfifo(S,M)		mkfifo(S,M)
 #define HDmktime(T)		mktime(T)
 #define HDmodf(X,Y)		modf(X,Y)
@@ -751,13 +751,9 @@ __DLL__ int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDstrdup(S)    _strdup(S)
 #else
 
-#ifdef LATER
-#if !defined strdup && !defined HAVE_STRDUP 
+#if !defined strdup && !defined H5_HAVE_STRDUP 
 extern char *strdup(const char *s);
-#endif
-#else /* LATER */
-extern char *strdup(const char *s);
-#endif /* LATER */
+#endif  /* !strdup && !H5_HAVE_STRDUP */
 
 #define HDstrdup(S)     strdup(S)
 
@@ -998,7 +994,6 @@ extern hbool_t H5_libinit_g;   /*good thing C's lazy about extern! */
 #define FUNC_ENTER_INIT(func_name,interface_init_func,err) {		      \
    CONSTR (FUNC, #func_name);						      \
    PABLO_SAVE (ID_ ## func_name)  					      \
-   static unsigned know_api=0, is_api=0;                \
    H5TRACE_DECL;							      \
 									      \
    PABLO_TRACE_ON (PABLO_MASK, pablo_func_id);				      \
@@ -1027,14 +1022,8 @@ extern hbool_t H5_libinit_g;   /*good thing C's lazy about extern! */
       }									      \
    }									      \
                                             \
-   /* Check if we know this is an API function or not */        \
-   if(!know_api) {                          \
-       know_api=1;                          \
-       is_api=H5_IS_API(FUNC);              \
-   }                                        \
-   									      \
    /* Clear thread error stack entering public functions */		      \
-   if (is_api && H5E_clearable_g) {				      \
+   if (H5_IS_API(FUNC) && H5E_clearable_g) {				      \
        H5E_clear ();							      \
    }									      \
    {
@@ -1061,7 +1050,7 @@ extern hbool_t H5_libinit_g;   /*good thing C's lazy about extern! */
  * through one of these two sets of macros.
  */
 #ifdef H5_HAVE_PABLO
-#  define PABLO_SAVE(func_id)	intn pablo_func_id = func_id;
+#  define PABLO_SAVE(func_id)	int pablo_func_id = func_id;
 #  define PABLO_TRACE_ON(m, f)	TRACE_ON(m,f)
 #  define PABLO_TRACE_OFF(m, f) TRACE_OFF(m,f)
 #else
@@ -1075,16 +1064,16 @@ __DLL__ herr_t H5_init_library(void);
 __DLL__ void H5_term_library(void);
 
 /* Functions to terminate interfaces */
-__DLL__ intn H5A_term_interface(void);
-__DLL__ intn H5D_term_interface(void);
-__DLL__ intn H5F_term_interface(void);
-__DLL__ intn H5G_term_interface(void);
-__DLL__ intn H5I_term_interface(void);
-__DLL__ intn H5P_term_interface(void);
-__DLL__ intn H5R_term_interface(void);
-__DLL__ intn H5S_term_interface(void);
-__DLL__ intn H5TN_term_interface(void);
-__DLL__ intn H5T_term_interface(void);
-__DLL__ intn H5Z_term_interface(void);
+__DLL__ int H5A_term_interface(void);
+__DLL__ int H5D_term_interface(void);
+__DLL__ int H5F_term_interface(void);
+__DLL__ int H5G_term_interface(void);
+__DLL__ int H5I_term_interface(void);
+__DLL__ int H5P_term_interface(void);
+__DLL__ int H5R_term_interface(void);
+__DLL__ int H5S_term_interface(void);
+__DLL__ int H5TN_term_interface(void);
+__DLL__ int H5T_term_interface(void);
+__DLL__ int H5Z_term_interface(void);
 
 #endif

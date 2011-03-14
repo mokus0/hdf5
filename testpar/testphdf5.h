@@ -1,4 +1,4 @@
-/* $Id: testphdf5.h,v 1.15.2.3 2001/06/11 18:36:36 acheng Exp $ */
+/* $Id: testphdf5.h,v 1.15.2.5 2002/02/15 15:44:32 acheng Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
@@ -23,7 +23,8 @@
     }								      	      \
     else{								      \
 	printf("Proc %d: ", mpi_rank); \
-        printf("*** PHDF5 Assertion failed (%s) at line %4d in %s\n",         \
+        printf("*** PHDF5 ERROR ***\n");         			      \
+        printf("        Assertion (%s) failed at line %4d in %s\n",           \
 	    mesg, (int)__LINE__, __FILE__);     			      \
         nerrors++;                                                            \
 	fflush(stdout);							      \
@@ -48,7 +49,8 @@
     }								      	      \
     else{								      \
 	printf("Proc %d: ", mpi_rank); \
-        printf("*** PHDF5 Assertion failed (%s) at line %4d in %s\n",         \
+        printf("*** PHDF5 REMARK (not an error) ***\n");         	      \
+        printf("        Condition (%s) failed at line %4d in %s\n",           \
 	    mesg, (int)__LINE__, __FILE__);     			      \
 	fflush(stdout);							      \
     }                                                                         \
@@ -81,7 +83,11 @@
 #define ZCOL		4	/* same as BYCOL except process 0 gets 0 columns */
 #define MAX_ERR_REPORT	10		/* Maximum number of errors reported */
 
-
+/* File_Access_type bits */
+#define FACC_DEFAULT	0x0	/* default */
+#define FACC_MPIO	0x1	/* MPIO */
+#define FACC_SPLIT	0x2	/* Split File */
+#define FACC_MULTI	0x4	/* Multi File */
 
 /* dataset data type.  Int's can be easily octo dumped. */
 typedef int DATATYPE;
@@ -93,5 +99,10 @@ extern int nerrors;				/*errors count */
 extern int verbose;				/*verbose, default as no. */
 extern herr_t (*old_func)(void*);		/*previous error handler */
 extern void *old_client_data;			/*previous error handler arg.*/
+extern int facc_type;				/*Test file access type */
+
+/* prototypes */
+hid_t
+create_faccess_plist(MPI_Comm comm, MPI_Info info, int facc_type );
 
 #endif /* PHDF5TEST_H */

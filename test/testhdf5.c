@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: testhdf5.c,v 1.40.2.3 2001/06/28 21:23:07 pvn Exp $ */
+/* $Id: testhdf5.c,v 1.40.2.6 2002/01/23 22:30:16 koziol Exp $ */
 
 /*
    FILE
@@ -85,7 +85,7 @@ InitTest(const char *TheName, void (*TheCall) (void), void (*Cleanup) (void), co
 static void 
 usage(void)
 {
-    intn                    i;
+    int                    i;
 
     print_func("Usage: testhdf5 [-v[erbose] (l[ow]|m[edium]|h[igh]|0-10)] \n");
     print_func("               [-[e]x[clude] name+] \n");
@@ -138,7 +138,7 @@ main(int argc, char *argv[])
     int                     Summary = 0;
     int                     CleanUp = 1;
     int                     Cache = 1;
-    uintn                   major, minor, release;
+    unsigned                   major, minor, release;
 
 
 
@@ -156,6 +156,7 @@ main(int argc, char *argv[])
     H5Eset_auto (NULL, NULL);
 
     /* Tests are generally arranged from least to most complexity... */
+    InitTest("configure", test_configure, cleanup_configure, "Configure definitions");
     InitTest("metadata", test_metadata, cleanup_metadata, "Encode/decode metadata code");
     InitTest("tbbt", test_tbbt, NULL,  "Threaded, Balanced, Binary Trees");
     InitTest("file", test_file, cleanup_file, "Low-Level File I/O");
@@ -169,6 +170,7 @@ main(int argc, char *argv[])
     InitTest("iterate", test_iterate, cleanup_iterate,  "Group & Attribute Iteration");
     InitTest("array", test_array, cleanup_array,  "Array Datatypes");
     InitTest("genprop", test_genprop, cleanup_genprop,  "Generic Properties");
+    InitTest("misc", test_misc, cleanup_misc,  "Miscellaneous");
 
     Verbosity = 4;              /* Default Verbosity is Low */
     H5get_libversion(&major, &minor, &release);

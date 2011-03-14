@@ -6,7 +6,7 @@
 namespace H5 {
 #endif
 
-class DataType : public H5Object {
+class __DLLCPP__ DataType : public H5Object {
    public:
 	// Creates a datatype given its class and size
 	DataType( const H5T_class_t type_class, size_t size );
@@ -42,11 +42,8 @@ class DataType : public H5Object {
 	// Returns a pointer to the current global overflow function. 
 	H5T_overflow_t getOverflow(void) const;
 
-	// Assignment operator that takes a predefined type
-	virtual DataType& operator=( const PredType& rhs );
-
 	// Assignment operator
-	virtual DataType& operator=( const DataType& rhs );
+	DataType& operator=( const DataType& rhs );
 
 	// Determines whether two datatypes are the same.
 	bool operator==(const DataType& compared_type ) const;

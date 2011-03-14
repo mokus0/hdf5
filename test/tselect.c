@@ -10,7 +10,7 @@
  *									    *
  ****************************************************************************/
 
-/* $Id: tselect.c,v 1.33.2.5 2001/07/12 16:56:12 koziol Exp $ */
+/* $Id: tselect.c,v 1.33.2.7 2001/12/11 19:24:30 koziol Exp $ */
 
 /***********************************************************
 *
@@ -142,7 +142,7 @@ test_select_hyper(hid_t xfer_plist)
     uint8_t    *wbuf,       /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
     H5S_class_t ext_type;   /* Extent type */
 
@@ -246,7 +246,7 @@ test_select_hyper(hid_t xfer_plist)
 struct pnt_iter {
     hssize_t	coord[POINT1_NPOINTS*2][SPACE2_RANK]; /* Coordinates for point selection */
     uint8_t *buf;           /* Buffer the points are in */
-    intn offset;            /* Which point we are looking at */
+    int offset;            /* Which point we are looking at */
 };
 
 /****************************************************************
@@ -296,7 +296,7 @@ test_select_point(hid_t xfer_plist)
     uint8_t    *wbuf,       /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     struct pnt_iter pi;     /* Custom Pointer iterator struct */
     herr_t		ret;		/* Generic return value		*/
 
@@ -572,7 +572,7 @@ test_select_all(hid_t xfer_plist)
     uint8_t    *wbuf,       /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j,k;      /* Counters */
+    int        i,j,k;      /* Counters */
     herr_t		ret;		/* Generic return value		*/
     H5S_class_t ext_type;   /* Extent type */
 
@@ -656,7 +656,7 @@ test_select_all_hyper(hid_t xfer_plist)
     uint8_t    *wbuf,       /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
     H5S_class_t ext_type;   /* Extent type */
 
@@ -796,7 +796,7 @@ test_select_combo(void)
                *rbuf,       /* buffer read from disk */
                *tbuf,       /* temporary buffer pointer */
                *tbuf2;      /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -961,7 +961,7 @@ test_select_hyper_stride(void)
       216,217,218,242,243,244,    /* Block #11 */
       220,221,222,246,247,248,    /* Block #12 */
             };
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -1088,7 +1088,7 @@ test_select_hyper_contig(void)
     uint16_t   *wbuf,       /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -1220,7 +1220,7 @@ test_select_hyper_copy(void)
                *rbuf,       /* 1st buffer read from disk */
                *rbuf2,      /* 2nd buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -1371,7 +1371,7 @@ test_select_point_copy(void)
                *rbuf,       /* 1st buffer read from disk */
                *rbuf2,      /* 2nd buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -1543,7 +1543,7 @@ test_select_hyper_offset(void)
                *rbuf,       /* buffer read from disk */
                *tbuf,       /* temporary buffer pointer */
                *tbuf2;      /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
     htri_t	    valid;		/* Generic boolean return value		*/
     H5S_class_t ext_type;   /* Extent type */
@@ -1703,7 +1703,7 @@ test_select_point_offset(void)
                *rbuf,       /* buffer read from disk */
                *tbuf,       /* temporary buffer pointer */
                *tbuf2;      /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
     htri_t	    valid;		/* Generic boolean return value		*/
 
@@ -1881,7 +1881,7 @@ test_select_hyper_union(void)
                *rbuf,       /* buffer read from disk */
                *tbuf,       /* temporary buffer pointer */
                *tbuf2;      /* temporary buffer pointer */
-    intn        i,j;        /* Counters */
+    int        i,j;        /* Counters */
     herr_t		ret;		/* Generic return value		*/
     hsize_t	    npoints;	/* Number of elements in selection */
 
@@ -2338,7 +2338,7 @@ test_select_hyper_union(void)
     /* Compare data read with data written out */
     for(i=0,tbuf2=rbuf; i<SPACE2_DIM1; i++) {
         tbuf=wbuf+(i*SPACE2_DIM2)+begin[i];
-        for(j=0; j<(intn)len[i]; j++, tbuf++, tbuf2++) {
+        for(j=0; j<(int)len[i]; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
                 printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
@@ -2579,7 +2579,7 @@ test_select_hyper_union_3d(void)
                *rbuf,       /* buffer read from disk */
                *tbuf,       /* temporary buffer pointer */
                *tbuf2;      /* temporary buffer pointer */
-    intn        i,j,k;      /* Counters */
+    int        i,j,k;      /* Counters */
     herr_t		ret;		/* Generic return value		*/
     hsize_t	    npoints;	/* Number of elements in selection */
 
@@ -2664,9 +2664,9 @@ test_select_hyper_union_3d(void)
     CHECK(ret, FAIL, "H5Dread");
 
     /* Compare data read with data written out */
-    for(i=0,tbuf2=rbuf; i<(intn)(sizeof(rows)/sizeof(struct row_list)); i++) {
+    for(i=0,tbuf2=rbuf; i<(int)(sizeof(rows)/sizeof(struct row_list)); i++) {
         tbuf=wbuf+(rows[i].z*SPACE4_DIM3*SPACE4_DIM2)+(rows[i].y*SPACE4_DIM3)+rows[i].x;
-        for(j=0; j<(intn)rows[i].l; j++, tbuf++, tbuf2++) {
+        for(j=0; j<(int)rows[i].l; j++, tbuf++, tbuf2++) {
             if(*tbuf!=*tbuf2) {
                 printf("%d: hyperslab values don't match!, i=%d, j=%d, *tbuf=%d, *tbuf2=%d\n",__LINE__,i,j,(int)*tbuf,(int)*tbuf2);
             } /* end if */
@@ -2744,7 +2744,7 @@ test_select_hyper_union_random_5d(hid_t read_plist)
     int    *wbuf,          /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temporary buffer pointer */
-    intn        i,j,k,l,m;  /* Counters */
+    int        i,j,k,l,m;  /* Counters */
     herr_t		ret;		/* Generic return value		*/
     hssize_t	npoints,	/* Number of elements in file selection */
                 npoints2;	/* Number of elements in memory selection */
@@ -2835,7 +2835,7 @@ printf("random I/O, before H5Dread()\n");
 {
     hsize_t blocks[15][2][SPACE5_RANK];
     hssize_t nblocks;
-    intn k;
+    int k;
 
     nblocks=H5Sget_select_hyper_nblocks(sid1);
     printf("nblocks=%d\n",(int)nblocks);
@@ -3133,6 +3133,101 @@ test_select_hyper_chunk(hid_t fapl_plist, hid_t xfer_plist)
 
 /****************************************************************
 **
+**  test_select_valid(): Test basic H5S (dataspace) selection code.
+**      Tests selection validity
+** 
+****************************************************************/
+static void 
+test_select_valid(void)
+{
+    herr_t error;
+    htri_t valid;
+    hid_t main_space, sub_space;
+    hssize_t safe_start[2]={1,1};
+    hsize_t safe_count[2]={1,1};
+    hssize_t start[2];
+    hsize_t dims[2],maxdims[2],size[2],count[2];
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Selection Validity\n"));
+
+    count[0] = count[1] = 1;
+    dims[0] = dims[1] = maxdims[0] = maxdims[1] = 10;
+
+    main_space = H5Screate_simple(2,dims,maxdims);
+    CHECK(main_space, FAIL, "H5Screate_simple");
+
+    MESSAGE(8, ( "Case 1 : in the dimensions\nTry offset (4,4) and size(6,6), the original space is of size (10,10)\n"));
+    start[0] = start[1] = 4;
+    size[0] = size[1] = 6;
+
+    sub_space = H5Scopy(main_space);
+    CHECK(sub_space, FAIL, "H5Scopy");
+
+    error=H5Sselect_hyperslab(sub_space,H5S_SELECT_SET,start,size,count,size);
+    CHECK(error, FAIL, "H5Sselect_hyperslab");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, TRUE, "H5Sselect_valid");
+
+    error=H5Sselect_hyperslab(sub_space,H5S_SELECT_OR,safe_start,NULL,safe_count,NULL);
+    CHECK(error, FAIL, "H5Sselect_hyperslab");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, TRUE, "H5Sselect_valid");
+
+    error=H5Sclose(sub_space);
+    CHECK(error, FAIL, "H5Sclose");
+
+    MESSAGE(8, ( "Case 2 : exceed dimensions by 1\nTry offset (5,5) and size(6,6), the original space is of size (10,10)\n"));
+    start[0] = start[1] = 5;
+    size[0] = size[1] = 6;
+
+    sub_space = H5Scopy(main_space);
+    CHECK(sub_space, FAIL, "H5Scopy");
+
+    error=H5Sselect_hyperslab(sub_space,H5S_SELECT_SET,start,size,count,size);
+    CHECK(error, FAIL, "H5Sselect_hyperslab");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, FALSE, "H5Sselect_valid");
+
+    error=H5Sselect_hyperslab(sub_space,H5S_SELECT_OR,safe_start,NULL,safe_count,NULL);
+    CHECK(error, FAIL, "H5Sselect_hyperslab");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, FALSE, "H5Sselect_valid");
+
+    error=H5Sclose(sub_space);
+    CHECK(error, FAIL, "H5Sclose");
+
+    MESSAGE(8, ( "Case 3 : exceed dimensions by 2\nTry offset (6,6) and size(6,6), the original space is of size (10,10)\n"));
+    start[0] = start[1] = 6;
+    size[0] = size[1] = 6;
+
+    sub_space = H5Scopy(main_space);
+    CHECK(sub_space, FAIL, "H5Scopy");
+
+    error=H5Sselect_hyperslab(sub_space,H5S_SELECT_SET,start,size,count,size);
+    CHECK(error, FAIL, "H5Sselect_hyperslab");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, FALSE, "H5Sselect_valid");
+
+    error=H5Sselect_hyperslab(sub_space,H5S_SELECT_OR,safe_start,NULL,safe_count,NULL);
+    CHECK(error, FAIL, "H5Sselect_hyperslab");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, FALSE, "H5Sselect_valid");
+
+    error=H5Sclose(sub_space);
+    CHECK(error, FAIL, "H5Sclose");
+    error=H5Sclose(main_space);
+    CHECK(error, FAIL, "H5Sclose");
+}   /* test_select_hyper_chunk() */
+
+/****************************************************************
+**
 **  test_select(): Main H5S selection testing routine.
 ** 
 ****************************************************************/
@@ -3215,6 +3310,8 @@ test_select(void)
     ret=H5Pclose(plist_id);
     CHECK(ret, FAIL, "H5Pclose");
 
+    /* More tests for checking validity of selections */
+    test_select_valid();
 }   /* test_select() */
 
 

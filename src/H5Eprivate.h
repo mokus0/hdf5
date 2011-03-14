@@ -38,15 +38,10 @@
  */
 #define HRETURN_ERROR(maj, min, ret_val, str) {				      \
    HERROR (maj, min, str);						      \
-   PABLO_TRACE_OFF (PABLO_MASK, pablo_func_id);				      \
-   H5TRACE_RETURN(ret_val);						      \
    if (H5_IS_API(FUNC) && H5E_auto_g) {					      \
        (H5E_auto_g)(H5E_auto_data_g);					      \
    }									      \
-   H5_API_UNLOCK_BEGIN                                                        \
-   H5_API_UNLOCK_END                                                          \
-   H5_API_SET_CANCEL                                                          \
-   return (ret_val);							      \
+   HRETURN(ret_val);						              \
 }
 
 /*
@@ -72,7 +67,6 @@
  */
 #define HGOTO_ERROR(maj, min, ret_val, str) {				      \
    HERROR (maj, min,  str);						      \
-   H5TRACE_RETURN(ret_val);						      \
    if (H5_IS_API(FUNC) && H5E_auto_g) {					      \
        (H5E_auto_g)(H5E_auto_data_g);					      \
    }									      \
@@ -105,7 +99,7 @@ typedef struct H5E_minor_mesg_t {
 
 /* An error stack */
 typedef struct H5E_t {
-    intn	nused;			/*num slots currently used in stack  */
+    int	nused;			/*num slots currently used in stack  */
     H5E_error_t slot[H5E_NSLOTS];	/*array of error records	     */
 } H5E_t;
 

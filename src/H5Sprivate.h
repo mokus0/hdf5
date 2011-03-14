@@ -149,6 +149,7 @@ typedef struct H5S_conv_t {
     /* Read from file to application w/o intermediate scratch buffer */
     herr_t (*read)(H5F_t *f, const struct H5O_layout_t *layout,
 		   const struct H5O_pline_t *pline,
+		   const struct H5O_fill_t *fill,
 		   const struct H5O_efl_t *efl, size_t elmt_size,
 		   const H5S_t *file_space, const H5S_t *mem_space,
 		   hid_t dxpl_id, void *buf/*out*/,
@@ -157,11 +158,12 @@ typedef struct H5S_conv_t {
 
     /* Write directly from app buffer to file */
     herr_t (*write)(H5F_t *f, const struct H5O_layout_t *layout,
-		    const struct H5O_pline_t *pline,
-		    const struct H5O_efl_t *efl, size_t elmt_size,
-		    const H5S_t *file_space, const H5S_t *mem_space,
-		    hid_t dxpl_id, const void *buf,
-		    hbool_t *must_convert/*out*/);
+		   const struct H5O_pline_t *pline,
+		   const struct H5O_fill_t *fill,
+		   const struct H5O_efl_t *efl, size_t elmt_size,
+		   const H5S_t *file_space, const H5S_t *mem_space,
+		   hid_t dxpl_id, const void *buf,
+		   hbool_t *must_convert/*out*/);
     
 #ifdef H5S_DEBUG
     struct {
@@ -201,31 +203,31 @@ __DLL__ H5S_conv_t *H5S_find(const H5S_t *mem_space, const H5S_t *file_space);
 __DLL__ H5S_class_t H5S_get_simple_extent_type(const H5S_t *ds);
 __DLL__ hssize_t H5S_get_simple_extent_npoints(const H5S_t *ds);
 __DLL__ hsize_t H5S_get_npoints_max(const H5S_t *ds);
-__DLL__ intn H5S_get_simple_extent_ndims(const H5S_t *ds);
-__DLL__ intn H5S_get_simple_extent_dims(const H5S_t *ds, hsize_t dims[]/*out*/,
+__DLL__ int H5S_get_simple_extent_ndims(const H5S_t *ds);
+__DLL__ int H5S_get_simple_extent_dims(const H5S_t *ds, hsize_t dims[]/*out*/,
 					hsize_t max_dims[]/*out*/);
 __DLL__ herr_t H5S_modify(struct H5G_entry_t *ent, const H5S_t *space);
 __DLL__ H5S_t *H5S_read(struct H5G_entry_t *ent);
-__DLL__ intn H5S_cmp(const H5S_t *ds1, const H5S_t *ds2);
+__DLL__ int H5S_cmp(const H5S_t *ds1, const H5S_t *ds2);
 __DLL__ htri_t H5S_is_simple(const H5S_t *sdim);
-__DLL__ uintn H5S_nelem(const H5S_t *space);
+__DLL__ unsigned H5S_nelem(const H5S_t *space);
 __DLL__ herr_t H5S_select_hyperslab(H5S_t *space, H5S_seloper_t op,
 				    const hssize_t start[],
 				    const hsize_t _stride[],
 				    const hsize_t count[],
 				    const hsize_t _block[]);
-__DLL__ intn H5S_get_hyperslab(const H5S_t *ds, hssize_t offset[]/*out*/,
+__DLL__ int H5S_get_hyperslab(const H5S_t *ds, hssize_t offset[]/*out*/,
 			       hsize_t size[]/*out*/, hsize_t stride[]/*out*/);
 __DLL__ herr_t H5S_select_copy(H5S_t *dst, const H5S_t *src);
 __DLL__ herr_t H5S_extent_release(H5S_t *space);
 __DLL__ herr_t H5S_select_release(H5S_t *space);
 __DLL__ hssize_t H5S_get_select_npoints(const H5S_t *space);
-__DLL__ intn H5S_extend(H5S_t *space, const hsize_t *size);
+__DLL__ int H5S_extend(H5S_t *space, const hsize_t *size);
 __DLL__ herr_t H5S_set_extent_simple(H5S_t *space, int rank,
 				     const hsize_t *dims, const hsize_t *max);
 __DLL__ htri_t H5S_select_valid(const H5S_t *space);
 __DLL__ herr_t H5S_debug(H5F_t *f, const void *_mesg, FILE *stream,
-			 intn indent, intn fwidth);
+			 int indent, int fwidth);
 __DLL__ hssize_t H5S_select_serial_size(const H5S_t *space);
 __DLL__ herr_t H5S_select_serialize(const H5S_t *space, uint8_t *buf);
 __DLL__ herr_t H5S_select_deserialize(H5S_t *space, const uint8_t *buf);
@@ -240,6 +242,7 @@ __DLL__ herr_t H5S_sel_iter_release(const H5S_t *space,
 __DLL__ herr_t H5S_mpio_spaces_read(H5F_t *f,
 				    const struct H5O_layout_t *layout,
 				    const struct H5O_pline_t *pline,
+		                    const struct H5O_fill_t *fill,
 				    const struct H5O_efl_t *efl,
 				    size_t elmt_size, const H5S_t *file_space,
 				    const H5S_t *mem_space, hid_t dxpl_id,
@@ -250,6 +253,7 @@ __DLL__ herr_t H5S_mpio_spaces_read(H5F_t *f,
 __DLL__ herr_t H5S_mpio_spaces_write(H5F_t *f,
 				     const struct H5O_layout_t *layout,
 				     const struct H5O_pline_t *pline,
+		                     const struct H5O_fill_t *fill,
 				     const struct H5O_efl_t *efl,
 				     size_t elmt_size, const H5S_t *file_space,
 				     const H5S_t *mem_space, hid_t dxpl_id,

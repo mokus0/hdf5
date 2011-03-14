@@ -1,8 +1,9 @@
 #------------------------------------------------------------------------------
-# This is the list of files that are part of HDF5.  All files have a
-# `./' prefix and appear in lexicographic order.  Lines that end with
-# _DO_NOT_DISTRIBUTE_ will not be included in a release.  Blank lines
-# and comments are ignored.  Comments must start in column one.
+# This is the list of files that are part of HDF5 source distribution. 
+# All files have a `./' prefix and appear in lexicographic order.
+# Lines that end with _DO_NOT_DISTRIBUTE_ will not be included in a
+# release.  Blank lines and comments are ignored.  Comments must start
+# in column one with a '#'.
 #------------------------------------------------------------------------------
 
 ./COPYING
@@ -23,6 +24,7 @@
 ./bin/config_para_ibm_sp.sh 
 ./bin/config_para_tflops.sh
 ./bin/debug-ohdr			_DO_NOT_DISTRIBUTE_
+./bin/dependencies
 ./bin/distdep
 ./bin/errors				_DO_NOT_DISTRIBUTE_
 ./bin/h5vers
@@ -42,6 +44,7 @@
 ./config/conclude.in
 ./config/dec-flags
 ./config/dec-osf4.x
+./config/dec-osf5.1
 ./config/depend1.in
 ./config/depend2.in
 ./config/depend3.in
@@ -466,6 +469,7 @@
 ./examples/Makefile.in
 ./examples/h5_chunk_read.c
 ./examples/h5_compound.c
+./examples/h5_drivers.c
 ./examples/h5_extend_write.c
 ./examples/h5_group.c
 ./examples/h5_read.c
@@ -475,7 +479,6 @@
 ./examples/h5_mount.c
 ./examples/h5_reference.c
 ./examples/ph5example.c
-./examples/run_examples.sh
 
 #------------------------------------------------------------------------------
 #
@@ -497,6 +500,7 @@
 ./fortran/config/conclude.in
 ./fortran/config/dec-flags
 ./fortran/config/dec-osf4.x
+./fortran/config/dec-osf5.1
 ./fortran/config/depend
 ./fortran/config/depend1.in
 ./fortran/config/depend2.in
@@ -590,6 +594,7 @@
 ./fortran/test/hdf5test.f90
 ./fortran/test/tH5A.f90
 ./fortran/test/tH5D.f90
+./fortran/test/tH5E.f90
 ./fortran/test/tH5F.f90
 ./fortran/test/tH5G.f90
 ./fortran/test/tH5I.f90
@@ -634,6 +639,7 @@
 ./c++/config/linux-gnu
 ./c++/config/linux-gnulibc1
 ./c++/config/linux-gnulibc2
+./c++/config/rs6000-ibm-aix4.x
 ./c++/config/solaris2.x
 
 ./c++/examples/Dependencies
@@ -740,12 +746,25 @@
 ./pablo/ProcTrace.h
 ./pablo/READ_ME
 
+./perform/Makefile.in
+./perform/Dependencies
+./perform/chunk.c
+./perform/iopipe.c
+./perform/mpi-perf.c
+./perform/overhead.c
+./perform/perf.c
+./perform/pio_engine.c
+./perform/pio_perf.c
+./perform/pio_perf.h
+./perform/pio_timer.c
+./perform/pio_timer.h
 
 ./release_docs/INSTALL
 ./release_docs/INSTALL_TFLOPS
 ./release_docs/INSTALL_VFL
 ./release_docs/INSTALL_parallel
 ./release_docs/INSTALL_Windows.txt
+./release_docs/INSTALL_Windows_withcpp.txt
 ./release_docs/INSTALL_Windows_withF90.txt
 ./release_docs/INSTALL_codewarrior.txt
 ./release_docs/HISTORY.txt
@@ -782,8 +801,6 @@
 ./src/H5FD.c
 ./src/H5FDcore.c
 ./src/H5FDcore.h
-./src/H5FDdpss.c
-./src/H5FDdpss.h
 ./src/H5FDfamily.c
 ./src/H5FDfamily.h
 ./src/H5FDgass.c
@@ -888,10 +905,7 @@
 ./test/Makefile.in
 ./test/big.c
 ./test/bittests.c
-./test/chunk.c
 ./test/cmpd_dset.c
-./test/dpss_read.c
-./test/dpss_write.c
 ./test/dsets.c
 ./test/dtypes.c
 ./test/enum.c
@@ -907,14 +921,12 @@
 ./test/h5test.c
 ./test/h5test.h
 ./test/hyperslab.c
-./test/iopipe.c
 ./test/istore.c
 ./test/lheap.c
 ./test/links.c
 ./test/mount.c
 ./test/mtime.c
 ./test/ohdr.c
-./test/overhead.c
 ./test/space_overflow.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_old_array.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_new_array.c			_DO_NOT_DISTRIBUTE_
@@ -926,6 +938,7 @@
 ./test/tarray.c
 ./test/tarrold.h5
 ./test/tattr.c
+./test/tconfig.c
 ./test/testhdf5.c
 ./test/testhdf5.h
 ./test/testmeta.c
@@ -935,6 +948,7 @@
 ./test/th5s.h5
 ./test/titerate.c
 ./test/tmeta.c
+./test/tmisc.c
 ./test/ttime.c
 ./test/trefer.c
 ./test/tselect.c
@@ -987,6 +1001,7 @@
 ./tools/h4toh5/h4toh5vdata.c
 ./tools/h4toh5/h4toh5vgroup.c
 ./tools/h4toh5/testh4toh5.sh
+./tools/h4toh5/parafile
 
 ./tools/h5dump/Dependencies
 ./tools/h5dump/Makefile.in
@@ -1018,6 +1033,7 @@
 
 ./tools/misc/Dependencies
 ./tools/misc/Makefile.in
+./tools/misc/h5cc.in
 ./tools/misc/h5debug.c
 ./tools/misc/h5import.c
 ./tools/misc/h5repart.c
@@ -1067,6 +1083,8 @@
 ./tools/testfiles/tgroup-1.ddl
 ./tools/testfiles/tgroup-2.ddl
 ./tools/testfiles/tgroup.h5
+./tools/testfiles/tgrp_comments.ddl
+./tools/testfiles/tgrp_comments.h5
 ./tools/testfiles/thlink-1.ddl
 ./tools/testfiles/thlink-2.ddl
 ./tools/testfiles/thlink-3.ddl
@@ -1109,6 +1127,7 @@
 ./tools/testfiles/image_attr_test.hdf
 ./tools/testfiles/ras_24_test.hdf
 ./tools/testfiles/ras_8_test.hdf
+./tools/testfiles/ras24il.hdf
 ./tools/testfiles/sds_attr_test.hdf
 ./tools/testfiles/sds_dim_test.hdf
 ./tools/testfiles/sds_typ_test.hdf
@@ -1158,6 +1177,7 @@
 ./tools/testfiles/Expected/image_attr_test.h5
 ./tools/testfiles/Expected/ras_24_test.h5
 ./tools/testfiles/Expected/ras_8_test.h5
+./tools/testfiles/Expected/ras24il.h5
 ./tools/testfiles/Expected/sds_attr.h5
 ./tools/testfiles/Expected/sds_attr_test.h5
 ./tools/testfiles/Expected/sds_dim_test.h5

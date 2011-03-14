@@ -20,7 +20,7 @@
 /* Interface initialization */
 #define PABLO_MASK      H5Sall_mask
 #define INTERFACE_INIT  NULL
-static intn             interface_initialize_g = 0;
+static int             interface_initialize_g = 0;
 
 static herr_t H5S_all_init (const struct H5O_layout_t *layout,
 			    const H5S_t *space, H5S_sel_iter_t *iter);
@@ -391,10 +391,12 @@ H5S_all_mscat (const void *tconv_buf, size_t elmt_size,
  */
 herr_t
 H5S_all_read(H5F_t *f, const H5O_layout_t *layout, const H5O_pline_t *pline,
+             const struct H5O_fill_t *fill,
 	     const H5O_efl_t *efl, size_t elmt_size, const H5S_t *file_space,
-	     const H5S_t *mem_space, hid_t dxpl_id, void *buf/*out*/,
+	     const H5S_t *mem_space, hid_t dxpl_id, void *_buf/*out*/,
 	     hbool_t *must_convert/*out*/)
 {
+    char       *buf=(char*)_buf;        /* Get pointer to buffer */
     H5S_hyper_node_t *file_node=NULL,*mem_node=NULL;     /* Hyperslab node */
     hsize_t	mem_size,file_size;
     hssize_t	file_off,mem_off;
@@ -402,7 +404,12 @@ H5S_all_read(H5F_t *f, const H5O_layout_t *layout, const H5O_pline_t *pline,
     hsize_t	size[H5O_LAYOUT_NDIMS];
     hssize_t	file_offset[H5O_LAYOUT_NDIMS];
     hssize_t	mem_offset[H5O_LAYOUT_NDIMS];
-    uintn	u;
+    unsigned	u;
+    unsigned    small_contiguous=0,     /* Flags for indicating contiguous hyperslabs */
+                large_contiguous=0;
+    int	        i;
+    size_t	down_size[H5O_LAYOUT_NDIMS];
+    size_t      acc;
 
     FUNC_ENTER(H5S_all_read, FAIL);
     *must_convert = TRUE;
@@ -462,13 +469,6 @@ printf("%s: check 1.0\n",FUNC);
 
     /* Get information about memory and file */
     for (u=0; u<mem_space->extent.u.simple.rank; u++) {
-        if (mem_space->extent.u.simple.max &&
-                mem_space->extent.u.simple.size[u]!=mem_space->extent.u.simple.max[u])
-            goto fall_through;
-        if (file_space->extent.u.simple.max &&
-                file_space->extent.u.simple.size[u]!=file_space->extent.u.simple.max[u])
-            goto fall_through;
-
         if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
             /* Check for a "regular" hyperslab selection */
             if(mem_space->select.sel_info.hslab.diminfo != NULL) {
@@ -512,11 +512,78 @@ printf("%s: check 1.0\n",FUNC);
     file_offset[u] = 0;
     mem_offset[u] = 0;
 
+    /* Disallow reading a memory hyperslab in the "middle" of a dataset which */
+    /* spans multiple rows in "interior" dimensions, but allow reading a */
+    /* hyperslab which is in the "middle" of the fastest or slowest changing */
+    /* dimension because a hyperslab which "fills" the interior dimensions is */
+    /* contiguous in memory. i.e. these are allowed: */
+    /*    ---------------------         ---------------------         */
+    /*    |                   |         |                   |         */
+    /*    |*******************|         |   *********       |         */
+    /*    |*******************|         |                   |         */
+    /*    |                   |         |                   |         */
+    /*    |                   |         |                   |         */
+    /*    ---------------------         ---------------------         */
+    /*    ("large" contiguous block)    ("small" contiguous block)    */
+    /* But this is not: */
+    /*    --------------------- */
+    /*    |                   | */
+    /*    |  *********        | */
+    /*    |  *********        | */
+    /*    |                   | */
+    /*    |                   | */
+    /*    --------------------- */
+    /*    (not contiguous in memory) */
+    if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
+        /* Check for a "small" contiguous block */
+        if(size[0]==1) {
+            small_contiguous=1;
+            /* size of block in all dimensions except the fastest must be '1' */
+            for (u=0; u<(mem_space->extent.u.simple.rank-1); u++) {
+                if(size[u]>1) {
+                    small_contiguous=0;
+                    break;
+                } /* end if */
+            } /* end for */
+        } /* end if */
+        /* Check for a "large" contiguous block */
+        else {
+            large_contiguous=1;
+            /* size of block in all dimensions except the slowest must be the */
+            /* full size of the dimension */
+            for (u=1; u<mem_space->extent.u.simple.rank; u++) {
+                if(size[u]!=mem_space->extent.u.simple.size[u]) {
+                    large_contiguous=0;
+                    break;
+                } /* end if */
+            } /* end for */
+        } /* end else */
+
+        /* Check for contiguous block */
+        if(small_contiguous || large_contiguous) {
+            /* Compute the "down sizes" for each dimension */
+            for (acc=elmt_size, i=(mem_space->extent.u.simple.rank-1); i>=0; i--) {
+                down_size[i]=acc;
+                acc*=mem_space->extent.u.simple.size[i];
+            } /* end for */
+
+            /* Adjust the buffer offset and memory offsets by the proper amount */
+            for (u=0; u<mem_space->extent.u.simple.rank; u++) {
+                buf+=mem_offset[u]*down_size[u];
+                mem_offset[u]=0;
+            } /* end for */
+        } /* end if */
+        else {
+            /* Non-contiguous hyperslab block */
+            goto fall_through;
+        } /* end else */
+    } /* end if */
+
 #ifdef QAK
 printf("%s: check 2.0\n",FUNC);
 #endif /* QAK */
     /* Read data from the file */
-    if (H5F_arr_read(f, dxpl_id, layout, pline, NULL, efl, size,
+    if (H5F_arr_read(f, dxpl_id, layout, pline, fill, efl, size,
 		     size, mem_offset, file_offset, buf/*out*/)<0) {
         HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL,
 		      "unable to read data from the file");
@@ -554,11 +621,14 @@ fall_through:
  */
 herr_t
 H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
-	      const H5O_pline_t *pline, const H5O_efl_t *efl,
+	      const H5O_pline_t *pline,
+              const struct H5O_fill_t *fill,
+              const H5O_efl_t *efl,
 	      size_t elmt_size, const H5S_t *file_space,
-	      const H5S_t *mem_space, hid_t dxpl_id, const void *buf,
+	      const H5S_t *mem_space, hid_t dxpl_id, const void *_buf,
 	      hbool_t *must_convert/*out*/)
 {
+    const char *buf=(const char*)_buf;  /* Get pointer to buffer */
     H5S_hyper_node_t *file_node=NULL,*mem_node=NULL;     /* Hyperslab node */
     hsize_t	mem_size,file_size;
     hssize_t	file_off,mem_off;
@@ -566,7 +636,12 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
     hsize_t	size[H5O_LAYOUT_NDIMS];
     hssize_t	file_offset[H5O_LAYOUT_NDIMS];
     hssize_t	mem_offset[H5O_LAYOUT_NDIMS];
-    uintn		u;
+    unsigned	u;
+    unsigned    small_contiguous=0,     /* Flags for indicating contiguous hyperslabs */
+                large_contiguous=0;
+    int	        i;
+    size_t	down_size[H5O_LAYOUT_NDIMS];
+    size_t      acc;
     
     FUNC_ENTER(H5S_all_write, FAIL);
     *must_convert = TRUE;
@@ -623,13 +698,6 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
 
     /* Get information about memory and file */
     for (u=0; u<mem_space->extent.u.simple.rank; u++) {
-        if (mem_space->extent.u.simple.max &&
-                mem_space->extent.u.simple.size[u]!=mem_space->extent.u.simple.max[u])
-            goto fall_through;
-        if (file_space->extent.u.simple.max &&
-                file_space->extent.u.simple.size[u]!=file_space->extent.u.simple.max[u])
-            goto fall_through;
-
         if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
             /* Check for a "regular" hyperslab selection */
             if(mem_space->select.sel_info.hslab.diminfo != NULL) {
@@ -673,8 +741,75 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
     file_offset[u] = 0;
     mem_offset[u] = 0;
 
+    /* Disallow reading a memory hyperslab in the "middle" of a dataset which */
+    /* spans multiple rows in "interior" dimensions, but allow reading a */
+    /* hyperslab which is in the "middle" of the fastest or slowest changing */
+    /* dimension because a hyperslab which "fills" the interior dimensions is */
+    /* contiguous in memory. i.e. these are allowed: */
+    /*    ---------------------         ---------------------         */
+    /*    |                   |         |                   |         */
+    /*    |*******************|         |   *********       |         */
+    /*    |*******************|         |                   |         */
+    /*    |                   |         |                   |         */
+    /*    |                   |         |                   |         */
+    /*    ---------------------         ---------------------         */
+    /*    ("large" contiguous block)    ("small" contiguous block)    */
+    /* But this is not: */
+    /*    --------------------- */
+    /*    |                   | */
+    /*    |  *********        | */
+    /*    |  *********        | */
+    /*    |                   | */
+    /*    |                   | */
+    /*    --------------------- */
+    /*    (not contiguous in memory) */
+    if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
+        /* Check for a "small" contiguous block */
+        if(size[0]==1) {
+            small_contiguous=1;
+            /* size of block in all dimensions except the fastest must be '1' */
+            for (u=0; u<(mem_space->extent.u.simple.rank-1); u++) {
+                if(size[u]>1) {
+                    small_contiguous=0;
+                    break;
+                } /* end if */
+            } /* end for */
+        } /* end if */
+        /* Check for a "large" contiguous block */
+        else {
+            large_contiguous=1;
+            /* size of block in all dimensions except the slowest must be the */
+            /* full size of the dimension */
+            for (u=1; u<mem_space->extent.u.simple.rank; u++) {
+                if(size[u]!=mem_space->extent.u.simple.size[u]) {
+                    large_contiguous=0;
+                    break;
+                } /* end if */
+            } /* end for */
+        } /* end else */
+
+        /* Check for contiguous block */
+        if(small_contiguous || large_contiguous) {
+            /* Compute the "down sizes" for each dimension */
+            for (acc=elmt_size, i=(mem_space->extent.u.simple.rank-1); i>=0; i--) {
+                down_size[i]=acc;
+                acc*=mem_space->extent.u.simple.size[i];
+            } /* end for */
+
+            /* Adjust the buffer offset and memory offsets by the proper amount */
+            for (u=0; u<mem_space->extent.u.simple.rank; u++) {
+                buf+=mem_offset[u]*down_size[u];
+                mem_offset[u]=0;
+            } /* end for */
+        } /* end if */
+        else {
+            /* Non-contiguous hyperslab block */
+            goto fall_through;
+        } /* end else */
+    } /* end if */
+
     /* Write data to the file */
-    if (H5F_arr_write(f, dxpl_id, layout, pline, NULL, efl, size,
+    if (H5F_arr_write(f, dxpl_id, layout, pline, fill, efl, size,
 		      size, mem_offset, file_offset, buf)<0) {
         HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL,
 		      "unable to write data to the file");
@@ -737,7 +872,7 @@ H5S_all_release (H5S_t UNUSED *space)
 hsize_t
 H5S_all_npoints (const H5S_t *space)
 {
-    uintn u;     /* Counters */
+    unsigned u;     /* Counters */
     hsize_t ret_value;
 
     FUNC_ENTER (H5S_all_npoints, 0);
@@ -859,8 +994,8 @@ done:
 herr_t
 H5S_all_bounds(H5S_t *space, hsize_t *start, hsize_t *end)
 {
-    intn rank;                  /* Dataspace rank */
-    intn i;                     /* index variable */
+    int rank;                  /* Dataspace rank */
+    int i;                     /* index variable */
     herr_t ret_value=SUCCEED;   /* return value */
 
     FUNC_ENTER (H5S_all_bounds, FAIL);
@@ -1002,8 +1137,8 @@ H5S_all_select_iterate(void *buf, hid_t type_id, H5S_t *space, H5D_operator_t op
     hsize_t offset;             /* offset of region in buffer */
     hsize_t nelemts;            /* Number of elements to iterate through */
     void *tmp_buf;              /* temporary location of the element in the buffer */
-    uintn rank;             /* Dataspace rank */
-    intn indx;              /* Index to increment */
+    unsigned rank;             /* Dataspace rank */
+    int indx;              /* Index to increment */
     herr_t ret_value=0;     /* return value */
 
     FUNC_ENTER (H5S_all_select_iterate, 0);

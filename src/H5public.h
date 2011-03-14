@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5public.h,v 1.262.2.23 2001/07/20 18:03:59 epourmal Exp $ */
+/* $Id: H5public.h,v 1.262.2.41 2002/02/12 22:54:41 epourmal Exp $ */
 
 
 /*
@@ -60,10 +60,10 @@
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	2	/* For tweaks, bug-fixes, or development     */
-#define H5_VERS_SUBRELEASE "patch1"	/* For pre-releases like snap0       */
+#define H5_VERS_RELEASE	3	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.4.2-patch1"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.4.3"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -99,6 +99,27 @@ typedef int herr_t;
  */
 typedef unsigned int hbool_t;
 typedef int htri_t;
+
+/* Define the ssize_t type if it not is defined */
+#if H5_SIZEOF_SSIZE_T==0
+/* Undefine this size, we will re-define it in one of the sections below */
+#undef H5_SIZEOF_SSIZE_T
+#if H5_SIZEOF_SIZE_T==H5_SIZEOF_INT
+typedef int ssize_t;
+#       define H5_SIZEOF_SSIZE_T H5_SIZEOF_INT
+#elif H5_SIZEOF_SIZE_T==H5_SIZEOF_LONG
+typedef long ssize_t;
+#       define H5_SIZEOF_SSIZE_T H5_SIZEOF_LONG
+#elif H5_SIZEOF_SIZE_T==H5_SIZEOF_LONG_LONG
+typedef long long ssize_t;
+#       define H5_SIZEOF_SSIZE_T H5_SIZEOF_LONG_LONG
+#elif H5_SIZEOF_SIZE_T==H5_SIZEOF___INT64
+typedef __int64 ssize_t;
+#       define H5_SIZEOF_SSIZE_T H5_SIZEOF___INT64
+#else /* Can't find matching type for ssize_t */
+#   error "nothing appropriate for ssize_t"
+#endif
+#endif
 
 /*
  * The sizes of file objects have their own types defined here.  If large

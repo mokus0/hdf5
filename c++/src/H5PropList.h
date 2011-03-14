@@ -6,7 +6,7 @@
 namespace H5 {
 #endif
 
-class PropList : public IdComponent {
+class  __DLLCPP__ PropList : public IdComponent {
    public:
 	// Default property list
         static const PropList DEFAULT;
@@ -25,7 +25,7 @@ class PropList : public IdComponent {
 	void copy( const PropList& like_plist );
 
 	// Make a copy of the given property list using assignment statement
-	virtual PropList& operator=( const PropList& rhs );
+	PropList& operator=( const PropList& rhs );
 
 	// Gets the class of this property list, i.e. H5P_FILE_CREATE,
 	// H5P_FILE_ACCESS, ...

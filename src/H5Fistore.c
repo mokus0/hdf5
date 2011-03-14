@@ -74,14 +74,14 @@
 
 /* Interface initialization */
 #define PABLO_MASK	H5Fistore_mask
-static intn		interface_initialize_g = 0;
+static int		interface_initialize_g = 0;
 #define INTERFACE_INIT NULL
 
 /*
  * Given a B-tree node return the dimensionality of the chunks pointed to by
  * that node.
  */
-#define H5F_ISTORE_NDIMS(X)	((intn)(((X)->sizeof_rkey-8)/8))
+#define H5F_ISTORE_NDIMS(X)	((int)(((X)->sizeof_rkey-8)/8))
 
 /* Raw data chunks are cached.  Each entry in the cache is: */
 typedef struct H5F_rdcc_ent_t {
@@ -96,7 +96,7 @@ typedef struct H5F_rdcc_ent_t {
     size_t	chunk_size;	/*size of a chunk			*/
     size_t	alloc_size;	/*amount allocated for the chunk	*/
     uint8_t	*chunk;		/*the unfiltered chunk data		*/
-    intn	idx;		/*index in hash table			*/
+    int	idx;		/*index in hash table			*/
     struct H5F_rdcc_ent_t *next;/*next item in doubly-linked list	*/
     struct H5F_rdcc_ent_t *prev;/*previous item in doubly-linked list	*/
 } H5F_rdcc_ent_t;
@@ -107,9 +107,9 @@ static size_t H5F_istore_sizeof_rkey(H5F_t *f, const void *_udata);
 static herr_t H5F_istore_new_node(H5F_t *f, H5B_ins_t, void *_lt_key,
 				  void *_udata, void *_rt_key,
 				  haddr_t*/*out*/);
-static intn H5F_istore_cmp2(H5F_t *f, void *_lt_key, void *_udata,
+static int H5F_istore_cmp2(H5F_t *f, void *_lt_key, void *_udata,
 			    void *_rt_key);
-static intn H5F_istore_cmp3(H5F_t *f, void *_lt_key, void *_udata,
+static int H5F_istore_cmp3(H5F_t *f, void *_lt_key, void *_udata,
 			    void *_rt_key);
 static herr_t H5F_istore_found(H5F_t *f, haddr_t addr, const void *_lt_key,
 			       void *_udata, const void *_rt_key);
@@ -124,13 +124,10 @@ static herr_t H5F_istore_decode_key(H5F_t *f, H5B_t *bt, uint8_t *raw,
 				    void *_key);
 static herr_t H5F_istore_encode_key(H5F_t *f, H5B_t *bt, uint8_t *raw,
 				    void *_key);
-static herr_t H5F_istore_debug_key(FILE *stream, intn indent, intn fwidth,
+static herr_t H5F_istore_debug_key(FILE *stream, int indent, int fwidth,
 				   const void *key, const void *udata);
-#ifdef H5_HAVE_PARALLEL
-static herr_t H5F_istore_get_addr(H5F_t *f, const H5O_layout_t *layout,
-				  const hssize_t offset[],
-				  void *_udata/*out*/);
-#endif
+static haddr_t H5F_istore_get_addr(H5F_t *f, const H5O_layout_t *layout,
+				  const hssize_t offset[]);
 
 /*
  * B-tree key.	A key contains the minimum logical N-dimensional address and
@@ -149,7 +146,7 @@ static herr_t H5F_istore_get_addr(H5F_t *f, const H5O_layout_t *layout,
 typedef struct H5F_istore_key_t {
     size_t	nbytes;				/*size of stored data	*/
     hssize_t	offset[H5O_LAYOUT_NDIMS];	/*logical offset to start*/
-    uintn	filter_mask;			/*excluded filters	*/
+    unsigned	filter_mask;			/*excluded filters	*/
 } H5F_istore_key_t;
 
 typedef struct H5F_istore_ud1_t {
@@ -340,8 +337,8 @@ static herr_t
 H5F_istore_decode_key(H5F_t UNUSED *f, H5B_t *bt, uint8_t *raw, void *_key)
 {
     H5F_istore_key_t	*key = (H5F_istore_key_t *) _key;
-    intn		i;
-    intn		ndims = H5F_ISTORE_NDIMS(bt);
+    int		i;
+    int		ndims = H5F_ISTORE_NDIMS(bt);
 
     FUNC_ENTER(H5F_istore_decode_key, FAIL);
 
@@ -381,8 +378,8 @@ static herr_t
 H5F_istore_encode_key(H5F_t UNUSED *f, H5B_t *bt, uint8_t *raw, void *_key)
 {
     H5F_istore_key_t	*key = (H5F_istore_key_t *) _key;
-    intn		ndims = H5F_ISTORE_NDIMS(bt);
-    intn		i;
+    int		ndims = H5F_ISTORE_NDIMS(bt);
+    int		i;
 
     FUNC_ENTER(H5F_istore_encode_key, FAIL);
 
@@ -419,12 +416,12 @@ H5F_istore_encode_key(H5F_t UNUSED *f, H5B_t *bt, uint8_t *raw, void *_key)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5F_istore_debug_key (FILE *stream, intn indent, intn fwidth,
+H5F_istore_debug_key (FILE *stream, int indent, int fwidth,
 		      const void *_key, const void *_udata)
 {
     const H5F_istore_key_t	*key = (const H5F_istore_key_t *)_key;
     const H5F_istore_ud1_t	*udata = (const H5F_istore_ud1_t *)_udata;
-    uintn		u;
+    unsigned		u;
     
     FUNC_ENTER (H5F_istore_debug_key, FAIL);
     assert (key);
@@ -465,14 +462,14 @@ H5F_istore_debug_key (FILE *stream, intn indent, intn fwidth,
  *
  *-------------------------------------------------------------------------
  */
-static intn
+static int
 H5F_istore_cmp2(H5F_t UNUSED *f, void *_lt_key, void *_udata,
 		void *_rt_key)
 {
     H5F_istore_key_t	*lt_key = (H5F_istore_key_t *) _lt_key;
     H5F_istore_key_t	*rt_key = (H5F_istore_key_t *) _rt_key;
     H5F_istore_ud1_t	*udata = (H5F_istore_ud1_t *) _udata;
-    intn		cmp;
+    int		cmp;
 
     FUNC_ENTER(H5F_istore_cmp2, FAIL);
 
@@ -517,14 +514,14 @@ H5F_istore_cmp2(H5F_t UNUSED *f, void *_lt_key, void *_udata,
  *
  *-------------------------------------------------------------------------
  */
-static intn
+static int
 H5F_istore_cmp3(H5F_t UNUSED *f, void *_lt_key, void *_udata,
 		void *_rt_key)
 {
     H5F_istore_key_t	*lt_key = (H5F_istore_key_t *) _lt_key;
     H5F_istore_key_t	*rt_key = (H5F_istore_key_t *) _rt_key;
     H5F_istore_ud1_t	*udata = (H5F_istore_ud1_t *) _udata;
-    intn		cmp = 0;
+    int		cmp = 0;
 
     FUNC_ENTER(H5F_istore_cmp3, FAIL);
 
@@ -572,7 +569,7 @@ H5F_istore_new_node(H5F_t *f, H5B_ins_t op,
     H5F_istore_key_t	*lt_key = (H5F_istore_key_t *) _lt_key;
     H5F_istore_key_t	*rt_key = (H5F_istore_key_t *) _rt_key;
     H5F_istore_ud1_t	*udata = (H5F_istore_ud1_t *) _udata;
-    uintn		u;
+    unsigned		u;
 
     FUNC_ENTER(H5F_istore_new_node, FAIL);
 #ifdef AKC
@@ -660,7 +657,7 @@ H5F_istore_found(H5F_t UNUSED *f, haddr_t addr, const void *_lt_key,
 {
     H5F_istore_ud1_t	   *udata = (H5F_istore_ud1_t *) _udata;
     const H5F_istore_key_t *lt_key = (const H5F_istore_key_t *) _lt_key;
-    uintn		u;
+    unsigned		u;
 
     FUNC_ENTER(H5F_istore_found, FAIL);
 
@@ -733,8 +730,8 @@ H5F_istore_insert(H5F_t *f, haddr_t addr, void *_lt_key,
     H5F_istore_key_t	*md_key = (H5F_istore_key_t *) _md_key;
     H5F_istore_key_t	*rt_key = (H5F_istore_key_t *) _rt_key;
     H5F_istore_ud1_t	*udata = (H5F_istore_ud1_t *) _udata;
-    intn		cmp;
-    uintn		u;
+    int		cmp;
+    unsigned		u;
     H5B_ins_t		ret_value = H5B_INS_ERROR;
 
     FUNC_ENTER(H5F_istore_insert, H5B_INS_ERROR);
@@ -855,7 +852,7 @@ H5F_istore_iterate (H5F_t UNUSED *f, void *_lt_key, haddr_t UNUSED addr,
 {
     H5F_istore_ud1_t	*bt_udata = (H5F_istore_ud1_t *)_udata;
     H5F_istore_key_t	*lt_key = (H5F_istore_key_t *)_lt_key;
-    uintn		u;
+    unsigned		u;
 
     FUNC_ENTER(H5F_istore_iterate, FAIL);
 
@@ -940,7 +937,7 @@ H5F_istore_flush_entry(H5F_t *f, H5F_rdcc_ent_t *ent, hbool_t reset)
 {
     herr_t		ret_value=FAIL;	/*return value			*/
     H5F_istore_ud1_t 	udata;		/*pass through B-tree		*/
-    uintn		u;		/*counters			*/
+    unsigned		u;		/*counters			*/
     void		*buf=NULL;	/*temporary buffer		*/
     size_t		alloc;		/*bytes allocated for BUF	*/
     hbool_t		point_of_no_return = FALSE;
@@ -1123,7 +1120,7 @@ herr_t
 H5F_istore_flush (H5F_t *f, hbool_t preempt)
 {
     H5F_rdcc_t		*rdcc = &(f->shared->rdcc);
-    intn		nerrors=0;
+    int		nerrors=0;
     H5F_rdcc_ent_t	*ent=NULL, *next=NULL;
     
     FUNC_ENTER (H5F_istore_flush, FAIL);
@@ -1168,7 +1165,7 @@ herr_t
 H5F_istore_dest (H5F_t *f)
 {
     H5F_rdcc_t		*rdcc = &(f->shared->rdcc);
-    intn		nerrors=0;
+    int		nerrors=0;
     H5F_rdcc_ent_t	*ent=NULL, *next=NULL;
     
     FUNC_ENTER (H5F_istore_dest, FAIL);
@@ -1213,11 +1210,11 @@ H5F_istore_dest (H5F_t *f)
 static herr_t
 H5F_istore_prune (H5F_t *f, size_t size)
 {
-    intn		i, j, nerrors=0;
+    int		i, j, nerrors=0;
     H5F_rdcc_t		*rdcc = &(f->shared->rdcc);
     size_t		total = f->shared->rdcc_nbytes;
     const int		nmeth=2;	/*number of methods		*/
-    intn		w[1];		/*weighting as an interval	*/
+    int		w[1];		/*weighting as an interval	*/
     H5F_rdcc_ent_t	*p[2], *cur;	/*list pointers			*/
     H5F_rdcc_ent_t	*n[2];		/*list next pointers		*/
 
@@ -1280,10 +1277,11 @@ H5F_istore_prune (H5F_t *f, size_t size)
 	    }
 
 	    if (cur) {
-		if (H5F_istore_preempt(f, cur)<0) nerrors++;
 		for (j=0; j<nmeth; j++) {
 		    if (p[j]==cur) p[j] = NULL;
+		    if (n[j]==cur) n[j] = cur->next;
 		}
+		if (H5F_istore_preempt(f, cur)<0) nerrors++;
 	    }
 	}
 	
@@ -1335,14 +1333,14 @@ static void *
 H5F_istore_lock(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
 		const H5O_pline_t *pline, const H5O_fill_t *fill,
 		const hssize_t offset[], hbool_t relax,
-		intn *idx_hint/*in,out*/)
+		int *idx_hint/*in,out*/)
 {
-    intn		idx=0;			/*hash index number	*/
-    uintn		temp_idx=0;			/* temporary index number	*/
+    int		idx=0;			/*hash index number	*/
+    unsigned		temp_idx=0;			/* temporary index number	*/
     hbool_t		found = FALSE;		/*already in cache?	*/
     H5F_rdcc_t		*rdcc = &(f->shared->rdcc);/*raw data chunk cache*/
     H5F_rdcc_ent_t	*ent = NULL;		/*cache entry		*/
-    uintn		u;			/*counters		*/
+    unsigned		u;			/*counters		*/
     H5F_istore_ud1_t	udata;			/*B-tree pass-through	*/
     size_t		chunk_size=0;		/*size of a chunk	*/
     size_t		chunk_alloc=0;		/*allocated chunk size	*/
@@ -1358,7 +1356,7 @@ H5F_istore_lock(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
             temp_idx *= layout->dim[u];
             temp_idx += offset[u];
         }
-        temp_idx += (uintn)(layout->addr);
+        temp_idx += (unsigned)(layout->addr);
         idx=H5F_HASH(f,temp_idx);
         ent = rdcc->slot[idx];
         
@@ -1608,13 +1606,13 @@ H5F_istore_lock(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
 static herr_t
 H5F_istore_unlock(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
 		  const H5O_pline_t *pline, hbool_t dirty,
-		  const hssize_t offset[], intn *idx_hint,
+		  const hssize_t offset[], int *idx_hint,
 		  uint8_t *chunk, size_t naccessed)
 {
     H5F_rdcc_t		*rdcc = &(f->shared->rdcc);
     H5F_rdcc_ent_t	*ent = NULL;
-    intn		found = -1;
-    uintn		u;
+    int		found = -1;
+    unsigned		u;
     
     FUNC_ENTER (H5F_istore_unlock, FAIL);
 
@@ -1710,11 +1708,13 @@ H5F_istore_read(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
     hssize_t		offset_wrt_chunk[H5O_LAYOUT_NDIMS];
     hssize_t		sub_offset_m[H5O_LAYOUT_NDIMS];
     hssize_t		chunk_offset[H5O_LAYOUT_NDIMS];
-    intn		i, carry;
-    uintn		u;
+    int		i, carry;
+    unsigned		u;
     size_t		naccessed;		/*bytes accessed in chnk*/
     uint8_t		*chunk=NULL;		/*ptr to a chunk buffer	*/
-    intn		idx_hint=0;		/*cache index hint	*/
+    int		idx_hint=0;		/*cache index hint	*/
+    hsize_t		chunk_size;     /* Bytes in chunk */
+    haddr_t	        chunk_addr;     /* Chunk address on disk */
 
     FUNC_ENTER(H5F_istore_read, FAIL);
 
@@ -1731,9 +1731,10 @@ H5F_istore_read(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
      * For now, a hyperslab of the file must be read into an array in
      * memory.We do not yet support reading into a hyperslab of memory.
      */
-    for (u=0; u<layout->ndims; u++) {
+    for (u=0, chunk_size=1; u<layout->ndims; u++) {
         offset_m[u] = 0;
         size_m[u] = size[u];
+        chunk_size *= layout->dim[u];
     }
     
 #ifndef NDEBUG
@@ -1776,20 +1777,34 @@ H5F_istore_read(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
             sub_offset_m[u] = chunk_offset[u] + offset_wrt_chunk[u] +
                       offset_m[u] - offset_f[u];
         }
+        /* Get the address of this chunk on disk */
+        chunk_addr=H5F_istore_get_addr(f, layout, chunk_offset);
+
+        /*
+         * If the chunk is too large to load into the cache and it has no
+         * filters in the pipeline (i.e. not compressed) and if the address
+         * for the chunk has been defined, then don't load the chunk into the
+         * cache, just read the data from it directly.
+         */
+        if ((chunk_size>f->shared->rdcc_nbytes && pline->nfilters==0 &&
+                chunk_addr!=HADDR_UNDEF)
+
 #ifdef H5_HAVE_PARALLEL
         /*
          * If MPIO is used, must bypass the chunk-cache scheme because other
          * MPI processes could be writing to other elements in the same chunk.
          * Do a direct write-through of only the elements requested.
          */
-        if (IS_H5FD_MPIO(f)) {
-            H5F_istore_ud1_t	udata;
+            || IS_H5FD_MPIO(f)
+#endif /* H5_HAVE_PARALLEL */
+            ) {
             H5O_layout_t	l;	/* temporary layout */
 
-            if (H5F_istore_get_addr(f, layout, chunk_offset, &udata)<0){
-                HRETURN_ERROR (H5E_IO, H5E_WRITEERROR, FAIL,
-                    "unable to locate raw data chunk");
-            };
+#ifdef H5_HAVE_PARALLEL
+            /* Additional sanity checks when operating in parallel */
+            if (chunk_addr==HADDR_UNDEF || pline->nfilters>0)
+                HRETURN_ERROR (H5E_IO, H5E_WRITEERROR, FAIL, "unable to locate raw data chunk");
+#endif /* H5_HAVE_PARALLEL */
             
             /*
              * use default transfer mode as we do not support collective
@@ -1800,22 +1815,13 @@ H5F_istore_read(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
             l.ndims = layout->ndims;
             for (u=l.ndims; u-- > 0; /*void*/)
                 l.dim[u] = layout->dim[u];
-            l.addr = udata.addr;
+            l.addr = chunk_addr;
             if (H5F_arr_read(f, H5P_DEFAULT, &l, pline, fill, NULL/*no efl*/,
                      sub_size, size_m, sub_offset_m, offset_wrt_chunk, buf)<0) {
                 HRETURN_ERROR (H5E_IO, H5E_READERROR, FAIL,
                      "unable to read raw data from file");
             }
         } else {
-#endif
-
-#ifdef AKC
-            printf("Locking chunk( ");
-            for (u=0; u<layout->ndims; u++){
-                printf("%ld ", chunk_offset[u]);
-            }
-            printf(")\n");
-#endif
             /*
              * Lock the chunk, transfer data to the application, then unlock
              * the chunk.
@@ -1833,12 +1839,10 @@ H5F_istore_read(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
             HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL,
                       "unable to unlock raw data chunk");
             }
-#ifdef H5_HAVE_PARALLEL
         }
-#endif
 
         /* Increment indices */
-        for (i=(intn)(layout->ndims-1), carry=1; i>=0 && carry; --i) {
+        for (i=(int)(layout->ndims-1), carry=1; i>=0 && carry; --i) {
             if (++idx_cur[i]>=idx_max[i])
                 idx_cur[i] = idx_min[i];
             else
@@ -1876,8 +1880,8 @@ H5F_istore_write(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
 {
     hssize_t	offset_m[H5O_LAYOUT_NDIMS];
     hsize_t		size_m[H5O_LAYOUT_NDIMS];
-    intn		i, carry;
-    uintn		u;
+    int		i, carry;
+    unsigned		u;
     hsize_t		idx_cur[H5O_LAYOUT_NDIMS];
     hsize_t		idx_min[H5O_LAYOUT_NDIMS];
     hsize_t		idx_max[H5O_LAYOUT_NDIMS];
@@ -1886,8 +1890,9 @@ H5F_istore_write(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
     hssize_t	offset_wrt_chunk[H5O_LAYOUT_NDIMS];
     hssize_t	sub_offset_m[H5O_LAYOUT_NDIMS];
     uint8_t		*chunk=NULL;
-    intn		idx_hint=0;
+    int		idx_hint=0;
     size_t		chunk_size, naccessed;
+    haddr_t	        chunk_addr;     /* Chunk address on disk */
     
     FUNC_ENTER(H5F_istore_write, FAIL);
 
@@ -1952,20 +1957,34 @@ H5F_istore_write(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
                       offset_m[u] - offset_f[u];
         }
 
+        /* Get the address of this chunk on disk */
+        chunk_addr=H5F_istore_get_addr(f, layout, chunk_offset);
+
+        /*
+         * If the chunk is too large to load into the cache and it has no
+         * filters in the pipeline (i.e. not compressed) and if the address
+         * for the chunk has been defined, then don't load the chunk into the
+         * cache, just write the data to it directly.
+         */
+        if ((chunk_size>f->shared->rdcc_nbytes && pline->nfilters==0 &&
+                chunk_addr!=HADDR_UNDEF)
+
 #ifdef H5_HAVE_PARALLEL
         /*
          * If MPIO is used, must bypass the chunk-cache scheme because other
          * MPI processes could be writing to other elements in the same chunk.
          * Do a direct write-through of only the elements requested.
          */
-        if (IS_H5FD_MPIO(f)) {
-            H5F_istore_ud1_t	udata;
+            || IS_H5FD_MPIO(f)
+#endif /* H5_HAVE_PARALLEL */
+            ) {
             H5O_layout_t	l;	/* temporary layout */
 
-            if (H5F_istore_get_addr(f, layout, chunk_offset, &udata)<0){
-                HRETURN_ERROR (H5E_IO, H5E_WRITEERROR, FAIL,
-                    "unable to locate raw data chunk");
-            };
+#ifdef H5_HAVE_PARALLEL
+            /* Additional sanity check when operating in parallel */
+            if (chunk_addr==HADDR_UNDEF || pline->nfilters>0)
+                HRETURN_ERROR (H5E_IO, H5E_WRITEERROR, FAIL, "unable to locate raw data chunk");
+#endif /* H5_HAVE_PARALLEL */
             
             /*
              * use default transfer mode as we do not support collective
@@ -1976,22 +1995,13 @@ H5F_istore_write(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
             l.ndims = layout->ndims;
             for (u=l.ndims; u-- > 0; /*void*/)
                 l.dim[u] = layout->dim[u];
-            l.addr = udata.addr;
+            l.addr = chunk_addr;
             if (H5F_arr_write(f, H5P_DEFAULT, &l, pline, fill, NULL/*no efl*/,
                      sub_size, size_m, sub_offset_m, offset_wrt_chunk, buf)<0) {
                 HRETURN_ERROR (H5E_IO, H5E_WRITEERROR, FAIL,
                        "unable to write raw data to file");
             }
         } else {
-#endif
-
-#ifdef AKC
-            printf("Locking chunk( ");
-            for (u=0; u<layout->ndims; u++){
-                printf("%ld ", chunk_offset[u]);
-            }
-            printf(")\n");
-#endif
             /*
              * Lock the chunk, copy from application to chunk, then unlock the
              * chunk.
@@ -2011,9 +2021,7 @@ H5F_istore_write(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
                 HRETURN_ERROR (H5E_IO, H5E_WRITEERROR, FAIL,
                        "uanble to unlock raw data chunk");
             }
-#ifdef H5_HAVE_PARALLEL
         }
-#endif
         
         /* Increment indices */
         for (i=layout->ndims-1, carry=1; i>=0 && carry; --i) {
@@ -2055,7 +2063,7 @@ H5F_istore_create(H5F_t *f, H5O_layout_t *layout /*out */ )
 {
     H5F_istore_ud1_t	udata;
 #ifndef NDEBUG
-    uintn			u;
+    unsigned			u;
 #endif
 
     FUNC_ENTER(H5F_istore_create, FAIL);
@@ -2099,7 +2107,7 @@ H5F_istore_create(H5F_t *f, H5O_layout_t *layout /*out */ )
  *-------------------------------------------------------------------------
  */
 hsize_t
-H5F_istore_allocated(H5F_t *f, uintn ndims, haddr_t addr)
+H5F_istore_allocated(H5F_t *f, unsigned ndims, haddr_t addr)
 {
     H5F_istore_ud1_t	udata;
 
@@ -2134,7 +2142,7 @@ H5F_istore_allocated(H5F_t *f, uintn ndims, haddr_t addr)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5F_istore_dump_btree(H5F_t *f, FILE *stream, uintn ndims, haddr_t addr)
+H5F_istore_dump_btree(H5F_t *f, FILE *stream, unsigned ndims, haddr_t addr)
 {
     H5F_istore_ud1_t	udata;
 
@@ -2228,8 +2236,8 @@ H5F_istore_stats (H5F_t *f, hbool_t headers)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5F_istore_debug(H5F_t *f, haddr_t addr, FILE * stream, intn indent,
-		 intn fwidth, int ndims)
+H5F_istore_debug(H5F_t *f, haddr_t addr, FILE * stream, int indent,
+		 int fwidth, int ndims)
 {
     H5F_istore_ud1_t	udata;
     
@@ -2257,38 +2265,43 @@ H5F_istore_debug(H5F_t *f, haddr_t addr, FILE * stream, intn indent,
  *              June 27, 1998
  *
  * Modifications:
+ *              Modified to return the address instead of returning it through
+ *              a parameter - QAK, 1/30/02
  *
  *-------------------------------------------------------------------------
  */
-#ifdef H5_HAVE_PARALLEL
-static herr_t
+static haddr_t
 H5F_istore_get_addr(H5F_t *f, const H5O_layout_t *layout,
-		    const hssize_t offset[], void *_udata/*out*/)
+		    const hssize_t offset[])
 {
-    H5F_istore_ud1_t	*udata = _udata;
-    intn		i;
-    herr_t		status;			/*func return status	*/
+    H5F_istore_ud1_t	udata;                  /* Information about a chunk */
+    unsigned	u;
+    haddr_t	ret_value=HADDR_UNDEF;		/* Return value */
     
-    FUNC_ENTER (H5F_istore_get_addr, FAIL);
+    FUNC_ENTER (H5F_istore_get_addr, HADDR_UNDEF);
 
     assert(f);
     assert(layout && (layout->ndims > 0));
     assert(offset);
-    assert(udata);
 
-    for (i=0; i<layout->ndims; i++) {
-	udata->key.offset[i] = offset[i];
-    }
-    udata->mesg = *layout;
-    udata->addr = HADDR_UNDEF;
-    status = H5B_find (f, H5B_ISTORE, layout->addr, udata);
-    H5E_clear ();
-    if (status>=0 && H5F_addr_defined(udata->addr))
-	HRETURN(SUCCEED);
+    /* Initialize the information about the chunk we are looking for */
+    for (u=0; u<layout->ndims; u++)
+	udata.key.offset[u] = offset[u];
+    udata.mesg = *layout;
+    udata.addr = HADDR_UNDEF;
 
-    FUNC_LEAVE (FAIL);
-}
-#endif /* H5_HAVE_PARALLEL */
+    /* Go get the chunk information */
+    if (H5B_find (f, H5B_ISTORE, layout->addr, &udata)<0) {
+        H5E_clear();
+	HGOTO_ERROR(H5E_BTREE,H5E_NOTFOUND,HADDR_UNDEF,"Can't locate chunk info");
+    } /* end if */
+
+    /* Success!  Set the return value */
+    ret_value=udata.addr;
+
+done:
+    FUNC_LEAVE (ret_value);
+} /* H5F_istore_get_addr() */
 
 
 /*-------------------------------------------------------------------------
@@ -2329,11 +2342,11 @@ H5F_istore_allocate(H5F_t *f, hid_t dxpl_id, const H5O_layout_t *layout,
 		    const H5O_fill_t *fill)
 {
 
-    intn		i, carry;
-    uintn		u;
+    int		i, carry;
+    unsigned		u;
     hssize_t		chunk_offset[H5O_LAYOUT_NDIMS];
     uint8_t		*chunk=NULL;
-    intn		idx_hint=0;
+    int		idx_hint=0;
     size_t		chunk_size;
 #ifdef AKC
     H5F_istore_ud1_t	udata;

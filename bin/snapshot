@@ -102,6 +102,9 @@ while [ $# -gt 0 ] ; do
 	    fi
 	    ARCHIVES="$1"
 	    ;;
+	--*)
+	    OP_CONFIGURE="$OP_CONFIGURE $1"
+	    ;;
 	op-configure)
 	    shift
 	    if [ $# -lt 1 ]; then
@@ -127,7 +130,7 @@ if [ "$cmd" = help ]; then
     cat <<EOF
 Usage: $0 [all] [checkout] [test] [srcdir] [release] [help]
           [hdf4 <hdf4lib_path>] [archive <arch_path>] [dir <dir>]
-	  [op-configure <option>]
+	  [op-configure <option>] [--<option>]
     all:      Run all commands (checkout, test & release)
               [Default is all]
     checkout: Run cvs checkout
@@ -153,6 +156,10 @@ Usage: $0 [all] [checkout] [test] [srcdir] [release] [help]
     op-configure <option>:
               Pass <option> to the configure command
               E.g., "snapshot op-configure --enable-parallel"
+                  configures for parallel mode
+    --<option>:
+              Pass --<option> to the configure command
+              E.g., "snapshot --enable-parallel"
                   configures for parallel mode
 EOF
     exit $errcode
@@ -192,6 +199,16 @@ if [ "$cmd" = "all" -o -n "$cmdcheckout" ]; then
     # time that still has the contents of the previous release.  But if
     # not, just create one and assume that a snapshot is necessary.
     test -d ${BASEDIR} || mkdir -p ${BASEDIR} || exit 1
+
+    # If there is a Makefile in ${CURRENT}, the last test done in it
+    # has not been distclean'ed.  They would interfere with other
+    # --srcdir build since make considers the files in ${CURRENT} 
+    # take precedence over files in its own build-directory.  Run
+    # a "make distclean" to clean them all out.  This is not really
+    # part of the "checkout" functions but this is the most convenient
+    # spot to do the distclean.  We will also continue the checkout process
+    # regardless of the return code of distclean.
+    ( cd ${CURRENT}; test -f Makefile && ${MAKE} distclean)
 
     # Check out the current version from CVS
     cvs -Q co -d ${CURRENT} ${CVSVERSION} hdf5 || exit 1
@@ -249,10 +266,11 @@ if [ "$cmd" = "all" -o -n "$cmdtest" ]; then
 	fi
     fi
 
-    # Make sure all the serial tests work.
+    # Build, run tests and install procedures
     if [ "$snapshot" = "yes" ]; then
 	if (cd ${TESTDIR} && \
 	    ${srcdir:+${CURRENT}/}${CONFIGURE} --prefix=$INSTALLDIR && \
+	    ${MAKE} && \
 	    ${MAKE} check && \
 	    ${MAKE} install install-doc && \
 	    ${MAKE} uninstall uninstall-doc); then

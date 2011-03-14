@@ -200,6 +200,12 @@ precision (detected_t *d)
    INFO.varname = #VAR;							      \
    INFO.size = sizeof(TYPE);						      \
 									      \
+   /* Completely initialize temporary variables, in case the bits used in */  \
+   /* the type take less space than the number of bits used to store the type */  \
+   memset(&_v3,0,sizeof(TYPE));                                               \
+   memset(&_v2,0,sizeof(TYPE));                                               \
+   memset(&_v1,0,sizeof(TYPE));                                               \
+									      \
    /* Byte Order */							      \
    for (_i=0,_v1=0.0,_v2=1.0; _i<(signed)sizeof(TYPE); _i++) {		      \
       _v3 = _v1; _v1 += _v2; _v2 /= 256.0;				      \
@@ -399,7 +405,7 @@ print_results(int nd, detected_t *d)
 #include \"H5MMprivate.h\"\n\
 #include \"H5Tpkg.h\"\n\
 \n\
-static intn interface_initialize_g = 0;\n\
+static int interface_initialize_g = 0;\n\
 #define INTERFACE_INIT NULL\n\
 \n\
 /* Declare external the free list for H5T_t's */\n\
@@ -409,7 +415,7 @@ H5FL_EXTERN(H5T_t);\n\
 
     /* The interface termination function */
     printf("\n\
-intn\n\
+int\n\
 H5TN_term_interface(void)\n\
 {\n\
     interface_initialize_g = 0;\n\

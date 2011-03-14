@@ -10,15 +10,15 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5.c,v 1.99.2.5 2001/07/16 21:37:10 acheng Exp $ */
+/* $Id: H5.c,v 1.99.2.8 2002/01/11 16:43:01 koziol Exp $ */
 
 /* private headers */
 #include "H5private.h"          /*library                 		*/
 #include "H5Bprivate.h"         /*B-link trees                    	*/
 #include "H5Dprivate.h"         /*datasets                              */
 #include "H5Eprivate.h"         /*error handling          		*/
-#include "H5FDprivate.h"	/*file driver				*/
-#include "H5FLprivate.h"	/*Free Lists                            */
+#include "H5FDprivate.h"        /*file driver				*/
+#include "H5FLprivate.h"        /*free lists                            */
 #include "H5Iprivate.h"		/*atoms					*/
 #include "H5MMprivate.h"        /*memory management               	*/
 #include "H5Pprivate.h"		/*property lists			*/
@@ -56,7 +56,7 @@ H5_debug_t		H5_debug_g;		/*debugging info	*/
 static void		H5_debug_mask(const char*);
 
 /* Interface initialization */
-static intn          	interface_initialize_g = 0;
+static int          	interface_initialize_g = 0;
 #define INTERFACE_INIT 	NULL
 
 /*--------------------------------------------------------------------------
@@ -162,8 +162,8 @@ H5_init_library(void)
 void
 H5_term_library(void)
 {
-    intn	pending, ntries=0, n;
-    uintn	at=0;
+    int	pending, ntries=0, n;
+    unsigned	at=0;
     char	loop[1024];
     H5E_auto_t func;
     
@@ -728,7 +728,7 @@ HDsnprintf(char *buf, size_t UNUSED size, const char *fmt, ...)
 int
 HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 {
-    return vsprintf(buf, fmt, ap);
+    return HDvsprintf(buf, fmt, ap);
 }
 #endif /* H5_HAVE_VSNPRINTF */
 
@@ -794,7 +794,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 	    fmt += 2;
 	    nout++;
 	} else if ('%'==fmt[0]) {
-	    s = fmt+1;
+	    s = fmt + 1;
 
 	    /* Flags */
 	    while (HDstrchr ("-+ #", *s)) {
@@ -843,7 +843,7 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 	    }
 
 	    /* Type modifier */
-	    if (HDstrchr ("ZHhlq", *s)) {
+	    if (HDstrchr ("ZHhlqLI", *s)) {
 		switch (*s) {
 		case 'H':
 		    if (sizeof(hsize_t)<sizeof(long)) {
@@ -863,10 +863,28 @@ HDfprintf (FILE *stream, const char *fmt, ...)
 			HDstrcpy (modifier, PRINTF_LL_WIDTH);
 		    }
 		    break;
-		    
 		default:
-		    modifier[0] = *s;
-		    modifier[1] = '\0';
+                    /* Handle 'I64' modifier for Microsoft's "__int64" type */
+                    if(*s=='I' && *(s+1)=='6' && *(s+2)=='4') {
+                        modifier[0] = *s;
+                        modifier[1] = *(s+1);
+                        modifier[2] = *(s+2);
+                        modifier[3] = '\0';
+                        s+=2; /* Increment over 'I6', the '4' is taken care of below */
+                    } /* end if */
+                    else {
+                        /* Handle 'll' for long long types */
+                        if(*s=='l' && *(s+1)=='l') {
+                            modifier[0] = *s;
+                            modifier[1] = *s;
+                            modifier[2] = '\0';
+                            s++; /* Increment over first 'l', second is taken care of below */
+                        } /* end if */
+                        else {
+                            modifier[0] = *s;
+                            modifier[1] = '\0';
+                        } /* end else */
+                    } /* end else */
 		    break;
 		}
 		s++;
@@ -1364,7 +1382,7 @@ H5_trace (hbool_t returning, const char *func, const char *type, ...)
     va_list		ap;
     char		buf[64], *rest;
     const char		*argname;
-    intn		argno=0, ptr, asize_idx;
+    int		argno=0, ptr, asize_idx;
     hssize_t		asize[16];
     hssize_t		i;
     void		*vp = NULL;

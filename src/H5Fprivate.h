@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5Fprivate.h,v 1.117.2.1 2001/05/15 21:25:43 wendling Exp $ */
+/* $Id: H5Fprivate.h,v 1.117.2.4 2002/01/23 22:29:55 koziol Exp $ */
 
 /*
  * This file contains macros & information for file access
@@ -30,17 +30,14 @@ typedef struct H5F_t H5F_t;
  * Encode and decode macros for file meta-data.
  * Currently, all file meta-data is little-endian.
  */
-
-/* For non-little-endian platforms, encode each byte by itself */
-#ifdef WORDS_BIGENDIAN
 #  define INT16ENCODE(p, i) {						      \
-   *(p) = (uint8_t)( (uintn)(i)	    & 0xff); (p)++;			      \
-   *(p) = (uint8_t)(((uintn)(i) >> 8) & 0xff); (p)++;			      \
+   *(p) = (uint8_t)( (unsigned)(i)	    & 0xff); (p)++;			      \
+   *(p) = (uint8_t)(((unsigned)(i) >> 8) & 0xff); (p)++;			      \
 }
 
 #  define UINT16ENCODE(p, i) {						      \
    *(p) = (uint8_t)(	    (i)	    & 0xff); (p)++;			      \
-   *(p) = (uint8_t)(((uintn)(i) >> 8) & 0xff); (p)++;			      \
+   *(p) = (uint8_t)(((unsigned)(i) >> 8) & 0xff); (p)++;			      \
 }
 
 #  define INT32ENCODE(p, i) {						      \
@@ -139,44 +136,6 @@ typedef struct H5F_t H5F_t;
    (p) += 8;								      \
 }
 
-#else
-   /* For little-endian platforms, make the compiler do the work */
-#  define INT16ENCODE(p, i) {*((int16_t*)(p))=(int16_t)(i);(p)+=2;}
-#  define UINT16ENCODE(p, i) {*((uint16_t*)(p))=(uint16_t)(i);(p)+=2;}
-#  define INT32ENCODE(p, i)  {*((int32_t*)(p))=(int32_t)(i);(p)+=4;}
-#  define UINT32ENCODE(p, i) {*((uint32_t*)(p))=(uint32_t)(i);(p)+=4;}
-
-#  define INT64ENCODE(p, i)  {						      \
-   *((int64_t *)(p)) = (int64_t)(i);					      \
-   (p) += sizeof(int64_t);						      \
-   if (4==sizeof(int64_t)) {						      \
-      *(p)++ = (i)<0?0xff:0x00;						      \
-      *(p)++ = (i)<0?0xff:0x00;						      \
-      *(p)++ = (i)<0?0xff:0x00;						      \
-      *(p)++ = (i)<0?0xff:0x00;						      \
-   }									      \
-}
-
-#  define UINT64ENCODE(p, i) {						      \
-   *((uint64_t *)(p)) = (uint64_t)(i);					      \
-   (p) += sizeof(uint64_t);						      \
-   if (4==sizeof(uint64_t)) {						      \
-      *(p)++ = 0x00;							      \
-      *(p)++ = 0x00;							      \
-      *(p)++ = 0x00;							      \
-      *(p)++ = 0x00;							      \
-   }									      \
-}
-
-#  define INT16DECODE(p, i)  {(i)=(int16_t)(*(const int16_t*)(p));(p)+=2;}
-#  define UINT16DECODE(p, i) {(i)=(uint16_t)(*(const uint16_t*)(p));(p)+=2;}
-#  define INT32DECODE(p, i)  {(i)=(int32_t)(*(const int32_t*)(p));(p)+=4;}
-#  define UINT32DECODE(p, i) {(i)=(uint32_t)(*(const uint32_t*)(p));(p)+=4;}
-#  define INT64DECODE(p, i)  {(i)=(int64_t)(*(const int64_t*)(p));(p)+=8;}
-#  define UINT64DECODE(p, i) {(i)=(uint64_t)(*(const uint64_t*)(p));(p)+=8;}
-
-#endif
-
 #define NBYTEENCODE(d, s, n) {	 HDmemcpy(d,s,n); p+=n }
 
 /*
@@ -210,6 +169,8 @@ typedef struct H5F_t H5F_t;
 #define H5F_addr_cmp(X,Y)	(H5F_addr_eq(X,Y)?0:			      \
 				 (H5F_addr_lt(X, Y)?-1:1))
 #define H5F_addr_pow2(N)	((haddr_t)1<<(N))
+#define H5F_addr_overlap(O1,L1,O2,L2) ((O1<O2 && (O1+L1)>O2) ||               \
+                                 (O1>=O2 && O1<(O2+L2)))
 
 /* size of size_t and off_t as they exist on disk */
 #ifdef H5F_PACKAGE
@@ -259,29 +220,29 @@ __DLL__ size_t H5F_sizeof_size(H5F_t *f);
  */
 typedef struct H5F_create_t {
     hsize_t	userblock_size;	/* Size of the file user block in bytes */
-    intn	sym_leaf_k;	/* 1/2 rank for symbol table leaf nodes */
-    intn	btree_k[8];	/* 1/2 rank for btree internal nodes	*/
+    int	sym_leaf_k;	/* 1/2 rank for symbol table leaf nodes */
+    int	btree_k[8];	/* 1/2 rank for btree internal nodes	*/
     size_t	sizeof_addr;	/* Number of bytes in an address	*/
     size_t	sizeof_size;	/* Number of bytes for obj sizes	*/
-    intn	bootblock_ver;	/* Version # of the bootblock		*/
-    intn	freespace_ver;	/* Version # of the free-space information*/
-    intn	objectdir_ver;	/* Version # of the object directory format*/
-    intn	sharedheader_ver;/* Version # of the shared header format */
+    int	bootblock_ver;	/* Version # of the bootblock		*/
+    int	freespace_ver;	/* Version # of the free-space information*/
+    int	objectdir_ver;	/* Version # of the object directory format*/
+    int	sharedheader_ver;/* Version # of the shared header format */
 } H5F_create_t;
 
 /*
  * File-access property list.
  */
 typedef struct H5F_access_t {
-    intn	mdc_nelmts;	/* Size of meta data cache (elements)	*/
-    intn	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
+    int	mdc_nelmts;	/* Size of meta data cache (elements)	*/
+    int	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
     size_t	rdcc_nbytes;	/* Size of raw data chunk cache	(bytes)	*/
     double	rdcc_w0;	/* Preempt read chunks first? [0.0..1.0]*/
     hsize_t	threshold;	/* Threshold for alignment		*/
     hsize_t	alignment;	/* Alignment				*/
     size_t	meta_block_size;    /* Minimum metadata allocation block size (when aggregating metadata allocations) */
     hsize_t	sieve_buf_size;     /* Maximum sieve buffer size (when data sieving is allowed by file driver) */
-    uintn	gc_ref;		/* Garbage-collect references?		*/
+    unsigned	gc_ref;		/* Garbage-collect references?		*/
     hid_t	driver_id;	/* File driver ID			*/
     void	*driver_info;	/* File driver specific information	*/
 } H5F_access_t;
@@ -306,7 +267,7 @@ struct H5S_t;
 
 /* Private functions, not part of the publicly documented API */
 __DLL__ herr_t H5F_init(void);
-__DLL__ uintn H5F_get_intent(H5F_t *f);
+__DLL__ unsigned H5F_get_intent(H5F_t *f);
 __DLL__ hid_t H5F_get_driver_id(H5F_t *f);
 
 /* Functions that operate on array storage */
@@ -351,8 +312,8 @@ __DLL__ herr_t H5F_seq_write (H5F_t *f, hid_t dxpl_id,
 
 
 /* Functions that operate on indexed storage */
-__DLL__ hsize_t H5F_istore_allocated(H5F_t *f, uintn ndims, haddr_t addr);
-__DLL__ herr_t H5F_istore_dump_btree(H5F_t *f, FILE *stream, uintn ndims,
+__DLL__ hsize_t H5F_istore_allocated(H5F_t *f, unsigned ndims, haddr_t addr);
+__DLL__ herr_t H5F_istore_dump_btree(H5F_t *f, FILE *stream, unsigned ndims,
 				     haddr_t addr);
 
 /* Functions for allocation/releasing chunks */

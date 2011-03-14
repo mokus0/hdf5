@@ -383,6 +383,137 @@ test_copy(void)
 
 
 /*-------------------------------------------------------------------------
+ * Function:    test_detect
+ *
+ * Purpose:     Are we able to detect datatype classes correctly?  (Especially
+ *              in nested types)
+ *
+ * Return:      Success:        0
+ *
+ *              Failure:        number of errors
+ *
+ * Programmer:  Quincey Koziol
+ *              Saturday, August 30, 2003
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_detect(void)
+{
+    struct atomic {     /* Struct with atomic fields */
+        int i;
+        float f;
+        char c;
+        double d;
+        short s;
+    };
+    struct complex {    /* Struct with complex fields */
+        hobj_ref_t arr_r[3][3];
+        int i;
+        hvl_t vl_f;
+        char c;
+        short s;
+    };
+    hid_t atom_cmpd_id; /* Atomic Compound datatype */
+    hid_t atom_arr_id;  /* Atomic Array datatype */
+    hid_t atom_vl_id;   /* Atomic VL datatype */
+    hid_t cplx_cmpd_id; /* Complex Compound datatype */
+    int rank=2;         /* Rank for array datatype */
+    hsize_t dims[2]={3,3};      /* Dimensions for array datatype */
+
+    TESTING("H5Tdetect_class()");
+
+    /* Native integers should be in the integer class */
+    if(H5Tdetect_class(H5T_NATIVE_INT,H5T_INTEGER)!=TRUE) TEST_ERROR
+
+    /* Native integers should _not_ be in other classes */
+    if(H5Tdetect_class(H5T_NATIVE_INT,H5T_FLOAT)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(H5T_NATIVE_INT,H5T_ARRAY)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(H5T_NATIVE_INT,H5T_ENUM)!=FALSE) TEST_ERROR
+
+    /* Create a compound datatype and insert some atomic types */
+    if ((atom_cmpd_id = H5Tcreate(H5T_COMPOUND, sizeof(struct atomic)))<0) TEST_ERROR
+    if (H5Tinsert(atom_cmpd_id, "i", HOFFSET(struct atomic, i), H5T_NATIVE_INT)<0) TEST_ERROR
+    if (H5Tinsert(atom_cmpd_id, "f", HOFFSET(struct atomic, f), H5T_NATIVE_FLOAT)<0) TEST_ERROR
+    if (H5Tinsert(atom_cmpd_id, "c", HOFFSET(struct atomic, c), H5T_NATIVE_CHAR)<0) TEST_ERROR
+    if (H5Tinsert(atom_cmpd_id, "d", HOFFSET(struct atomic, d), H5T_NATIVE_DOUBLE)<0) TEST_ERROR
+    if (H5Tinsert(atom_cmpd_id, "s", HOFFSET(struct atomic, s), H5T_NATIVE_SHORT)<0) TEST_ERROR
+
+    /* Make certain that the correct classes can be detected */
+    if(H5Tdetect_class(atom_cmpd_id,H5T_COMPOUND)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_cmpd_id,H5T_INTEGER)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_cmpd_id,H5T_FLOAT)!=TRUE) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if(H5Tdetect_class(atom_cmpd_id,H5T_VLEN)!=FALSE) TEST_ERROR
+
+    /* Create an array datatype with an atomic base type */
+    if((atom_arr_id=H5Tarray_create(H5T_STD_REF_OBJ, rank, dims, NULL))<0) TEST_ERROR
+
+    /* Make certain that the correct classes can be detected */
+    if(H5Tdetect_class(atom_arr_id,H5T_ARRAY)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_arr_id,H5T_REFERENCE)!=TRUE) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if(H5Tdetect_class(atom_arr_id,H5T_VLEN)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(atom_arr_id,H5T_FLOAT)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(atom_arr_id,H5T_INTEGER)!=FALSE) TEST_ERROR
+
+    /* Create a VL datatype with an atomic base type */
+    if((atom_vl_id=H5Tvlen_create(H5T_NATIVE_FLOAT))<0) TEST_ERROR
+
+    /* Make certain that the correct classes can be detected */
+    if(H5Tdetect_class(atom_vl_id,H5T_VLEN)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_vl_id,H5T_FLOAT)!=TRUE) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if(H5Tdetect_class(atom_vl_id,H5T_COMPOUND)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(atom_vl_id,H5T_INTEGER)!=FALSE) TEST_ERROR
+
+    /* Create a compound datatype and insert some atomic types */
+    if ((cplx_cmpd_id = H5Tcreate(H5T_COMPOUND, sizeof(struct complex)))<0) TEST_ERROR
+    if (H5Tinsert(cplx_cmpd_id, "arr_r", HOFFSET(struct complex, arr_r), atom_arr_id)<0) TEST_ERROR
+    if (H5Tinsert(cplx_cmpd_id, "i", HOFFSET(struct complex, i), H5T_NATIVE_INT)<0) TEST_ERROR
+    if (H5Tinsert(cplx_cmpd_id, "vl_f", HOFFSET(struct complex, vl_f), atom_vl_id)<0) TEST_ERROR
+    if (H5Tinsert(cplx_cmpd_id, "c", HOFFSET(struct complex, c), H5T_NATIVE_CHAR)<0) TEST_ERROR
+    if (H5Tinsert(cplx_cmpd_id, "s", HOFFSET(struct complex, s), H5T_NATIVE_SHORT)<0) TEST_ERROR
+
+    /* Make certain that the correct classes can be detected */
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_COMPOUND)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_ARRAY)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_REFERENCE)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_INTEGER)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_FLOAT)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_VLEN)!=TRUE) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_TIME)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_ENUM)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(cplx_cmpd_id,H5T_STRING)!=FALSE) TEST_ERROR
+
+    /* Close complex compound datatype */
+    if(H5Tclose(cplx_cmpd_id)<0) TEST_ERROR
+
+    /* Close atomic VL datatype */
+    if(H5Tclose(atom_vl_id)<0) TEST_ERROR
+
+    /* Close atomic array datatype */
+    if(H5Tclose(atom_arr_id)<0) TEST_ERROR
+
+    /* Close atomic compound datatype */
+    if(H5Tclose(atom_cmpd_id)<0) TEST_ERROR
+
+    PASSED();
+    return 0;
+
+error:
+    return 1;
+}
+
+
+/*-------------------------------------------------------------------------
  * Function:    test_compound_1
  *
  * Purpose:     Tests various things about compound data types.
@@ -1005,7 +1136,8 @@ test_compound_6(void)
  * Function:	test_compound_7
  *
  * Purpose:	Tests inserting fields into compound datatypes when the field
- *              overlaps the end of the compound datatype.
+ *              overlaps the end of the compound datatype.  Also, tests
+ *              increasing compound type size. 
  *
  * Return:	Success:	0
  *
@@ -1015,6 +1147,9 @@ test_compound_6(void)
  *              Tuesday, December 18, 2001
  *
  * Modifications:
+ *              The size of compound datatype can be expanded now.
+ *              Raymond Lu
+ *              Wednesday, September 10, 2003
  *
  *-------------------------------------------------------------------------
  */
@@ -1091,6 +1226,35 @@ test_compound_7(void)
         goto error;
     } /* end if */
 
+    /* Should not be able to shrink size of compound datatype */
+    H5E_BEGIN_TRY {
+        ret=H5Tset_size(tid2, sizeof(struct s1)/2);
+    } H5E_END_TRY;
+    if(ret>=0) {
+        H5_FAILED();
+        printf("Shrunk compound type?\n");
+        goto error;
+    } /* end if */
+
+    /* Increase compound type size and try inserting field again */
+    if(H5Tset_size(tid2, sizeof(struct s2))<0) {
+        H5_FAILED();
+        printf("Incorrect size for struct 2\n");
+        goto error;
+    } /* end if */
+
+    if( H5Tinsert(tid2,"d",HOFFSET(struct s2,d),H5T_NATIVE_DOUBLE)<0) {
+        H5_FAILED();
+        printf("Can't expand compound datatype\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tget_size(tid2)!=sizeof(struct s2)) {
+        H5_FAILED();
+        printf("Incorrect size for struct 2\n");
+        goto error;
+    } /* end if */
+
     /* Release resources */
     if (H5Tclose(tid1)<0 || H5Tclose(tid2)<0) {
         H5_FAILED();
@@ -1103,6 +1267,153 @@ test_compound_7(void)
     return 0;
 
  error:
+    return 1;
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:    test_compound_8
+ *
+ * Purpose:     Tests H5Tpack for compound data types.
+ *
+ * Return:      Success:        0
+ *
+ *              Failure:        number of errors
+ *
+ * Programmer:  Robb Matzke
+ *              Wednesday, January  7, 1998
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_compound_8(void)
+{
+    typedef struct s1 {
+        char    a;
+        int     b;
+    } s1;
+
+    typedef struct s2 {
+        char    c;
+        s1      d;
+    } s2;
+
+    hid_t  tid1, tid2, tid3;
+    herr_t ret;
+
+    TESTING("packing compound data types");
+   
+    /* Create first compound datatype */ 
+    if((tid1 = H5Tcreate( H5T_COMPOUND, sizeof(struct s1)))<0) {
+        H5_FAILED(); AT();
+        printf("Can't create datatype!\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tinsert(tid1,"a",HOFFSET(struct s1,a),H5T_NATIVE_CHAR)<0) {
+        H5_FAILED(); AT();
+        printf("Can't insert field 'a'\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tinsert(tid1,"b",HOFFSET(struct s1,b),H5T_NATIVE_INT)<0) {
+        H5_FAILED(); AT();
+        printf("Can't insert field 'b'\n");
+        goto error;
+    } /* end if */
+
+    /* Test H5Tpack for the first compound type */
+    if(H5Tpack(tid1)<0) {
+        H5_FAILED(); AT();
+        printf("Can't pack the compound data type\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tlock(tid1)<0) {
+        H5_FAILED(); AT();
+        printf("Can't lock the compound data type\n");
+        goto error;
+    } /* end if */
+
+    /* If the type is already packed, packing a locked type is OK */
+    if(H5Tpack(tid1)<0) {
+        H5_FAILED(); AT();
+        printf("Can't pack the compound data type for second time\n");
+        goto error;
+    } /* end if */
+
+    
+    /* Create second compound datatype */
+    if((tid2 = H5Tcreate( H5T_COMPOUND, sizeof(struct s2)))<0) {
+        H5_FAILED(); AT();
+        printf("Can't create datatype!\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tinsert(tid2,"c",HOFFSET(struct s2,c),H5T_NATIVE_CHAR)<0) {
+        H5_FAILED(); AT();
+        printf("Can't insert field 'c'\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tinsert(tid2,"d",HOFFSET(struct s2,d),tid1)<0) {
+        H5_FAILED(); AT();
+        printf("Can't insert field 'd'\n");
+        goto error;
+    } /* end if */
+
+    /* Make a copy of the type for later */
+    if((tid3=H5Tcopy(tid2))<0) {
+        H5_FAILED(); AT();
+        printf("Can't copy type #2\n");
+        goto error;
+    } /* end if */
+
+    /* Test H5Tpack for the second compound type */
+    if(H5Tpack(tid2)<0) {
+        H5_FAILED(); AT();
+        printf("Can't pack the compound data type\n");
+        goto error;
+    } /* end if */
+
+    if(H5Tlock(tid2)<0) {
+        H5_FAILED(); AT();
+        printf("Can't lock the compound data type\n");
+        goto error;
+    } /* end if */
+
+    /* If the type is already packed, packing a locked type is OK */
+    if(H5Tpack(tid2)<0) {
+        H5_FAILED(); AT();
+        printf("Can't pack the compound data type for second time\n");
+        goto error;
+    } /* end if */
+
+    /* Lock unpacked type */
+    if(H5Tlock(tid3)<0) {
+        H5_FAILED(); AT();
+        printf("Can't lock the compound data type\n");
+        goto error;
+    } /* end if */
+
+    /* If the type is not packed, packing a locked type shouldn't work */
+    H5E_BEGIN_TRY {
+        ret=H5Tpack(tid3);
+    } H5E_END_TRY;
+    if(ret>=0) {
+        H5_FAILED(); AT();
+        printf("Packing locked datatype worked?\n");
+        goto error;
+    } /* end if */
+
+    /* Can't release resources - they are locked */
+
+    PASSED();
+    return 0;
+
+  error:
     return 1;
 }
 
@@ -4216,6 +4527,7 @@ main(void)
     /* Do the tests */
     nerrors += test_classes();
     nerrors += test_copy();
+    nerrors += test_detect();
     nerrors += test_compound_1();
     nerrors += test_query();
     nerrors += test_transient (fapl);
@@ -4231,6 +4543,7 @@ main(void)
     nerrors += test_compound_5();
     nerrors += test_compound_6();
     nerrors += test_compound_7();
+    nerrors += test_compound_8();
     nerrors += test_conv_int ();
     nerrors += test_conv_enum_1();
     nerrors += test_conv_enum_2();

@@ -100,6 +100,8 @@ TOOLTEST tattr-1.ddl tattr.h5
 TOOLTEST tattr-2.ddl -a /attr1 --attribute /attr4 --attribute=/attr5 tattr.h5
 # test for header and error messages
 TOOLTEST tattr-3.ddl --header -a /attr2 --attribute=/attr tattr.h5
+# test for displaying shared datatype in attribute
+TOOLTEST tnamed_dtype_attr.ddl -A tnamed_dtype_attr.h5
 
 # test for displaying soft links
 TOOLTEST tslink-1.ddl tslink.h5
@@ -118,7 +120,9 @@ TOOLTEST tcomp-1.ddl tcompound.h5
 # test for named data types
 TOOLTEST tcomp-2.ddl -t /type1 --datatype /type2 --datatype=/group1/type3 tcompound.h5
 # test for unamed type 
-TOOLTEST tcomp-3.ddl -t /#5992:0 -g /group2 tcompound.h5
+TOOLTEST tcomp-3.ddl -t /#6632:0 -g /group2 tcompound.h5
+# test complicated compound datatype
+TOOLTEST tcomp-4.ddl tcompound_complex.h5
 
 #test for the nested compound type
 TOOLTEST tnestcomp-1.ddl tnestedcomp.h5
@@ -170,6 +174,9 @@ TOOLTEST tmulti.ddl --filedriver=multi tmulti
 # test for files with group names which reach > 1024 bytes in size
 TOOLTEST tlarge_objname.ddl -w157 tlarge_objname.h5
 
+# test '-A' to suppress data but print attr's
+TOOLTEST tall-2A.ddl -A tall.h5
+
 # test Subsetting
 TOOLTEST tall-4s.ddl --dataset=/g1/g1.1/dset1.1.1 --start=1,1 --stride=2,3 --count=3,2 --block=1,1 tall.h5
 TOOLTEST tall-5s.ddl -d "/g1/g1.1/dset1.1.2[0;2;10;]" tall.h5
@@ -182,51 +189,6 @@ TOOLTEST tchar1.ddl -r tchar.h5
 # test failure handling
 # Missing file name
 TOOLTEST tnofilename.ddl
-
-# test XML
-TOOLTEST tall.h5.xml --xml tall.h5
-TOOLTEST tattr.h5.xml --xml tattr.h5
-TOOLTEST tbitfields.h5.xml --xml tbitfields.h5
-TOOLTEST tcompound.h5.xml --xml tcompound.h5
-TOOLTEST tcompound2.h5.xml --xml tcompound2.h5
-TOOLTEST tdatareg.h5.xml --xml tdatareg.h5
-TOOLTEST tdset.h5.xml --xml tdset.h5
-TOOLTEST tdset2.h5.xml --xml tdset2.h5
-TOOLTEST tenum.h5.xml --xml tenum.h5
-TOOLTEST tgroup.h5.xml --xml tgroup.h5
-TOOLTEST thlink.h5.xml --xml thlink.h5
-TOOLTEST tloop.h5.xml --xml tloop.h5
-TOOLTEST tloop2.h5.xml --xml tloop2.h5
-TOOLTEST tmany.h5.xml --xml tmany.h5
-TOOLTEST tnestedcomp.h5.xml --xml tnestedcomp.h5
-TOOLTEST tobjref.h5.xml --xml tobjref.h5
-TOOLTEST topaque.h5.xml --xml topaque.h5
-TOOLTEST tslink.h5.xml --xml tslink.h5
-TOOLTEST tstr.h5.xml --xml tstr.h5
-TOOLTEST tstr2.h5.xml --xml tstr2.h5
-TOOLTEST tref.h5.xml --xml tref.h5
-TOOLTEST tname-amp.h5.xml --xml tname-amp.h5
-TOOLTEST tname-apos.h5.xml --xml tname-apos.h5
-TOOLTEST tname-gt.h5.xml --xml tname-gt.h5
-TOOLTEST tname-lt.h5.xml --xml tname-lt.h5
-TOOLTEST tname-quot.h5.xml --xml tname-quot.h5
-TOOLTEST tname-sp.h5.xml --xml tname-sp.h5
-TOOLTEST tstring.h5.xml --xml tstring.h5
-TOOLTEST tstring-at.h5.xml --xml tstring-at.h5
-TOOLTEST tref-escapes.h5.xml --xml tref-escapes.h5
-TOOLTEST tref-escapes-at.h5.xml --xml tref-escapes-at.h5
-TOOLTEST tnodata.h5.xml --xml tnodata.h5
-TOOLTEST tarray1.h5.xml --xml tarray1.h5
-TOOLTEST tarray2.h5.xml --xml tarray2.h5
-TOOLTEST tarray3.h5.xml --xml tarray3.h5
-TOOLTEST tarray6.h5.xml --xml tarray6.h5
-TOOLTEST tarray7.h5.xml --xml tarray7.h5
-TOOLTEST tvldtypes1.h5.xml --xml tvldtypes1.h5
-TOOLTEST tvldtypes2.h5.xml --xml tvldtypes2.h5
-TOOLTEST tvldtypes3.h5.xml --xml tvldtypes3.h5
-TOOLTEST tvlstr.h5.xml --xml tvlstr.h5
-TOOLTEST tsaf.h5.xml --xml tsaf.h5
-TOOLTEST tempty.h5.xml --xml tempty.h5
 
 if test $nerrors -eq 0 ; then
    echo "All $DUMPER tests passed."

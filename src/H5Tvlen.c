@@ -348,7 +348,7 @@ H5T_vlen_seq_mem_write(H5F_t UNUSED *f, hid_t dxpl_id, void *vl_addr, void *buf,
 {
     H5MM_allocate_t alloc_func;     /* Vlen allocation function */
     void *alloc_info;               /* Vlen allocation information */
-    hvl_t *vl=(hvl_t *)vl_addr;   /* Pointer to the user's hvl_t information */
+    hvl_t vl;                       /* Temporary hvl_t to use during operation */
     size_t len;
     H5P_genplist_t *plist;      /* Property list */
     herr_t      ret_value=SUCCEED;       /* Return value */
@@ -356,7 +356,7 @@ H5T_vlen_seq_mem_write(H5F_t UNUSED *f, hid_t dxpl_id, void *vl_addr, void *buf,
     FUNC_ENTER_NOAPI(H5T_vlen_seq_mem_write, FAIL);
 
     /* check parameters */
-    assert(vl);
+    assert(vl_addr);
     assert(buf);
 
     if(seq_len!=0) {
@@ -373,23 +373,26 @@ H5T_vlen_seq_mem_write(H5F_t UNUSED *f, hid_t dxpl_id, void *vl_addr, void *buf,
             HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get value");
 
         if(alloc_func!=NULL) {
-            if(NULL==(vl->p=(alloc_func)(len,alloc_info)))
+            if(NULL==(vl.p=(alloc_func)(len,alloc_info)))
                 HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
           } /* end if */
         else {  /* Default to system malloc */
-            if(NULL==(vl->p=H5MM_malloc(len)))
+            if(NULL==(vl.p=H5MM_malloc(len)))
                 HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
           } /* end else */
 
         /* Copy the data into the newly allocated buffer */
-        HDmemcpy(vl->p,buf,len);
+        HDmemcpy(vl.p,buf,len);
 
     } /* end if */
     else
-        vl->p=NULL;
+        vl.p=NULL;
 
     /* Set the sequence length */
-    H5_ASSIGN_OVERFLOW(vl->len,seq_len,hsize_t,size_t);
+    H5_ASSIGN_OVERFLOW(vl.len,seq_len,hsize_t,size_t);
+
+    /* Set pointer in user's buffer with memcpy, to avoid alignment issues */
+    HDmemcpy(vl_addr,&vl,sizeof(hvl_t));
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -488,10 +491,10 @@ H5T_vlen_str_mem_write(H5F_t UNUSED *f, hid_t dxpl_id, void *vl_addr, void *buf,
 {
     H5MM_allocate_t alloc_func;     /* Vlen allocation function */
     void *alloc_info;               /* Vlen allocation information */
-    char **s=(char **)vl_addr;   /* Pointer to the user's hvl_t information */
-    size_t len;
-    H5P_genplist_t *plist;      /* Property list */
-    herr_t      ret_value=SUCCEED;       /* Return value */
+    char *t;                        /* Pointer to temporary buffer allocated */
+    size_t len;                     /* Maximum length of the string to copy */
+    H5P_genplist_t *plist;          /* Property list */
+    herr_t      ret_value=SUCCEED;  /* Return value */
 
     FUNC_ENTER_NOAPI(H5T_vlen_str_mem_write, FAIL);
 
@@ -510,17 +513,20 @@ H5T_vlen_str_mem_write(H5F_t UNUSED *f, hid_t dxpl_id, void *vl_addr, void *buf,
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "unable to get value");
 
     if(alloc_func!=NULL) {
-        if(NULL==(*s=(alloc_func)((size_t)((seq_len+1)*base_size),alloc_info)))
+        if(NULL==(t=(alloc_func)((size_t)((seq_len+1)*base_size),alloc_info)))
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
       } /* end if */
     else {  /* Default to system malloc */
-        if(NULL==(*s=H5MM_malloc((size_t)((seq_len+1)*base_size))))
+        if(NULL==(t=H5MM_malloc((size_t)((seq_len+1)*base_size))))
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for VL data");
       } /* end else */
 
     H5_ASSIGN_OVERFLOW(len,(seq_len*base_size),hsize_t,size_t);
-    HDmemcpy(*s,buf,len);
-    (*s)[len]='\0';
+    HDmemcpy(t,buf,len);
+    t[len]='\0';
+
+    /* Set pointer in user's buffer with memcpy, to avoid alignment issues */
+    HDmemcpy(vl_addr,&t,sizeof(char *));
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -719,8 +725,8 @@ H5T_vlen_reclaim_recurse(void *elem, H5T_t *dt, H5MM_free_t free_func, void *fre
     /* Check the datatype of this element */
     switch(dt->type) {
         case H5T_ARRAY:
-            /* Recurse on each element, if the array's base type is array, VL or compound */
-            if(dt->parent->type==H5T_COMPOUND || dt->parent->type==H5T_VLEN || dt->parent->type==H5T_ARRAY) {
+            /* Recurse on each element, if the array's base type is array, VL, enum or compound */
+            if(H5T_IS_COMPLEX(dt->parent->type)) {
                 void *off;     /* offset of field */
 
                 /* Calculate the offset member and recurse on it */
@@ -733,10 +739,10 @@ H5T_vlen_reclaim_recurse(void *elem, H5T_t *dt, H5MM_free_t free_func, void *fre
             break;
 
         case H5T_COMPOUND:
-            /* Check each field and recurse on VL, compound or array ones */
+            /* Check each field and recurse on VL, compound, enum or array ones */
             for (i=0; i<dt->u.compnd.nmembs; i++) {
-                /* Recurse if it's VL, compound or array */
-                if(dt->u.compnd.memb[i].type->type==H5T_COMPOUND || dt->u.compnd.memb[i].type->type==H5T_VLEN || dt->u.compnd.memb[i].type->type==H5T_ARRAY) {
+                /* Recurse if it's VL, compound, enum or array */
+                if(H5T_IS_COMPLEX(dt->u.compnd.memb[i].type->type)) {
                     void *off;     /* offset of field */
 
                     /* Calculate the offset member and recurse on it */
@@ -748,14 +754,14 @@ H5T_vlen_reclaim_recurse(void *elem, H5T_t *dt, H5MM_free_t free_func, void *fre
             break;
 
         case H5T_VLEN:
-            /* Recurse on the VL information if it's VL, compound or array, then free VL sequence */
+            /* Recurse on the VL information if it's VL, compound, enum or array, then free VL sequence */
             if(dt->u.vlen.type==H5T_VLEN_SEQUENCE) {
                 hvl_t *vl=(hvl_t *)elem;    /* Temp. ptr to the vl info */
 
                 /* Check if there is anything actually in this sequence */
                 if(vl->len!=0) {
-                    /* Recurse if it's VL or compound */
-                    if(dt->parent->type==H5T_COMPOUND || dt->parent->type==H5T_VLEN || dt->parent->type==H5T_ARRAY) {
+                    /* Recurse if it's VL, array, enum or compound */
+                    if(H5T_IS_COMPLEX(dt->parent->type)) {
                         void *off;     /* offset of field */
 
                         /* Calculate the offset of each array element and recurse on it */
@@ -895,7 +901,7 @@ H5T_vlen_mark(H5T_t *dt, H5F_t *f, H5T_vlen_loc_t loc)
         case H5T_ARRAY:  /* Recurse on VL, compound and array base element type */
             /* Recurse if it's VL, compound or array */
             /* (If the type is compound and the force_conv flag is _not_ set, the type cannot change in size, so don't recurse) */
-            if((dt->parent->type==H5T_COMPOUND && dt->parent->force_conv) || dt->parent->type==H5T_VLEN || dt->parent->type==H5T_ARRAY) {
+            if(dt->parent->force_conv && H5T_IS_COMPLEX(dt->parent->type)) {
                 /* Keep the old base element size for later */
                 old_size=dt->parent->size;
 
@@ -923,13 +929,13 @@ H5T_vlen_mark(H5T_t *dt, H5F_t *f, H5T_vlen_loc_t loc)
                     /* Apply the accumulated size change to the offset of the field */
                     dt->u.compnd.memb[i].offset += accum_change;
 
-                    /* Recurse if it's VL, compound or array */
-                    /* (If the type is compound and the force_conv flag is _not_ set, the type cannot change in size, so don't recurse) */
-                    if((dt->u.compnd.memb[i].type->type==H5T_COMPOUND && dt->u.compnd.memb[i].type->force_conv) || dt->u.compnd.memb[i].type->type==H5T_VLEN || dt->u.compnd.memb[i].type->type==H5T_ARRAY) {
+                    /* Recurse if it's VL, compound, enum or array */
+                    /* (If the force_conv flag is _not_ set, the type cannot change in size, so don't recurse) */
+                    if(dt->u.compnd.memb[i].type->force_conv && H5T_IS_COMPLEX(dt->u.compnd.memb[i].type->type)) {
                         /* Keep the old field size for later */
                         old_size=dt->u.compnd.memb[i].type->size;
 
-                        /* Mark the VL, compound or array type */
+                        /* Mark the VL, compound, enum or array type */
                         if((vlen_changed=H5T_vlen_mark(dt->u.compnd.memb[i].type,f,loc))<0)
                             HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "Unable to set VL location");
                         if(vlen_changed>0)
@@ -953,8 +959,8 @@ H5T_vlen_mark(H5T_t *dt, H5F_t *f, H5T_vlen_loc_t loc)
 
         case H5T_VLEN: /* Recurse on the VL information if it's VL, compound or array, then free VL sequence */
             /* Recurse if it's VL, compound or array */
-            /* (If the type is compound and the force_conv flag is _not_ set, the type cannot change in size, so don't recurse) */
-            if((dt->parent->type==H5T_COMPOUND && dt->parent->force_conv) || dt->parent->type==H5T_VLEN || dt->parent->type==H5T_ARRAY) {
+            /* (If the force_conv flag is _not_ set, the type cannot change in size, so don't recurse) */
+            if(dt->parent->force_conv && H5T_IS_COMPLEX(dt->parent->type)) {
                 if((vlen_changed=H5T_vlen_mark(dt->parent,f,loc))<0)
                     HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "Unable to set VL location");
                 if(vlen_changed>0)

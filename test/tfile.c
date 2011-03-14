@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tfile.c,v 1.45 2003/06/18 20:52:54 koziol Exp $ */
+/* $Id: tfile.c,v 1.45.2.3 2003/10/09 16:54:57 koziol Exp $ */
 
 /***********************************************************
 *
@@ -913,6 +913,149 @@ test_obj_count_and_id(hid_t fid1, hid_t fid2, hid_t did, hid_t gid1,
 
 /****************************************************************
 **
+**  test_file_perm(): low-level file test routine.  
+**      This test verifies that a file can be opened for both 
+**      read-only and read-write access and things will be handled
+**      appropriately.
+**
+*****************************************************************/
+static void 
+test_file_perm(void)
+{
+    hid_t    file;      /* File opened with read-write permission */
+    hid_t    filero;    /* Same file opened with read-only permission */
+    hid_t    dspace;    /* Dataspace ID */
+    hid_t    dset;      /* Dataset ID */
+    herr_t   ret;
+ 
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Low-Level File Permissions\n"));
+
+    dspace = H5Screate(H5S_SCALAR);
+    CHECK(dspace, FAIL, "H5Screate");
+
+    /* Create the file (with read-write permission) */
+    file = H5Fcreate(FILE2, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(file, FAIL, "H5Fcreate");
+
+    /* Create a dataset with the read-write file handle */
+    dset = H5Dcreate(file, F2_DSET, H5T_NATIVE_INT, dspace, H5P_DEFAULT);
+    CHECK(dset, FAIL, "H5Dcreate");
+
+    ret = H5Dclose(dset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Open the file (with read-only permission) */
+    filero = H5Fopen(FILE2, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(filero, FAIL, "H5Fopen");
+
+    /* Create a dataset with the read-only file handle (should fail) */
+    H5E_BEGIN_TRY {
+        dset = H5Dcreate(filero, F2_DSET, H5T_NATIVE_INT, dspace, H5P_DEFAULT);
+    } H5E_END_TRY;
+    VERIFY(dset, FAIL, "H5Dcreate");
+    if(dset!=FAIL) {
+        ret = H5Dclose(dset);
+        CHECK(ret, FAIL, "H5Dclose");
+    } /* end if */
+
+    ret = H5Fclose(filero);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    ret = H5Fclose(file);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    ret = H5Sclose(dspace);
+    CHECK(ret, FAIL, "H5Sclose");
+
+} /* end test_file_perm() */
+
+/****************************************************************
+**
+**  test_file_freespace(): low-level file test routine.  
+**      This test checks the free space available in a file in various
+**      situations.
+**
+*****************************************************************/
+static void 
+test_file_freespace(void)
+{
+    hid_t    file;      /* File opened with read-write permission */
+    hssize_t free_space;        /* Amount of free space in file */
+    hid_t    dspace;    /* Dataspace ID */
+    hid_t    dset;      /* Dataset ID */
+    hid_t    dcpl;      /* Dataset creation property list */
+    unsigned u;         /* Local index variable */
+    char     name[32];  /* Dataset name */
+    herr_t   ret;
+ 
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Low-Level File Free Space\n"));
+
+    /* Create the file (with read-write permission) */
+    file = H5Fcreate(FILE1, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(file, FAIL, "H5Fcreate");
+
+    /* Check that the free space is 0 */
+    free_space = H5Fget_freespace(file);
+    CHECK(free_space, FAIL, "H5Fget_freespace");
+    VERIFY(free_space, 0, "H5Fget_freespace");
+
+    /* Create dataspace for datasets */
+    dspace = H5Screate(H5S_SCALAR);
+    CHECK(dspace, FAIL, "H5Screate");
+
+    /* Create a dataset creation property list */
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
+    CHECK(dcpl, FAIL, "H5Pcreate"); 
+
+    /* Set the space allocation time to early */
+    ret = H5Pset_alloc_time(dcpl,H5D_ALLOC_TIME_EARLY);
+    CHECK(ret, FAIL, "H5Pset_alloc_time"); 
+
+    /* Create datasets in file */
+    for(u=0; u<10; u++) {
+        sprintf(name,"Dataset %u",u);
+        dset = H5Dcreate(file, name, H5T_STD_U32LE, dspace, dcpl);
+        CHECK(dset, FAIL, "H5Dcreate");
+
+        ret = H5Dclose(dset);
+        CHECK(ret, FAIL, "H5Dclose");
+    } /* end for */
+
+    /* Close dataspace */
+    ret = H5Sclose(dspace);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close dataset creation property list */
+    ret=H5Pclose(dcpl);
+    CHECK(ret, FAIL, "H5Pclose");
+
+    /* Check that there is the right amount of free space in the file */
+    free_space = H5Fget_freespace(file);
+    CHECK(free_space, FAIL, "H5Fget_freespace");
+    VERIFY(free_space, 168, "H5Fget_freespace");
+
+    /* Delete datasets in file */
+    for(u=0; u<10; u++) {
+        sprintf(name,"Dataset %u",u);
+        ret = H5Gunlink(file, name);
+        CHECK(ret, FAIL, "H5Gunlink");
+    } /* end for */
+
+    /* Check that there is the right amount of free space in the file */
+    free_space = H5Fget_freespace(file);
+    CHECK(free_space, FAIL, "H5Fget_freespace");
+    VERIFY(free_space, 3584, "H5Fget_freespace");
+
+    /* Close file */
+    ret = H5Fclose(file);
+    CHECK(ret, FAIL, "H5Fclose");
+
+} /* end test_file_freespace() */
+
+/****************************************************************
+**
 **  test_file(): Main low-level file I/O test routine.
 ** 
 ****************************************************************/
@@ -927,6 +1070,8 @@ test_file(void)
 #ifndef H5_NO_SHARED_WRITING 
     test_file_close();          /* Test file close behavior */
 #endif /* H5_NO_SHARED_WRITING */     
+    test_file_perm();           /* Test file access permissions */
+    test_file_freespace();      /* Test file free space information */
 }				/* test_file() */
 
 

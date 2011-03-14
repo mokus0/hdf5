@@ -15,7 +15,7 @@ dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.82.2.1 2003/07/03 21:18:09 epourmal Exp $)
+AC_REVISION($Id: configure.in,v 1.82.2.18 2003/10/15 03:27:02 epourmal Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +24,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 Fortran], [1.6.0], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5 Fortran], [1.6.1], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/HDF5.f90])
 AC_CONFIG_HEADER([src/H5config_fortran.h])
 
@@ -277,7 +277,7 @@ AC_ARG_ENABLE([production],
                               [Determines how to run the compiler.])])
 
 case "X-$enable_production" in
-  X-yes)
+  X-|X-yes)
     AC_MSG_RESULT("production")
 
     dnl Remove the "-g" flag from CFLAGS if it's in there.
@@ -296,7 +296,7 @@ case "X-$enable_production" in
     CFLAGS="$CFLAGS $PROD_CFLAGS"
     CPPFLAGS="$CPPFLAGS $PROD_CPPFLAGS"
     ;;
-  X-|X-no)
+  X-no)
     AC_MSG_RESULT("development")
     CONFIG_MODE=development
     CFLAGS="$CFLAGS $DEBUG_CFLAGS"
@@ -903,6 +903,75 @@ if test -n "$PARALLEL"; then
     AC_MSG_RESULT(yes),
     AC_MSG_RESULT(no)
   )
+
+  dnl --------------------------------------------------------------------
+  dnl Do we want MPE instrumentation feature on?
+  dnl
+  dnl This must be done after enable-parallel is checked since it depends
+  dnl on a mpich compiler. We put this here so that the "h5fc" utility
+  dnl will have the appropriate libraries listed in it.
+  dnl
+  AC_SUBST(MPE) MPE=yes
+  AC_ARG_WITH([mpe],
+              [AC_HELP_STRING([--with-mpe=DIR],
+                              [Use MPE instrumentation [default=no]])],,
+              [withval=no])
+
+  case "X-$withval" in
+    X-|X-no|X-none)
+      AC_MSG_CHECKING([for MPE])
+      AC_MSG_RESULT([suppressed])
+      unset MPE
+      ;;
+    X-yes)
+      AC_CHECK_HEADERS([mpe.h],, [unset MPE])
+      AC_CHECK_LIB([mpe], [MPE_Init_log],, [unset MPE])
+      AC_CHECK_LIB([lmpe], [CLOG_Init],, [unset MPE])
+      ;;
+    *)
+      case "$withval" in
+        *,*)
+          mpe_inc="`echo $withval | cut -f1 -d,`"
+          mpe_lib="`echo $withval | cut -f2 -d, -s`"
+          ;;
+        *)
+          if test -n "$withval"; then
+            mpe_inc="$withval/include"
+            mpe_lib="$withval/lib"
+          fi
+          ;;
+      esac
+  
+      dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
+      dnl can mess some compilers up.
+      if test "X$mpe_inc" = "X/usr/include"; then
+        mpe_inc=""
+      fi
+      if test "X$mpe_lib" = "X/usr/lib"; then
+        mpe_lib=""
+      fi
+  
+      if test -n "$mpe_inc"; then
+        saved_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS -I$mpe_inc"
+        AC_CHECK_HEADERS([mpe.h],, [CPPFLAGS="$saved_CPPFLAGS"; unset MPE])
+      else
+        AC_CHECK_HEADERS([mpe.h],, [unset MPE])
+      fi
+  
+      if test -n "$mpe_lib"; then
+        saved_LDFLAGS="$LDFLAGS"
+        LDFLAGS="$LDFLAGS -L$mpe_lib"
+        AC_CHECK_LIB([mpe], [MPE_Init_log],,
+                     [LDFLAGS="$saved_LDFLAGS"; unset MPE])
+        AC_CHECK_LIB([lmpe], [CLOG_Init],,
+                     [LDFLAGS="$saved_LDFLAGS"; unset MPE])
+      else
+        AC_CHECK_LIB([mpe], [MPE_Init_log],, [unset MPE])
+        AC_CHECK_LIB([lmpe], [CLOG_Init],, [unset MPE])
+      fi
+      ;;
+  esac
 
   dnl Change to the Fortran 90 language
   AC_LANG_FORTRAN9X

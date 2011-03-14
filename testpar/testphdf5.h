@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.h,v 1.31 2003/06/05 20:05:52 koziol Exp $ */
+/* $Id: testphdf5.h,v 1.31.2.1 2003/09/16 17:34:53 koziol Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
@@ -123,6 +123,7 @@ extern int facc_type;				/*Test file access type */
 
 /* prototypes */
 hid_t create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type, hbool_t use_gpfs);
+MPI_Offset h5_mpi_get_file_size(const char *filename, MPI_Comm comm, MPI_Info info);
 void multiple_dset_write(char *filename, int ndatasets);
 void multiple_group_write(char *filename, int ngroups);
 void multiple_group_read(char *filename, int ngroups);
@@ -140,6 +141,7 @@ void dataset_readAll(char *filename);
 void extend_readInd(char *filename);
 void extend_readAll(char *filename);
 void compact_dataset(char *filename);
+void big_dataset(const char *filename);
 int dataset_vrfy(hssize_t start[], hsize_t count[], hsize_t stride[], hsize_t block[], DATATYPE *dataset, DATATYPE *original);
 
 #endif /* PHDF5TEST_H */

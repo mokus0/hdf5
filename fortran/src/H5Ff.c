@@ -1,16 +1,16 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-  * Copyright by the Board of Trustees of the University of Illinois.         *
-  * All rights reserved.                                                      *
-  *                                                                           *
-  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
-  * terms governing use, modification, and redistribution, is contained in    *
-  * the files COPYING and Copyright.html.  COPYING can be found at the root   *
-  * of the source code distribution tree; Copyright.html can be found at the  *
-  * root level of an installed copy of the electronic HDF5 document set and   *
-  * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
-  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* This files contains C stubs for H5F Fortran APIs */
 
@@ -450,5 +450,28 @@ nh5fget_obj_ids_c ( hid_t_f *file_id , int_f *obj_type, int_f *max_objs, hid_t_f
   c_obj_type = (unsigned) *obj_type;
   c_max_objs = (int)*max_objs;
   if ( H5Fget_obj_ids(c_file_id, c_obj_type, c_max_objs, (hid_t *)obj_ids) < 0  ) ret_value = -1;
+  return ret_value;
+}
+/*----------------------------------------------------------------------------
+ * Name:        h5fget_freespace_c
+ * Purpose:     Call H5Fget_freespace to get amount of free space within a file
+ * Inputs:      file_id - identifier of the file to query
+ * Returns:     free_space  - amount of free space in file
+ *              0 on success, -1 on failure
+ * Programmer:  Quincey Koziol
+ *              Tuesday, October 7, 2003
+ * Modifications:
+ *---------------------------------------------------------------------------*/
+
+int_f 
+nh5fget_freespace_c ( hid_t_f *file_id , hssize_t_f *free_space)
+{
+  int ret_value = 0;
+  hid_t c_file_id;
+  hssize_t c_free_space;
+
+  c_file_id = (hid_t)*file_id;
+  if ( (c_free_space=H5Fget_freespace(c_file_id)) < 0  ) ret_value = -1;
+  *free_space=(hssize_t_f)c_free_space;
   return ret_value;
 }

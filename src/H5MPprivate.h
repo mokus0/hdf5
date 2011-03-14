@@ -118,6 +118,7 @@
 #define color_H5Fget_obj_ids "red"
 #define color_H5Fmount "red"
 #define color_H5Funmount "red"
+#define color_H5Fget_freespace "red"
 
 #define color_H5Gcreate "red"
 #define color_H5Gopen "red"
@@ -253,6 +254,8 @@
 #define color_H5Pget_fapl_mpiposix "red"
 #define color_H5Pset_fapl_sec2 "red"
 #define color_H5Pget_fapl_sec2 "red"
+#define color_H5Pset_fapl_stream "red"
+#define color_H5Pget_fapl_stream "red"
 #define color_H5Pget_filter "red"
 #define color_H5Pset_btree_ratios "red"
 #define color_H5Pget_btree_ratios "red"

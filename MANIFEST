@@ -16,8 +16,10 @@
 ./configure
 ./configure.in
 
+./bin/buildhdf5
 ./bin/checkapi				_DO_NOT_DISTRIBUTE_
 ./bin/checkposix			_DO_NOT_DISTRIBUTE_
+./bin/chkcopyright			_DO_NOT_DISTRIBUTE_
 ./bin/chkmanifest
 ./bin/config.guess
 ./bin/config.sub
@@ -132,6 +134,8 @@
 ./doc/html/MountingFiles.html
 ./doc/html/NCSAfooterlogo.gif
 ./doc/html/ObjectHeader.txt		_DO_NOT_DISTRIBUTE_
+./doc/html/PDF_RM_body.book             _DO_NOT_DISTRIBUTE_
+./doc/html/PDF_RM_front.book            _DO_NOT_DISTRIBUTE_
 ./doc/html/Performance.html
 ./doc/html/PredefDTypes.html
 ./doc/html/Properties.html
@@ -149,6 +153,8 @@
 ./doc/html/RM_H5S.html
 ./doc/html/RM_H5T.html
 ./doc/html/RM_H5Z.html
+./doc/html/RM_Title.html                _DO_NOT_DISTRIBUTE_
+./doc/html/RM_TOC.html                  _DO_NOT_DISTRIBUTE_
 ./doc/html/Tools.html
 ./doc/html/Version.html
 ./doc/html/chunk1.gif
@@ -189,6 +195,7 @@
 
 ./doc/html/TechNotes.html
 ./doc/html/TechNotes/shuffling-algorithm-report.pdf
+./doc/html/TechNotes/Basic_perform.html
 ./doc/html/TechNotes/BigDataSmMach.html
 ./doc/html/TechNotes/ChStudy_1000x1000.gif
 ./doc/html/TechNotes/ChStudy_250x250.gif
@@ -582,7 +589,6 @@
 ./fortran/examples/mountexample.f90
 ./fortran/examples/refobjexample.f90
 ./fortran/examples/refregexample.f90
-./fortran/examples/run_examples.sh
 ./fortran/examples/rwdsetexample.f90
 ./fortran/examples/selectele.f90
 
@@ -678,6 +684,7 @@
 ./c++/config/BlankForm
 ./c++/config/commence.in
 ./c++/config/conclude.in
+./c++/config/dec-osf5.x
 ./c++/config/depend1.in
 ./c++/config/depend2.in
 ./c++/config/depend3.in
@@ -1052,6 +1059,7 @@
 ./test/gen_new_fill.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_old_mtime.c			_DO_NOT_DISTRIBUTE_
 ./test/gen_new_mtime.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_super.c			_DO_NOT_DISTRIBUTE_
 ./test/set_extent.c
 ./test/srb_append.c
 ./test/srb_read.c
@@ -1125,6 +1133,7 @@
 ./tools/h5dump/h5dump.h
 ./tools/h5dump/h5dumpgentest.c
 ./tools/h5dump/testh5dump.sh
+./tools/h5dump/testh5dumpxml.sh
 
 ./tools/h5import/Dependencies
 ./tools/h5import/Makefile.in
@@ -1228,8 +1237,10 @@
 ./tools/testfiles/tcomp-1.ddl
 ./tools/testfiles/tcomp-2.ddl
 ./tools/testfiles/tcomp-3.ddl
+./tools/testfiles/tcomp-4.ddl
 ./tools/testfiles/tcompound.h5
 ./tools/testfiles/tcompound2.h5
+./tools/testfiles/tcompound_complex.h5
 ./tools/testfiles/tdatareg.h5
 ./tools/testfiles/tdatareg.ddl 
 ./tools/testfiles/tdset-1.ddl
@@ -1310,6 +1321,8 @@
 ./tools/testfiles/tvlstr.h5
 ./tools/testfiles/tvlstr.ddl
 ./tools/testfiles/tattr2.h5
+./tools/testfiles/tattr2.h5
+./tools/testfiles/tall-2A.ddl
 
 # Expected output from h5ls tests
 ./tools/testfiles/help-1.ls
@@ -1340,6 +1353,7 @@
 ./tools/testfiles/tbitfields.h5.xml
 ./tools/testfiles/tcompound.h5.xml
 ./tools/testfiles/tcompound2.h5.xml
+./tools/testfiles/tcompound_complex.h5.xml
 ./tools/testfiles/tdatareg.h5.xml
 ./tools/testfiles/tdset.h5.xml
 ./tools/testfiles/tdset2.h5.xml
@@ -1350,41 +1364,53 @@
 ./tools/testfiles/tloop.h5.xml
 ./tools/testfiles/tloop2.h5.xml
 ./tools/testfiles/tmany.h5.xml
-./tools/testfiles/tname-amp.h5
 ./tools/testfiles/tname-amp.h5.xml
-./tools/testfiles/tname-apos.h5
 ./tools/testfiles/tname-apos.h5.xml
-./tools/testfiles/tname-gt.h5
 ./tools/testfiles/tname-gt.h5.xml
-./tools/testfiles/tname-lt.h5
 ./tools/testfiles/tname-lt.h5.xml
-./tools/testfiles/tname-quot.h5
 ./tools/testfiles/tname-quot.h5.xml
-./tools/testfiles/tname-sp.h5
 ./tools/testfiles/tname-sp.h5.xml
+./tools/testfiles/tnamed_dtype_attr.ddl
+./tools/testfiles/tnamed_dtype_attr.h5
+./tools/testfiles/tnamed_dtype_attr.h5.xml
 ./tools/testfiles/tnestedcomp.h5.xml
-./tools/testfiles/tnodata.h5
 ./tools/testfiles/tnodata.h5.xml
 ./tools/testfiles/tobjref.h5.xml
 ./tools/testfiles/topaque.h5.xml
-./tools/testfiles/tref-escapes-at.h5
 ./tools/testfiles/tref-escapes-at.h5.xml
-./tools/testfiles/tref-escapes.h5
 ./tools/testfiles/tref-escapes.h5.xml
-./tools/testfiles/tref.h5
 ./tools/testfiles/tref.h5.xml
 ./tools/testfiles/tsaf.h5.xml
 ./tools/testfiles/tslink.h5.xml
 ./tools/testfiles/tstr.h5.xml
 ./tools/testfiles/tstr2.h5.xml
-./tools/testfiles/tstring-at.h5
 ./tools/testfiles/tstring-at.h5.xml
-./tools/testfiles/tstring.h5
 ./tools/testfiles/tstring.h5.xml
 ./tools/testfiles/tvldtypes1.h5.xml
 ./tools/testfiles/tvldtypes2.h5.xml
 ./tools/testfiles/tvldtypes3.h5.xml
 ./tools/testfiles/tvlstr.h5.xml
+./tools/testfiles/tempty-dtd.h5.xml
+./tools/testfiles/tempty-dtd-uri.h5.xml
+./tools/testfiles/tempty-nons.h5.xml
+./tools/testfiles/tempty-nons-uri.h5.xml
+./tools/testfiles/tempty-ns.h5.xml
+./tools/testfiles/tempty-dtd-2.h5.xml
+./tools/testfiles/tempty-nons-2.h5.xml
+./tools/testfiles/tempty-ns-2.h5.xml
+./tools/testfiles/tall-2A.h5.xml
+./tools/testfiles/tname-amp.h5
+./tools/testfiles/tname-apos.h5
+./tools/testfiles/tname-gt.h5
+./tools/testfiles/tname-lt.h5
+./tools/testfiles/tname-quot.h5
+./tools/testfiles/tname-sp.h5
+./tools/testfiles/tnodata.h5
+./tools/testfiles/tref-escapes-at.h5
+./tools/testfiles/tref-escapes.h5
+./tools/testfiles/tref.h5
+./tools/testfiles/tstring-at.h5
+./tools/testfiles/tstring.h5
 
 #test files for h5diff
 ./tools/testfiles/file1.h5

@@ -89,13 +89,13 @@ typedef struct H5G_bt_ud1_t {
 typedef struct H5G_bt_ud2_t {
     /* downward */
     hid_t	group_id;	/*group id to pass to iteration operator     */
-    struct H5G_t *group;	/*the group to which group_id points	     */
+    H5G_entry_t *ent;           /*the entry to which group_id points         */
     int		skip;		/*initial entries to skip		     */
     H5G_iterate_t op;		/*iteration operator			     */
     void	*op_data;	/*user-defined operator data		     */
 
     /* upward */
-    int		final_ent;  /*final entry looked at */
+    int		final_ent;	/*final entry looked at                      */
     
 } H5G_bt_ud2_t;
 
@@ -104,10 +104,13 @@ typedef struct H5G_bt_ud2_t {
  * H5B_iterate function.
  */
 typedef struct H5G_bt_ud3_t {
-    struct H5G_t *group;	/*the group to which group_id points	     */
+    /* downward */
+    H5G_entry_t *ent;           /*the entry of group being queried           */
     hsize_t      idx;           /*index of group member to be querried       */
-    char         *name;         /*member name to be returned                 */
     hsize_t      num_objs;      /*the number of objects having been traversed*/
+
+    /* upward */
+    char         *name;         /*member name to be returned                 */
     int          type;          /*member type to be returned                 */
 } H5G_bt_ud3_t;
 
@@ -142,12 +145,12 @@ H5_DLL herr_t H5G_ent_encode_vec(H5F_t *f, uint8_t **pp,
 				  const H5G_entry_t *ent, int n);
 
 /* Functions that understand symbol table nodes */
-H5_DLL int H5G_node_iterate (H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
-		     void UNUSED *_rt_key, void *_udata);
-H5_DLL int H5G_node_sumup(H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
-		     void UNUSED *_rt_key, void *_udata);
-H5_DLL int H5G_node_name(H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
-		     void UNUSED *_rt_key, void *_udata);
-H5_DLL int H5G_node_type(H5F_t *f, hid_t dxpl_id, void UNUSED *_lt_key, haddr_t addr,
-		     void UNUSED *_rt_key, void *_udata);
+H5_DLL int H5G_node_iterate (H5F_t *f, hid_t dxpl_id, void *_lt_key, haddr_t addr,
+		     void *_rt_key, void *_udata);
+H5_DLL int H5G_node_sumup(H5F_t *f, hid_t dxpl_id, void *_lt_key, haddr_t addr,
+		     void *_rt_key, void *_udata);
+H5_DLL int H5G_node_name(H5F_t *f, hid_t dxpl_id, void *_lt_key, haddr_t addr,
+		     void *_rt_key, void *_udata);
+H5_DLL int H5G_node_type(H5F_t *f, hid_t dxpl_id, void *_lt_key, haddr_t addr,
+		     void *_rt_key, void *_udata);
 #endif

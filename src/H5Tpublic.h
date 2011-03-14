@@ -141,7 +141,8 @@ typedef enum H5T_cmd_t {
 /* How is the `bkg' buffer used by the conversion function? */
 typedef enum H5T_bkg_t {
     H5T_BKG_NO		= 0, 	/*background buffer is not needed, send NULL */
-    H5T_BKG_YES		= 1	/*init bkg buf with data before conversion   */
+    H5T_BKG_TEMP	= 1,	/*bkg buffer used as temp storage only       */
+    H5T_BKG_YES		= 2	/*init bkg buf with data before conversion   */
 } H5T_bkg_t;
 
 /* Type conversion client data */
@@ -497,7 +498,7 @@ H5_DLL hid_t H5Tvlen_create(hid_t base_id);
 H5_DLL hid_t H5Tarray_create(hid_t base_id, int ndims,
             const hsize_t dim[/* ndims */], const int perm[/* ndims */]);
 H5_DLL int H5Tget_array_ndims(hid_t type_id);
-H5_DLL herr_t H5Tget_array_dims(hid_t type_id, hsize_t dims[], int perm[]);
+H5_DLL int H5Tget_array_dims(hid_t type_id, hsize_t dims[], int perm[]);
 
 /* Operations defined on opaque data types */
 H5_DLL herr_t H5Tset_tag(hid_t type, const char *tag);

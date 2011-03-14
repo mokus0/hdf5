@@ -51,6 +51,7 @@ const H5O_class_t H5O_DTYPE[1] = {{
     H5O_dtype_reset,		/* reset method			*/
     H5O_dtype_free,		/* free method			*/
     NULL,		        /* file delete method		*/
+    NULL,			/* link method			*/
     H5O_dtype_get_share,	/* get share method		*/
     H5O_dtype_set_share,	/* set share method		*/
     H5O_dtype_debug,		/* debug the message		*/
@@ -187,6 +188,7 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
              */
             dt->u.compnd.nmembs = flags & 0xffff;
             assert(dt->u.compnd.nmembs > 0);
+            dt->u.compnd.packed = TRUE; /* Start off packed */
             dt->u.compnd.nalloc = dt->u.compnd.nmembs;
             dt->u.compnd.memb = H5MM_calloc(dt->u.compnd.nalloc*
                             sizeof(H5T_cmemb_t));
@@ -270,18 +272,37 @@ H5O_dtype_decode_helper(H5F_t *f, const uint8_t **pp, H5T_t *dt)
                  * Set the "force conversion" flag if VL datatype fields exist in this
                  * type or any component types
                  */
-                if(temp_type->type==H5T_VLEN || temp_type->force_conv==TRUE)
+                if(temp_type->force_conv==TRUE)
                     dt->force_conv=TRUE;
-
-                /* Set the "has array" flag if array datatype fields exist in this type */
-                if(temp_type->type==H5T_ARRAY)
-                    dt->u.compnd.has_array=TRUE;
 
                 /* Member size */
                 dt->u.compnd.memb[i].size = temp_type->size;
 
                 /* Set the field datatype (finally :-) */
                 dt->u.compnd.memb[i].type=temp_type;
+
+                /* Check if the datatype stayed packed */
+                if(dt->u.compnd.packed) {
+                    /* Check if the member type is packed */
+                    if(H5T_is_packed(temp_type)>0) {
+                        if(i==0) {
+                            /* If the is the first member, the datatype is not packed
+                             * if the first member isn't at offset 0
+                             */
+                            if(dt->u.compnd.memb[i].offset>0)
+                                dt->u.compnd.packed=FALSE;
+                        } /* end if */
+                        else {
+                            /* If the is not the first member, the datatype is not
+                             * packed if the new member isn't adjoining the previous member
+                             */
+                            if(dt->u.compnd.memb[i].offset!=(dt->u.compnd.memb[i-1].offset+dt->u.compnd.memb[i-1].size))
+                                dt->u.compnd.packed=FALSE;
+                        } /* end else */
+                    } /* end if */
+                    else
+                        dt->u.compnd.packed=FALSE;
+                } /* end if */
             }
             break;
 
@@ -424,6 +445,7 @@ done:
 static herr_t
 H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
 {
+    htri_t has_array=FALSE;       /* Whether a compound datatype has an array inside it */
     unsigned		flags = 0;
     char		*hdr = (char *)*pp;
     int		i, j;
@@ -613,6 +635,10 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
             break;
 
         case H5T_COMPOUND:
+            /* Check for an array datatype somewhere within the compound type */
+            if((has_array=H5T_detect_class(dt,H5T_ARRAY))<0)
+                HGOTO_ERROR(H5E_DATATYPE, H5E_CANTENCODE, FAIL, "can't detect array class");
+
             /*
              * Compound data types...
              */
@@ -633,7 +659,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
                  * member information, for better backward compatibility
                  * Write out all zeros for the array information, though...
                  */
-                if(!dt->u.compnd.has_array) {
+                if(!has_array) {
                     /* Dimensionality */
                     *(*pp)++ = 0;
 
@@ -756,7 +782,7 @@ H5O_dtype_encode_helper(uint8_t **pp, const H5T_t *dt)
             break;
     }
 
-    *hdr++ = ((unsigned)(dt->type) & 0x0f) | (((dt->type==H5T_COMPOUND && dt->u.compnd.has_array) ? H5O_DTYPE_VERSION_UPDATED : H5O_DTYPE_VERSION_COMPAT )<<4);
+    *hdr++ = ((unsigned)(dt->type) & 0x0f) | (((dt->type==H5T_COMPOUND && has_array) ? H5O_DTYPE_VERSION_UPDATED : H5O_DTYPE_VERSION_COMPAT )<<4);
     *hdr++ = (flags >> 0) & 0xff;
     *hdr++ = (flags >> 8) & 0xff;
     *hdr++ = (flags >> 16) & 0xff;

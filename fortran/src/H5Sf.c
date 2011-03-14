@@ -1,5 +1,18 @@
-#include "H5f90.h"
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by the Board of Trustees of the University of Illinois.         *
+ * All rights reserved.                                                      *
+ *                                                                           *
+ * This file is part of HDF5.  The full HDF5 copyright notice, including     *
+ * terms governing use, modification, and redistribution, is contained in    *
+ * the files COPYING and Copyright.html.  COPYING can be found at the root   *
+ * of the source code distribution tree; Copyright.html can be found at the  *
+ * root level of an installed copy of the electronic HDF5 document set and   *
+ * is linked from the top-level documents page.  It can also be found at     *
+ * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
+ * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "H5f90.h"
 /*----------------------------------------------------------------------------
  * Name:        h5screate_simple_c
  * Purpose:     Call H5Screate_simple to create a dataspace 
@@ -744,10 +757,10 @@ nh5sselect_hyperslab_c ( hid_t_f *space_id , int_f *op, hssize_t_f *start, hsize
 {
   int ret_value = -1;
   hid_t c_space_id;
-  hssize_t *c_start;
-  hsize_t *c_count;
-  hsize_t *c_stride;
-  hsize_t *c_block; 
+  hssize_t *c_start = NULL;
+  hsize_t *c_count = NULL;
+  hsize_t *c_stride = NULL;
+  hsize_t *c_block = NULL; 
 
   H5S_seloper_t c_op;
   herr_t  status;
@@ -757,16 +770,16 @@ nh5sselect_hyperslab_c ( hid_t_f *space_id , int_f *op, hssize_t_f *start, hsize
   rank = H5Sget_simple_extent_ndims(*space_id);
   if (rank < 0 ) return ret_value;
   c_start = (hssize_t *)HDmalloc(sizeof(hssize_t)*rank);
-  if (!c_start) goto DONE;
+  if (c_start == NULL) goto DONE;
 
   c_count = (hsize_t *)HDmalloc(sizeof(hsize_t)*rank);
-  if (!c_count) goto DONE;
+  if (c_count == NULL) goto DONE;
 
   c_stride = (hsize_t *)HDmalloc(sizeof(hsize_t)*rank);
-  if (!c_stride) goto DONE;
+  if (c_stride == NULL) goto DONE;
 
   c_block = (hsize_t *)HDmalloc(sizeof(hsize_t)*rank);
-  if (!c_block) goto DONE;
+  if (c_block == NULL) goto DONE;
 
 
   /*
@@ -791,10 +804,10 @@ nh5sselect_hyperslab_c ( hid_t_f *space_id , int_f *op, hssize_t_f *start, hsize
   status = H5Sselect_hyperslab(c_space_id, c_op, c_start, c_stride, c_count, c_block);
   if ( status >= 0  ) ret_value = 0;
 DONE:
-  if(!c_start ) HDfree(c_start);
-  if(!c_count ) HDfree(c_count);
-  if(!c_stride) HDfree(c_stride);
-  if(!c_block ) HDfree(c_block);
+  if(c_start != NULL) HDfree(c_start);
+  if(c_count != NULL) HDfree(c_count);
+  if(c_stride!= NULL) HDfree(c_stride);
+  if(c_block != NULL) HDfree(c_block);
   return ret_value;
 }
 #ifdef NEW_HYPERSLAB_API
@@ -820,10 +833,10 @@ nh5scombine_hyperslab_c ( hid_t_f *space_id , int_f *op, hssize_t_f *start, hsiz
   int ret_value = -1;
   hid_t c_space_id;
   hid_t c_hyper_id;
-  hssize_t *c_start;
-  hsize_t *c_count;
-  hsize_t *c_stride;
-  hsize_t *c_block; 
+  hssize_t *c_start = NULL;
+  hsize_t *c_count = NULL;
+  hsize_t *c_stride = NULL;
+  hsize_t *c_block = NULL; 
 
   H5S_seloper_t c_op;
   herr_t  status;
@@ -833,16 +846,16 @@ nh5scombine_hyperslab_c ( hid_t_f *space_id , int_f *op, hssize_t_f *start, hsiz
   rank = H5Sget_simple_extent_ndims(*space_id);
   if (rank < 0 ) return ret_value;
   c_start = (hssize_t *)HDmalloc(sizeof(hssize_t)*rank);
-  if (!c_start) goto DONE;
+  if (c_start == NULL) goto DONE;
 
   c_count = (hsize_t *)HDmalloc(sizeof(hsize_t)*rank);
-  if (!c_count) goto DONE;
+  if (c_count == NULL) goto DONE;
 
   c_stride = (hsize_t *)HDmalloc(sizeof(hsize_t)*rank);
-  if (!c_stride) goto DONE;
+  if (c_stride == NULL) goto DONE;
 
   c_block = (hsize_t *)HDmalloc(sizeof(hsize_t)*rank);
-  if (!c_block) goto DONE;
+  if (c_block == NULL) goto DONE;
 
 
   /*
@@ -865,10 +878,10 @@ nh5scombine_hyperslab_c ( hid_t_f *space_id , int_f *op, hssize_t_f *start, hsiz
   *hyper_id = (hid_t_f)c_hyper_id;
   ret_value = 0;
 DONE:
-  if(!c_start ) HDfree(c_start);
-  if(!c_count ) HDfree(c_count);
-  if(!c_stride) HDfree(c_stride);
-  if(!c_block ) HDfree(c_block);
+  if(c_start != NULL) HDfree(c_start);
+  if(c_count != NULL) HDfree(c_count);
+  if(c_stride!= NULL) HDfree(c_stride);
+  if(c_block != NULL) HDfree(c_block);
   return ret_value;
 }
 /*----------------------------------------------------------------------------

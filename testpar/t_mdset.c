@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: t_mdset.c,v 1.25 2003/06/09 19:18:45 koziol Exp $ */
+/* $Id: t_mdset.c,v 1.25.2.2 2003/10/06 15:17:55 koziol Exp $ */
 
 #include "testphdf5.h"
 
@@ -105,16 +105,13 @@ void multiple_dset_write(char *filename, int ndatasets)
 }
 
 /* Example of using PHDF5 to create, write, and read compact dataset.  
- * Hyperslab is prohibited for write.
  */
 void compact_dataset(char *filename)
 {
     int i, j, mpi_size, mpi_rank, err_num=0;
     hbool_t use_gpfs = FALSE;
-    hid_t iof, plist, dcpl, dxpl, dataset, memspace, filespace;
-    hssize_t chunk_origin [DIM];
-    hsize_t chunk_dims [DIM], file_dims [DIM];
-    hsize_t count[DIM]={1,1};
+    hid_t iof, plist, dcpl, dxpl, dataset, filespace;
+    hsize_t file_dims [DIM]={SIZE,SIZE};
     double outme [SIZE][SIZE], inme[SIZE][SIZE];
     char dname[]="dataset";
     herr_t ret;
@@ -127,11 +124,7 @@ void compact_dataset(char *filename)
     plist = create_faccess_plist(MPI_COMM_WORLD, MPI_INFO_NULL, facc_type, use_gpfs);
     iof = H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist);
 
-    /* decide the hyperslab according to process number. */
-    get_slab(chunk_origin, chunk_dims, count, file_dims);  
-
     /* Define data space */
-    memspace = H5Screate_simple (DIM, chunk_dims, NULL);
     filespace = H5Screate_simple (DIM, file_dims, NULL);
 
     /* Create a compact dataset */
@@ -145,26 +138,11 @@ void compact_dataset(char *filename)
     dataset = H5Dcreate (iof, dname, H5T_NATIVE_DOUBLE, filespace, dcpl);
     VRFY((dataset >= 0), "H5Dcreate succeeded");        
 
-    /* Define hyperslab */
-    ret = H5Sselect_hyperslab (filespace, H5S_SELECT_SET, chunk_origin, chunk_dims, count, chunk_dims);    
-    VRFY((ret>=0), "mdata hyperslab selection");
-    
     /* set up the collective transfer properties list */
     dxpl = H5Pcreate (H5P_DATASET_XFER);
     VRFY((dxpl >= 0), "");
     ret=H5Pset_dxpl_mpio(dxpl, H5FD_MPIO_COLLECTIVE);
     VRFY((ret >= 0), "H5Pcreate xfer succeeded");
-
-    /* calculate data to write */
-    for (i = 0; i < SIZE; i++)
-         for (j = 0; j < SIZE; j++)
-              outme [i][j] = (i+j)*1000 + mpi_rank;
-
-    /* Test hyperslab writing.  Supposed to fail */
-    H5E_BEGIN_TRY {
-        ret=H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace, dxpl, outme);
-    } H5E_END_TRY;
-    VRFY((ret < 0), "H5Dwrite hyperslab write failed as expected");
 
     /* Recalculate data to write.  Each process writes the same data. */
     for (i = 0; i < SIZE; i++)
@@ -178,7 +156,6 @@ void compact_dataset(char *filename)
     H5Pclose (plist);
     H5Dclose (dataset);
     H5Sclose (filespace);
-    H5Sclose (memspace);
     H5Fclose (iof);
 
     /* Open the file and dataset, read and compare the data. */
@@ -209,6 +186,124 @@ void compact_dataset(char *filename)
     H5Pclose(dxpl);
     H5Dclose(dataset);
     H5Fclose(iof);
+}
+
+/* Example of using PHDF5 to create "large" datasets.  (>2GB, >4GB, >8GB)
+ * Actual data is _not_ written to these datasets.  Dataspaces are exact
+ * sizes (2GB, 4GB, etc.), but the metadata for the file pushes the file over
+ * the boundary of interest.
+ */
+void big_dataset(const char *filename)
+{
+    int mpi_size, mpi_rank;     /* MPI info */
+    hbool_t use_gpfs = FALSE;   /* Don't use GPFS stuff for this test */
+    hid_t iof,                  /* File ID */
+        fapl,                   /* File access property list ID */
+        dataset,                /* Dataset ID */
+        filespace;              /* Dataset's dataspace ID */
+    hsize_t file_dims [4];      /* Dimensions of dataspace */
+    char dname[]="dataset";     /* Name of dataset */
+    MPI_Offset file_size;       /* Size of file on disk */
+    herr_t ret;                 /* Generic return value */
+                                
+    MPI_Comm_rank (MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size (MPI_COMM_WORLD, &mpi_size);
+
+    VRFY((mpi_size <= SIZE), "mpi_size <= SIZE");
+
+    fapl = create_faccess_plist(MPI_COMM_WORLD, MPI_INFO_NULL, facc_type, use_gpfs);
+    VRFY((fapl >= 0), "create_faccess_plist succeeded");        
+
+    /*
+     * Create >2GB HDF5 file
+     */
+    iof = H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    VRFY((iof >= 0), "H5Fcreate succeeded");        
+
+    /* Define dataspace for 2GB dataspace */
+    file_dims[0]= 2;
+    file_dims[1]= 1024;
+    file_dims[2]= 1024;
+    file_dims[3]= 1024;
+    filespace = H5Screate_simple (4, file_dims, NULL);
+    VRFY((filespace >= 0), "H5Screate_simple succeeded");        
+
+    dataset = H5Dcreate (iof, dname, H5T_NATIVE_UCHAR, filespace, H5P_DEFAULT);
+    VRFY((dataset >= 0), "H5Dcreate succeeded");        
+
+    /* Close all file objects */
+    ret=H5Dclose (dataset);
+    VRFY((ret >= 0), "H5Dclose succeeded");        
+    ret=H5Sclose (filespace);
+    VRFY((ret >= 0), "H5Sclose succeeded");        
+    ret=H5Fclose (iof);
+    VRFY((ret >= 0), "H5Fclose succeeded");        
+
+    /* Check that file of the correct size was created */
+    file_size=h5_mpi_get_file_size(filename, MPI_COMM_WORLD, MPI_INFO_NULL);
+    VRFY((file_size == 2147485696ULL), "File is correct size");        
+
+    /*
+     * Create >4GB HDF5 file
+     */
+    iof = H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    VRFY((iof >= 0), "H5Fcreate succeeded");        
+
+    /* Define dataspace for 4GB dataspace */
+    file_dims[0]= 4;
+    file_dims[1]= 1024;
+    file_dims[2]= 1024;
+    file_dims[3]= 1024;
+    filespace = H5Screate_simple (4, file_dims, NULL);
+    VRFY((filespace >= 0), "H5Screate_simple succeeded");        
+
+    dataset = H5Dcreate (iof, dname, H5T_NATIVE_UCHAR, filespace, H5P_DEFAULT);
+    VRFY((dataset >= 0), "H5Dcreate succeeded");        
+
+    /* Close all file objects */
+    ret=H5Dclose (dataset);
+    VRFY((ret >= 0), "H5Dclose succeeded");        
+    ret=H5Sclose (filespace);
+    VRFY((ret >= 0), "H5Sclose succeeded");        
+    ret=H5Fclose (iof);
+    VRFY((ret >= 0), "H5Fclose succeeded");        
+
+    /* Check that file of the correct size was created */
+    file_size=h5_mpi_get_file_size(filename, MPI_COMM_WORLD, MPI_INFO_NULL);
+    VRFY((file_size == 4294969344ULL), "File is correct size");        
+
+    /*
+     * Create >8GB HDF5 file
+     */
+    iof = H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    VRFY((iof >= 0), "H5Fcreate succeeded");        
+
+    /* Define dataspace for 8GB dataspace */
+    file_dims[0]= 8;
+    file_dims[1]= 1024;
+    file_dims[2]= 1024;
+    file_dims[3]= 1024;
+    filespace = H5Screate_simple (4, file_dims, NULL);
+    VRFY((filespace >= 0), "H5Screate_simple succeeded");        
+
+    dataset = H5Dcreate (iof, dname, H5T_NATIVE_UCHAR, filespace, H5P_DEFAULT);
+    VRFY((dataset >= 0), "H5Dcreate succeeded");        
+
+    /* Close all file objects */
+    ret=H5Dclose (dataset);
+    VRFY((ret >= 0), "H5Dclose succeeded");        
+    ret=H5Sclose (filespace);
+    VRFY((ret >= 0), "H5Sclose succeeded");        
+    ret=H5Fclose (iof);
+    VRFY((ret >= 0), "H5Fclose succeeded");        
+
+    /* Check that file of the correct size was created */
+    file_size=h5_mpi_get_file_size(filename, MPI_COMM_WORLD, MPI_INFO_NULL);
+    VRFY((file_size == 8589936640ULL), "File is correct size");        
+
+    /* Close fapl */
+    ret=H5Pclose (fapl);
+    VRFY((ret >= 0), "H5Pclose succeeded");        
 }
 
 /* Write multiple groups with a chunked dataset in each group collectively. 

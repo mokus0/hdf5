@@ -33,6 +33,7 @@
 
 #include "H5public.h"
 #include "H5Ipublic.h"
+#include "H5Opublic.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,6 +94,7 @@ typedef struct H5G_stat_t {
 #endif /*H5_WANT_H5_V1_4_COMPAT*/
     time_t		mtime;		/*modification time		*/
     size_t		linklen;	/*symbolic link value length	*/
+    H5O_stat_t          ohdr;           /* Object header information    */
 } H5G_stat_t;
     
 #define H5G_SAME_LOC 0
@@ -110,11 +112,11 @@ H5_DLL herr_t H5Gclose(hid_t group_id);
 H5_DLL herr_t H5Giterate(hid_t loc_id, const char *name, int *idx,
 			  H5G_iterate_t op, void *op_data);
 H5_DLL herr_t H5Gget_num_objs(hid_t loc_id, hsize_t *num_objs);
-H5_DLL ssize_t H5Gget_objname_by_idx(hid_t group_id, hsize_t idx, char* name, size_t size);
+H5_DLL ssize_t H5Gget_objname_by_idx(hid_t loc_id, hsize_t idx, char* name, size_t size);
 #ifdef H5_WANT_H5_V1_4_COMPAT
-H5_DLL int H5Gget_objtype_by_idx(hid_t group_id, hsize_t idx);
+H5_DLL int H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx);
 #else /*H5_WANT_H5_V1_4_COMPAT*/
-H5_DLL H5G_obj_t H5Gget_objtype_by_idx(hid_t group_id, hsize_t idx);
+H5_DLL H5G_obj_t H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx);
 #endif /*H5_WANT_H5_V1_4_COMPAT*/
 H5_DLL herr_t H5Gmove2(hid_t src_loc, const char *src, hid_t dst_loc, 
 			const char *dst);

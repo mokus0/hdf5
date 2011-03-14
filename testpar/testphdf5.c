@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.c,v 1.53 2003/06/10 19:05:06 koziol Exp $ */
+/* $Id: testphdf5.c,v 1.53.2.3 2003/10/07 09:44:16 acheng Exp $ */
 
 /*
  * Main driver of the Parallel HDF5 tests
@@ -44,9 +44,10 @@ int doread=1;				/* read test */
 int dowrite=1;				/* write test */
 int docompact=1;                        /* compact dataset test */
 int doindependent=1;			/* independent test */
+unsigned dobig=0;                       /* "big" dataset tests */
 
 /* FILENAME and filenames must have the same number of names */
-const char *FILENAME[8]={
+const char *FILENAME[9]={
 	    "ParaEg1",
 	    "ParaEg2",
 	    "ParaEg3",
@@ -54,8 +55,9 @@ const char *FILENAME[8]={
             "ParaMgroup",
             "ParaCompact",
             "ParaIndividual",
+            "ParaBig",
 	    NULL};
-char	filenames[8][PATH_MAX];
+char	filenames[9][PATH_MAX];
 hid_t	fapl;				/* file access property list */
 
 #ifdef USE_PAUSE
@@ -125,6 +127,7 @@ usage(void)
         "\tset number of groups for the multiple group test\n");  
     printf("\t-o\t\tno compact dataset test\n");
     printf("\t-i\t\tno independent read test\n");
+    printf("\t-b\t\trun big dataset test\n");
     printf("\t-v\t\tverbose on\n");
     printf("\t-f <prefix>\tfilename prefix\n");
     printf("\t-s\t\tuse Split-file together with MPIO\n");
@@ -176,6 +179,8 @@ parse_options(int argc, char **argv)
                 case 'o':   docompact = 0;
                             break;
                 case 'i':   doindependent = 0;
+                            break;
+                case 'b':   dobig = 1;
                             break;
 		case 'v':   verbose = 1;
 			    break;
@@ -330,6 +335,27 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type,
     return (ret_pl);
 }
 
+/*
+ * Check the size of a file using MPI routines
+ */
+MPI_Offset
+h5_mpi_get_file_size(const char *filename, MPI_Comm comm, MPI_Info info)
+{
+    MPI_File	fh;             /* MPI file handle */
+    MPI_Offset	size=0;         /* File size to return */
+
+    if (MPI_SUCCESS != MPI_File_open(comm, (char*)filename, MPI_MODE_RDONLY, info, &fh))
+        goto done;
+
+    if (MPI_SUCCESS != (MPI_File_get_size(fh, &size)))
+        goto done;
+
+    if (MPI_SUCCESS != MPI_File_close(&fh))
+        size=0;
+
+done:
+    return(size);
+}
 
 int main(int argc, char **argv)
 {
@@ -449,7 +475,15 @@ int main(int argc, char **argv)
         MPI_BANNER("Independent test skipped");
     }
         
-    if (!(dowrite || doread || ndatasets || ngroups || docompact)){
+    if (dobig && sizeof(MPI_Offset)>4){
+        MPI_BANNER("big dataset test...");
+        big_dataset(filenames[7]); 
+    }
+    else {
+        MPI_BANNER("big dataset test skipped");
+    }
+    
+    if (!(dowrite || doread || ndatasets || ngroups || docompact || doindependent || dobig)){
 	usage();
 	nerrors++;
     }

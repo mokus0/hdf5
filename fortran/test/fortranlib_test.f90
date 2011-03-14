@@ -1,4 +1,3 @@
-
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -27,6 +26,7 @@
      INTEGER :: mounting_total_error = 0
      INTEGER :: reopen_total_error = 0
      INTEGER :: fclose_total_error = 0
+     INTEGER :: fspace_total_error = 0
      INTEGER :: dataset_total_error = 0
      INTEGER :: extend_dataset_total_error = 0
      INTEGER :: refobj_total_error = 0
@@ -104,6 +104,14 @@
      write(*, fmt = '(49x,a)', advance = 'no') ' ' 
      write(*, fmt = e_format) error_string
      total_error = total_error + fclose_total_error 
+
+     error_string = failure
+     CALL file_space(cleanup, fspace_total_error)
+     IF (fspace_total_error == 0) error_string = success
+     write(*, fmt = '(21a)', advance = 'no') ' File free space test'     
+     write(*, fmt = '(49x,a)', advance = 'no') ' ' 
+     write(*, fmt = e_format) error_string
+     total_error = total_error + fspace_total_error 
 
 
 !     write(*,*)
@@ -298,7 +306,7 @@
      write(*, fmt = '(11a)', advance = 'no') ' Group test'     
      write(*, fmt = '(59x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
-     total_error = total_error + identifier_total_error 
+     total_error = total_error + group_total_error 
 
      error_string = failure
      CALL error_report_test(cleanup, error_total_error)

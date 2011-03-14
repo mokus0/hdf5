@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -3304,7 +3305,7 @@ test_named (hid_t fapl)
     hid_t		file=-1, type=-1, space=-1, dset=-1, t2=-1, t3=-1, attr1=-1;
     herr_t		status;
     static hsize_t	ds_size[2] = {10, 20};
-    hsize_t		i,j;
+    size_t		i,j;
     unsigned 		attr_data[10][20];
     char		filename[1024];
 
@@ -5684,9 +5685,16 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 #endif
 
 	    /* The hardware conversion */
-	    /* Check for underflow when src is a "larger" float than dst.*/
+	    /* Check for underflow when src is a "larger" float than dst.
+             * Also check if the source value is in the valid range.
+             */
 	    if (FLT_FLOAT==src_type) {
 		HDmemcpy(aligned, saved+j*sizeof(float), sizeof(float));
+
+                /* Make sure the source value is in the valid range for the compiler. */
+		if(HDfabsf(*((float*)aligned)) < FLT_MIN)
+                    continue;
+ 
 		if (FLT_FLOAT==dst_type) {
 		    hw_f = *((float*)aligned);
 		    hw = (unsigned char*)&hw_f;
@@ -5701,6 +5709,10 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		}
 	    } else if (FLT_DOUBLE==src_type) {
 		HDmemcpy(aligned, saved+j*sizeof(double), sizeof(double));
+
+		if(HDfabs(*((double*)aligned)) < DBL_MIN)
+                    continue;
+
 		if (FLT_FLOAT==dst_type) {
 		    hw_f = (float)(*((double*)aligned));
 		    hw = (unsigned char*)&hw_f;
@@ -5717,6 +5729,10 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 #if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
 	    } else {
 		HDmemcpy(aligned, saved+j*sizeof(long double), sizeof(long double));
+
+		if(HDfabsl(*((long double*)aligned)) < LDBL_MIN)
+                    continue;
+
 		if (FLT_FLOAT==dst_type) {
 		    hw_f = *((long double*)aligned);
 		    hw = (unsigned char*)&hw_f;

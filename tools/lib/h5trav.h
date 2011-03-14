@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef H5TRAV_H__
@@ -17,19 +18,14 @@
 
 #include "hdf5.h"
 
-#if 0
-#define H5_TRAV_DEBUG
-#endif
-
-
 /*-------------------------------------------------------------------------
  * public struct to store name and type of an object
  * the TYPE can be:
  *    H5G_UNKNOWN = -1,
- *    H5G_LINK,		        Object is a symbolic link
- *    H5G_GROUP,		    Object is a group
- *    H5G_DATASET,		    Object is a dataset
- *    H5G_TYPE,			    Object is a named data type
+ *    H5G_GROUP,            Object is a group
+ *    H5G_DATASET,          Object is a dataset
+ *    H5G_TYPE,             Object is a named data type
+ *    H5G_LINK,             Object is a symbolic link
  *-------------------------------------------------------------------------
  */
 
@@ -41,8 +37,8 @@
 #endif
 
 typedef struct trav_info_t {
-	char      *name;
-	H5G_obj_t1 type;
+    char      *name;
+    H5G_obj_t1 type;
 } trav_info_t;
 
 
@@ -51,7 +47,7 @@ typedef struct trav_info_t {
  *-------------------------------------------------------------------------
  */
 typedef struct trav_link_t {
-	char      *new_name;
+    char      *new_name;
 } trav_link_t;
 
 
@@ -61,14 +57,14 @@ typedef struct trav_link_t {
  */
 
 typedef struct trav_obj_t {
-    unsigned long objno[2];/* object number from H5Gget_objinfo */
+    haddr_t     objno;     /* object number from H5Gget_objinfo */
     unsigned    flags[2];  /* h5diff.object is present or not in both files*/
     char        *name;     /* name */
     int         displayed; /* hard link already traversed once */
     H5G_obj_t1  type;      /* type of object */
     trav_link_t *links;    /* array of possible link names */
     int         sizelinks; /* size of links array */
-    int         nlinks;    /* number of links */
+    unsigned    nlinks;    /* number of links */
 } trav_obj_t;
 
 
@@ -78,9 +74,9 @@ typedef struct trav_obj_t {
  */
 
 typedef struct trav_table_t {
-	int        size;
-	int        nobjs;
-	trav_obj_t *objs;
+    unsigned        size;
+    unsigned        nobjs;
+    trav_obj_t *objs;
 } trav_table_t;
 
 
@@ -124,10 +120,10 @@ void trav_table_init(trav_table_t **table);
 
 void trav_table_free(trav_table_t *table);
 
-int  trav_table_search(unsigned long *objno,
+int  trav_table_search(haddr_t objno,
                        trav_table_t *table );
 
-void trav_table_add(unsigned long *objno,
+void trav_table_add(haddr_t objno,
                     char *objname,
                     H5G_obj_t1 type,
                     trav_table_t *table);
@@ -144,3 +140,5 @@ void trav_table_addlink(trav_table_t *table,
 
 
 #endif  /* H5TRAV_H__ */
+
+

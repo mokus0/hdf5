@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,13 +9,14 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*keep this declaration near the top of this file -RPM*/
 static const char *FileHeader = "\n\
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n\
+ * Copyright by The HDF Group.                                               *\n\
  * Copyright by the Board of Trustees of the University of Illinois.         *\n\
  * All rights reserved.                                                      *\n\
  *                                                                           *\n\
@@ -24,8 +26,8 @@ static const char *FileHeader = "\n\
  * of the source code distribution tree; Copyright.html can be found at the  *\n\
  * root level of an installed copy of the electronic HDF5 document set and   *\n\
  * is linked from the top-level documents page.  It can also be found at     *\n\
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *\n\
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *\n\
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *\n\
+ * access to either file, you may request a copy from help@hdfgroup.org.     *\n\
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *";
 /*
  *
@@ -519,10 +521,6 @@ print_results(int nd, detected_t *d, int na, malign_t *misc_align)
 #include \"H5Eprivate.h\"\n\
 #include \"H5FLprivate.h\"\n\
 #include \"H5Tpkg.h\"\n\
-\n\
-/* Declare external the free lists for H5T_t's and H5T_shared_t's */\n\
-H5FL_EXTERN(H5T_t);\n\
-H5FL_EXTERN(H5T_shared_t);\n\
 \n\
 \n");
 

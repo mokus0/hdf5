@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -315,6 +316,10 @@ H5E_get_stack(void)
         estack->auto_func = (H5E_auto_t)H5Eprint;
         estack->auto_data = stderr;
 
+        /* (It's not necessary to release this in this API, it is
+         *      released by the "key destructor" set up in the H5TS
+         *      routines.  See calls to pthread_key_create() in H5TS.c -QAK)
+         */
         pthread_setspecific(H5TS_errstk_key_g, (void *)estack);
     }
 

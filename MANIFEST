@@ -1,4 +1,5 @@
 #
+# Copyright by The HDF Group.
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -8,8 +9,8 @@
 # of the source code distribution tree; Copyright.html can be found at the
 # root level of an installed copy of the electronic HDF5 document set and
 # is linked from the top-level documents page.  It can also be found at
-# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 #
 #------------------------------------------------------------------------------
 # This is the list of files that are part of HDF5 source distribution. 
@@ -30,6 +31,7 @@
 ./configure
 ./configure.in
 
+./bin/COPYING
 ./bin/buildhdf5
 ./bin/checkapi				_DO_NOT_DISTRIBUTE_
 ./bin/checkposix			_DO_NOT_DISTRIBUTE_
@@ -49,6 +51,7 @@
 ./bin/iostats
 ./bin/locate_sw
 ./bin/ltmain.sh
+./bin/makehelp
 ./bin/mkdirs
 ./bin/reconfigure			_DO_NOT_DISTRIBUTE_
 ./bin/release
@@ -59,11 +62,11 @@
 ./bin/trace
 ./bin/yodconfigure
 
+./config/COPYING
 ./config/BlankForm
 ./config/commence.in
 ./config/conclude.in
 ./config/dec-flags
-./config/dec-osf4.x
 ./config/dec-osf5.x
 ./config/depend1.in
 ./config/depend2.in
@@ -72,16 +75,13 @@
 ./config/dependN.in
 ./config/freebsd
 ./config/gnu-flags
-./config/hpux10.20
 ./config/hpux11.00
 ./config/hpux11.23
-./config/hpux9.03
 ./config/i386-pc-cygwin32
+./config/i686-apple
 ./config/i686-pc-cygwin
 ./config/ia64-linux-gnu
 ./config/intel-flags
-./config/intel-osf1
-./config/irix5.x
 ./config/irix6.x
 ./config/linux-gnu
 ./config/linux-gnuaout
@@ -91,17 +91,14 @@
 ./config/nv1-cray
 ./config/pgi-flags
 ./config/powerpc-apple
-./config/powerpc-ibm-aix4.x
 ./config/powerpc-ibm-aix5.x
 ./config/powerpc-ibm-linux-gnu
-./config/rs6000-ibm-aix4.x
 ./config/solaris2.x
 ./config/sv1-cray
 ./config/unicos
 ./config/unicos10.0.X
 ./config/unicosmk
 ./config/unicosmk2.0.X
-./config/unicosmk2.0.5.X
 ./config/unicosmk2.0.6.X
 
 ./config/site-specific/BlankForm
@@ -212,6 +209,13 @@
 ./doc/html/Graphics/Java.gif
 ./doc/html/Graphics/Makefile.in
 ./doc/html/Graphics/OtherAPIs.gif
+./doc/html/Graphics/THGnoTextSm.jpg
+./doc/html/Graphics/THGwTextSm.jpg
+./doc/html/Graphics/XRD100.gif
+./doc/html/Graphics/hdf2.gif
+./doc/html/Graphics/help.jpg
+./doc/html/Graphics/help.png
+./doc/html/Graphics/help.gif
 
 ./doc/html/Intro/Dependencies
 ./doc/html/Intro/IntroExamples.html
@@ -683,6 +687,8 @@
 ./doc/html/cpplus_RM/functions_func_0x76.html
 ./doc/html/cpplus_RM/functions_func_0x77.html
 ./doc/html/cpplus_RM/functions_func_0x7e.html
+./doc/html/cpplus_RM/globals.html
+./doc/html/cpplus_RM/globals_defs.html
 ./doc/html/cpplus_RM/h5group_8cpp-example.html
 ./doc/html/cpplus_RM/header.html
 ./doc/html/cpplus_RM/hierarchy.html
@@ -708,6 +714,7 @@
 ./doc/html/ed_libs/NavBar_RM.lbi
 ./doc/html/ed_libs/NavBar_TechN.lbi
 ./doc/html/ed_libs/NavBar_UG.lbi
+./doc/html/ed_libs/copyright-html.lbi
 ./doc/html/ed_libs/styles_Format.lbi
 ./doc/html/ed_libs/styles_Gen.lbi
 ./doc/html/ed_libs/styles_Index.lbi
@@ -743,9 +750,6 @@
 ./doc/html/group_p3.obj			_DO_NOT_DISTRIBUTE_
 ./doc/html/h5s.examples
 ./doc/html/hdf2.jpg
-./doc/html/ph5design.html
-./doc/html/ph5example.c
-./doc/html/ph5implement.txt
 ./doc/html/pipe1.gif
 ./doc/html/pipe1.obj			_DO_NOT_DISTRIBUTE_
 ./doc/html/pipe2.gif
@@ -789,19 +793,20 @@
 
 ./examples/Attributes.txt
 ./examples/Dependencies
-./examples/Makefile.in
+./examples/h5_attribute.c
 ./examples/h5_chunk_read.c
 ./examples/h5_compound.c
 ./examples/h5_drivers.c
 ./examples/h5_extend_write.c
 ./examples/h5_group.c
-./examples/h5_read.c
-./examples/h5_write.c
-./examples/h5_select.c
-./examples/h5_attribute.c
 ./examples/h5_mount.c
+./examples/h5_read.c
 ./examples/h5_reference.c
+./examples/h5_select.c
+./examples/h5_write.c
+./examples/Makefile.in
 ./examples/ph5example.c
+./examples/testh5cc.sh.in
 
 
 #------------------------------------------------------------------------------
@@ -810,6 +815,7 @@
 #
 #------------------------------------------------------------------------------
 
+./fortran/COPYING
 ./fortran/Makefile.dist
 ./fortran/Makefile.in
 ./fortran/aclocal.m4
@@ -821,7 +827,6 @@
 ./fortran/config/commence.in
 ./fortran/config/conclude.in
 ./fortran/config/dec-flags
-./fortran/config/dec-osf4.x
 ./fortran/config/dec-osf5.x
 ./fortran/config/depend
 ./fortran/config/depend1.in
@@ -831,16 +836,13 @@
 ./fortran/config/dependN.in
 ./fortran/config/freebsd
 ./fortran/config/gnu-flags
-./fortran/config/hpux10.20
 ./fortran/config/hpux11.00
 ./fortran/config/hpux11.23
-./fortran/config/hpux9.03
+./fortran/config/i686-apple
 ./fortran/config/i386-pc-cygwin32
 ./fortran/config/ia64-linux-gnu
 ./fortran/config/intel-fflags
 ./fortran/config/intel-flags
-./fortran/config/intel-osf1
-./fortran/config/irix5.x
 ./fortran/config/irix6.x
 ./fortran/config/linux-gnu
 ./fortran/config/linux-gnuaout
@@ -850,22 +852,18 @@
 ./fortran/config/pgi-fflags
 ./fortran/config/pgi-flags
 ./fortran/config/powerpc-apple
-./fortran/config/powerpc-ibm-aix4.x
 ./fortran/config/powerpc-ibm-aix5.x
-./fortran/config/rs6000-ibm-aix4.x
 ./fortran/config/solaris2.x
 ./fortran/config/sv1-cray
 ./fortran/config/unicos
 ./fortran/config/unicos10.0.X
 ./fortran/config/unicosmk
 ./fortran/config/unicosmk2.0.X
-./fortran/config/unicosmk2.0.5.X
 ./fortran/config/unicosmk2.0.6.X
 
-./fortran/examples/Dependencies
-./fortran/examples/Makefile.in
 ./fortran/examples/attrexample.f90
 ./fortran/examples/compound.f90
+./fortran/examples/Dependencies
 ./fortran/examples/dsetexample.f90
 ./fortran/examples/fileexample.f90
 ./fortran/examples/groupexample.f90
@@ -873,11 +871,14 @@
 ./fortran/examples/grpit.f90
 ./fortran/examples/grpsexample.f90
 ./fortran/examples/hyperslab.f90
+./fortran/examples/Makefile.in
 ./fortran/examples/mountexample.f90
+./fortran/examples/ph5example.f90
 ./fortran/examples/refobjexample.f90
 ./fortran/examples/refregexample.f90
 ./fortran/examples/rwdsetexample.f90
 ./fortran/examples/selectele.f90
+./fortran/examples/testh5fc.sh.in
 
 ./fortran/src/Dependencies
 ./fortran/src/H5_f.c
@@ -961,6 +962,7 @@
 #
 #------------------------------------------------------------------------------
 
+./c++/COPYING
 ./c++/Makefile.in
 ./c++/aclocal.m4
 ./c++/configure
@@ -985,23 +987,24 @@
 ./c++/config/linux-gnulibc2
 ./c++/config/nv1-cray
 ./c++/config/powerpc-ibm-aix
-./c++/config/rs6000-ibm-aix4.x
 ./c++/config/solaris2.x
 ./c++/config/sv1-cray
 ./c++/config/unicos10.0.X
 ./c++/config/unicosmk2.0.6.X
 
-./c++/examples/Dependencies
 ./c++/examples/chunks.cpp
 ./c++/examples/compound.cpp
 ./c++/examples/create.cpp
+./c++/examples/Dependencies
 ./c++/examples/expected.out
 ./c++/examples/extend_ds.cpp
 ./c++/examples/h5group.cpp
-./c++/examples/readdata.cpp
-./c++/examples/testexamples.sh
-./c++/examples/writedata.cpp
 ./c++/examples/Makefile.in
+./c++/examples/readdata.cpp
+./c++/examples/strtype.cpp
+./c++/examples/testexamples.sh
+./c++/examples/testh5c++.sh.in
+./c++/examples/writedata.cpp
 
 ./c++/src/Dependencies
 ./c++/src/H5AbstractDs.cpp
@@ -1020,6 +1023,7 @@
 ./c++/src/H5CompType.h
 ./c++/src/H5Cpp.h
 ./c++/src/H5CppDoc.h
+./c++/src/H5cxx_config.h.in
 ./c++/src/H5DataSet.cpp
 ./c++/src/H5DataSet.h
 ./c++/src/H5DataSpace.cpp
@@ -1075,10 +1079,16 @@
 ./c++/test/dsets.cpp
 ./c++/test/h5cpputil.cpp
 ./c++/test/h5cpputil.h
+./c++/test/tattr.cpp
+./c++/test/tcompound.cpp
 ./c++/test/testhdf5.cpp
 ./c++/test/tfile.cpp
+./c++/test/tfilter.cpp
 ./c++/test/th5s.cpp
 ./c++/test/th5s.h5
+./c++/test/trefer.cpp
+./c++/test/ttypes.cpp
+./c++/test/tvlstr.cpp
 
 #------------------------------------------------------------------------------
 #
@@ -1086,6 +1096,7 @@
 #
 #------------------------------------------------------------------------------
 
+./perform/COPYING
 ./perform/Dependencies
 ./perform/Makefile.in
 ./perform/benchpar.c
@@ -1103,14 +1114,13 @@
 ./perform/pio_timer.h
 ./perform/zip_perf.c
 
+./release_docs/COPYING
 ./release_docs/INSTALL
-./release_docs/INSTALL_TFLOPS
-./release_docs/INSTALL_VFL
+./release_docs/INSTALL_Cygwin.txt
 ./release_docs/INSTALL_parallel
 ./release_docs/INSTALL_Windows.txt
 ./release_docs/INSTALL_Windows_From_Command_Line.txt
-./release_docs/INSTALL_Windows_Short.txt
-./release_docs/INSTALL_codewarrior.txt
+./release_docs/INSTALL_Windows_Short_VS6.0.txt
 ./release_docs/HISTORY.txt
 ./release_docs/RELEASE.txt
 
@@ -1118,6 +1128,7 @@
 ./src/hdf5.lnt				_DO_NOT_DISTRIBUTE_
 ./src/hdf5-lin.lnt			_DO_NOT_DISTRIBUTE_
 ./src/hdf5-win.lnt			_DO_NOT_DISTRIBUTE_
+./src/COPYING
 ./src/Dependencies
 ./src/H5.c
 ./src/H5api_adpt.h
@@ -1129,6 +1140,7 @@
 ./src/H5ACprivate.h
 ./src/H5ACpublic.h
 ./src/H5B.c
+./src/H5Bcache.c
 ./src/H5Bpkg.h
 ./src/H5Bprivate.h
 ./src/H5Bpublic.h
@@ -1193,11 +1205,14 @@
 ./src/H5FSprivate.h
 ./src/H5G.c
 ./src/H5Gent.c
+./src/H5Gname.c
 ./src/H5Gnode.c
 ./src/H5Gpkg.h
 ./src/H5Gprivate.h
 ./src/H5Gpublic.h
 ./src/H5Gstab.c
+./src/H5Gtest.c
+./src/H5Gtraverse.c
 ./src/H5HG.c
 ./src/H5HGdbg.c
 ./src/H5HGpkg.h
@@ -1223,6 +1238,7 @@
 ./src/H5O.c
 ./src/H5Oattr.c
 ./src/H5Obogus.c
+./src/H5Ocache.c
 ./src/H5Ocont.c
 ./src/H5Odtype.c
 ./src/H5Oefl.c
@@ -1311,6 +1327,7 @@
 ./src/hdf5.h
 ./src/libhdf5.settings.in
 
+./test/COPYING
 ./test/Dependencies
 ./test/Makefile.in
 ./test/big.c
@@ -1336,31 +1353,36 @@
 ./test/gass_append.c
 ./test/gass_read.c
 ./test/gass_write.c
+./test/gen_deflate.c			_DO_NOT_DISTRIBUTE_
+./test/gen_mergemsg.c			_DO_NOT_DISTRIBUTE_
+./test/gen_old_array.c			_DO_NOT_DISTRIBUTE_
+./test/gen_old_group.c			_DO_NOT_DISTRIBUTE_
+./test/gen_old_layout.c			_DO_NOT_DISTRIBUTE_
+./test/gen_old_mtime.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_array.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_fill.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_mtime.c			_DO_NOT_DISTRIBUTE_
+./test/gen_new_super.c			_DO_NOT_DISTRIBUTE_
+./test/gen_nullspace.c			_DO_NOT_DISTRIBUTE_
 ./test/getname.c
 ./test/gheap.c
+./test/group_new.h5
 ./test/h5test.c
 ./test/h5test.h
 ./test/hyperslab.c
 ./test/istore.c
+./test/le_extlink1.h5
 ./test/lheap.c
 ./test/links.c
+./test/mergemsg.h5
 ./test/mount.c
 ./test/mtime.c
 ./test/noencoder.h5
 ./test/ntypes.c
 ./test/ohdr.c
 ./test/reserved.c
-./test/space_overflow.c			_DO_NOT_DISTRIBUTE_
-./test/gen_deflate.c			_DO_NOT_DISTRIBUTE_
-./test/gen_old_array.c			_DO_NOT_DISTRIBUTE_
-./test/gen_new_array.c			_DO_NOT_DISTRIBUTE_
-./test/gen_new_fill.c			_DO_NOT_DISTRIBUTE_
-./test/gen_old_layout.c			_DO_NOT_DISTRIBUTE_
-./test/gen_old_mtime.c			_DO_NOT_DISTRIBUTE_
-./test/gen_new_mtime.c			_DO_NOT_DISTRIBUTE_
-./test/gen_new_super.c			_DO_NOT_DISTRIBUTE_
-./test/gen_nullspace.c			_DO_NOT_DISTRIBUTE_
 ./test/set_extent.c
+./test/space_overflow.c			_DO_NOT_DISTRIBUTE_
 ./test/srb_append.c
 ./test/srb_read.c
 ./test/srb_write.c
@@ -1406,6 +1428,7 @@
 ./test/test_filters_le.hdf5
 
 
+./testpar/COPYING
 ./testpar/Dependencies
 ./testpar/Makefile.in
 ./testpar/t_dset.c
@@ -1414,25 +1437,16 @@
 ./testpar/t_mpi.c
 ./testpar/t_ph5basic.c
 ./testpar/t_coll_chunk.c
+./testpar/t_chunk_alloc.c
+./testpar/t_filter_read.c
 ./testpar/t_span_tree.c
 ./testpar/testphdf5.c
 ./testpar/testphdf5.h
 ./testpar/testph5.sh.in
 
+./tools/COPYING
 ./tools/Dependencies
 ./tools/Makefile.in
-
-./tools/gifconv/Dependencies
-./tools/gifconv/Makefile.in
-./tools/gifconv/decompress.c
-./tools/gifconv/gif.h
-./tools/gifconv/gif2hdf.c
-./tools/gifconv/gif2mem.c
-./tools/gifconv/gifread.c
-./tools/gifconv/hdf2gif.c
-./tools/gifconv/hdfgifwr.c
-./tools/gifconv/readhdf.c
-./tools/gifconv/writehdf.c
 
 ./tools/h5dump/Dependencies
 ./tools/h5dump/Makefile.in
@@ -1441,6 +1455,8 @@
 ./tools/h5dump/h5dumpgentest.c
 ./tools/h5dump/testh5dump.sh.in
 ./tools/h5dump/testh5dumpxml.sh
+./tools/h5dump/binread.c
+
 
 ./tools/h5import/Dependencies
 ./tools/h5import/Makefile.in
@@ -1479,16 +1495,13 @@
 ./tools/h5import/testfiles/test12.h5
 ./tools/h5import/testfiles/test13.h5
 
-./tools/h5diff/Dependencies
+# h5diff sources
+./tools/h5diff/h5diffgentest.c
 ./tools/h5diff/Makefile.in
+./tools/h5diff/Dependencies
 ./tools/h5diff/h5diff_main.c
-./tools/h5diff/testh5diff_attr.c
-./tools/h5diff/testh5diff_basic.c
-./tools/h5diff/testh5diff_dset.c
-./tools/h5diff/testh5diff_main.c
-./tools/h5diff/testh5diff_util.c
-./tools/h5diff/testh5diff.h
 ./tools/h5diff/testh5diff.sh
+
 
 
 # h5repack sources
@@ -1505,11 +1518,7 @@
 ./tools/h5repack/h5repack_parse.c
 ./tools/h5repack/h5repack_refs.c
 ./tools/h5repack/h5repack_verify.c
-./tools/h5repack/testh5repack_attr.c
-./tools/h5repack/testh5repack_dset.c
-./tools/h5repack/testh5repack_main.c
-./tools/h5repack/testh5repack_make.c
-./tools/h5repack/testh5repack_util.c
+./tools/h5repack/h5repacktst.c
 ./tools/h5repack/testh5repack_detect_szip.c
 
 ./tools/h5ls/Dependencies
@@ -1527,7 +1536,6 @@
 ./tools/lib/h5diff_util.c
 ./tools/lib/h5trav.c
 ./tools/lib/h5trav.h
-./tools/lib/h5trav_table.c
 ./tools/lib/h5tools.c
 ./tools/lib/h5tools.h
 ./tools/lib/h5tools_filters.c
@@ -1547,6 +1555,7 @@
 ./tools/misc/h5redeploy.in
 ./tools/misc/h5repart.c
 
+# test files for h5dump
 ./tools/testfiles/tall-1.ddl
 ./tools/testfiles/tall-2.ddl
 ./tools/testfiles/tall-3.ddl
@@ -1701,10 +1710,21 @@
 ./tools/testfiles/test_fletcher32.h5
 ./tools/testfiles/test_shuffle.h5
 ./tools/testfiles/test_szip.h5
-
-
+./tools/testfiles/thyperslab.ddl
+./tools/testfiles/tbigdims.ddl
+./tools/testfiles/tbigdims.h5
+./tools/testfiles/thyperslab.h5
+./tools/testfiles/tbinary.h5
+./tools/testfiles/tbin2.ddl
+./tools/testfiles/tbin3.ddl
+./tools/testfiles/tldouble.h5
+./tools/testfiles/tbin4.ddl
+./tools/testfiles/tbin1.ddl
+# h5dump binary test, h5import configuration
+./tools/testfiles/out3.h5import
 
 # Expected output from h5ls tests
+./tools/testfiles/nosuchfile.ls
 ./tools/testfiles/help-1.ls
 ./tools/testfiles/help-2.ls
 ./tools/testfiles/help-3.ls
@@ -1795,21 +1815,15 @@
 ./tools/testfiles/tall-2A.h5.xml
 
 #test files for h5diff
-./tools/testfiles/file1.h5
-./tools/testfiles/file2.h5
-./tools/testfiles/file3.h5
-./tools/testfiles/file4.h5
-./tools/testfiles/file5.h5
-./tools/testfiles/file6.h5
-./tools/testfiles/file7.h5
-./tools/testfiles/file8.h5
 ./tools/testfiles/h5diff_10.txt
 ./tools/testfiles/h5diff_11.txt
 ./tools/testfiles/h5diff_12.txt
 ./tools/testfiles/h5diff_13.txt
 ./tools/testfiles/h5diff_14.txt
 ./tools/testfiles/h5diff_15.txt
-./tools/testfiles/h5diff_16.txt
+./tools/testfiles/h5diff_16_1.txt
+./tools/testfiles/h5diff_16_2.txt
+./tools/testfiles/h5diff_16_3.txt
 ./tools/testfiles/h5diff_17.txt
 ./tools/testfiles/h5diff_18.txt
 ./tools/testfiles/h5diff_20.txt
@@ -1818,6 +1832,9 @@
 ./tools/testfiles/h5diff_23.txt
 ./tools/testfiles/h5diff_24.txt
 ./tools/testfiles/h5diff_25.txt
+./tools/testfiles/h5diff_26.txt
+./tools/testfiles/h5diff_27.txt
+./tools/testfiles/h5diff_28.txt
 ./tools/testfiles/h5diff_50.txt
 ./tools/testfiles/h5diff_51.txt
 ./tools/testfiles/h5diff_52.txt
@@ -1826,6 +1843,7 @@
 ./tools/testfiles/h5diff_55.txt
 ./tools/testfiles/h5diff_56.txt
 ./tools/testfiles/h5diff_57.txt
+./tools/testfiles/h5diff_58.txt
 ./tools/testfiles/h5diff_600.txt
 ./tools/testfiles/h5diff_601.txt
 ./tools/testfiles/h5diff_602.txt
@@ -1858,14 +1876,41 @@
 ./tools/testfiles/h5diff_629.txt
 ./tools/testfiles/h5diff_70.txt
 ./tools/testfiles/h5diff_80.txt
+./tools/testfiles/h5diff_90.txt
+./tools/testfiles/h5diff_100.txt
+./tools/testfiles/h5diff_101.txt
+./tools/testfiles/h5diff_102.txt
+
+
+./tools/testfiles/h5diff_basic1.h5
+./tools/testfiles/h5diff_basic2.h5
+./tools/testfiles/h5diff_dtypes.h5
+./tools/testfiles/h5diff_dset1.h5
+./tools/testfiles/h5diff_dset2.h5
+./tools/testfiles/h5diff_hyper1.h5
+./tools/testfiles/h5diff_attr1.h5
+./tools/testfiles/h5diff_hyper2.h5
+./tools/testfiles/h5diff_attr2.h5
+./tools/testfiles/h5diff_types.h5
+
 
 # h5repack test files
-./tools/testfiles/test0.h5
-./tools/testfiles/test1.h5
-./tools/testfiles/test3.h5
-./tools/testfiles/test4.h5
-./tools/testfiles/test5.h5
-./tools/testfiles/h5repack_info.txt
+./tools/testfiles/h5repack_early.h5
+./tools/testfiles/h5repack_layout.h5
+./tools/testfiles/h5repack_filters.h5
+./tools/testfiles/h5repack_fill.h5
+./tools/testfiles/h5repack_fletcher.h5
+./tools/testfiles/h5repack_objs.h5
+./tools/testfiles/h5repack_early2.h5
+./tools/testfiles/h5repack_hlink.h5
+./tools/testfiles/info.h5repack
+./tools/testfiles/h5repack_big.h5
+./tools/testfiles/h5repack_shuffle.h5
+./tools/testfiles/h5repack_attr.h5
+./tools/testfiles/h5repack_deflate.h5
+./tools/testfiles/h5repack_szip.h5
+./tools/testfiles/h5repack_ext.h5
+
 
 # jam utility and tests
 ./tools/h5jam/Dependencies
@@ -1886,7 +1931,31 @@
 ./tools/testfiles/u513.txt
 
 # high level libraries
+./hl/COPYING
 ./hl/Makefile.in
+./hl/examples/Dependencies
+./hl/examples/ex_lite1.c
+./hl/examples/ex_lite2.c
+./hl/examples/ex_lite3.c
+./hl/examples/Makefile.in
+./hl/examples/ex_image1.c
+./hl/examples/ex_image2.c
+./hl/examples/ex_table_01.c
+./hl/examples/ex_table_02.c
+./hl/examples/ex_table_03.c
+./hl/examples/ex_table_04.c
+./hl/examples/ex_table_05.c
+./hl/examples/ex_table_06.c
+./hl/examples/ex_table_07.c
+./hl/examples/ex_table_08.c
+./hl/examples/ex_table_09.c
+./hl/examples/ex_table_10.c
+./hl/examples/ex_table_11.c
+./hl/examples/ex_table_12.c
+./hl/examples/image24pixel.txt
+./hl/examples/image8.txt
+./hl/examples/pal_rgb.h
+./hl/src/COPYING
 ./hl/src/Dependencies
 ./hl/src/Makefile.in
 ./hl/src/H5IM.c
@@ -1895,6 +1964,7 @@
 ./hl/src/H5LT.h
 ./hl/src/H5TA.c
 ./hl/src/H5TA.h
+./hl/test/COPYING
 ./hl/test/Dependencies
 ./hl/test/Makefile.in
 ./hl/test/test_image.c
@@ -1903,8 +1973,23 @@
 ./hl/test/test_table_le.hdf5
 ./hl/test/test_table_be.hdf5
 ./hl/test/test_table_cray.hdf5
-
-
+./hl/tools/COPYING
+./hl/tools/Makefile.in
+./hl/tools/gif2h5/Dependencies
+./hl/tools/gif2h5/Makefile.in
+./hl/tools/gif2h5/decompress.c
+./hl/tools/gif2h5/gif.h
+./hl/tools/gif2h5/gif2hdf.c
+./hl/tools/gif2h5/gif2mem.c
+./hl/tools/gif2h5/gifread.c
+./hl/tools/gif2h5/hdf2gif.c
+./hl/tools/gif2h5/hdfgifwr.c
+./hl/tools/gif2h5/writehdf.c
+./hl/tools/gif2h5/h52gifgentst.c
+./hl/tools/gif2h5/h52giftest.sh
+./hl/tools/testfiles/h52giftst.h5
+./hl/tools/testfiles/image1.gif
 
 # windows
+./windows/COPYING
 ./windows/all.zip

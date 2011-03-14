@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -253,6 +254,30 @@ unsigned m13_rdata[MISC13_DIM1][MISC13_DIM2];          /* Data read from dataset
 #define MISC22_CHUNK_DIM1       512
 #define MISC22_SPACE_DIM0       639
 #define MISC22_SPACE_DIM1       1308
+
+/* Definitions for misc. test #24 */
+#define MISC24_FILE             "tmisc24.h5"
+#define MISC24_GROUP_NAME       "group"
+#define MISC24_GROUP_LINK       "group_link"
+#define MISC24_DATASET_NAME     "dataset"
+#define MISC24_DATASET_LINK     "dataset_link"
+#define MISC24_DATATYPE_NAME    "datatype"
+#define MISC24_DATATYPE_LINK    "datatype_link"
+
+/* Definitions for misc. test #25 'a' & 'b' */
+#define MISC25A_FILE            "foo.h5"
+#define MISC25A_GROUP0_NAME     "grp0"
+#define MISC25A_GROUP1_NAME     "/grp0/grp1"
+#define MISC25A_GROUP2_NAME     "/grp0/grp2"
+#define MISC25A_GROUP3_NAME     "/grp0/grp3"
+#define MISC25A_ATTR1_NAME      "_long attribute_"
+#define MISC25A_ATTR1_LEN       11
+#define MISC25A_ATTR2_NAME      "_short attr__"
+#define MISC25A_ATTR2_LEN       11
+#define MISC25A_ATTR3_NAME      "_short attr__"
+#define MISC25A_ATTR3_LEN       1
+#define MISC25B_FILE            "mergemsg.h5"
+#define MISC25B_GROUP           "grp1"
 
 /****************************************************************
 **
@@ -3607,6 +3632,562 @@ test_misc22(void)
 
 /****************************************************************
 **
+**  test_misc24(): Test opening objects with inappropriate APIs
+**
+****************************************************************/
+static void
+test_misc24(void)
+{
+    hid_t       file_id = 0, group_id = 0, type_id = 0, space_id = 0,
+                dset_id = 0, tmp_id = 0;
+    herr_t      ret;            /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing opening objects with inappropriate APIs\n"));
+
+    /* Create a new file using default properties. */
+    file_id = H5Fcreate(MISC24_FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(file_id, FAIL, "H5Fcreate");
+
+    /* Create dataspace for dataset */
+    space_id = H5Screate(H5S_SCALAR);
+    CHECK(space_id, FAIL, "H5Screate");
+
+    /* Create group, dataset & named datatype objects */
+    group_id = H5Gcreate(file_id, MISC24_GROUP_NAME, (size_t)0);
+    CHECK(group_id, FAIL, "H5Gcreate");
+
+    dset_id = H5Dcreate(file_id, MISC24_DATASET_NAME, H5T_NATIVE_INT, space_id, H5P_DEFAULT);
+    CHECK(dset_id, FAIL, "H5Dcreate");
+
+    type_id = H5Tcopy(H5T_NATIVE_INT);
+    CHECK(type_id, FAIL, "H5Tcopy");
+
+    ret = H5Tcommit(file_id, MISC24_DATATYPE_NAME, type_id);
+    CHECK(ret, FAIL, "H5Tcommit");
+
+    /* Create soft links to the objects created */
+    ret = H5Glink2(file_id, MISC24_GROUP_NAME, H5G_LINK_SOFT, file_id, MISC24_GROUP_LINK);
+    CHECK(ret, FAIL, "H5Glink2");
+
+    ret = H5Glink2(file_id, MISC24_DATASET_NAME, H5G_LINK_SOFT, file_id, MISC24_DATASET_LINK);
+    CHECK(ret, FAIL, "H5Glink2");
+
+    ret = H5Glink2(file_id, MISC24_DATATYPE_NAME, H5G_LINK_SOFT, file_id, MISC24_DATATYPE_LINK);
+    CHECK(ret, FAIL, "H5Glink2");
+
+    /* Close IDs for objects */
+    ret = H5Dclose(dset_id);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    ret = H5Sclose(space_id);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Gclose(group_id);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    ret = H5Tclose(type_id);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Attempt to open each kind of object with wrong API, including using soft links */
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_GROUP_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_GROUP_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_GROUP_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_GROUP_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATASET_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATASET_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_DATASET_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_DATASET_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATATYPE_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATATYPE_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_DATATYPE_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_DATATYPE_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    /* Try again, with the object already open through valid call */
+    /* Open group */
+    group_id = H5Gopen(file_id, MISC24_GROUP_NAME);
+    CHECK(group_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_GROUP_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_GROUP_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_GROUP_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_GROUP_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    ret = H5Gclose(group_id);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Open dataset */
+    dset_id = H5Dopen(file_id, MISC24_DATASET_NAME);
+    CHECK(dset_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATASET_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATASET_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_DATASET_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Topen(file_id, MISC24_DATASET_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Topen");
+
+    ret = H5Dclose(dset_id);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Open named datatype */
+    type_id = H5Topen(file_id, MISC24_DATATYPE_NAME);
+    CHECK(ret, FAIL, "H5Topen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATATYPE_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Gopen(file_id, MISC24_DATATYPE_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Gopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_DATATYPE_NAME);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    H5E_BEGIN_TRY {
+        tmp_id = H5Dopen(file_id, MISC24_DATATYPE_LINK);
+    } H5E_END_TRY;
+    VERIFY(tmp_id, FAIL, "H5Dopen");
+
+    ret = H5Tclose(type_id);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close file */
+    ret = H5Fclose(file_id);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_misc24() */
+
+/****************************************************************
+**
+**  test_misc25a(): Exercise null object header message merge bug
+**                      with new file
+**
+****************************************************************/
+static void
+test_misc25a(void)
+{
+    hid_t fid;          /* File ID */
+    hid_t gid, gid2, gid3;      /* Group IDs */
+    hid_t aid;          /* Attribute ID */
+    hid_t sid;          /* Dataspace ID */
+    hid_t tid;          /* Datatype ID */
+    herr_t      ret;            /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Exercise null object header message bug\n"));
+
+    /* Create file */
+    fid = H5Fcreate(MISC25A_FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create top group */
+    gid = H5Gcreate(fid, MISC25A_GROUP0_NAME, (size_t)0);
+    CHECK(gid, FAIL, "H5Gcreate");
+
+    /* Close top group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Create first group */
+    gid = H5Gcreate(fid, MISC25A_GROUP1_NAME, (size_t)0);
+    CHECK(gid, FAIL, "H5Gcreate");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Create second group */
+    gid2 = H5Gcreate(fid, MISC25A_GROUP2_NAME, (size_t)0);
+    CHECK(gid2, FAIL, "H5Gcreate");
+
+    /* Close second group */
+    ret = H5Gclose(gid2);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Re-open file */
+    fid = H5Fopen(MISC25A_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Re-open first group */
+    gid = H5Gopen(fid, MISC25A_GROUP1_NAME);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Create dataspace for attribute */
+    sid = H5Screate(H5S_SCALAR);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Create dataype for attribute */
+    tid = H5Tcopy(H5T_C_S1);
+    CHECK(tid, FAIL, "H5Tcopy");
+    ret = H5Tset_size(tid, MISC25A_ATTR1_LEN);
+    CHECK(ret, FAIL, "H5Tset_size");
+
+    /* Add 1st attribute on first group */
+    aid = H5Acreate(gid, MISC25A_ATTR1_NAME, tid, sid, H5P_DEFAULT);
+    CHECK(aid, FAIL, "H5Acreate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close attribute */
+    ret = H5Aclose(aid);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Create dataspace for 2nd attribute */
+    sid = H5Screate(H5S_SCALAR);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Create dataype for attribute */
+    tid = H5Tcopy(H5T_C_S1);
+    CHECK(tid, FAIL, "H5Tcopy");
+    ret = H5Tset_size(tid, MISC25A_ATTR2_LEN);
+    CHECK(ret, FAIL, "H5Tset_size");
+
+    /* Add 2nd attribute on first group */
+    aid = H5Acreate(gid, MISC25A_ATTR2_NAME, tid, sid, H5P_DEFAULT);
+    CHECK(aid, FAIL, "H5Acreate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close 2nd attribute */
+    ret = H5Aclose(aid);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Re-open file */
+    fid = H5Fopen(MISC25A_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Create third group */
+    gid3 = H5Gcreate(fid, MISC25A_GROUP3_NAME, (size_t)0);
+    CHECK(gid3, FAIL, "H5Gcreate");
+
+    /* Close third group */
+    ret = H5Gclose(gid3);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Re-open first group */
+    gid = H5Gopen(fid, MISC25A_GROUP1_NAME);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Delete 2nd attribute */
+    ret = H5Adelete(gid, MISC25A_ATTR2_NAME);
+    CHECK(ret, FAIL, "H5Adelete");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+
+    /* Re-open file */
+    fid = H5Fopen(MISC25A_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Re-open first group */
+    gid = H5Gopen(fid, MISC25A_GROUP1_NAME);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Create dataspace for 3rd attribute */
+    sid = H5Screate(H5S_SCALAR);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Create dataype for attribute */
+    tid = H5Tcopy(H5T_C_S1);
+    CHECK(tid, FAIL, "H5Tcopy");
+    ret = H5Tset_size(tid, MISC25A_ATTR3_LEN);
+    CHECK(ret, FAIL, "H5Tset_size");
+
+    /* Add 3rd attribute on first group (smaller than 2nd attribute) */
+    aid = H5Acreate(gid, MISC25A_ATTR3_NAME, tid, sid, H5P_DEFAULT);
+    CHECK(aid, FAIL, "H5Acreate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close 3rd attribute */
+    ret = H5Aclose(aid);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+
+    /* Re-open file */
+    fid = H5Fopen(MISC25A_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Re-open first group */
+    gid = H5Gopen(fid, MISC25A_GROUP1_NAME);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Delete 3rd attribute */
+    ret = H5Adelete(gid, MISC25A_ATTR3_NAME);
+    CHECK(ret, FAIL, "H5Adelete");
+
+    /* Create dataspace for 3rd attribute */
+    sid = H5Screate(H5S_SCALAR);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Create dataype for attribute */
+    tid = H5Tcopy(H5T_C_S1);
+    CHECK(tid, FAIL, "H5Tcopy");
+    ret = H5Tset_size(tid, MISC25A_ATTR2_LEN);
+    CHECK(ret, FAIL, "H5Tset_size");
+
+    /* Re-create 2nd attribute on first group */
+    aid = H5Acreate(gid, MISC25A_ATTR2_NAME, tid, sid, H5P_DEFAULT);
+    CHECK(aid, FAIL, "H5Acreate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close 2nd attribute */
+    ret = H5Aclose(aid);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Re-open file */
+    fid = H5Fopen(MISC25A_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Re-open first group */
+    gid = H5Gopen(fid, MISC25A_GROUP1_NAME);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Delete 2nd attribute */
+    ret = H5Adelete(gid, MISC25A_ATTR2_NAME);
+    CHECK(ret, FAIL, "H5Adelete");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Re-open file */
+    fid = H5Fopen(MISC25A_FILE, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Re-open first group */
+    gid = H5Gopen(fid, MISC25A_GROUP1_NAME);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Create dataspace for 3rd attribute */
+    sid = H5Screate(H5S_SCALAR);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Create dataype for attribute */
+    tid = H5Tcopy(H5T_C_S1);
+    CHECK(tid, FAIL, "H5Tcopy");
+    ret = H5Tset_size(tid, MISC25A_ATTR2_LEN);
+    CHECK(ret, FAIL, "H5Tset_size");
+
+    /* Re-create 2nd attribute on first group */
+    aid = H5Acreate(gid, MISC25A_ATTR2_NAME, tid, sid, H5P_DEFAULT);
+    CHECK(aid, FAIL, "H5Acreate");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close datatype */
+    ret = H5Tclose(tid);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Close 2nd attribute */
+    ret = H5Aclose(aid);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_misc25a() */
+
+/****************************************************************
+**
+**  test_misc25b(): Exercise null object header message merge bug
+**                      with existing file  (This test relies on
+**                      the file produced by test/gen_mergemsg.c)
+**
+****************************************************************/
+static void
+test_misc25b(void)
+{
+    hid_t fid;          /* File ID */
+    hid_t gid;          /* Group ID */
+    char testfile[512]="";
+    char *srcdir = HDgetenv("srcdir");
+    herr_t      ret;            /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Exercise null object header message bug\n"));
+
+    /* Build the name of the file, with the source directory */
+    if (srcdir && ((HDstrlen(srcdir) + HDstrlen(MISC25B_FILE) + 1) < sizeof(testfile))){
+	HDstrcpy(testfile, srcdir);
+	HDstrcat(testfile, "/");
+    }
+    HDstrcat(testfile, MISC25B_FILE);
+
+    /* Open file */
+    fid = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Re-open group with object header messages that will merge */
+    gid = H5Gopen(fid, MISC25B_GROUP);
+    CHECK(gid, FAIL, "H5Gopen");
+
+    /* Close first group */
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_misc25a() */
+
+/****************************************************************
+**
 **  test_misc(): Main misc. test routine.
 **
 ****************************************************************/
@@ -3640,6 +4221,10 @@ test_misc(void)
     test_misc21();      /* Test that "late" allocation time is treated the same as "incremental", for chunked datasets w/a filters */
     test_misc22();     /* check szip bits per pixel */
 #endif /* H5_HAVE_FILTER_SZIP */
+    /* misc. test #23 only in 1.7/main branch */
+    test_misc24();      /* Test inappropriate API opens of objects */
+    test_misc25a();     /* Exercise null object header message merge bug */
+    test_misc25b();     /* Exercise null object header message merge bug on existing file */
 
 } /* test_misc() */
 
@@ -3688,5 +4273,7 @@ cleanup_misc(void)
     HDremove(MISC21_FILE);
     HDremove(MISC22_FILE);
 #endif /* H5_HAVE_FILTER_SZIP */
+    HDremove(MISC24_FILE);
+    HDremove(MISC25A_FILE);
 }
 

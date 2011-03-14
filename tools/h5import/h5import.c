@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,18 +9,16 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include <hdf5.h>
-#include <H5private.h>
-#include  <stdio.h>
-#ifndef  MIPSEL
-#include  <math.h>
-#endif  /* MIPSEL */
-#include  <string.h>
-#include  <ctype.h>
-#include  "h5import.h"
+#include "hdf5.h"
+#include "H5private.h"
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+#include <ctype.h>
+#include "h5import.h"
 
 int main(int argc, char *argv[])
 {
@@ -30,18 +29,18 @@ int main(int argc, char *argv[])
   int    state = 0;
   struct Input *in=NULL;
 
-  const char *err1 = "Invalid number of arguments:  %d.\n";
-  const char *err2 = "Error in state table.\n";
-  const char *err3 = "No output file given.\n";
-  const char *err4 = "Program aborted.\n";
-  const char *err5 = "Invalid path %s.\n";
-  const char *err6 = "Invalid dimensions - %s.\n";
-  const char *err7 = "Invalid type of data - %s.\n";
-  const char *err8 = "Invalid size of data - %s.\n";
-  const char *err9 = "Cannot specify more than 30 input files in one call to h5import.\n";
+    const char *err1 = "Invalid number of arguments:  %d.\n";
+    const char *err2 = "Error in state table.\n";
+    const char *err3 = "No output file given.\n";
+    const char *err4 = "Program aborted.\n";
+    const char *err5 = "Invalid path %s.\n";
+    const char *err6 = "Invalid dimensions - %s.\n";
+    const char *err7 = "Invalid type of data - %s.\n";
+    const char *err8 = "Invalid size of data - %s.\n";
+    const char *err9 = "Cannot specify more than 30 input files in one call to h5import.\n";
 
-  (void) setvbuf(stderr, (char *) NULL, _IOLBF, 0);
-  (void) setvbuf(stdout, (char *) NULL, _IOLBF, 0);
+  (void) HDsetvbuf(stderr, (char *) NULL, _IOLBF, 0);
+  (void) HDsetvbuf(stdout, (char *) NULL, _IOLBF, 0);
 
  /*
   * validate the number of command line arguments
@@ -2578,7 +2577,7 @@ help(char *name)
   (void) fprintf(stderr, "\t		COMPRESSION-TYPE:\n");
   (void) fprintf(stderr, "\t			String denoting the type of compression to be\n");
   (void) fprintf(stderr, "\t			used with the chunked storage. Requires the\n");
-  (void) fprintf(stderr, "\t			CHUNKED-DIMENSION to be specified. The only \n");
+  (void) fprintf(stderr, "\t			CHUNKED-DIMENSION-SIZES to be specified. The only \n");
   (void) fprintf(stderr, "\t			currently supported compression method is GZIP. \n");
   (void) fprintf(stderr, "\t			Will accept the following value\n");
   (void) fprintf(stderr, "\t			GZIP\n\n");
@@ -2604,7 +2603,7 @@ help(char *name)
   (void) fprintf(stderr, "\t			Integers separated by spaces to denote the \n");
   (void) fprintf(stderr, "\t			maximum dimension sizes of all the \n");
   (void) fprintf(stderr, "\t			dimensions determined by rank. Requires the\n");
-  (void) fprintf(stderr, "\t			CHUNKED-DIMENSION to be specified. A value of \n");
+  (void) fprintf(stderr, "\t			CHUNKED-DIMENSION-SIZES to be specified. A value of \n");
   (void) fprintf(stderr, "\t			-1 for any dimension implies UNLIMITED \n");
   (void) fprintf(stderr, "\t			DIMENSION size for that particular dimension.\n\n");
   (void) fprintf(stderr, "\t   EXAMPLES:\n");
@@ -2617,7 +2616,7 @@ help(char *name)
   (void) fprintf(stderr, "\t		OUTPUT-SIZE 64\n");
   (void) fprintf(stderr, "\t		OUTPUT-ARCHITECTURE IEEE\n");
   (void) fprintf(stderr, "\t		OUTPUT-BYTE-ORDER LE\n");
-  (void) fprintf(stderr, "\t  		CHUNKED-DIMENSION 2 2 2 \n\n");
+  (void) fprintf(stderr, "\t  		CHUNKED-DIMENSION-SIZES 2 2 2 \n\n");
   (void) fprintf(stderr, "\t	The above configuration will accept a floating point array \n");
   (void) fprintf(stderr, "\t	(5 x 2 x 4)  in an ASCII file with the rank and dimension sizes \n");
   (void) fprintf(stderr, "\t	specified and will save it in a chunked data-set (of pattern \n");
@@ -2631,7 +2630,7 @@ help(char *name)
   (void) fprintf(stderr, "\t		DIMENSION-SIZES 6 3 5 2 4\n");
   (void) fprintf(stderr, "\t		OUTPUT-CLASS IN\n");
   (void) fprintf(stderr, "\t		OUTPUT-SIZE 32\n");
-  (void) fprintf(stderr, "\t  		CHUNKED-DIMENSION 2 2 2 2 2\n");
+  (void) fprintf(stderr, "\t  		CHUNKED-DIMENSION-SIZES 2 2 2 2 2\n");
   (void) fprintf(stderr, "\t		EXTENDIBLE-DATASET 1 3 \n");
   (void) fprintf(stderr, "\t		COMPRESSION-TYPE GZIP\n");
   (void) fprintf(stderr, "\t		COMPRESSION-PARAM 7\n\n\n");

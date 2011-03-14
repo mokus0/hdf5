@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*****************************************************************************
@@ -26,6 +27,14 @@
 #else
 #include <iostream>
 #endif
+#include <string>
+
+#ifndef H5_NO_NAMESPACE
+#ifndef H5_NO_STD
+    using std::cerr;
+    using std::endl;
+#endif  // H5_NO_STD
+#endif
 
 #include "testhdf5.h"	// C test header file
 #include "H5Cpp.h"	// C++ API header file
@@ -36,18 +45,18 @@ using namespace H5;
 
 #include "h5cpputil.h"	// C++ utilility header file
 
-const string    TESTFILE("th5s.h5");
-const string    DATAFILE("th5s1.h5");
+const H5std_string    TESTFILE("th5s.h5");
+const H5std_string    DATAFILE("th5s1.h5");
 
 /* 3-D dataset with fixed dimensions */
-const string SPACE1_NAME("Space1");
+const H5std_string SPACE1_NAME("Space1");
 const int SPACE1_RANK = 3;
 const int SPACE1_DIM1 = 3;
 const int SPACE1_DIM2 = 15;
 const int SPACE1_DIM3 = 13;
 
 /* 4-D dataset with one unlimited dimension */
-const string SPACE2_NAME("Space2");
+const H5std_string SPACE2_NAME("Space2");
 const int SPACE2_RANK = 4;
 const int SPACE2_DIM1 = 0;
 const int SPACE2_DIM2 = 15;
@@ -59,17 +68,16 @@ const hsize_t SPACE2_MAX3 = 13;
 const hsize_t SPACE2_MAX4 = 23;
 
 /* Scalar dataset with simple datatype */
-const string SPACE3_NAME("Scalar1");
+const H5std_string SPACE3_NAME("Scalar1");
 const int SPACE3_RANK = 0;
 unsigned space3_data=65;
 
 /* Scalar dataset with compound datatype */
-const string SPACE4_NAME("Scalar2");
-const int SPACE4_RANK = 0;
-const string SPACE4_FIELDNAME1("c1");
-const string SPACE4_FIELDNAME2("u");
-const string SPACE4_FIELDNAME3("f");
-const string SPACE4_FIELDNAME4("c2");
+const H5std_string SPACE4_NAME("Scalar2");
+const H5std_string SPACE4_FIELDNAME1("c1");
+const H5std_string SPACE4_FIELDNAME2("u");
+const H5std_string SPACE4_FIELDNAME3("f");
+const H5std_string SPACE4_FIELDNAME4("c2");
 size_t space4_field1_off=0;
 size_t space4_field2_off=0;
 size_t space4_field3_off=0;
@@ -131,7 +139,7 @@ test_h5s_basic(void)
 	verify_val(rank, SPACE1_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	// Retrieves dimension size of dataspace sid1 and verify it
-	int ndims;		// Number of dimensions
+	int ndims;              // Number of dimensions
 	hsize_t	tdims[4];	// Dimension array to test with
 	ndims = sid1.getSimpleExtentDims( tdims );
 	verify_val(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(unsigned)), 0,

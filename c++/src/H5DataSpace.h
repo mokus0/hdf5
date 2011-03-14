@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5DataSpace_H
@@ -33,6 +34,9 @@ class H5_DLLCPP DataSpace : public IdComponent {
 
 	// Assignment operator
 	DataSpace& operator=( const DataSpace& rhs );
+
+	// Closes this dataspace.
+	virtual void close();
 
 	// Makes copy of an existing dataspace.
 	void copy(const DataSpace& like_space);
@@ -100,16 +104,13 @@ class H5_DLLCPP DataSpace : public IdComponent {
 	void setExtentSimple( int rank, const hsize_t *current_size, const hsize_t *maximum_size = NULL ) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("DataSpace"); }
+	virtual H5std_string fromClass () const { return("DataSpace"); }
 
 	// Creates a DataSpace object using an existing dataspace id.
 	DataSpace(const hid_t space_id);
 
 	// Copy constructor: makes a copy of the original DataSpace object.
 	DataSpace(const DataSpace& original);
-
-	// Close this dataspace.
-	virtual void close();
 
 	// Destructor: properly terminates access to this dataspace.
 	virtual ~DataSpace();

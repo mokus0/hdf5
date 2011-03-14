@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -1303,39 +1304,23 @@ done:
  *  If a zero is returned for the name's length, then there is no name
  *  associated with the ID.
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 ssize_t
 H5Iget_name(hid_t id, char *name/*out*/, size_t size)
 {
-    H5G_entry_t   *ent;       /*symbol table entry */
-    size_t        len=0;
     ssize_t       ret_value;
 
-    FUNC_ENTER_API (H5Iget_name, FAIL);
+    FUNC_ENTER_API(H5Iget_name, FAIL)
     H5TRACE3("Zs","ixz",id,name,size);
 
-    /* get symbol table entry */
-    if(NULL!=(ent = H5G_loc(id))) {
-        if (ent->user_path_r != NULL && ent->user_path_hidden==0) {
-            len = H5RS_len(ent->user_path_r);
-
-            if(name) {
-                HDstrncpy(name, H5RS_get_str(ent->user_path_r), MIN(len+1,size));
-                if(len >= size)
-                    name[size-1]='\0';
-            } /* end if */
-        } /* end if */
-    } /* end if */
-
-    /* Set return value */
-    ret_value=(ssize_t)len;
+    /* Call internal group routine to retrieve object's name */
+    if((ret_value = H5G_get_name(id, name, size)) < 0)
+	HGOTO_ERROR(H5E_ATOM, H5E_CANTGET, FAIL, "can't retrieve object name")
 
 done:
-    FUNC_LEAVE_API(ret_value);
-}
+    FUNC_LEAVE_API(ret_value)
+} /* end H5Iget_name() */
 
 
 /*-------------------------------------------------------------------------

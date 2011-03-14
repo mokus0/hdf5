@@ -1,6 +1,7 @@
 dnl ----------------------------------------------------------------------
 dnl Process this file with autoconf to produce configure.
 dnl
+dnl Copyright by The HDF Group.
 dnl Copyright by the Board of Trustees of the University of Illinois.
 dnl All rights reserved.
 dnl
@@ -10,15 +11,15 @@ dnl the files COPYING and Copyright.html.  COPYING can be found at the root
 dnl of the source code distribution tree; Copyright.html can be found at the
 dnl root level of an installed copy of the electronic HDF5 document set and
 dnl is linked from the top-level documents page.  It can also be found at
-dnl http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+dnl http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl
 dnl ----------------------------------------------------------------------
 
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.67.2.100 2005/11/06 23:46:38 hdfadmin Exp $)
+AC_REVISION($Id: configure.in 14030 2007-07-31 03:04:21Z epourmal $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -27,9 +28,25 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 C++], [1.6.5], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5 C++], [1.6.6], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5Library.cpp])
+AC_CONFIG_HEADER([src/H5cxx_config.h])
+
 AC_CONFIG_AUX_DIR([../bin])
+
+AC_OUTPUT_COMMANDS([
+  echo "creating c++/src/H5cxx_pubconf.h"
+  sed 's/#define /#define H5_CXX_/' <src/H5cxx_config.h |\
+    sed 's/#undef /#undef H5_CXX_/' >pubconf
+  if test ! -f src/H5cxx_pubconf.h; then
+    /bin/mv -f pubconf src/H5cxx_pubconf.h
+  elif (diff pubconf src/H5cxx_pubconf.h >/dev/null); then
+    /bin/rm -f pubconf
+    echo "src/H5cxx_pubconf.h is unchanged"
+  else
+    /bin/mv -f pubconf src/H5cxx_pubconf.h
+  fi
+])
 
 AC_CANONICAL_HOST
 AC_SUBST(CPPFLAGS)
@@ -393,6 +410,24 @@ dnl ----------------------------------------------------------------------
 dnl Checks for compiler characteristics.
 dnl
 AC_LANG_CPLUSPLUS
+
+AC_MSG_CHECKING([for offsetof extension])
+AC_TRY_COMPILE([#include <stdio.h>
+                #include <stddef.h>],
+                [struct index_st
+                {
+                  unsigned char type;
+                  unsigned char num;
+                  unsigned int len;
+                };
+                typedef struct index_st index_t;
+                int x,y;
+                x = offsetof(struct index_st, len);
+                y = offsetof(index_t, num)],
+               AC_DEFINE([HAVE_OFFSETOF], [1],
+                         [Define if the offsetof extension is present])
+               AC_MSG_RESULT([yes]),
+               AC_MSG_RESULT([no]))
 
 AC_MSG_CHECKING(if $CXX needs old style header files in includes)
 AC_TRY_RUN([
@@ -764,6 +799,24 @@ fi
 AC_SUBST(DYNAMIC_DIRS)
 
 dnl ----------------------------------------------------------------------
+dnl Check if they would like the High Level library  compiled
+dnl
+AC_SUBST(HL) HL=""
+AC_MSG_CHECKING([if high level library is enabled])
+AC_ARG_ENABLE([hl],
+     [AC_HELP_STRING([--enable-hl],
+                     [Enable the high level library [default=yes]])],
+     [HDF5_HL=$enableval],
+     [HDF5_HL=yes])
+
+if test "X$HDF5_HL" = "Xyes"; then
+ echo "yes"
+ HL="hl"
+else
+ echo "no"
+fi
+
+dnl ----------------------------------------------------------------------
 dnl Build the Makefiles.  Almost every Makefile.in will begin with the line
 dnl `@COMMENCE@' and end with the line `@CONCLUDE@'.  These lines insert
 dnl various files from the config directory into the Makefile.
@@ -808,6 +861,7 @@ AC_CONFIG_FILES([config/depend1
                  src/Makefile
                  src/h5c++
                  test/Makefile
+                 examples/testh5c++.sh
                  examples/Makefile])
 AC_OUTPUT
 no_create=$saved_no_create
@@ -836,19 +890,20 @@ if test -z "$ECHO_N" -o -z "$ECHO_C"; then
   fi
 fi
 
+dnl cache the output to be printed later.
+config_summary="../#c++_configure_summary"
+rm -f $config_summary
+
 PRINT_PLAIN() {
-  echo $ECHO_N "$1$ECHO_C"
-  echo $ECHO_N "$1$ECHO_C" 1>>src/libhdf5_cpp.settings
+  echo $ECHO_N "$1$ECHO_C" 1>>$config_summary
 }
 
 PRINT_N() {
-  echo $ECHO_N "$1:  $ECHO_C"
-  echo $ECHO_N "$1:  $ECHO_C" 1>>src/libhdf5_cpp.settings
+  echo $ECHO_N "$1:  $ECHO_C" 1>>$config_summary
 }
 
 PRINT() {
-  echo "$1"
-  echo "$1" 1>>src/libhdf5_cpp.settings
+  echo "$1" 1>>$config_summary
 }
 
 dnl ----------------------------------------------------------------------
@@ -878,13 +933,8 @@ IF_ENABLED_DISABLED() {
   fi
 }
 
-PRINT "C++ Configure Summary"
-PRINT "Compiling Options:"
-
 PRINT_N "                   C++ Compiler"
 PRINT "$CXX"
 
 PRINT_N "                       CXXFLAGS"
 PRINT "$CXXFLAGS"
-
-PRINT "Features:"

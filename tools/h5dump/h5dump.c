@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,7 +60,7 @@ static char  *prefix;
 
 static const char  *driver = NULL;      /* The driver to open the file with. */
 
-static const dump_header *dump_header_format;
+static const h5dump_header_t *dump_header_format;
 
 /* things to display or which are set via command line parameters */
 static int          display_all       = TRUE;
@@ -79,92 +80,91 @@ static int          display_escape    = FALSE; /*escape non printable characters
  **/
 
 /* module-scoped variables for XML option */
-#define DEFAULT_XSD     "http://hdf.ncsa.uiuc.edu/DTDs/HDF5-File.xsd"
-#define DEFAULT_DTD     "http://hdf.ncsa.uiuc.edu/DTDs/HDF5-File.dtd"
+#define DEFAULT_XSD     "http://hdfgroup.org/DTDs/HDF5-File.xsd"
+#define DEFAULT_DTD     "http://hdfgroup.org/DTDs/HDF5-File.dtd"
 
 static int              doxml = 0;
 static int              useschema = 1;
 static const char       *xml_dtd_uri = NULL;
 static const char       *xmlnsprefix="hdf5:";
+static int              indent;              /*how far in to indent the line         */
 
 /** end XML **/
 
 /* internal functions */
-static hid_t     h5_fileaccess(void);
-static void      dump_oid(hid_t oid);
-static void      print_enum(hid_t type);
-static herr_t    dump_all(hid_t group, const char *name, void *op_data);
-#ifdef LATER
-static void      check_compression(hid_t);
-#endif /* LATER */
-static int       xml_name_to_XID(const char *, char *, int , int );
-static void      init_prefix(char **prfx, size_t prfx_len);
+static hid_t    h5_fileaccess(void);
+static void     dump_oid(hid_t oid);
+static void     print_enum(hid_t type);
+static herr_t   dump_all(hid_t group, const char *name, void *op_data);
+static int      xml_name_to_XID(const char *, char *, int , int );
+static void     init_prefix(char **prfx, size_t prfx_len);
+static void     add_prefix(char **prfx, size_t *prfx_len, const char *name);
 
-static h5dump_t         dataformat = {
-    0,				/*raw */
+static h5tool_format_t         dataformat = {
+    0,              /*raw */
 
-    "",				/*fmt_raw */
-    "%d",			/*fmt_int */
-    "%u",			/*fmt_uint */
-    "%d",			/*fmt_schar */
-    "%u",			/*fmt_uchar */
-    "%d",			/*fmt_short */
-    "%u",			/*fmt_ushort */
-    "%ld",			/*fmt_long */
-    "%lu",			/*fmt_ulong */
-    NULL,			/*fmt_llong */
-    NULL,			/*fmt_ullong */
-    "%g",			/*fmt_double */
-    "%g",			/*fmt_float */
+    "",             /*fmt_raw */
+    "%d",           /*fmt_int */
+    "%u",           /*fmt_uint */
+    "%d",           /*fmt_schar */
+    "%u",           /*fmt_uchar */
+    "%d",           /*fmt_short */
+    "%u",           /*fmt_ushort */
+    "%ld",          /*fmt_long */
+    "%lu",          /*fmt_ulong */
+    NULL,           /*fmt_llong */
+    NULL,           /*fmt_ullong */
+    "%g",           /*fmt_double */
+    "%g",           /*fmt_float */
 
-    0,				/*ascii */
-    0,				/*str_locale */
-    0,				/*str_repeat */
+    0,              /*ascii */
+    0,              /*str_locale */
+    0,              /*str_repeat */
 
-    "[ ",			/*arr_pre */
-    ",",			/*arr_sep */
-    " ]",			/*arr_suf */
-    1,				/*arr_linebreak */
+    "[ ",           /*arr_pre */
+    ",",            /*arr_sep */
+    " ]",           /*arr_suf */
+    1,              /*arr_linebreak */
 
-    "",				/*cmpd_name */
-    ",\n",			/*cmpd_sep */
-    "{\n",			/*cmpd_pre */
-    "}",			/*cmpd_suf */
-    "\n",			/*cmpd_end */
+    "",             /*cmpd_name */
+    ",\n",          /*cmpd_sep */
+    "{\n",          /*cmpd_pre */
+    "}",            /*cmpd_suf */
+    "\n",           /*cmpd_end */
 
-    ", ",			/*vlen_sep */
-    "(",			/*vlen_pre */
-    ")",			/*vlen_suf */
-    "",				/*vlen_end */
+    ", ",           /*vlen_sep */
+    "(",            /*vlen_pre */
+    ")",            /*vlen_suf */
+    "",             /*vlen_end */
 
-    "%s",			/*elmt_fmt */
-    ",",			/*elmt_suf1 */
-    " ",			/*elmt_suf2 */
+    "%s",           /*elmt_fmt */
+    ",",            /*elmt_suf1 */
+    " ",            /*elmt_suf2 */
 
-    "",				/*idx_n_fmt */
-    "",				/*idx_sep */
-    "",				/*idx_fmt */
+    "",             /*idx_n_fmt */
+    "",             /*idx_sep */
+    "",             /*idx_fmt */
 
-    80,				/*line_ncols *//*standard default columns */
-    0,				/*line_per_line */
-    "",				/*line_pre */
-    "%s",			/*line_1st */
-    "%s",			/*line_cont */
-    "",				/*line_suf */
-    "",				/*line_sep */
-    1,				/*line_multi_new */
-    "   ",			/*line_indent */
+    80,             /*line_ncols *//*standard default columns */
+    0,              /*line_per_line */
+    "",             /*line_pre */
+    "%s",           /*line_1st */
+    "%s",           /*line_cont */
+    "",             /*line_suf */
+    "",             /*line_sep */
+    1,              /*line_multi_new */
+    "   ",          /*line_indent */
 
-    1,				/*skip_first */
+    1,              /*skip_first */
 
-    1,				/*obj_hidefileno */
-    " %lu:%lu",			/*obj_format */
+    1,              /*obj_hidefileno */
+    " %lu:%lu",         /*obj_format */
 
-    1,				/*dset_hidefileno */
-    "DATASET %lu:%lu ",		/*dset_format */
-    "%s",			/*dset_blockformat_pre */
-    "%s",			/*dset_ptformat_pre */
-    "%s",			/*dset_ptformat */
+    1,              /*dset_hidefileno */
+    "DATASET %lu:%lu ",     /*dset_format */
+    "%s",           /*dset_blockformat_pre */
+    "%s",           /*dset_ptformat_pre */
+    "%s",           /*dset_ptformat */
     1,                          /*array indices */
     1                           /*escape non printable characters */
 };
@@ -184,134 +184,134 @@ static h5dump_t         dataformat = {
  *
  *  This table only affects XML output.
  */
-static h5dump_t         xml_dataformat = {
-    0,				/*raw */
+static h5tool_format_t         xml_dataformat = {
+    0,              /*raw */
 
-    "",				/*fmt_raw */
-    "%d",			/*fmt_int */
-    "%u",			/*fmt_uint */
-    "%d",			/*fmt_schar */
-    "%u",			/*fmt_uchar */
-    "%d",			/*fmt_short */
-    "%u",			/*fmt_ushort */
-    "%ld",			/*fmt_long */
-    "%lu",			/*fmt_ulong */
-    NULL,			/*fmt_llong */
-    NULL,			/*fmt_ullong */
-    "%g",			/*fmt_double */
-    "%g",			/*fmt_float */
+    "",             /*fmt_raw */
+    "%d",           /*fmt_int */
+    "%u",           /*fmt_uint */
+    "%d",           /*fmt_schar */
+    "%u",           /*fmt_uchar */
+    "%d",           /*fmt_short */
+    "%u",           /*fmt_ushort */
+    "%ld",          /*fmt_long */
+    "%lu",          /*fmt_ulong */
+    NULL,           /*fmt_llong */
+    NULL,           /*fmt_ullong */
+    "%g",           /*fmt_double */
+    "%g",           /*fmt_float */
 
-    0,				/*ascii */
-    0,				/*str_locale */
-    0,				/*str_repeat */
+    0,              /*ascii */
+    0,              /*str_locale */
+    0,              /*str_repeat */
 
-    " ",			/*arr_pre */
-    "",				/*arr_sep */
-    "",				/*arr_suf */
-    1,				/*arr_linebreak */
+    " ",            /*arr_pre */
+    "",             /*arr_sep */
+    "",             /*arr_suf */
+    1,              /*arr_linebreak */
 
-    "",				/*cmpd_name */
-    " ",			/*cmpd_sep */
-    "",				/*cmpd_pre */
-    "",				/*cmpd_suf */
-    "",				/*cmpd_end */
+    "",             /*cmpd_name */
+    " ",            /*cmpd_sep */
+    "",             /*cmpd_pre */
+    "",             /*cmpd_suf */
+    "",             /*cmpd_end */
 
-    " ",			/*vlen_sep */
-    " ",			/*vlen_pre */
-    "",				/*vlen_suf */
-    "",				/*vlen_end */
+    " ",            /*vlen_sep */
+    " ",            /*vlen_pre */
+    "",             /*vlen_suf */
+    "",             /*vlen_end */
 
-    "%s",			/*elmt_fmt */
-    "",				/*elmt_suf1 */
-    " ",			/*elmt_suf2 */
+    "%s",           /*elmt_fmt */
+    "",             /*elmt_suf1 */
+    " ",            /*elmt_suf2 */
 
-    "",				/*idx_n_fmt */
-    "",				/*idx_sep */
-    "",				/*idx_fmt */
+    "",             /*idx_n_fmt */
+    "",             /*idx_sep */
+    "",             /*idx_fmt */
 
-    80,				/*line_ncols *//*standard default columns */
-    0,				/*line_per_line */
-    "",				/*line_pre */
-    "%s",			/*line_1st */
-    "%s",			/*line_cont */
-    "",				/*line_suf */
-    "",				/*line_sep */
-    1,				/*line_multi_new */
-    "   ",			/*line_indent */
+    80,             /*line_ncols *//*standard default columns */
+    0,              /*line_per_line */
+    "",             /*line_pre */
+    "%s",           /*line_1st */
+    "%s",           /*line_cont */
+    "",             /*line_suf */
+    "",             /*line_sep */
+    1,              /*line_multi_new */
+    "   ",          /*line_indent */
 
-    1,				/*skip_first */
+    1,              /*skip_first */
 
-    1,				/*obj_hidefileno */
-    " %lu:%lu",			/*obj_format */
+    1,              /*obj_hidefileno */
+    " %lu:%lu",         /*obj_format */
 
-    1,				/*dset_hidefileno */
-    "DATASET %lu:%lu ",		/*dset_format */
-    "%s",			/*dset_blockformat_pre */
-    "%s",			/*dset_ptformat_pre */
-    "%s",			/*dset_ptformat */
+    1,              /*dset_hidefileno */
+    "DATASET %lu:%lu ",     /*dset_format */
+    "%s",           /*dset_blockformat_pre */
+    "%s",           /*dset_ptformat_pre */
+    "%s",           /*dset_ptformat */
      0,                         /*array indices */
      0                          /*escape non printable characters */
 };
 
 /** XML **/
 
-static const dump_header standardformat = {
-    "standardformat",		/*name */
-    "HDF5",			/*fileebgin */
-    "",				/*fileend */
-    SUPER_BLOCK,			/*bootblockbegin */
-    "",				/*bootblockend */
-    GROUPNAME,			/*groupbegin */
-    "",				/*groupend */
-    DATASET,			/*datasetbegin */
-    "",				/*datasetend */
-    ATTRIBUTE,			/*attributebegin */
-    "",				/*attributeend */
-    DATATYPE,			/*datatypebegin */
-    "",				/*datatypeend */
-    DATASPACE,			/*dataspacebegin */
-    "",				/*dataspaceend */
-    DATA,			/*databegin */
-    "",				/*dataend */
-    SOFTLINK,			/*softlinkbegin */
-    "",				/*softlinkend */
-    SUBSET,			/*subsettingbegin */
-    "",				/*subsettingend */
-    START,			/*startbegin */
-    "",				/*startend */
-    STRIDE,			/*stridebegin */
-    "",				/*strideend */
-    COUNT,			/*countbegin */
-    "",				/*countend */
-    BLOCK,			/*blockbegin */
-    "",				/*blockend */
+static const h5dump_header_t standardformat = {
+    "standardformat",       /*name */
+    "HDF5",         /*fileebgin */
+    "",             /*fileend */
+    SUPER_BLOCK,            /*bootblockbegin */
+    "",             /*bootblockend */
+    H5_TOOLS_GROUP,          /*groupbegin */
+    "",             /*groupend */
+    H5_TOOLS_DATASET,            /*datasetbegin */
+    "",             /*datasetend */
+    ATTRIBUTE,          /*attributebegin */
+    "",             /*attributeend */
+    H5_TOOLS_DATATYPE,           /*datatypebegin */
+    "",             /*datatypeend */
+    DATASPACE,          /*dataspacebegin */
+    "",             /*dataspaceend */
+    DATA,           /*databegin */
+    "",             /*dataend */
+    SOFTLINK,           /*softlinkbegin */
+    "",             /*softlinkend */
+    SUBSET,         /*subsettingbegin */
+    "",             /*subsettingend */
+    START,          /*startbegin */
+    "",             /*startend */
+    STRIDE,         /*stridebegin */
+    "",             /*strideend */
+    COUNT,          /*countbegin */
+    "",             /*countend */
+    BLOCK,          /*blockbegin */
+    "",             /*blockend */
 
-    "{",			/*fileblockbegin */
-    "}",			/*fileblockend */
-    "{",			/*bootblockblockbegin */
-    "}",			/*bootblockblockend */
-    "{",			/*groupblockbegin */
-    "}",			/*groupblockend */
-    "{",			/*datasetblockbegin */
-    "}",			/*datasetblockend */
-    "{",			/*attributeblockbegin */
-    "}",			/*attributeblockend */
-    "",				/*datatypeblockbegin */
-    "",				/*datatypeblockend */
-    "",				/*dataspaceblockbegin */
-    "",				/*dataspaceblockend */
-    "{",			/*datablockbegin */
-    "}",			/*datablockend */
-    "{",			/*softlinkblockbegin */
-    "}",			/*softlinkblockend */
-    "{",			/*strblockbegin */
-    "}",			/*strblockend */
-    "{",			/*enumblockbegin */
-    "}",			/*enumblockend */
-    "{",			/*structblockbegin */
-    "}",			/*structblockend */
-    "{",			/*vlenblockbegin */
-    "}",			/*vlenblockend */
+    "{",            /*fileblockbegin */
+    "}",            /*fileblockend */
+    "{",            /*bootblockblockbegin */
+    "}",            /*bootblockblockend */
+    "{",            /*groupblockbegin */
+    "}",            /*groupblockend */
+    "{",            /*datasetblockbegin */
+    "}",            /*datasetblockend */
+    "{",            /*attributeblockbegin */
+    "}",            /*attributeblockend */
+    "",             /*datatypeblockbegin */
+    "",             /*datatypeblockend */
+    "",             /*dataspaceblockbegin */
+    "",             /*dataspaceblockend */
+    "{",            /*datablockbegin */
+    "}",            /*datablockend */
+    "{",            /*softlinkblockbegin */
+    "}",            /*softlinkblockend */
+    "{",            /*strblockbegin */
+    "}",            /*strblockend */
+    "{",            /*enumblockbegin */
+    "}",            /*enumblockend */
+    "{",            /*structblockbegin */
+    "}",            /*structblockend */
+    "{",            /*vlenblockbegin */
+    "}",            /*vlenblockend */
     "{",                        /*subsettingblockbegin */
     "}",                        /*subsettingblockend */
     "(",                        /*startblockbegin */
@@ -323,10 +323,10 @@ static const dump_header standardformat = {
     "(",                        /*blockblockbegin */
     ");",                       /*blockblockend */
 
-    "",				/*dataspacedescriptionbegin */
-    "",				/*dataspacedescriptionend */
-    "(",			/*dataspacedimbegin */
-    ")",			/*dataspacedimend */
+    "",             /*dataspacedescriptionbegin */
+    "",             /*dataspacedescriptionend */
+    "(",            /*dataspacedimbegin */
+    ")",            /*dataspacedimend */
 };
 
 /**
@@ -352,7 +352,7 @@ struct handler_t {
  * parameters. The long-named ones can be partially spelled. When
  * adding more, make sure that they don't clash with each other.
  */
-static const char *s_opts = "hnpeyBHirVa:c:d:f:g:k:l:t:w:xD:uX:o:s:S:A";
+static const char *s_opts = "hnpeyBHirVa:c:d:f:g:k:l:t:w:xD:uX:o:b:F:s:S:A";
 static struct long_options l_opts[] = {
     { "help", no_arg, 'h' },
     { "hel", no_arg, 'h' },
@@ -457,6 +457,11 @@ static struct long_options l_opts[] = {
     { "xml-n", require_arg, 'X' },
     { "xml", no_arg, 'x' },
     { "xm", no_arg, 'x' },
+    { "onlyattr", no_arg, 'A' },
+    { "escape", no_arg, 'e' },
+    { "noindex", no_arg, 'y' },
+    { "binary", require_arg, 'b' },
+    { "form", require_arg, 'F' },
     { NULL, 0, '\0' }
 };
 
@@ -588,19 +593,24 @@ usage(const char *prog)
     fprintf(stdout, "     -n, --contents       Print a list of the file contents and exit\n");
     fprintf(stdout, "     -B, --bootblock      Print the content of the boot block\n");
     fprintf(stdout, "     -H, --header         Print the header only; no data is displayed\n");
-    fprintf(stdout, "     -A                   Print the header and value of attributes; data of datasets is not displayed\n");
+    fprintf(stdout, "     -A, --onlyattr       Print the header and value of attributes; data \n");
+    fprintf(stdout, "                          of datasets is not displayed\n");
     fprintf(stdout, "     -i, --object-ids     Print the object ids\n");
     fprintf(stdout, "     -r, --string         Print 1-byte integer datasets as ASCII\n");
-    fprintf(stdout, "     -e,                  Escape non printing characters\n");
+    fprintf(stdout, "     -e, --escape         Escape non printing characters\n");
     fprintf(stdout, "     -V, --version        Print version number and exit\n");
     fprintf(stdout, "     -a P, --attribute=P  Print the specified attribute\n");
     fprintf(stdout, "     -d P, --dataset=P    Print the specified dataset\n");
-    fprintf(stdout, "     -y                   Do not print array indices with the data\n");
+    fprintf(stdout, "     -y, --noindex        Do not print array indices with the data\n");
     fprintf(stdout, "     -p,   --properties   Print dataset filters, storage layout and fill value\n");
     fprintf(stdout, "     -f D, --filedriver=D Specify which driver to open the file with\n");
     fprintf(stdout, "     -g P, --group=P      Print the specified group and all members\n");
     fprintf(stdout, "     -l P, --soft-link=P  Print the value(s) of the specified soft link\n");
     fprintf(stdout, "     -o F, --output=F     Output raw data into file F\n");
+    fprintf(stdout, "     -b B, --binary=B     Binary file output, of form B. Recommended usage is\n");
+    fprintf(stdout, "                          with -o (output file) and -d (dataset). B can be:\n");
+    fprintf(stdout, "                          MEMORY for a memory type, FILE for the file type,\n");
+    fprintf(stdout, "                          LE or BE for pre-existing little or big endian types\n");
     fprintf(stdout, "     -t P, --datatype=P   Print the specified named data type\n");
     fprintf(stdout, "     -w N, --width=N      Set the number of columns of output\n");
     fprintf(stdout, "     -x, --xml            Output in XML using Schema\n");
@@ -645,6 +655,10 @@ usage(const char *prog)
     fprintf(stdout, "\n");
     fprintf(stdout, "      h5dump -d /foo -s \"0,1\" -S \"1,1\" -c \"2,3\" -k \"2,2\" quux.h5\n");
     fprintf(stdout, "\n");
+    fprintf(stdout, "  3) Saving dataset 'dset' in file quux.h5 to binary file 'out.bin' using a little-endian type \n");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "      h5dump -d /dset -b LE -o out.bin quux.h5\n");
+    fprintf(stdout, "\n");
 }
 
 /*-------------------------------------------------------------------------
@@ -656,38 +670,43 @@ usage(const char *prog)
  *
  * Programmer:  Ruey-Hsia Li
  *
- * Modifications:
+ * Modifications: pvn, March 28, 2006
+ *  print information about type when a native match is not possible
  *
  *-------------------------------------------------------------------------
  */
+
 static void
 print_datatype(hid_t type,unsigned in_group)
 {
-    char       *fname;
+    char       *mname;
     hid_t       mtype, str_type;
     unsigned    nmembers;
-    int         perm[H5DUMP_MAX_RANK];
     unsigned    ndims;
     unsigned    i;
     size_t      size=0;
     hsize_t     dims[H5DUMP_MAX_RANK];
     H5T_str_t   str_pad;
     H5T_cset_t  cset;
-    H5G_stat_t  statbuf;
     H5T_order_t order;
     hid_t       super;
     hid_t       tmp_type;
     htri_t      is_vlstr=FALSE;
+    const char  *order_s=NULL;  /* byte order string */
+    H5T_sign_t  sign;           /* sign scheme value */
+    const char  *sign_s=NULL;   /* sign scheme string */
+
 
     if (!in_group && H5Tcommitted(type) > 0) {
         obj_t  *obj;    /* Found object */
+        H5G_stat_t  statbuf;
 
         H5Gget_objinfo(type, ".", TRUE, &statbuf);
         obj = search_obj(type_table, statbuf.objno);
 
         if (obj) {
             if (!obj->recorded) {
-                unsigned long 	objno[2];	/*object number			*/
+                unsigned long   objno[2];   /*object number         */
 
                 objno[0] = (unsigned long)(obj->objno);
 #if H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG
@@ -706,82 +725,137 @@ print_datatype(hid_t type,unsigned in_group)
     } else {
         switch (H5Tget_class(type)) {
         case H5T_INTEGER:
-            if (H5Tequal(type, H5T_STD_I8BE)) {
+            if (H5Tequal(type, H5T_STD_I8BE)==TRUE) {
                 printf("H5T_STD_I8BE");
-            } else if (H5Tequal(type, H5T_STD_I8LE)) {
+            } else if (H5Tequal(type, H5T_STD_I8LE)==TRUE) {
                 printf("H5T_STD_I8LE");
-            } else if (H5Tequal(type, H5T_STD_I16BE)) {
+            } else if (H5Tequal(type, H5T_STD_I16BE)==TRUE) {
                 printf("H5T_STD_I16BE");
-            } else if (H5Tequal(type, H5T_STD_I16LE)) {
+            } else if (H5Tequal(type, H5T_STD_I16LE)==TRUE) {
                 printf("H5T_STD_I16LE");
-            } else if (H5Tequal(type, H5T_STD_I32BE)) {
+            } else if (H5Tequal(type, H5T_STD_I32BE)==TRUE) {
                 printf("H5T_STD_I32BE");
-            } else if (H5Tequal(type, H5T_STD_I32LE)) {
+            } else if (H5Tequal(type, H5T_STD_I32LE)==TRUE) {
                 printf("H5T_STD_I32LE");
-            } else if (H5Tequal(type, H5T_STD_I64BE)) {
+            } else if (H5Tequal(type, H5T_STD_I64BE)==TRUE) {
                 printf("H5T_STD_I64BE");
-            } else if (H5Tequal(type, H5T_STD_I64LE)) {
+            } else if (H5Tequal(type, H5T_STD_I64LE)==TRUE) {
                 printf("H5T_STD_I64LE");
-            } else if (H5Tequal(type, H5T_STD_U8BE)) {
+            } else if (H5Tequal(type, H5T_STD_U8BE)==TRUE) {
                 printf("H5T_STD_U8BE");
-            } else if (H5Tequal(type, H5T_STD_U8LE)) {
+            } else if (H5Tequal(type, H5T_STD_U8LE)==TRUE) {
                 printf("H5T_STD_U8LE");
-            } else if (H5Tequal(type, H5T_STD_U16BE)) {
+            } else if (H5Tequal(type, H5T_STD_U16BE)==TRUE) {
                 printf("H5T_STD_U16BE");
-            } else if (H5Tequal(type, H5T_STD_U16LE)) {
+            } else if (H5Tequal(type, H5T_STD_U16LE)==TRUE) {
                 printf("H5T_STD_U16LE");
-            } else if (H5Tequal(type, H5T_STD_U32BE)) {
+            } else if (H5Tequal(type, H5T_STD_U32BE)==TRUE) {
                 printf("H5T_STD_U32BE");
-            } else if (H5Tequal(type, H5T_STD_U32LE)) {
+            } else if (H5Tequal(type, H5T_STD_U32LE)==TRUE) {
                 printf("H5T_STD_U32LE");
-            } else if (H5Tequal(type, H5T_STD_U64BE)) {
+            } else if (H5Tequal(type, H5T_STD_U64BE)==TRUE) {
                 printf("H5T_STD_U64BE");
-            } else if (H5Tequal(type, H5T_STD_U64LE)) {
+            } else if (H5Tequal(type, H5T_STD_U64LE)==TRUE) {
                 printf("H5T_STD_U64LE");
-            } else if (H5Tequal(type, H5T_NATIVE_SCHAR)) {
+            } else if (H5Tequal(type, H5T_NATIVE_SCHAR)==TRUE) {
                 printf("H5T_NATIVE_SCHAR");
-            } else if (H5Tequal(type, H5T_NATIVE_UCHAR)) {
+            } else if (H5Tequal(type, H5T_NATIVE_UCHAR)==TRUE) {
                 printf("H5T_NATIVE_UCHAR");
-            } else if (H5Tequal(type, H5T_NATIVE_SHORT)) {
+            } else if (H5Tequal(type, H5T_NATIVE_SHORT)==TRUE) {
                 printf("H5T_NATIVE_SHORT");
-            } else if (H5Tequal(type, H5T_NATIVE_USHORT)) {
+            } else if (H5Tequal(type, H5T_NATIVE_USHORT)==TRUE) {
                 printf("H5T_NATIVE_USHORT");
-            } else if (H5Tequal(type, H5T_NATIVE_INT)) {
+            } else if (H5Tequal(type, H5T_NATIVE_INT)==TRUE) {
                 printf("H5T_NATIVE_INT");
-            } else if (H5Tequal(type, H5T_NATIVE_UINT)) {
+            } else if (H5Tequal(type, H5T_NATIVE_UINT)==TRUE) {
                 printf("H5T_NATIVE_UINT");
-            } else if (H5Tequal(type, H5T_NATIVE_LONG)) {
+            } else if (H5Tequal(type, H5T_NATIVE_LONG)==TRUE) {
                 printf("H5T_NATIVE_LONG");
-            } else if (H5Tequal(type, H5T_NATIVE_ULONG)) {
+            } else if (H5Tequal(type, H5T_NATIVE_ULONG)==TRUE) {
                 printf("H5T_NATIVE_ULONG");
-            } else if (H5Tequal(type, H5T_NATIVE_LLONG)) {
+            } else if (H5Tequal(type, H5T_NATIVE_LLONG)==TRUE) {
                 printf("H5T_NATIVE_LLONG");
-            } else if (H5Tequal(type, H5T_NATIVE_ULLONG)) {
+            } else if (H5Tequal(type, H5T_NATIVE_ULLONG)==TRUE) {
                 printf("H5T_NATIVE_ULLONG");
             } else {
-                printf("undefined integer");
-                d_status = EXIT_FAILURE;
+
+             /* byte order */
+             if (H5Tget_size(type)>1)
+             {
+              order = H5Tget_order(type);
+              if (H5T_ORDER_LE==order) {
+               order_s = " little-endian";
+              } else if (H5T_ORDER_BE==order) {
+               order_s = " big-endian";
+              } else if (H5T_ORDER_VAX==order) {
+               order_s = " mixed-endian";
+              } else {
+               order_s = " unknown-byte-order";
+              }
+             } else {
+              order_s = "";
+             }
+
+             /* sign */
+             if ((sign=H5Tget_sign(type))>=0)
+             {
+              if (H5T_SGN_NONE==sign) {
+               sign_s = " unsigned";
+              } else if (H5T_SGN_2==sign) {
+               sign_s = "";
+              } else {
+               sign_s = " unknown-sign";
+              }
+             } else {
+              sign_s = " unknown-sign";
+             }
+
+             /* print size, order, and sign  */
+             printf("%lu-bit%s%s integer",
+              (unsigned long)(8*H5Tget_size(type)), order_s, sign_s);
             }
             break;
 
         case H5T_FLOAT:
-            if (H5Tequal(type, H5T_IEEE_F32BE)) {
+            if (H5Tequal(type, H5T_IEEE_F32BE)==TRUE) {
                 printf("H5T_IEEE_F32BE");
-            } else if (H5Tequal(type, H5T_IEEE_F32LE)) {
+            } else if (H5Tequal(type, H5T_IEEE_F32LE)==TRUE) {
                 printf("H5T_IEEE_F32LE");
-            } else if (H5Tequal(type, H5T_IEEE_F64BE)) {
+            } else if (H5Tequal(type, H5T_IEEE_F64BE)==TRUE) {
                 printf("H5T_IEEE_F64BE");
-            } else if (H5Tequal(type, H5T_IEEE_F64LE)) {
+            } else if (H5Tequal(type, H5T_IEEE_F64LE)==TRUE) {
                 printf("H5T_IEEE_F64LE");
-            } else if (H5Tequal(type, H5T_NATIVE_FLOAT)) {
+            } else if (H5Tequal(type, H5T_NATIVE_FLOAT)==TRUE) {
                 printf("H5T_NATIVE_FLOAT");
-            } else if (H5Tequal(type, H5T_NATIVE_DOUBLE)) {
+            } else if (H5Tequal(type, H5T_NATIVE_DOUBLE)==TRUE) {
                 printf("H5T_NATIVE_DOUBLE");
-            } else if (H5Tequal(type, H5T_NATIVE_LDOUBLE)) {
+#if H5_SIZEOF_LONG_DOUBLE !=0
+            } else if (H5Tequal(type, H5T_NATIVE_LDOUBLE)==TRUE) {
                 printf("H5T_NATIVE_LDOUBLE");
+#endif
             } else {
-                printf("undefined float");
-                d_status = EXIT_FAILURE;
+
+             /* byte order */
+             if (H5Tget_size(type)>1)
+             {
+              order = H5Tget_order(type);
+              if (H5T_ORDER_LE==order) {
+               order_s = " little-endian";
+              } else if (H5T_ORDER_BE==order) {
+               order_s = " big-endian";
+              } else if (H5T_ORDER_VAX==order) {
+               order_s = " mixed-endian";
+              } else {
+               order_s = " unknown-byte-order";
+              }
+             } else {
+              order_s = "";
+             }
+
+             /* print size and byte order */
+             printf("%lu-bit%s floating-point",
+              (unsigned long)(8*H5Tget_size(type)), order_s);
+
             }
             break;
 
@@ -895,21 +969,21 @@ done:
             break;
 
         case H5T_BITFIELD:
-            if (H5Tequal(type, H5T_STD_B8BE)) {
+            if (H5Tequal(type, H5T_STD_B8BE)==TRUE) {
                 printf("H5T_STD_B8BE");
-            } else if (H5Tequal(type, H5T_STD_B8LE)) {
+            } else if (H5Tequal(type, H5T_STD_B8LE)==TRUE) {
                 printf("H5T_STD_B8LE");
-            } else if (H5Tequal(type, H5T_STD_B16BE)) {
+            } else if (H5Tequal(type, H5T_STD_B16BE)==TRUE) {
                 printf("H5T_STD_B16BE");
-            } else if (H5Tequal(type, H5T_STD_B16LE)) {
+            } else if (H5Tequal(type, H5T_STD_B16LE)==TRUE) {
                 printf("H5T_STD_B16LE");
-            } else if (H5Tequal(type, H5T_STD_B32BE)) {
+            } else if (H5Tequal(type, H5T_STD_B32BE)==TRUE) {
                 printf("H5T_STD_B32BE");
-            } else if (H5Tequal(type, H5T_STD_B32LE)) {
+            } else if (H5Tequal(type, H5T_STD_B32LE)==TRUE) {
                 printf("H5T_STD_B32LE");
-            } else if (H5Tequal(type, H5T_STD_B64BE)) {
+            } else if (H5Tequal(type, H5T_STD_B64BE)==TRUE) {
                 printf("H5T_STD_B64BE");
-            } else if (H5Tequal(type, H5T_STD_B64LE)) {
+            } else if (H5Tequal(type, H5T_STD_B64LE)==TRUE) {
                 printf("H5T_STD_B64LE");
             } else {
                 printf("undefined bitfield");
@@ -931,7 +1005,7 @@ done:
             printf("H5T_COMPOUND %s\n", dump_header_format->structblockbegin);
 
             for (i = 0; i < nmembers; i++) {
-                fname = H5Tget_member_name(type, i);
+                mname = H5Tget_member_name(type, i);
                 mtype = H5Tget_member_type(type, i);
                 indentation(indent + COL);
 
@@ -943,8 +1017,8 @@ done:
                 if (H5Tget_class(mtype) == H5T_COMPOUND)
                     indent -= COL;
 
-                printf(" \"%s\";\n", fname);
-                free(fname);
+                printf(" \"%s\";\n", mname);
+                free(mname);
             }
 
             indentation(indent);
@@ -987,7 +1061,7 @@ done:
 
             /* Get array information */
             ndims = H5Tget_array_ndims(type);
-            H5Tget_array_dims(type, dims, perm);
+            H5Tget_array_dims(type, dims, NULL);
 
             /* Print array dimensions */
             for (i = 0; i < ndims; i++)
@@ -1041,7 +1115,7 @@ dump_datatype(hid_t type)
     print_datatype(type,0);
 
     end_obj(dump_header_format->datatypeend,
-	    dump_header_format->datatypeblockend);
+        dump_header_format->datatypeblockend);
     indent -= COL;
 }
 
@@ -1073,48 +1147,48 @@ dump_dataspace(hid_t space)
 
     switch (space_type) {
         case H5S_SCALAR:
-	    /* scalar dataspace */
-	    HDfprintf(stdout, "%s %s",
-		      dump_header_format->dataspacedescriptionbegin, S_SCALAR);
+        /* scalar dataspace */
+        HDfprintf(stdout, "%s %s",
+              dump_header_format->dataspacedescriptionbegin, S_SCALAR);
             break;
         case H5S_SIMPLE:
-	    /* simple dataspace */
-	    HDfprintf(stdout, "%s %s { %s %Hu",
-		      dump_header_format->dataspacedescriptionbegin, S_SIMPLE,
-		      dump_header_format->dataspacedimbegin, size[0]);
+        /* simple dataspace */
+        HDfprintf(stdout, "%s %s { %s %Hu",
+              dump_header_format->dataspacedescriptionbegin, S_SIMPLE,
+              dump_header_format->dataspacedimbegin, size[0]);
 
-	    for (i = 1; i < ndims; i++)
-		HDfprintf(stdout, ", %Hu", size[i]);
+        for (i = 1; i < ndims; i++)
+        HDfprintf(stdout, ", %Hu", size[i]);
 
-	    printf(" %s / ", dump_header_format->dataspacedimend);
+        printf(" %s / ", dump_header_format->dataspacedimend);
 
-	    if (maxsize[0] == H5S_UNLIMITED)
-		HDfprintf(stdout, "%s %s",
-			  dump_header_format->dataspacedimbegin,
-			  "H5S_UNLIMITED");
-	    else
-		HDfprintf(stdout, "%s %Hu",
+        if (maxsize[0] == H5S_UNLIMITED)
+        HDfprintf(stdout, "%s %s",
+              dump_header_format->dataspacedimbegin,
+              "H5S_UNLIMITED");
+        else
+        HDfprintf(stdout, "%s %Hu",
                           dump_header_format->dataspacedimbegin, maxsize[0]);
 
-	    for (i = 1; i < ndims; i++)
-		if (maxsize[i] == H5S_UNLIMITED)
-		    HDfprintf(stdout, ", %s", "H5S_UNLIMITED");
-		else
-		    HDfprintf(stdout, ", %Hu", maxsize[i]);
+        for (i = 1; i < ndims; i++)
+        if (maxsize[i] == H5S_UNLIMITED)
+            HDfprintf(stdout, ", %s", "H5S_UNLIMITED");
+        else
+            HDfprintf(stdout, ", %Hu", maxsize[i]);
 
-	    printf(" %s }", dump_header_format->dataspacedimend);
+        printf(" %s }", dump_header_format->dataspacedimend);
 
-	    break;
+        break;
         case H5S_COMPLEX:
-	    printf("%s not yet implemented %s\n", BEGIN, END);
+        printf("%s not yet implemented %s\n", BEGIN, END);
             break;
         case H5S_NO_CLASS:
         default:
-	    printf("%s unknown dataspace %s\n", BEGIN, END);
+        printf("%s unknown dataspace %s\n", BEGIN, END);
     }
 
     end_obj(dump_header_format->dataspaceend,
-	    dump_header_format->dataspaceblockend);
+        dump_header_format->dataspaceblockend);
 }
 
 /*-------------------------------------------------------------------------
@@ -1140,34 +1214,34 @@ dump_attr(hid_t attr, const char *attr_name, void UNUSED * op_data)
 
     indentation(indent);
     begin_obj(dump_header_format->attributebegin, attr_name,
-	      dump_header_format->attributeblockbegin);
+          dump_header_format->attributeblockbegin);
 
     if ((attr_id = H5Aopen_name(attr, attr_name)) < 0) {
-	indentation(indent + COL);
+    indentation(indent + COL);
         error_msg(progname, "unable to open attribute \"%s\"\n", attr_name);
-	indentation(indent);
-	end_obj(dump_header_format->attributeend,
-		dump_header_format->attributeblockend);
-	d_status = EXIT_FAILURE;
-	ret = FAIL;
+    indentation(indent);
+    end_obj(dump_header_format->attributeend,
+        dump_header_format->attributeblockend);
+    d_status = EXIT_FAILURE;
+    ret = FAIL;
     } else {
-	type = H5Aget_type(attr_id);
-	space = H5Aget_space(attr_id);
-	dump_datatype(type);
-	dump_dataspace(space);
+    type = H5Aget_type(attr_id);
+    space = H5Aget_space(attr_id);
+    dump_datatype(type);
+    dump_dataspace(space);
 
-	if (display_oid)
-	    dump_oid(attr_id);
+    if (display_oid)
+        dump_oid(attr_id);
 
-	if (display_data || display_attr_data)
-	    dump_data(attr_id, ATTRIBUTE_DATA, NULL, display_ai);
+    if (display_data || display_attr_data)
+        dump_data(attr_id, ATTRIBUTE_DATA, NULL, display_ai);
 
-	H5Tclose(type);
-	H5Sclose(space);
-	H5Aclose(attr_id);
-	indentation(indent);
-	end_obj(dump_header_format->attributeend,
-		dump_header_format->attributeblockend);
+    H5Tclose(type);
+    H5Sclose(space);
+    H5Aclose(attr_id);
+    indentation(indent);
+    end_obj(dump_header_format->attributeend,
+        dump_header_format->attributeblockend);
     }
 
     return ret;
@@ -1202,11 +1276,11 @@ dump_selected_attr(hid_t loc_id, const char *name)
 
     /* find the last / */
     while (name[j] != '/' && j >= 0)
-	j--;
+    j--;
 
     /* object name */
     if (j == -1) {
-	strcpy(obj_name, "/");
+    strcpy(obj_name, "/");
     } else {
         strncpy(obj_name, name, (size_t)j + 1);
         obj_name[j + 1] = '\0';
@@ -1214,101 +1288,101 @@ dump_selected_attr(hid_t loc_id, const char *name)
 
     attr_name = name + j + 1;
     begin_obj(dump_header_format->attributebegin, name,
-	      dump_header_format->attributeblockbegin);
+          dump_header_format->attributeblockbegin);
     H5Gget_objinfo(loc_id, obj_name, FALSE, &statbuf);
 
     switch (statbuf.type) {
     case H5G_GROUP:
-	if ((oid = H5Gopen(loc_id, obj_name)) < 0) {
-	    indentation(COL);
+    if ((oid = H5Gopen(loc_id, obj_name)) < 0) {
+        indentation(COL);
             error_msg(progname, "unable to open group \"%s\"\n", obj_name);
-	    end_obj(dump_header_format->attributeend,
-		    dump_header_format->attributeblockend);
-	    d_status = EXIT_FAILURE;
-	    return FAIL;
-	}
-	break;
+        end_obj(dump_header_format->attributeend,
+            dump_header_format->attributeblockend);
+        d_status = EXIT_FAILURE;
+        return FAIL;
+    }
+    break;
 
     case H5G_DATASET:
-	if ((oid = H5Dopen(loc_id, obj_name)) < 0) {
-	    indentation(COL);
+    if ((oid = H5Dopen(loc_id, obj_name)) < 0) {
+        indentation(COL);
             error_msg(progname, "unable to open dataset \"%s\"\n", obj_name);
-	    end_obj(dump_header_format->attributeend,
-		    dump_header_format->attributeblockend);
-	    d_status = EXIT_FAILURE;
-	    return FAIL;
-	}
-	break;
+        end_obj(dump_header_format->attributeend,
+            dump_header_format->attributeblockend);
+        d_status = EXIT_FAILURE;
+        return FAIL;
+    }
+    break;
 
     case H5G_TYPE:
-	if ((oid = H5Topen(loc_id, obj_name)) < 0) {
-	    indentation(COL);
+    if ((oid = H5Topen(loc_id, obj_name)) < 0) {
+        indentation(COL);
             error_msg(progname, "unable to open datatype \"%s\"\n", obj_name);
-	    end_obj(dump_header_format->attributeend,
-		    dump_header_format->attributeblockend);
-	    d_status = EXIT_FAILURE;
-	    return FAIL;
-	}
-	break;
+        end_obj(dump_header_format->attributeend,
+            dump_header_format->attributeblockend);
+        d_status = EXIT_FAILURE;
+        return FAIL;
+    }
+    break;
 
     default:
-	indentation(COL);
+    indentation(COL);
         error_msg(progname, "unable to open unknown \"%s\"\n", obj_name);
-	end_obj(dump_header_format->attributeend,
-		dump_header_format->attributeblockend);
-	d_status = EXIT_FAILURE;
-	return FAIL;
+    end_obj(dump_header_format->attributeend,
+        dump_header_format->attributeblockend);
+    d_status = EXIT_FAILURE;
+    return FAIL;
     }
 
     if ((attr_id = H5Aopen_name(oid, attr_name)) >= 0) {
-	type = H5Aget_type(attr_id);
-	space = H5Aget_space(attr_id);
-	dump_datatype(type);
-	dump_dataspace(space);
+    type = H5Aget_type(attr_id);
+    space = H5Aget_space(attr_id);
+    dump_datatype(type);
+    dump_dataspace(space);
 
-	if (display_oid)
-	    dump_oid(attr_id);
+    if (display_oid)
+        dump_oid(attr_id);
 
-	if (display_data || display_attr_data)
-	    dump_data(attr_id, ATTRIBUTE_DATA, NULL, display_ai);
+    if (display_data || display_attr_data)
+        dump_data(attr_id, ATTRIBUTE_DATA, NULL, display_ai);
 
-	H5Tclose(type);
-	H5Sclose(space);
-	H5Aclose(attr_id);
-	end_obj(dump_header_format->attributeend,
-		dump_header_format->attributeblockend);
+    H5Tclose(type);
+    H5Sclose(space);
+    H5Aclose(attr_id);
+    end_obj(dump_header_format->attributeend,
+        dump_header_format->attributeblockend);
     } else {
-	indentation(COL);
+    indentation(COL);
         error_msg(progname, "unable to open attribute \"%s\"\n", obj_name);
-	end_obj(dump_header_format->attributeend,
-		dump_header_format->attributeblockend);
-	d_status = EXIT_FAILURE;
+    end_obj(dump_header_format->attributeend,
+        dump_header_format->attributeblockend);
+    d_status = EXIT_FAILURE;
     }
 
     switch (statbuf.type) {
     case H5G_GROUP:
-	if (H5Gclose(oid) < 0) {
-	    d_status = EXIT_FAILURE;
-	    return FAIL;
-	}
-	break;
+    if (H5Gclose(oid) < 0) {
+        d_status = EXIT_FAILURE;
+        return FAIL;
+    }
+    break;
 
     case H5G_DATASET:
-	if (H5Dclose(oid) < 0) {
-	    d_status = EXIT_FAILURE;
-	    return FAIL;
-	}
-	break;
+    if (H5Dclose(oid) < 0) {
+        d_status = EXIT_FAILURE;
+        return FAIL;
+    }
+    break;
 
     case H5G_TYPE:
-	if (H5Tclose(oid) < 0) {
-	    d_status = EXIT_FAILURE;
-	    return FAIL;
-	}
-	break;
+    if (H5Tclose(oid) < 0) {
+        d_status = EXIT_FAILURE;
+        return FAIL;
+    }
+    break;
     default:
-	d_status = EXIT_FAILURE;
-	return FAIL;
+    d_status = EXIT_FAILURE;
+    return FAIL;
     }
 
     free(obj_name);
@@ -1337,244 +1411,263 @@ static herr_t
 dump_all(hid_t group, const char *name, void * op_data)
 {
     hid_t       obj;
-    char       *targbuf, *tmp = NULL;
+    char       *obj_path = NULL;        /* Full path of object */
     H5G_stat_t  statbuf;
     herr_t      ret = SUCCEED;
 
-    H5Gget_objinfo(group, name, FALSE, &statbuf);
+    /* Stat the object */
+    if(H5Gget_objinfo(group, name, FALSE, &statbuf) < 0) {
+        error_msg(progname, "unable to get object information for \"%s\"\n", name);
+        d_status = EXIT_FAILURE;
+        ret = FAIL;
+        goto done;
+    } /* end if */
 
     if (*(int *)op_data != H5G_UNKNOWN && statbuf.type != *(int *) op_data)
         goto done;
 
-    tmp = malloc(strlen(prefix) + strlen(name) + 2);
-    strcpy(tmp, prefix);
+    /* Build the object's path name */
+    obj_path = HDmalloc(HDstrlen(prefix) + HDstrlen(name) + 2);
+    HDassert(obj_path);
+    HDstrcpy(obj_path, prefix);
+    HDstrcat(obj_path, "/");
+    HDstrcat(obj_path, name);
 
     switch (statbuf.type) {
-    case H5G_LINK:
-	indentation(indent);
-	targbuf = malloc(statbuf.linklen);
+        case H5G_LINK:
+        {
+            char       *targbuf;
 
-	if (!doxml) {
-	    begin_obj(dump_header_format->softlinkbegin, name,
-		      dump_header_format->softlinkblockbegin);
-	    indentation(indent + COL);
-	}
+            indentation(indent);
+            targbuf = HDmalloc(statbuf.linklen);
+            HDassert(targbuf);
 
-	if (H5Gget_linkval(group, name, statbuf.linklen, targbuf) < 0) {
-            error_msg(progname, "unable to get link value\n");
-	    d_status = EXIT_FAILURE;
-            ret = FAIL;
-	} else {
-	    /* print the value of a soft link */
-	    if (!doxml) {
-		/* Standard DDL: no modification */
-		printf("LINKTARGET \"%s\"\n", targbuf);
-	    } else {
-		/* XML */
-		char *linkxid = malloc(100);
-		char *parentxid = malloc(100);
-		char *targetxid = malloc(100);
-                char *t_prefix = xml_escape_the_name(strcmp(prefix,"") ? prefix : "/");
-                char *t_name = xml_escape_the_name(name);
-                char *t_targbuf = xml_escape_the_name(targbuf);
-                char *tmp2, *t_tmp;
-		int res;
-
-                tmp2 = malloc(strlen(prefix) + statbuf.linklen + 1);
-                strcpy(tmp2, prefix);
-
-                if (targbuf && targbuf[0] == '/')
-                    strcpy(tmp2, targbuf);
-                else
-                    strcat(strcat(tmp2, "/"), targbuf);
-
-                t_tmp = xml_escape_the_name(strcat(strcat(tmp, "/"), name));
-		xml_name_to_XID(t_tmp,linkxid,100,1);
-		xml_name_to_XID(prefix,parentxid,100,1);
-
-		res = xml_name_to_XID(tmp2,targetxid,100,0);
-
-		if (res == 0) {
-			/* target obj found */
-			printf("<%sSoftLink LinkName=\"%s\" "
-			       "OBJ-XID=\"%s\" "
-			       "H5SourcePath=\"%s\" "
-                               "TargetPath=\"%s\" TargetObj=\"%s\" "
-			       "Parents=\"%s\" H5ParentPaths=\"%s\" />\n",
-				xmlnsprefix,
-				t_name,
-				linkxid,
-				t_tmp,
-				t_targbuf, targetxid,
-				parentxid, t_prefix);
-			free(targetxid);
-		} else {
-			/* dangling link -- omit from xml attributes */
-			printf("<%sSoftLink LinkName=\"%s\" "
-			       "OBJ-XID=\"%s\" "
-			       "H5SourcePath=\"%s\" "
-                               "TargetPath=\"%s\"  "
-			       "Parents=\"%s\" H5ParentPaths=\"%s\" />\n",
-				xmlnsprefix,
-				t_name,
-				linkxid,
-				t_tmp,
-				t_targbuf,
-				parentxid, t_prefix);
-		}
-
-                free(t_name);
-                free(t_targbuf);
-                free(t_tmp);
-                free(tmp2);
-                free(linkxid);
-                free(parentxid);
-	    }
-	}
-
-	if (!doxml) {
-	    indentation(indent);
-	    end_obj(dump_header_format->softlinkend,
-		    dump_header_format->softlinkblockend);
-	}
-
-	free(targbuf);
-	break;
-
-    case H5G_GROUP:
-	if ((obj = H5Gopen(group, name)) < 0) {
-            error_msg(progname, "unable to dump group \"%s\"\n", name);
-	    d_status = EXIT_FAILURE;
-            ret = FAIL;
-	} else {
-            size_t new_len = strlen(prefix) + strlen(name) + 2;
-
-            if (prefix_len <= new_len) {
-                prefix_len = new_len + 1;
-                prefix = realloc(prefix, prefix_len);
+            if (!doxml) {
+                begin_obj(dump_header_format->softlinkbegin, name,
+                          dump_header_format->softlinkblockbegin);
+                indentation(indent + COL);
             }
 
-	    strcat(strcat(prefix, "/"), name);
-	    dump_function_table->dump_group_function(obj, name);
-	    strcpy(prefix, tmp);
-	    H5Gclose(obj);
-	}
+            if (H5Gget_linkval(group, name, statbuf.linklen, targbuf) < 0) {
+                error_msg(progname, "unable to get link value\n");
+                d_status = EXIT_FAILURE;
+                ret = FAIL;
+            } else {
+                /* print the value of a soft link */
+                if (!doxml) {
+                    /* Standard DDL: no modification */
+                    printf("LINKTARGET \"%s\"\n", targbuf);
+                } else {
+                    /* XML */
+                    char linkxid[100];
+                    char parentxid[100];
+                    char targetxid[100];
+                    char *t_prefix = xml_escape_the_name(HDstrcmp(prefix,"") ? prefix : "/");
+                    char *t_name = xml_escape_the_name(name);
+                    char *t_targbuf = xml_escape_the_name(targbuf);
+                    char *t_obj_path = xml_escape_the_name(obj_path);
+                    char *t_link_path;
+                    int res;
 
-	break;
+                    t_link_path = HDmalloc(HDstrlen(prefix) + statbuf.linklen + 1);
+                    if(targbuf[0] == '/')
+                        HDstrcpy(t_link_path, targbuf);
+                    else {
+                        HDstrcpy(t_link_path, prefix);
+                        HDstrcat(HDstrcat(t_link_path, "/"), targbuf);
+                    } /* end else */
 
-    case H5G_DATASET:
-	if ((obj = H5Dopen(group, name)) >= 0) {
-	    /* hard link */
-	    H5Gget_objinfo(obj, ".", TRUE, &statbuf);
+                    /* Create OBJ-XIDs for the parent and object */
+                    xml_name_to_XID(t_obj_path, linkxid, sizeof(linkxid), 1);
+                    xml_name_to_XID(prefix, parentxid, sizeof(parentxid), 1);
 
-	    if (statbuf.nlink > 1) {
-                obj_t  *found_obj;    /* Found object */
+                    /* Try to create an OBJ-XID for the object pointed to */
+                    res = xml_name_to_XID(t_link_path, targetxid, sizeof(targetxid), 0);
+                    if (res == 0) {
+                        /* target obj found */
+                        printf("<%sSoftLink LinkName=\"%s\" "
+                               "OBJ-XID=\"%s\" "
+                               "H5SourcePath=\"%s\" "
+                               "TargetPath=\"%s\" TargetObj=\"%s\" "
+                               "Parents=\"%s\" H5ParentPaths=\"%s\" />\n",
+                                xmlnsprefix,
+                                t_name,         /* LinkName */
+                                linkxid,        /* OBJ-XID */
+                                t_obj_path,     /* H5SourcePath */
+                                t_targbuf,      /* TargetPath */
+                                targetxid,      /* TargetObj */
+                                parentxid,      /* Parents */
+                                t_prefix);      /* H5ParentPaths */
+                    } else {
+                        /* dangling link -- omit from xml attributes */
+                        printf("<%sSoftLink LinkName=\"%s\" "
+                               "OBJ-XID=\"%s\" "
+                               "H5SourcePath=\"%s\" "
+                               "TargetPath=\"%s\"  "
+                               "Parents=\"%s\" H5ParentPaths=\"%s\" />\n",
+                                xmlnsprefix,
+                                t_name,         /* LinkName */
+                                linkxid,        /* OBJ-XID */
+                                t_obj_path,     /* H5SourcePath */
+                                t_targbuf,      /* TargetPath */
+                                parentxid,      /* Parents */
+                                t_prefix);      /* H5ParentPaths */
+                    }
 
-		found_obj = search_obj(dset_table, statbuf.objno);
+                    HDfree(t_prefix);
+                    HDfree(t_name);
+                    HDfree(t_targbuf);
+                    HDfree(t_obj_path);
+                    HDfree(t_link_path);
+                }
+            }
 
-		if (found_obj == NULL) {
-		    indentation(indent);
-		    begin_obj(dump_header_format->datasetbegin, name,
-			      dump_header_format->datasetblockbegin);
-		    indentation(indent + COL);
-                    error_msg(progname,
-                              "internal error (file %s:line %d)\n",
-                              __FILE__, __LINE__);
-		    indentation(indent);
-		    end_obj(dump_header_format->datasetend,
-			    dump_header_format->datasetblockend);
-		    d_status = EXIT_FAILURE;
-                    ret = FAIL;
-		    H5Dclose(obj);
-		    goto done;
-		} else if (found_obj->displayed) {
-		    indentation(indent);
+            if (!doxml) {
+                indentation(indent);
+                end_obj(dump_header_format->softlinkend,
+                        dump_header_format->softlinkblockend);
+            }
 
-		    if (!doxml) {
-			begin_obj(dump_header_format->datasetbegin, name,
-				  dump_header_format->datasetblockbegin);
-			indentation(indent + COL);
-			printf("%s \"%s\"\n", HARDLINK, found_obj->objname);
-			indentation(indent);
-			end_obj(dump_header_format->datasetend,
-				dump_header_format->datasetblockend);
-		    } else {
-			/* the XML version */
-                        char *t_tmp;
-                        char *t_prefix;
-                        char *t_name;
-			char *dsetxid = malloc(100);
-			char *parentxid = malloc(100);
-			char *pointerxid = malloc(100);
-                        char *tx_tmp = malloc(strlen(tmp)+strlen(name)+1);
-				strcpy(tx_tmp,tmp);
-                        t_tmp = xml_escape_the_name(strcat(strcat(tx_tmp, "/"), name));
-                        t_prefix = xml_escape_the_name(prefix);
-                        t_name = xml_escape_the_name(name);
-			xml_name_to_XID( strcat(strcat(tmp,"/"),name), dsetxid,100,1);
-			xml_name_to_XID( prefix ,parentxid,100,1);
+            HDfree(targbuf);
+            break;
+        }
 
-			printf("<%sDataset Name=\"%s\" OBJ-XID=\"%s-%d\" "
-                               "H5Path=\"%s\" Parents=\"%s\" "
-                               "H5ParentPaths=\"%s\">\n",
-				xmlnsprefix,
-			       t_name, dsetxid, get_next_xid(),
-				t_tmp, parentxid,
-			       (strcmp(prefix, "") ? t_prefix : "/"));
+        case H5G_GROUP:
+            if ((obj = H5Gopen(group, name)) < 0) {
+                error_msg(progname, "unable to dump group \"%s\"\n", name);
+                d_status = EXIT_FAILURE;
+                ret = FAIL;
+            } else {
+                char *old_prefix;                /* Pointer to previous prefix */
 
-			indentation(indent + COL);
-			xml_name_to_XID(found_obj->objname,pointerxid,100,1);
-			printf("<%sDatasetPtr OBJ-XID=\"%s\" H5Path=\"%s\"/>\n",
-				xmlnsprefix,
-				pointerxid,t_tmp);
-			indentation(indent);
-			printf("</%sDataset>\n", xmlnsprefix);
+                /* Keep copy of prefix before iterating into group */
+                old_prefix = HDstrdup(prefix);
+                HDassert(old_prefix);
 
-                        free(t_name);
-                        free(dsetxid);
-                        free(parentxid);
-                        free(pointerxid);
-                        free(t_tmp);
-                        free(tx_tmp);
-                        free(t_prefix);
-		    }
+                /* Append group name to prefix */
+                add_prefix(&prefix, &prefix_len, name);
 
-		    H5Dclose(obj);
-		    goto done;
-		} else {
-		    found_obj->displayed = TRUE;
+                /* Iterate into group */
+                dump_function_table->dump_group_function(obj, name);
 
-		}
-	    }
+                /* Restore old prefix name */
+                HDstrcpy(prefix, old_prefix);
+                HDfree(old_prefix);
 
-	    dump_function_table->dump_dataset_function(obj, name, NULL);
-	    H5Dclose(obj);
-	} else {
-            error_msg(progname, "unable to dump dataset \"%s\"\n", name);
-	    d_status = EXIT_FAILURE;
+                /* Close group */
+                H5Gclose(obj);
+            }
+
+            break;
+
+        case H5G_DATASET:
+            if ((obj = H5Dopen(group, name)) >= 0) {
+                /* hard link */
+                H5Gget_objinfo(obj, ".", TRUE, &statbuf);
+
+                if (statbuf.nlink > 1) {
+                    obj_t  *found_obj;    /* Found object */
+
+                    found_obj = search_obj(dset_table, statbuf.objno);
+
+                    if (found_obj == NULL) {
+                        indentation(indent);
+                        begin_obj(dump_header_format->datasetbegin, name,
+                                  dump_header_format->datasetblockbegin);
+                        indentation(indent + COL);
+                        error_msg(progname,
+                                  "internal error (file %s:line %d)\n",
+                                  __FILE__, __LINE__);
+                        indentation(indent);
+                        end_obj(dump_header_format->datasetend,
+                                dump_header_format->datasetblockend);
+                        d_status = EXIT_FAILURE;
+                        ret = FAIL;
+                        H5Dclose(obj);
+                        goto done;
+                    } else if (found_obj->displayed) {
+                        indentation(indent);
+
+                        if (!doxml) {
+                            begin_obj(dump_header_format->datasetbegin, name,
+                                      dump_header_format->datasetblockbegin);
+                            indentation(indent + COL);
+                            printf("%s \"%s\"\n", HARDLINK, found_obj->objname);
+                            indentation(indent);
+                            end_obj(dump_header_format->datasetend,
+                                    dump_header_format->datasetblockend);
+                        } else {
+                            /* the XML version */
+                            char *t_obj_path = xml_escape_the_name(obj_path);
+                            char *t_prefix = xml_escape_the_name(HDstrcmp(prefix,"") ? prefix : "/");
+                            char *t_name = xml_escape_the_name(name);
+                            char dsetxid[100];
+                            char parentxid[100];
+                            char pointerxid[100];
+
+                            /* Create OBJ-XIDs for the parent and object */
+                            xml_name_to_XID(obj_path, dsetxid, sizeof(dsetxid), 1);
+                            xml_name_to_XID(prefix, parentxid, sizeof(parentxid), 1);
+
+                            printf("<%sDataset Name=\"%s\" OBJ-XID=\"%s-%d\" "
+                                   "H5Path=\"%s\" Parents=\"%s\" "
+                                   "H5ParentPaths=\"%s\">\n",
+                                    xmlnsprefix,
+                                    t_name,                     /* Dataset Name */
+                                    dsetxid, get_next_xid(),    /* OBJ-XID */
+                                    t_obj_path,                 /* H5Path */
+                                    parentxid,                  /* Parents */
+                                    t_prefix);                  /* H5ParentPaths */
+
+                            indentation(indent + COL);
+                            xml_name_to_XID(found_obj->objname, pointerxid, sizeof(pointerxid), 1);
+                            printf("<%sDatasetPtr OBJ-XID=\"%s\" H5Path=\"%s\"/>\n",
+                                    xmlnsprefix,
+                                    pointerxid,t_obj_path);
+                            indentation(indent);
+                            printf("</%sDataset>\n", xmlnsprefix);
+
+                            HDfree(t_name);
+                            HDfree(t_obj_path);
+                            HDfree(t_prefix);
+                        }
+
+                        H5Dclose(obj);
+                        goto done;
+                    } else {
+                        found_obj->displayed = TRUE;
+                    }
+                } /* end if */
+
+                dump_function_table->dump_dataset_function(obj, name, NULL);
+                H5Dclose(obj);
+            } else {
+                error_msg(progname, "unable to dump dataset \"%s\"\n", name);
+                d_status = EXIT_FAILURE;
+                ret = FAIL;
+            }
+            break;
+
+        case H5G_TYPE:
+            if ((obj = H5Topen(group, name)) < 0) {
+                error_msg(progname, "unable to dump data type \"%s\"\n", name);
+                d_status = EXIT_FAILURE;
+                ret = FAIL;
+            } else {
+                dump_function_table->dump_named_datatype_function(obj, name);
+                H5Tclose(obj);
+            }
+            break;
+
+        default:
+            error_msg(progname, "unknown object \"%s\"\n", name);
+            d_status = EXIT_FAILURE;
             ret = FAIL;
-	}
-	break;
-
-    case H5G_TYPE:
-	if ((obj = H5Topen(group, name)) < 0) {
-            error_msg(progname, "unable to dump data type \"%s\"\n", name);
-	    d_status = EXIT_FAILURE;
-            ret = FAIL;
-	} else {
-	    dump_function_table->dump_named_datatype_function(obj, name);
-	    H5Tclose(obj);
-	}
-	break;
-
-    default:
-        error_msg(progname, "unknown object \"%s\"\n", name);
-	d_status = EXIT_FAILURE;
-	ret = FAIL;
     }
 
 done:
-    free(tmp);
+    if(obj_path)
+        HDfree(obj_path);
     return ret;
 }
 
@@ -1587,26 +1680,33 @@ done:
  *
  * Programmer:  Ruey-Hsia Li
  *
- * Modifications: Comments: not yet implemented.
+ * Modifications: pvn March 27, 2006
+ *  add printing of attributes
  *
  *-------------------------------------------------------------------------
  */
 static void
 dump_named_datatype(hid_t type, const char *name)
 {
-    indentation(indent);
-    printf("%s \"%s\" %s", dump_header_format->datatypebegin, name,
-	   dump_header_format->datatypeblockbegin);
+ indentation(indent);
+ printf("%s \"%s\" %s", dump_header_format->datatypebegin, name,
+  dump_header_format->datatypeblockbegin);
 
-    if (H5Tget_class(type) == H5T_COMPOUND) {
-	print_datatype(type,1);
-    } else {
-	indentation(indent + COL);
-	print_datatype(type,1);
-	printf(";\n");
-    }
-    end_obj(dump_header_format->datatypeend,
-	    dump_header_format->datatypeblockend);
+ if (H5Tget_class(type) == H5T_COMPOUND) {
+  print_datatype(type,1);
+ } else {
+  indentation(indent + COL);
+  print_datatype(type,1);
+  printf(";\n");
+ }
+
+ /* print attributes */
+ indent += COL;
+ H5Aiterate(type, NULL, dump_attr, NULL);
+ indent -= COL;
+
+ end_obj(dump_header_format->datatypeend,
+  dump_header_format->datatypeblockend);
 }
 
 /*-------------------------------------------------------------------------
@@ -1632,28 +1732,28 @@ dump_group(hid_t gid, const char *name)
     char        type_name[1024], *tmp;
     int         xtype = H5G_UNKNOWN; /* dump all */
 
-    tmp = malloc(strlen(prefix) + strlen(name) + 2);
-    strcpy(tmp, prefix);
+    tmp = HDmalloc(HDstrlen(prefix) + HDstrlen(name) + 2);
+    HDstrcpy(tmp, prefix);
     indentation(indent);
     begin_obj(dump_header_format->groupbegin, name,
-	      dump_header_format->groupblockbegin);
+          dump_header_format->groupblockbegin);
     indent += COL;
 
     if (display_oid)
-	    dump_oid(gid);
+        dump_oid(gid);
 
     dump_comment(gid);
 
-    if (!strcmp(name, "/") && unamedtype) {
+    if (!HDstrcmp(name, "/") && unamedtype) {
         unsigned u;             /* Local index variable */
 
-	/* dump unamed type in root group */
-	for (u = 0; u < type_table->nobjs; u++)
-	    if (!type_table->objs[u].recorded) {
-                unsigned long 	objno[2];	/*object number			*/
+    /* dump unamed type in root group */
+    for (u = 0; u < type_table->nobjs; u++)
+        if (!type_table->objs[u].recorded) {
+                unsigned long   objno[2];   /*object number         */
 
-		dset = H5Dopen(gid, type_table->objs[u].objname);
-		type = H5Dget_type(dset);
+        dset = H5Dopen(gid, type_table->objs[u].objname);
+        type = H5Dget_type(dset);
 
                 objno[0] = (unsigned long)(type_table->objs[u].objno);
 #if H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG
@@ -1661,12 +1761,12 @@ dump_group(hid_t gid, const char *name)
 #else /* H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG */
                 objno[1] = 0;
 #endif /* H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG */
-		sprintf(type_name, "#%lu:%lu", objno[0], objno[1]);
+        sprintf(type_name, "#%lu:%lu", objno[0], objno[1]);
                 dump_function_table->dump_named_datatype_function(type, type_name);
 
-		H5Tclose(type);
-		H5Dclose(dset);
-	    }
+        H5Tclose(type);
+        H5Dclose(dset);
+        }
     } /* end if */
 
     H5Gget_objinfo(gid, ".", TRUE, &statbuf);
@@ -1676,22 +1776,22 @@ dump_group(hid_t gid, const char *name)
 
         found_obj = search_obj(group_table, statbuf.objno);
 
-	if (found_obj == NULL) {
-	    indentation(indent);
+    if (found_obj == NULL) {
+        indentation(indent);
             error_msg(progname, "internal error (file %s:line %d)\n",
                       __FILE__, __LINE__);
-	    d_status = EXIT_FAILURE;
-	} else if (found_obj->displayed) {
-	    indentation(indent);
-	    printf("%s \"%s\"\n", HARDLINK, found_obj->objname);
-	} else {
-	    found_obj->displayed = TRUE;
-	    H5Aiterate(gid, NULL, dump_attr, NULL);
-	    H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
-	}
+        d_status = EXIT_FAILURE;
+    } else if (found_obj->displayed) {
+        indentation(indent);
+        printf("%s \"%s\"\n", HARDLINK, found_obj->objname);
     } else {
-	H5Aiterate(gid, NULL, dump_attr, NULL);
-	H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
+        found_obj->displayed = TRUE;
+        H5Aiterate(gid, NULL, dump_attr, NULL);
+        H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
+    }
+    } else {
+    H5Aiterate(gid, NULL, dump_attr, NULL);
+    H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
     }
 
     indent -= COL;
@@ -1720,7 +1820,7 @@ dump_dataset(hid_t did, const char *name, struct subset_t *sset)
 
     indentation(indent);
     begin_obj(dump_header_format->datasetbegin, name,
-	      dump_header_format->datasetblockbegin);
+          dump_header_format->datasetblockbegin);
     type = H5Dget_type(did);
     space = H5Dget_space(did);
     dcpl_id = H5Dget_create_plist(did);
@@ -1730,34 +1830,34 @@ dump_dataset(hid_t did, const char *name, struct subset_t *sset)
     dump_dataspace(space);
 
     if (display_oid)
-     dump_oid(did);
+        dump_oid(did);
 
     if (display_dcpl)
-     dump_dcpl(dcpl_id, type, did);
+        dump_dcpl(dcpl_id, type, did);
 
     if (display_data)
-	switch (H5Tget_class(type)) {
-	case H5T_TIME:
-	    indentation(indent + COL);
-	    printf("DATA{ not yet implemented.}\n");
-	    break;
+    switch (H5Tget_class(type)) {
+            case H5T_TIME:
+                indentation(indent + COL);
+                printf("DATA{ not yet implemented.}\n");
+                break;
 
-	case H5T_INTEGER:
-	case H5T_FLOAT:
-	case H5T_STRING:
-	case H5T_BITFIELD:
-	case H5T_OPAQUE:
-	case H5T_COMPOUND:
-	case H5T_REFERENCE:
-	case H5T_ENUM:
-	case H5T_VLEN:
-	case H5T_ARRAY:
-	    dump_data(did, DATASET_DATA, sset, display_ai);
-	    break;
+            case H5T_INTEGER:
+            case H5T_FLOAT:
+            case H5T_STRING:
+            case H5T_BITFIELD:
+            case H5T_OPAQUE:
+            case H5T_COMPOUND:
+            case H5T_REFERENCE:
+            case H5T_ENUM:
+            case H5T_VLEN:
+            case H5T_ARRAY:
+                dump_data(did, DATASET_DATA, sset, display_ai);
+                break;
 
-	default:
-	    break;
-	}
+            default:
+                break;
+    }
 
     indent += COL;
     H5Aiterate(did, NULL, dump_attr, NULL);
@@ -1767,7 +1867,7 @@ dump_dataset(hid_t did, const char *name, struct subset_t *sset)
     H5Pclose(dcpl_id);
     indentation(indent);
     end_obj(dump_header_format->datasetend,
-	    dump_header_format->datasetblockend);
+        dump_header_format->datasetblockend);
 }
 
 /*-------------------------------------------------------------------------
@@ -1787,15 +1887,16 @@ dump_dataset(hid_t did, const char *name, struct subset_t *sset)
 static void
 dump_dims(hsize_t *s, int dims)
 {
-    register int i;
+    int i;
 
     for (i = 0; i < dims; i++) {
-        printf("%u", (unsigned int)s[i]);
+        printf(HSIZE_T_FORMAT, s[i]);
 
         if (i + 1 != dims)
             printf(", ");
     }
 }
+
 
 /*-------------------------------------------------------------------------
  * Function:    dump_subsetting_header
@@ -1868,15 +1969,15 @@ dump_subsetting_header(struct subset_t *sset, int dims)
  * Programmer:  Ruey-Hsia Li
  *
  * Modifications: pvn, print the matrix indices
- *	Albert Cheng, 2004/11/18
- *	Add --string printing for attributes too.
+ *  Albert Cheng, 2004/11/18
+ *  Add --string printing for attributes too.
  *
  *-------------------------------------------------------------------------
  */
 static void
-dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int pindex)
+dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int display_index)
 {
-    h5dump_t   *outputformat = &dataformat;
+    h5tool_format_t   *outputformat = &dataformat;
     int         status = -1;
     void       *buf;
     hid_t       space, type, p_type;
@@ -1884,18 +1985,17 @@ dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int pindex)
     int         ndims, i;
     hsize_t     size[64], nelmts = 1, alloc_size;
     int         depth;
-    int         stdindent = COL;	/* should be 3 */
+    int         stdindent = COL;    /* should be 3 */
 
     outputformat->line_ncols = nCols;
     outputformat->do_escape=display_escape;
     /* print the matrix indices */
-    outputformat->pindex=pindex;
-    if (outputformat->pindex)
-    {
-     outputformat->idx_fmt   = "(%s): ";
-     outputformat->idx_n_fmt = "%lu";
-     outputformat->idx_sep   = ",";
-     outputformat->line_pre  = "%s";
+    outputformat->pindex=display_index;
+    if (outputformat->pindex) {
+        outputformat->idx_fmt   = "(%s): ";
+        outputformat->idx_n_fmt = HSIZE_T_FORMAT;
+        outputformat->idx_sep   = ",";
+        outputformat->line_pre  = "%s";
     }
 
     indent += COL;
@@ -1920,13 +2020,13 @@ dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int pindex)
 
     indentation(indent);
     begin_obj(dump_header_format->databegin, (const char *)NULL,
-	      dump_header_format->datablockbegin);
+          dump_header_format->datablockbegin);
 
     /* Print all the values. */
     if (obj_data == DATASET_DATA) {
         hid_t       f_type = H5Dget_type(obj_id);
         char        string_prefix[64];
-        h5dump_t    string_dataformat;
+        h5tool_format_t    string_dataformat;
 
         if (display_char && H5Tget_size(f_type) == 1 && H5Tget_class(f_type) == H5T_INTEGER) {
             /*
@@ -1955,8 +2055,8 @@ dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int pindex)
             outputformat = &string_dataformat;
         }
 
+        status = h5tools_dump_dset(stdout, outputformat, obj_id, -1, sset, depth);
 
-	status = h5tools_dump_dset(stdout, outputformat, obj_id, -1, sset, depth);
         H5Tclose(f_type);
     } else {
         /* need to call h5tools_dump_mem for the attribute data */
@@ -1965,8 +2065,8 @@ dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int pindex)
         if(space_type == H5S_NO_CLASS || space_type == H5S_COMPLEX) {
             status = SUCCEED;
         } else {
-	    char        string_prefix[64];
-	    h5dump_t    string_dataformat;
+            char        string_prefix[64];
+            h5tool_format_t    string_dataformat;
 
             type = H5Aget_type(obj_id);
             p_type = h5tools_get_native_type(type);
@@ -1983,35 +2083,35 @@ dump_data(hid_t obj_id, int obj_data, struct subset_t *sset, int pindex)
             assert(buf);
 
             if (H5Aread(obj_id, p_type, buf) >= 0)
-		if (display_char && H5Tget_size(type) == 1 && H5Tget_class(type) == H5T_INTEGER) {
-		    /*
-		     * Print 1-byte integer data as an ASCII character string
-		     * instead of integers if the `-r' or `--string' command-line
-		     * option was given.
-		     *
-		     * We don't want to modify the global dataformat, so make a
-		     * copy of it instead.
-		     */
-		    string_dataformat = *outputformat;
-		    string_dataformat.idx_fmt = " ";
-		    string_dataformat.line_multi_new = 1;
-		    string_dataformat.line_1st = "        %s\"";
-		    string_dataformat.line_pre = "        %s";
-		    string_dataformat.line_cont = "        %s";
-		    string_dataformat.str_repeat = 8;
-		    string_dataformat.ascii = TRUE;
-		    string_dataformat.elmt_suf1 = "";
-		    string_dataformat.elmt_suf2 = "";
-		    string_dataformat.line_indent = "";
-		    strcpy(string_prefix, string_dataformat.line_pre);
-		    strcat(string_prefix, "\"");
-		    string_dataformat.line_pre = string_prefix;
-		    string_dataformat.line_suf = "\"";
-		    outputformat = &string_dataformat;
-		}
+                if (display_char && H5Tget_size(type) == 1 && H5Tget_class(type) == H5T_INTEGER) {
+                    /*
+                     * Print 1-byte integer data as an ASCII character string
+                     * instead of integers if the `-r' or `--string' command-line
+                     * option was given.
+                     *
+                     * We don't want to modify the global dataformat, so make a
+                     * copy of it instead.
+                     */
+                    string_dataformat = *outputformat;
+                    string_dataformat.idx_fmt = " ";
+                    string_dataformat.line_multi_new = 1;
+                    string_dataformat.line_1st = "        %s\"";
+                    string_dataformat.line_pre = "        %s";
+                    string_dataformat.line_cont = "        %s";
+                    string_dataformat.str_repeat = 8;
+                    string_dataformat.ascii = TRUE;
+                    string_dataformat.elmt_suf1 = "";
+                    string_dataformat.elmt_suf2 = "";
+                    string_dataformat.line_indent = "";
+                    strcpy(string_prefix, string_dataformat.line_pre);
+                    strcat(string_prefix, "\"");
+                    string_dataformat.line_pre = string_prefix;
+                    string_dataformat.line_suf = "\"";
+                    outputformat = &string_dataformat;
+                }
 
-                status = h5tools_dump_mem(stdout, outputformat, obj_id, p_type,
-                                        space, buf, depth);
+            status = h5tools_dump_mem(stdout, outputformat, obj_id, p_type,
+                                    space, buf, depth);
 
             free(buf);
             H5Tclose(p_type);
@@ -2074,15 +2174,15 @@ dump_oid(hid_t oid)
 
 static void dump_comment(hid_t obj_id)
 {
- char comment[50];
+    char comment[50];
 
- comment[0] = '\0';
- H5Gget_comment(obj_id, ".", sizeof(comment), comment);
+    comment[0] = '\0';
+    H5Gget_comment(obj_id, ".", sizeof(comment), comment);
 
- if (comment[0]) {
-  indentation(indent);
-  printf("COMMENT \"%s\"\n", comment);
- }
+    if (comment[0]) {
+        indentation(indent);
+        printf("COMMENT \"%s\"\n", comment);
+    }
 }
 
 
@@ -2102,11 +2202,11 @@ static void dump_comment(hid_t obj_id)
 
 static void dump_fill_value(hid_t dcpl,hid_t type_id, hid_t obj_id)
 {
-    h5tools_context_t	ctx;			/*print context		*/
+    h5tools_context_t   ctx;            /*print context     */
     size_t            size;
     void              *buf=NULL;
     hsize_t           nelmts=1;
-    h5dump_t          *outputformat = &dataformat;
+    h5tool_format_t          *outputformat = &dataformat;
     hid_t             n_type;
 
     memset(&ctx, 0, sizeof(ctx));
@@ -2143,302 +2243,290 @@ static void dump_fill_value(hid_t dcpl,hid_t type_id, hid_t obj_id)
 static void
 dump_dcpl(hid_t dcpl_id,hid_t type_id, hid_t obj_id)
 {
- int              nfilters;       /* number of filters */
- unsigned         filt_flags;     /* filter flags */
- H5Z_filter_t     filtn;          /* filter identification number */
- unsigned         cd_values[20];  /* filter client data values */
- size_t           cd_nelmts;      /* filter client number of values */
- char             f_name[256];    /* filter name */
- unsigned         szip_options_mask;
- unsigned         szip_pixels_per_block;
- hsize_t          chsize[64];     /* chunk size in elements */
- int              rank;           /* rank */
- char	            name[256];		    /* external file name		*/
- off_t            offset;         /* offset of external file 	*/
- hsize_t          size;           /* size of external file 	*/
- H5D_fill_value_t fvstatus;
- H5D_alloc_time_t at;
- H5D_fill_time_t  ft;
- hsize_t          storage_size;
- haddr_t          ioffset;
- int              i, next;
- unsigned         j;
+    int              nfilters;       /* number of filters */
+    unsigned         filt_flags;     /* filter flags */
+    H5Z_filter_t     filtn;          /* filter identification number */
+    unsigned         cd_values[20];  /* filter client data values */
+    size_t           cd_nelmts;      /* filter client number of values */
+    char             f_name[256];    /* filter name */
+    unsigned         szip_options_mask;
+    unsigned         szip_pixels_per_block;
+    hsize_t          chsize[64];     /* chunk size in elements */
+    int              rank;           /* rank */
+    char                name[256];          /* external file name       */
+    off_t            offset;         /* offset of external file     */
+    hsize_t          size;           /* size of external file   */
+    H5D_fill_value_t fvstatus;
+    H5D_alloc_time_t at;
+    H5D_fill_time_t  ft;
+    hsize_t          storage_size;
+    haddr_t          ioffset;
+    int              i, next;
+    unsigned         j;
 
- storage_size=H5Dget_storage_size(obj_id);
- ioffset=H5Dget_offset(obj_id);
- next=H5Pget_external_count(dcpl_id);
- strcpy(f_name,"\0");
+    storage_size=H5Dget_storage_size(obj_id);
+    ioffset=H5Dget_offset(obj_id);
+    next=H5Pget_external_count(dcpl_id);
+    strcpy(f_name,"\0");
 
-/*-------------------------------------------------------------------------
- * STORAGE_LAYOUT
- *-------------------------------------------------------------------------
- */
- indentation(indent + COL);
- printf("%s %s\n", STORAGE_LAYOUT, BEGIN);
-
- if (H5D_CHUNKED == H5Pget_layout(dcpl_id))
- {
-   /*start indent */
-  indent += COL;
-  indentation(indent + COL);
-  printf("%s ", CHUNKED);
-  rank = H5Pget_chunk(dcpl_id,NELMTS(chsize),chsize);
-  HDfprintf(stdout,"%s %Hu", dump_header_format->dataspacedimbegin, chsize[0]);
-  for ( i=1; i<rank; i++)
-   HDfprintf(stdout, ", %Hu", chsize[i]);
-	 printf(" %s\n", dump_header_format->dataspacedimend);
-  indentation(indent + COL);
-  HDfprintf(stdout, "SIZE %Hu\n ", storage_size);
-  /*end indent */
-  indent -= COL;
-  indentation(indent + COL);
-  printf("%s\n",END);
- }
- else if (H5D_COMPACT == H5Pget_layout(dcpl_id))
- {
-  /*start indent */
-  indent += COL;
-  indentation(indent + COL);
-  printf("%s\n", COMPACT);
-  indentation(indent + COL);
-  HDfprintf(stdout, "SIZE %Hu\n", storage_size);
-  /*end indent */
-  indent -= COL;
-  indentation(indent + COL);
-  printf("%s\n",END);
- }
- else if (H5D_CONTIGUOUS == H5Pget_layout(dcpl_id))
- {
- /*-------------------------------------------------------------------------
-  * EXTERNAL_FILE
-  *-------------------------------------------------------------------------
-  */
-  if (next)
-  {
-   /*start indent */
-   indent += COL;
-   indentation(indent + COL);
-   printf("%s\n", CONTIGUOUS);
-   indentation(indent + COL);
-   printf("%s %s\n", EXTERNAL, BEGIN);
-   /*start indent */
-   indent += COL;
-   for ( j=0; j<(unsigned)next; j++) {
-    H5Pget_external(dcpl_id,j,sizeof(name),name,&offset,&size);
+    /*-------------------------------------------------------------------------
+    * STORAGE_LAYOUT
+    *-------------------------------------------------------------------------
+    */
     indentation(indent + COL);
-    HDfprintf(stdout,"FILENAME %s SIZE %Hu OFFSET %ld\n",name,size,offset);
-   }
-   /*end indent */
-   indent -= COL;
-   indentation(indent + COL);
-   printf("%s\n",END);
-   /*end indent */
-   indent -= COL;
-   indentation(indent + COL);
-   printf("%s\n",END);
-  }
-  else
-  {
-   /*start indent */
-   indent += COL;
-   indentation(indent + COL);
-   printf("%s\n", CONTIGUOUS);
-   indentation(indent + COL);
-   HDfprintf(stdout,"SIZE %Hu\n", storage_size);
-   indentation(indent + COL);
-   HDfprintf(stdout,"OFFSET %Hu\n", ioffset);
-   /*end indent */
-   indent -= COL;
-   indentation(indent + COL);
-   printf("%s\n",END);
-  }
- }
-/*-------------------------------------------------------------------------
- * FILTERS
- *-------------------------------------------------------------------------
- */
- nfilters = H5Pget_nfilters(dcpl_id);
+    printf("%s %s\n", STORAGE_LAYOUT, BEGIN);
 
- indentation(indent + COL);
- printf("%s %s\n", FILTERS, BEGIN);
- indent += COL;
+    if (H5D_CHUNKED == H5Pget_layout(dcpl_id)) {
+        /*start indent */
+        indent += COL;
+        indentation(indent + COL);
+        printf("%s ", CHUNKED);
 
- if (nfilters)
- {
-  for (i=0; i<nfilters; i++)
-  {
-   cd_nelmts = NELMTS(cd_values);
-   filtn = H5Pget_filter(dcpl_id,
-    (unsigned)i,
-    &filt_flags,
-    &cd_nelmts,
-    cd_values,
-    sizeof(f_name),
-    f_name);
+        rank = H5Pget_chunk(dcpl_id,NELMTS(chsize),chsize);
+        HDfprintf(stdout,"%s %Hu", dump_header_format->dataspacedimbegin, chsize[0]);
+        for ( i=1; i<rank; i++)
+            HDfprintf(stdout, ", %Hu", chsize[i]);
+        printf(" %s\n", dump_header_format->dataspacedimend);
+        indentation(indent + COL);
+        HDfprintf(stdout, "SIZE %Hu\n ", storage_size);
 
-   switch (filtn)
-   {
-   case H5Z_FILTER_DEFLATE:
-    indentation(indent + COL);
-    printf("%s %s %s %d %s\n", DEFLATE, BEGIN, DEFLATE_LEVEL, cd_values[0], END);
-    break;
-   case H5Z_FILTER_SHUFFLE:
-    indentation(indent + COL);
-    printf("%s\n", SHUFFLE);
-    break;
-   case H5Z_FILTER_FLETCHER32:
-    indentation(indent + COL);
-    printf("%s\n", FLETCHER32);
-    break;
-   case H5Z_FILTER_SZIP:
-    {
-     szip_options_mask=cd_values[0];;
-     szip_pixels_per_block=cd_values[1];
-
-     indentation(indent + COL);
-     printf("%s %s\n",SZIP, BEGIN);
-
-     /*start indent */
-     indent += COL;
-     indentation(indent + COL);
-     printf("PIXELS_PER_BLOCK %d\n", szip_pixels_per_block);
-
-     indentation(indent + COL);
-     if (szip_options_mask & H5_SZIP_CHIP_OPTION_MASK)
-      printf("MODE %s\n", "HARDWARE");
-     else if (szip_options_mask & H5_SZIP_ALLOW_K13_OPTION_MASK)
-      printf("MODE %s\n", "K13");
-
-     indentation(indent + COL);
-     if (szip_options_mask & H5_SZIP_EC_OPTION_MASK)
-      printf("CODING %s\n", "ENTROPY");
-     else if (szip_options_mask & H5_SZIP_NN_OPTION_MASK)
-      printf("CODING %s\n", "NEAREST NEIGHBOUR");
-
-     indentation(indent + COL);
-     if (szip_options_mask & H5_SZIP_LSB_OPTION_MASK)
-      printf("BYTE_ORDER %s\n", "LSB");
-     else if (szip_options_mask & H5_SZIP_MSB_OPTION_MASK)
-      printf("BYTE_ORDER %s\n", "MSB");
-
-     indentation(indent + COL);
-     if (szip_options_mask & H5_SZIP_RAW_OPTION_MASK)
-      printf("HEADER %s\n", "RAW");
-
-     /*end indent */
-     indent -= COL;
-     indentation(indent + COL);
-     printf("%s\n",END);
+        /*end indent */
+        indent -= COL;
+        indentation(indent + COL);
+        printf("%s\n",END);
     }
-    break;
-   default:
+    else if (H5D_COMPACT == H5Pget_layout(dcpl_id)) {
+        /*start indent */
+        indent += COL;
+        indentation(indent + COL);
+        printf("%s\n", COMPACT);
+
+        indentation(indent + COL);
+        HDfprintf(stdout, "SIZE %Hu\n", storage_size);
+
+        /*end indent */
+        indent -= COL;
+        indentation(indent + COL);
+        printf("%s\n",END);
+    }
+    else if (H5D_CONTIGUOUS == H5Pget_layout(dcpl_id)) {
+        /*-------------------------------------------------------------------------
+        * EXTERNAL_FILE
+        *-------------------------------------------------------------------------
+        */
+        if (next) {
+            /*start indent */
+            indent += COL;
+            indentation(indent + COL);
+            printf("%s\n", CONTIGUOUS);
+
+            indentation(indent + COL);
+            printf("%s %s\n", EXTERNAL, BEGIN);
+
+            /*start indent */
+            indent += COL;
+            for ( j=0; j<(unsigned)next; j++) {
+                H5Pget_external(dcpl_id,j,sizeof(name),name,&offset,&size);
+                indentation(indent + COL);
+                HDfprintf(stdout,"FILENAME %s SIZE %Hu OFFSET %ld\n",name,size,offset);
+            }
+            /*end indent */
+            indent -= COL;
+            indentation(indent + COL);
+            printf("%s\n",END);
+
+            /*end indent */
+            indent -= COL;
+            indentation(indent + COL);
+            printf("%s\n",END);
+        }
+        else {
+            /*start indent */
+            indent += COL;
+            indentation(indent + COL);
+            printf("%s\n", CONTIGUOUS);
+
+            indentation(indent + COL);
+            HDfprintf(stdout,"SIZE %Hu\n", storage_size);
+            indentation(indent + COL);
+            HDfprintf(stdout,"OFFSET %Hu\n", ioffset);
+
+            /*end indent */
+            indent -= COL;
+            indentation(indent + COL);
+            printf("%s\n",END);
+        }
+    }
+    /*-------------------------------------------------------------------------
+    * FILTERS
+    *-------------------------------------------------------------------------
+    */
+    nfilters = H5Pget_nfilters(dcpl_id);
+
     indentation(indent + COL);
-    if (H5Zfilter_avail(filtn))
-     printf("%s %s\n", "USER_REGISTERED_FILTER", BEGIN);
-    else
-     printf("%s %s\n", "UNKNOWN_FILTER", BEGIN);
+    printf("%s %s\n", FILTERS, BEGIN);
+    indent += COL;
+
+    if (nfilters) {
+        for (i=0; i<nfilters; i++) {
+            cd_nelmts = NELMTS(cd_values);
+            filtn = H5Pget_filter(dcpl_id, (unsigned)i, &filt_flags, &cd_nelmts,
+                cd_values, sizeof(f_name), f_name);
+
+            switch (filtn) {
+                case H5Z_FILTER_DEFLATE:
+                    indentation(indent + COL);
+                    printf("%s %s %s %d %s\n", DEFLATE, BEGIN, DEFLATE_LEVEL, cd_values[0], END);
+                    break;
+                case H5Z_FILTER_SHUFFLE:
+                    indentation(indent + COL);
+                    printf("%s\n", SHUFFLE);
+                    break;
+                case H5Z_FILTER_FLETCHER32:
+                    indentation(indent + COL);
+                    printf("%s\n", FLETCHER32);
+                    break;
+                case H5Z_FILTER_SZIP:
+                    {
+                        szip_options_mask=cd_values[0];;
+                        szip_pixels_per_block=cd_values[1];
+
+                        indentation(indent + COL);
+                        printf("%s %s\n",SZIP, BEGIN);
+
+                        /*start indent */
+                        indent += COL;
+                        indentation(indent + COL);
+                        printf("PIXELS_PER_BLOCK %d\n", szip_pixels_per_block);
+
+                        indentation(indent + COL);
+                        if (szip_options_mask & H5_SZIP_CHIP_OPTION_MASK)
+                            printf("MODE %s\n", "HARDWARE");
+                        else if (szip_options_mask & H5_SZIP_ALLOW_K13_OPTION_MASK)
+                            printf("MODE %s\n", "K13");
+
+                        indentation(indent + COL);
+                        if (szip_options_mask & H5_SZIP_EC_OPTION_MASK)
+                            printf("CODING %s\n", "ENTROPY");
+                        else if (szip_options_mask & H5_SZIP_NN_OPTION_MASK)
+                            printf("CODING %s\n", "NEAREST NEIGHBOUR");
+
+                        indentation(indent + COL);
+                        if (szip_options_mask & H5_SZIP_LSB_OPTION_MASK)
+                            printf("BYTE_ORDER %s\n", "LSB");
+                        else if (szip_options_mask & H5_SZIP_MSB_OPTION_MASK)
+                            printf("BYTE_ORDER %s\n", "MSB");
+
+                        indentation(indent + COL);
+                        if (szip_options_mask & H5_SZIP_RAW_OPTION_MASK)
+                            printf("HEADER %s\n", "RAW");
+
+                        /*end indent */
+                        indent -= COL;
+                        indentation(indent + COL);
+                        printf("%s\n",END);
+                    }
+                    break;
+                default:
+                    indentation(indent + COL);
+                    if (H5Zfilter_avail(filtn))
+                        printf("%s %s\n", "USER_REGISTERED_FILTER", BEGIN);
+                    else
+                        printf("%s %s\n", "UNKNOWN_FILTER", BEGIN);
+                    /*start indent */
+                    indent += COL;
+                    indentation(indent + COL);
+                    printf("FILTER_ID %d\n", filtn);
+                    if (f_name[0]!='\0') {
+                        indentation(indent + COL);
+                        printf("COMMENT %s\n", f_name);
+                    }
+                    if (cd_nelmts) {
+                        indentation(indent + COL);
+                        printf("%s %s ","PARAMS", BEGIN);
+                        for (j=0; j<cd_nelmts; j++)
+                            printf("%d ", cd_values[j]);
+                        printf("%s\n", END);
+                    }
+                    break;
+            }/*switch*/
+        } /*i*/
+    }/*nfilters*/
+    else {
+        indentation(indent + COL);
+        printf("NONE\n");
+    }
+    indent -= COL;
+    indentation(indent + COL);
+    printf("%s\n",END);
+
+    /*-------------------------------------------------------------------------
+    * FILLVALUE
+    *-------------------------------------------------------------------------
+    */
+    indentation(indent + COL);
+    printf("%s %s\n", FILLVALUE, BEGIN);
     /*start indent */
     indent += COL;
     indentation(indent + COL);
-    printf("FILTER_ID %d\n", filtn);
-    if (f_name[0]!='\0') {
-     indentation(indent + COL);
-     printf("COMMENT %s\n", f_name);
+    printf("FILL_TIME ");
+    H5Pget_fill_time(dcpl_id, &ft);
+    switch ( ft ) {
+        case H5D_FILL_TIME_ALLOC:
+            printf("%s", "H5D_FILL_TIME_ALLOC\n");
+            break;
+        case H5D_FILL_TIME_NEVER:
+            printf("%s", "H5D_FILL_TIME_NEVER\n");
+            break;
+        case H5D_FILL_TIME_IFSET:
+            printf("%s", "H5D_FILL_TIME_IFSET\n");
+            break;
+        default:
+            assert(0);
+            break;
     }
-    if (cd_nelmts) {
-     indentation(indent + COL);
-     printf("%s %s ","PARAMS", BEGIN);
-     for (j=0; j<cd_nelmts; j++) {
-      printf("%d ", cd_values[j]);
-     }
-     printf("%s\n", END);
+    indentation(indent + COL);
+    printf("%s ", "VALUE ");
+    H5Pfill_value_defined(dcpl_id, &fvstatus);
+    if (fvstatus == H5D_FILL_VALUE_UNDEFINED)
+        printf("%s\n", "H5D_FILL_VALUE_UNDEFINED");
+    else
+        dump_fill_value(dcpl_id,type_id,obj_id);
+    /* end indent */
+    indent -= COL;
+    indentation(indent + COL);
+    printf("\n");
+    indentation(indent + COL);
+    printf("%s\n",END);
+
+    /*-------------------------------------------------------------------------
+    * ALLOCATION_TIME
+    *-------------------------------------------------------------------------
+    */
+    indentation(indent + COL);
+    printf("ALLOCATION_TIME %s\n",BEGIN);
+    /*start indent */
+    indent += COL;
+    indentation(indent + COL);
+    H5Pget_alloc_time(dcpl_id, &at);
+    switch (at) {
+        case H5D_ALLOC_TIME_EARLY:
+            printf("%s", "H5D_ALLOC_TIME_EARLY\n");
+            break;
+        case H5D_ALLOC_TIME_INCR:
+            printf("%s", "H5D_ALLOC_TIME_INCR\n");
+            break;
+        case H5D_ALLOC_TIME_LATE:
+            printf("%s", "H5D_ALLOC_TIME_LATE\n");
+            break;
+        default:
+            assert(0);
+            break;
     }
-    break;
-   }/*switch*/
-  } /*i*/
- }/*nfilters*/
- else
- {
-  indentation(indent + COL);
-  printf("NONE\n");
- }
- indent -= COL;
- indentation(indent + COL);
- printf("%s\n",END);
-
-/*-------------------------------------------------------------------------
- * FILLVALUE
- *-------------------------------------------------------------------------
- */
- indentation(indent + COL);
- printf("%s %s\n", FILLVALUE, BEGIN);
- /*start indent */
- indent += COL;
- indentation(indent + COL);
- printf("FILL_TIME ");
- H5Pget_fill_time(dcpl_id, &ft);
- switch ( ft )
- {
-    case H5D_FILL_TIME_ALLOC:
-        printf("%s", "H5D_FILL_TIME_ALLOC\n");
-        break;
-    case H5D_FILL_TIME_NEVER:
-        printf("%s", "H5D_FILL_TIME_NEVER\n");
-        break;
-    case H5D_FILL_TIME_IFSET:
-        printf("%s", "H5D_FILL_TIME_IFSET\n");
-        break;
-    default:
-        assert(0);
-        break;
- }
- indentation(indent + COL);
- printf("%s ", "VALUE ");
- H5Pfill_value_defined(dcpl_id, &fvstatus);
- if (fvstatus == H5D_FILL_VALUE_UNDEFINED)
- {
-  printf("%s\n", "H5D_FILL_VALUE_UNDEFINED");
- }
- else
- {
-  dump_fill_value(dcpl_id,type_id,obj_id);
- }
- /* end indent */
- indent -= COL;
- indentation(indent + COL);
- printf("\n");
- indentation(indent + COL);
- printf("%s\n",END);
-
-/*-------------------------------------------------------------------------
- * ALLOCATION_TIME
- *-------------------------------------------------------------------------
- */
- indentation(indent + COL);
- printf("ALLOCATION_TIME %s\n",BEGIN);
- /*start indent */
- indent += COL;
- indentation(indent + COL);
- H5Pget_alloc_time(dcpl_id, &at);
- switch (at)
- {
-    case H5D_ALLOC_TIME_EARLY:
-        printf("%s", "H5D_ALLOC_TIME_EARLY\n");
-        break;
-    case H5D_ALLOC_TIME_INCR:
-        printf("%s", "H5D_ALLOC_TIME_INCR\n");
-        break;
-    case H5D_ALLOC_TIME_LATE:
-        printf("%s", "H5D_ALLOC_TIME_LATE\n");
-        break;
-    default:
-        assert(0);
-        break;
- }
- /* end indent */
- indent -= COL;
- indentation(indent + COL);
- printf("%s\n",END);
+    /* end indent */
+    indent -= COL;
+    indentation(indent + COL);
+    printf("%s\n",END);
 }
 
 /*-------------------------------------------------------------------------
@@ -2457,112 +2545,94 @@ dump_dcpl(hid_t dcpl_id,hid_t type_id, hid_t obj_id)
 static void
 dump_fcpl(hid_t fid)
 {
- hid_t    fcpl;      /* file creation property list ID */
- hid_t		  fapl;      /* file access property list ID */
- hsize_t  userblock; /* userblock size retrieved from FCPL */
- size_t   off_size;  /* size of offsets in the file */
- size_t   len_size;  /* size of lengths in the file */
- unsigned super;     /* superblock version # */
- unsigned freelist;  /* free list version # */
- unsigned stab;      /* symbol table entry version # */
- unsigned shhdr;     /* shared object header version # */
- hid_t    fdriver;    /* file driver */
- char     dname[15]; /* buffer to store driver name */
+    hid_t    fcpl;      /* file creation property list ID */
+    hid_t         fapl;      /* file access property list ID */
+    hsize_t  userblock; /* userblock size retrieved from FCPL */
+    size_t   off_size;  /* size of offsets in the file */
+    size_t   len_size;  /* size of lengths in the file */
+    unsigned super;     /* superblock version # */
+    unsigned freelist;  /* free list version # */
+    unsigned stab;      /* symbol table entry version # */
+    unsigned shhdr;     /* shared object header version # */
+    hid_t    fdriver;    /* file driver */
+    char     dname[15]; /* buffer to store driver name */
 #ifdef H5_WANT_H5_V1_4_COMPAT
- int      sym_lk;
- int      sym_ik;    /* symbol table B-tree internal 'K' value */
+     int      sym_lk;
+     int      sym_ik;    /* symbol table B-tree internal 'K' value */
 #else
- unsigned sym_lk;    /* symbol table B-tree leaf 'K' value */
- unsigned sym_ik;    /* symbol table B-tree internal 'K' value */
+    unsigned sym_lk;    /* symbol table B-tree leaf 'K' value */
+    unsigned sym_ik;    /* symbol table B-tree internal 'K' value */
 #endif
- unsigned istore_ik; /* indexed storage B-tree internal 'K' value */
+    unsigned istore_ik; /* indexed storage B-tree internal 'K' value */
 
- fcpl=H5Fget_create_plist(fid);
- H5Pget_version(fcpl, &super, &freelist, &stab, &shhdr);
- H5Pget_userblock(fcpl,&userblock);
- H5Pget_sizes(fcpl,&off_size,&len_size);
- H5Pget_sym_k(fcpl,&sym_ik,&sym_lk);
- H5Pget_istore_k(fcpl,&istore_ik);
- H5Pclose(fcpl);
- fapl=h5_fileaccess();
- fdriver=H5Pget_driver(fapl);
- H5Pclose(fapl);
+    fcpl=H5Fget_create_plist(fid);
+    H5Pget_version(fcpl, &super, &freelist, &stab, &shhdr);
+    H5Pget_userblock(fcpl,&userblock);
+    H5Pget_sizes(fcpl,&off_size,&len_size);
+    H5Pget_sym_k(fcpl,&sym_ik,&sym_lk);
+    H5Pget_istore_k(fcpl,&istore_ik);
+    H5Pclose(fcpl);
+    fapl=h5_fileaccess();
+    fdriver=H5Pget_driver(fapl);
+    H5Pclose(fapl);
 
-/*-------------------------------------------------------------------------
- * SUPER_BLOCK
- *-------------------------------------------------------------------------
- */
- printf("%s %s\n",SUPER_BLOCK, BEGIN);
- indentation(indent + COL);
- printf("%s %u\n","SUPERBLOCK_VERSION", super);
- indentation(indent + COL);
- printf("%s %u\n","FREELIST_VERSION", freelist);
- indentation(indent + COL);
- printf("%s %u\n","SYMBOLTABLE_VERSION", stab);
- indentation(indent + COL);
- printf("%s %u\n","OBJECTHEADER_VERSION", shhdr);
- indentation(indent + COL);
- HDfprintf(stdout,"%s %Hd\n","OFFSET_SIZE", (long_long)off_size);
- indentation(indent + COL);
- HDfprintf(stdout,"%s %Hd\n","LENGTH_SIZE", (long_long)len_size);
- indentation(indent + COL);
- printf("%s %u\n","BTREE_RANK", sym_ik);
- indentation(indent + COL);
- printf("%s %d\n","BTREE_LEAF", sym_lk);
+    /*-------------------------------------------------------------------------
+    * SUPER_BLOCK
+    *-------------------------------------------------------------------------
+    */
+    printf("%s %s\n",SUPER_BLOCK, BEGIN);
+    indentation(indent + COL);
+    printf("%s %u\n","SUPERBLOCK_VERSION", super);
+    indentation(indent + COL);
+    printf("%s %u\n","FREELIST_VERSION", freelist);
+    indentation(indent + COL);
+    printf("%s %u\n","SYMBOLTABLE_VERSION", stab);
+    indentation(indent + COL);
+    printf("%s %u\n","OBJECTHEADER_VERSION", shhdr);
+    indentation(indent + COL);
+    HDfprintf(stdout,"%s %Hd\n","OFFSET_SIZE", (long_long)off_size);
+    indentation(indent + COL);
+    HDfprintf(stdout,"%s %Hd\n","LENGTH_SIZE", (long_long)len_size);
+    indentation(indent + COL);
+    printf("%s %u\n","BTREE_RANK", sym_ik);
+    indentation(indent + COL);
+    printf("%s %d\n","BTREE_LEAF", sym_lk);
 
- if (H5FD_CORE==fdriver)
- {
-  strcpy(dname,"H5FD_CORE");
- }
- else if (H5FD_FAMILY==fdriver)
- {
-  strcpy(dname,"H5FD_FAMILY");
- }
- else if (H5FD_GASS==fdriver)
- {
-  strcpy(dname,"H5FD_GASS");
- }
- else if (H5FD_LOG==fdriver)
- {
-  strcpy(dname,"H5FD_LOG");
- }
- else if (H5FD_MPIO==fdriver)
- {
-  strcpy(dname,"H5FD_MPIO");
- }
- else if (H5FD_MULTI==fdriver)
- {
-  strcpy(dname,"H5FD_MULTI");
- }
- else if (H5FD_SEC2==fdriver)
- {
-  strcpy(dname,"H5FD_SEC2");
- }
- else if (H5FD_STDIO==fdriver)
- {
-  strcpy(dname,"H5FD_STDIO");
- }
+    if (H5FD_CORE==fdriver)
+        HDstrcpy(dname,"H5FD_CORE");
+    else if (H5FD_FAMILY==fdriver)
+        HDstrcpy(dname,"H5FD_FAMILY");
+     else if (H5FD_GASS==fdriver)
+        HDstrcpy(dname,"H5FD_GASS");
+     else if (H5FD_LOG==fdriver)
+        HDstrcpy(dname,"H5FD_LOG");
+    else if (H5FD_MPIO==fdriver)
+        HDstrcpy(dname,"H5FD_MPIO");
+    else if (H5FD_MULTI==fdriver)
+        HDstrcpy(dname,"H5FD_MULTI");
+    else if (H5FD_SEC2==fdriver)
+        HDstrcpy(dname,"H5FD_SEC2");
+    else if (H5FD_STDIO==fdriver)
+        HDstrcpy(dname,"H5FD_STDIO");
 #ifdef H5_HAVE_STREAM
- else if (H5FD_STREAM==fdriver)
- {
-  strcpy(dname,"H5FD_STREAM");
- }
+    else if (H5FD_STREAM==fdriver)
+        HDstrcpy(dname,"H5FD_STREAM");
 #endif
 
- indentation(indent + COL);
- printf("%s %s\n","FILE_DRIVER", dname);
- indentation(indent + COL);
- printf("%s %u\n","ISTORE_K", istore_ik);
- printf("%s\n",END);
+    indentation(indent + COL);
+    printf("%s %s\n","FILE_DRIVER", dname);
+    indentation(indent + COL);
+    printf("%s %u\n","ISTORE_K", istore_ik);
+    printf("%s\n",END);
 
-/*-------------------------------------------------------------------------
- * USER_BLOCK
- *-------------------------------------------------------------------------
- */
- printf("USER_BLOCK %s\n",BEGIN);
- indentation(indent + COL);
- HDfprintf(stdout,"%s %Hu\n","USERBLOCK_SIZE", userblock);
- printf("%s\n",END);
+    /*-------------------------------------------------------------------------
+    * USER_BLOCK
+    *-------------------------------------------------------------------------
+    */
+    printf("USER_BLOCK %s\n",BEGIN);
+    indentation(indent + COL);
+    HDfprintf(stdout,"%s %Hu\n","USERBLOCK_SIZE", userblock);
+    printf("%s\n",END);
 }
 
 /*-------------------------------------------------------------------------
@@ -2589,7 +2659,7 @@ static void dump_fcontents(hid_t fid)
 
         for (u = 0; u < type_table->nobjs; u++) {
             if (!type_table->objs[u].recorded) {
-                unsigned long 	objno[2];	/*object number			*/
+                unsigned long   objno[2];   /*object number         */
 
                 objno[0] = (unsigned long)(type_table->objs[u].objno);
 #if H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG
@@ -2613,29 +2683,80 @@ static void dump_fcontents(hid_t fid)
  * Function:    set_output_file
  *
  * Purpose:     Open fname as the output file for dataset raw data.
- *		Set rawdatastream as its file stream.
+ *      Set rawdatastream as its file stream.
  *
  * Return:      0 -- succeeded
- *		negative -- failed
+ *      negative -- failed
  *
  * Programmer:  Albert Cheng, 2000/09/30
+ *
+ * Modifications:
+ *  pvn June, 1, 2006. Add a switch for binary output
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+set_output_file(const char *fname, int is_bin)
+{
+ FILE    *f;    /* temporary holding place for the stream pointer
+* so that rawdatastream is changed only when succeeded */
+
+ if (rawdatastream && rawdatastream != stdout) {
+  if (fclose(rawdatastream))
+   perror("closing rawdatastream");
+  else
+   rawdatastream = NULL;
+ }
+
+ /* binary output */
+ if (is_bin)
+ {
+  if ((f = fopen(fname, "wb")) != NULL) {
+   rawdatastream = f;
+   return 0;
+  }
+ }
+ else
+ {
+  if ((f = fopen(fname, "w")) != NULL) {
+   rawdatastream = f;
+   return 0;
+  }
+ }
+
+ return -1;
+}
+
+/*-------------------------------------------------------------------------
+ * Function:    set_binary_form
+ *
+ * Purpose: set the binary form of output by translating from a string input
+ *          parameter to a integer return value
+ *
+ * Return: integer form of binary output or -1 if none found
+ *
+ * Programmer:  Pedro Vicente Nunes
+ *             June 28, 2006
  *
  * Modifications:
  *
  *-------------------------------------------------------------------------
  */
 static int
-set_output_file(const char *fname)
+set_binary_form(const char *form)
 {
-    FILE    *f;	/* temporary holding place for the stream pointer
-                 * so that rawdatastream is changed only when succeeded */
+ int bform=-1;
 
-    if ((f = fopen(fname, "w")) != NULL) {
-	rawdatastream = f;
-	return 0;
-    }
+ if (strcmp(form,"MEMORY")==0) /* native form */
+  bform = 0;
+ else if (strcmp(form,"FILE")==0) /* file type form */
+  bform = 1;
+ else if (strcmp(form,"LE")==0) /* convert to little endian */
+  bform = 2;
+ else if (strcmp(form,"BE")==0) /* convert to big endian */
+  bform = 3;
 
-    return -1;
+ return bform;
 }
 
 /*-------------------------------------------------------------------------
@@ -2712,7 +2833,7 @@ parse_hsize_list(const char *h_list)
     for (ptr = h_list; i < size_count && ptr && *ptr && *ptr != ';' && *ptr != ']'; ptr++)
         if (isdigit(*ptr)) {
             /* we should have an integer now */
-            p_list[i++] = (hsize_t)atoi(ptr);
+            p_list[i++] = (hsize_t)atof(ptr);
 
             while (isdigit(*ptr))
                 /* scroll to end of integer */
@@ -2926,15 +3047,15 @@ handle_groups(hid_t fid, char *group, void UNUSED * data)
                 dump_header_format->groupblockend);
         d_status = EXIT_FAILURE;
     } else {
-        size_t new_len = strlen(group) + 1;
+        size_t new_len = HDstrlen(group) + 1;
 
         if (prefix_len <= new_len) {
             prefix_len = new_len;
-            prefix = realloc(prefix, prefix_len);
+            prefix = HDrealloc(prefix, prefix_len);
         }
 
         H5Gget_objinfo(gid, ".", TRUE, &statbuf);
-        strcpy(prefix, group);
+        HDstrcpy(prefix, group);
         dump_group(gid, group);
 
         if (H5Gclose(gid) < 0)
@@ -2962,15 +3083,10 @@ handle_links(hid_t fid, char *links, void UNUSED * data)
     H5G_stat_t  statbuf;
 
     if (H5Gget_objinfo(fid, links, FALSE, &statbuf) < 0) {
-        begin_obj(dump_header_format->softlinkbegin, links,
-                  dump_header_format->softlinkblockbegin);
-        indentation(COL);
         error_msg(progname, "unable to get obj info from \"%s\"\n", links);
-        end_obj(dump_header_format->softlinkend,
-                dump_header_format->softlinkblockend);
         d_status = EXIT_FAILURE;
     } else if (statbuf.type == H5G_LINK) {
-        char *buf = malloc(statbuf.linklen);
+        char *buf = HDmalloc(statbuf.linklen);
 
         begin_obj(dump_header_format->softlinkbegin, links,
                   dump_header_format->softlinkblockbegin);
@@ -2986,14 +3102,9 @@ handle_links(hid_t fid, char *links, void UNUSED * data)
 
         end_obj(dump_header_format->softlinkend,
                 dump_header_format->softlinkblockend);
-        free(buf);
+        HDfree(buf);
     } else {
-        begin_obj(dump_header_format->softlinkbegin, links,
-                  dump_header_format->softlinkblockbegin);
-        indentation(COL);
         error_msg(progname, "\"%s\" is not a link\n", links);
-        end_obj(dump_header_format->softlinkend,
-                dump_header_format->softlinkblockend);
         d_status = EXIT_FAILURE;
     }
 }
@@ -3025,7 +3136,7 @@ handle_datatypes(hid_t fid, char *type, void UNUSED * data)
             char name[128];
 
             if (!type_table->objs[idx].recorded) {
-                unsigned long 	objno[2];	/*object number			*/
+                unsigned long   objno[2];   /*object number         */
 
                 /* unamed data type */
                 objno[0] = (unsigned long)(type_table->objs[idx].objno);
@@ -3083,6 +3194,7 @@ handle_datatypes(hid_t fid, char *type, void UNUSED * data)
  *              Tuesday, 20. February 2001
  *
  * Modifications:
+ *  pvn June, 1, 2006. Add a switch for binary output
  *
  *-------------------------------------------------------------------------
  */
@@ -3091,6 +3203,17 @@ parse_command_line(int argc, const char *argv[])
 {
     struct handler_t   *hand, *last_dset = NULL;
     int                 i, opt, last_was_dset = FALSE;
+
+    /* some logic to handle both -o and -b order */
+    const char          *outfname=NULL;
+    bin_form = -1;
+
+
+    /* no arguments */
+    if (argc == 1) {
+        usage(progname);
+        leave(EXIT_FAILURE);
+    }
 
     /* this will be plenty big enough to hold the info */
     hand = calloc((size_t)argc, sizeof(struct handler_t));
@@ -3206,16 +3329,49 @@ parse_start:
 
             last_was_dset = FALSE;
             break;
-        case 'o':
-            if (set_output_file(opt_arg) < 0){
-                /* failed to set output file */
-                usage(progname);
-                leave(EXIT_FAILURE);
-            }
 
-            usingdasho = TRUE;
-            last_was_dset = FALSE;
-            break;
+        case 'o':
+         
+         if (bin_form > 0 )
+         {
+          if (set_output_file(opt_arg, 1) < 0){
+           usage(progname);
+           leave(EXIT_FAILURE);
+          }
+         }
+         else
+         {
+          if (set_output_file(opt_arg, 0) < 0){
+           usage(progname);
+           leave(EXIT_FAILURE);
+          }
+         }
+      
+         usingdasho = TRUE;
+         last_was_dset = FALSE;
+         outfname = opt_arg;
+         break;
+
+       case 'b':
+            
+        if ( ( bin_form = set_binary_form(opt_arg)) < 0){
+         /* failed to set binary form */
+         usage(progname);
+         leave(EXIT_FAILURE);
+        }
+        bin_output = TRUE;
+        if (outfname!=NULL) {
+         if (set_output_file(outfname, 1) < 0){
+          /* failed to set output file */
+          usage(progname);
+          leave(EXIT_FAILURE);
+         }
+         
+         
+         last_was_dset = FALSE;
+        }
+        
+        break;
 
         /** begin XML parameters **/
         case 'x':
@@ -3240,15 +3396,15 @@ parse_start:
         case 'X':
             /* specify XML namespace (default="hdf5:"), or none */
             /* To Do: check format of this value?  */
-	    if (!useschema) {
+        if (!useschema) {
                 usage(progname);
                 leave(EXIT_FAILURE);
-	    }
-	    if (strcmp(opt_arg,":") == 0) {
+        }
+        if (strcmp(opt_arg,":") == 0) {
                 xmlnsprefix = "";
-	    } else {
+        } else {
                 xmlnsprefix = opt_arg;
-	    }
+        }
             break;
         /** end XML parameters **/
 
@@ -3424,27 +3580,27 @@ main(int argc, const char *argv[])
 
     /* Check for conflicting options */
     if (doxml) {
-	if (!display_all) {
+    if (!display_all) {
             error_msg(progname, "option \"%s\" not available for XML\n",
-		      "to display selected objects");
-	    leave(EXIT_FAILURE);
-	} else if (display_bb) {
+              "to display selected objects");
+        leave(EXIT_FAILURE);
+    } else if (display_bb) {
             error_msg(progname, "option \"%s\" not available for XML\n",
-		      "--boot-block");
-	    leave(EXIT_FAILURE);
-	} else if (display_oid == 1) {
+              "--boot-block");
+        leave(EXIT_FAILURE);
+    } else if (display_oid == 1) {
             error_msg(progname, "option \"%s\" not available for XML\n",
-		      "--object-ids");
-	    leave(EXIT_FAILURE);
+              "--object-ids");
+        leave(EXIT_FAILURE);
         } else if (display_char == TRUE) {
             error_msg(progname, "option \"%s\" not available for XML\n",
-		      "--string");
-	    leave(EXIT_FAILURE);
-	} else if (usingdasho) {
+              "--string");
+        leave(EXIT_FAILURE);
+    } else if (usingdasho) {
             error_msg(progname, "option \"%s\" not available for XML\n",
-		      "--output");
-	    leave(EXIT_FAILURE);
-	}
+              "--output");
+        leave(EXIT_FAILURE);
+    }
     } else {
         if (xml_dtd_uri) {
             warn_msg(progname, "option \"%s\" only applies with XML: %s\n",
@@ -3459,7 +3615,7 @@ main(int argc, const char *argv[])
     }
     fname = argv[opt_ind];
 
-    fid = h5tools_fopen(fname, driver, NULL, 0, argc, argv);
+    fid = h5tools_fopen(fname, driver, NULL, 0);
 
     if (fid < 0) {
         error_msg(progname, "unable to open file \"%s\"\n", fname);
@@ -3471,28 +3627,28 @@ main(int argc, const char *argv[])
 
     /* find all objects that might be targets of a refernce */
     init_ref_path_table(fid);      /* Insert the root group into the ref. path table */
-    H5Giterate(fid, "/", NULL, fill_ref_path_table, (void *)"");
+    H5Giterate(fid, (const char *)"/", NULL, fill_ref_path_table, (void *)"");
 
     if (doxml) {
-	/* initialize XML */
+    /* initialize XML */
 
-	/* reset prefix! */
-	strcpy(prefix, "");
+    /* reset prefix! */
+    HDstrcpy(prefix, "");
 
-	/* make sure the URI is initialized to something */
-	if (xml_dtd_uri == NULL) {
-	    if (useschema) {
-		    xml_dtd_uri = DEFAULT_XSD;
-	    } else {
-		    xml_dtd_uri = DEFAULT_DTD;
-		    xmlnsprefix = "";
-	    }
-	} else {
-		if (useschema && strcmp(xmlnsprefix,"")) {
+    /* make sure the URI is initialized to something */
+    if (xml_dtd_uri == NULL) {
+        if (useschema) {
+            xml_dtd_uri = DEFAULT_XSD;
+        } else {
+            xml_dtd_uri = DEFAULT_DTD;
+            xmlnsprefix = "";
+        }
+    } else {
+        if (useschema && strcmp(xmlnsprefix,"")) {
         error_msg(progname, "Cannot set Schema URL for a qualified namespace--use -X or -U option with -D \n");
-			leave(EXIT_FAILURE);
-		}
-	}
+            leave(EXIT_FAILURE);
+        }
+    }
     }
 
     /* find all shared objects */
@@ -3516,11 +3672,11 @@ main(int argc, const char *argv[])
 
     /* start to dump - display file header information */
     if (!doxml) {
-	begin_obj(dump_header_format->filebegin, fname,
-		  dump_header_format->fileblockbegin);
+    begin_obj(dump_header_format->filebegin, fname,
+          dump_header_format->fileblockbegin);
     } else {
-	printf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-	/* alternative first element, depending on schema or DTD. */
+    printf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    /* alternative first element, depending on schema or DTD. */
         if (useschema) {
             if (strcmp(xmlnsprefix,"") == 0) {
                 printf("<HDF5-File xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"%s\">\n",
@@ -3534,16 +3690,16 @@ main(int argc, const char *argv[])
                 indx = strrchr(ns,(int)':');
                 if (indx) *indx = '\0';
 
-                printf("<%sHDF5-File xmlns:%s=\"http://hdf.ncsa.uiuc.edu/DTDs/HDF5-File\" "
+                printf("<%sHDF5-File xmlns:%s=\"http://hdfgroup.org/DTDs/HDF5-File\" "
                     "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
-                    "xsi:schemaLocation=\"http://hdf.ncsa.uiuc.edu/DTDs/HDF5File "
-                    "http://hdf.ncsa.uiuc.edu/DTDs/HDF5-File.xsd\">\n",xmlnsprefix,ns);
+                    "xsi:schemaLocation=\"http://hdfgroup.org/DTDs/HDF5File "
+                    "http://hdfgroup.org/DTDs/HDF5-File.xsd\">\n",xmlnsprefix,ns);
             }
-	} else {
+    } else {
             printf("<!DOCTYPE HDF5-File PUBLIC \"HDF5-File.dtd\" \"%s\">\n",
                    xml_dtd_uri);
             printf("<HDF5-File>\n");
-	}
+    }
     }
 
     if (!doxml) {
@@ -3563,7 +3719,7 @@ main(int argc, const char *argv[])
             error_msg(progname, "unable to open root group\n");
             d_status = EXIT_FAILURE;
         } else {
-	    dump_function_table->dump_group_function(gid, "/");
+        dump_function_table->dump_group_function(gid, "/");
         }
 
         if (H5Gclose(gid) < 0) {
@@ -3571,13 +3727,13 @@ main(int argc, const char *argv[])
             d_status = EXIT_FAILURE;
         }
     } else {
-	if (doxml) {
-	    /* Note: this option is not supported for XML */
+    if (doxml) {
+        /* Note: this option is not supported for XML */
             error_msg(progname, "internal error (file %s:line %d)\n",
                       __FILE__, __LINE__);
             d_status = EXIT_FAILURE;
-	    goto done;
-	}
+        goto done;
+    }
 
         for (i = 0; i < argc; i++)
             if (hand[i].func)
@@ -3585,15 +3741,15 @@ main(int argc, const char *argv[])
     }
 
     if (!doxml) {
-	end_obj(dump_header_format->fileend,
-		dump_header_format->fileblockend);
+    end_obj(dump_header_format->fileend,
+        dump_header_format->fileblockend);
     } else {
-	printf("</%sHDF5-File>\n", xmlnsprefix);
+    printf("</%sHDF5-File>\n", xmlnsprefix);
     }
 
 done:
     if (H5Fclose(fid) < 0)
-	d_status = EXIT_FAILURE;
+    d_status = EXIT_FAILURE;
 
     free_handler(hand, argc);
 
@@ -3602,7 +3758,7 @@ done:
     free_table(dset_table);
     free_table(type_table);
 
-    free(prefix);
+    HDfree(prefix);
 
     /* To Do:  clean up XML table */
 
@@ -3650,15 +3806,15 @@ print_enum(hid_t type)
      *    3. raw format
      */
     if (H5Tget_size(type) <= sizeof(long_long)) {
-	dst_size = sizeof(long_long);
+    dst_size = sizeof(long_long);
 
-	if (H5T_SGN_NONE == H5Tget_sign(type)) {
-	    native = H5T_NATIVE_ULLONG;
-	} else {
-	    native = H5T_NATIVE_LLONG;
-	}
+    if (H5T_SGN_NONE == H5Tget_sign(type)) {
+        native = H5T_NATIVE_ULLONG;
     } else {
-	dst_size = H5Tget_size(type);
+        native = H5T_NATIVE_LLONG;
+    }
+    } else {
+    dst_size = H5Tget_size(type);
     }
 
     /* Get the names and raw values of all members */
@@ -3666,8 +3822,8 @@ print_enum(hid_t type)
     value = calloc(nmembs, MAX(H5Tget_size(type), dst_size));
 
     for (i = 0; i < nmembs; i++) {
-	name[i] = H5Tget_member_name(type, i);
-	H5Tget_member_value(type, i, value + i * H5Tget_size(type));
+    name[i] = H5Tget_member_name(type, i);
+    H5Tget_member_value(type, i, value + i * H5Tget_size(type));
     }
 
     /* Convert values to native data type */
@@ -3681,44 +3837,44 @@ print_enum(hid_t type)
 
     /* Print members */
     for (i = 0; i < nmembs; i++) {
-	indentation(indent + COL);
-	nchars = printf("\"%s\"", name[i]);
-	printf("%*s   ", MAX(0, 16 - nchars), "");
+    indentation(indent + COL);
+    nchars = printf("\"%s\"", name[i]);
+    printf("%*s   ", MAX(0, 16 - nchars), "");
 
-	if (native < 0) {
+    if (native < 0) {
             size_t j;
 
-	    printf("0x");
+        printf("0x");
 
-	    for (j = 0; j < dst_size; j++)
-		printf("%02x", value[i * dst_size + j]);
-	} else if (H5T_SGN_NONE == H5Tget_sign(native)) {
-	    /*On SGI Altix(cobalt), wrong values were printed out with "value+i*dst_size"
-	     *strangely, unless use another pointer "copy".*/
-	    copy = value+i*dst_size;
-	    HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "u", *((unsigned long_long *)
-					      ((void *)copy)));
-	} else {
-	    /*On SGI Altix(cobalt), wrong values were printed out with "value+i*dst_size"
-	     *strangely, unless use another pointer "copy".*/
-	    copy = value+i*dst_size;
-	    HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "d",
-		   *((long_long *) ((void *)copy)));
-	}
+        for (j = 0; j < dst_size; j++)
+        printf("%02x", value[i * dst_size + j]);
+    } else if (H5T_SGN_NONE == H5Tget_sign(native)) {
+        /*On SGI Altix(cobalt), wrong values were printed out with "value+i*dst_size"
+         *strangely, unless use another pointer "copy".*/
+        copy = value+i*dst_size;
+        HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "u", *((unsigned long_long *)
+                          ((void *)copy)));
+    } else {
+        /*On SGI Altix(cobalt), wrong values were printed out with "value+i*dst_size"
+         *strangely, unless use another pointer "copy".*/
+        copy = value+i*dst_size;
+        HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "d",
+           *((long_long *) ((void *)copy)));
+    }
 
-	printf(";\n");
+    printf(";\n");
     }
 
     /* Release resources */
     for (i = 0; i < nmembs; i++)
-	free(name[i]);
+    free(name[i]);
 
     free(name);
     free(value);
     H5Tclose(super);
 
     if (0 == nmembs)
-	printf("\n%*s <empty>", indent + 4, "");
+    printf("\n%*s <empty>", indent + 4, "");
 }
 
 
@@ -3734,7 +3890,7 @@ int
 xml_name_to_XID(const char *str , char *outstr, int outlen, int gen)
 {
     haddr_t objno;      /* Object ID for object at path */
-    unsigned long 	_objno[2];	/*object number			*/
+    unsigned long   _objno[2];  /*object number         */
 
     if (outlen < 22) return 1;
 
@@ -3751,7 +3907,7 @@ xml_name_to_XID(const char *str , char *outstr, int outlen, int gen)
 #else /* H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG */
                     _objno[1] = 0;
 #endif /* H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG */
-		    sprintf(outstr,"xid_%lu-%lu", _objno[0], _objno[1]);
+            sprintf(outstr,"xid_%lu-%lu", _objno[0], _objno[1]);
                     return 0;
                 } else {
                     return 1;
@@ -3816,30 +3972,30 @@ xml_escape_the_name(const char *str)
     char                   *rcp;
 
     if (!str)
-	return NULL;
+    return NULL;
 
     cp = str;
     len = strlen(str);
     extra = 0;
 
     for (i = 0; i < len; i++) {
-	if (*cp == '\"') {
-	    extra += (strlen(quote) - 1);
-	} else if (*cp == '\'') {
-	    extra += (strlen(apos) - 1);
-	} else if (*cp == '<') {
-	    extra += (strlen(lt) - 1);
-	} else if (*cp == '>') {
-	    extra += (strlen(gt) - 1);
-	} else if (*cp == '&') {
-	    extra += (strlen(amp) - 1);
-	}
+    if (*cp == '\"') {
+        extra += (strlen(quote) - 1);
+    } else if (*cp == '\'') {
+        extra += (strlen(apos) - 1);
+    } else if (*cp == '<') {
+        extra += (strlen(lt) - 1);
+    } else if (*cp == '>') {
+        extra += (strlen(gt) - 1);
+    } else if (*cp == '&') {
+        extra += (strlen(amp) - 1);
+    }
 
-	cp++;
+    cp++;
     }
 
     if (extra == 0)
-	return HDstrdup(str);
+    return HDstrdup(str);
 
     cp = str;
     rcp = ncp = HDmalloc(len + extra + 1);
@@ -3902,66 +4058,66 @@ xml_escape_the_string(const char *str, int slen)
     char                   *rcp;
 
     if (!str)
-	return NULL;
+    return NULL;
 
     cp = str;
 
     if (slen < 0)
-	len = strlen(str);
+    len = strlen(str);
     else
-	len = slen;
+    len = slen;
 
     extra = 0;
 
     for (i = 0; i < len; i++) {
-	if (*cp == '\\') {
-	    extra++;
-	} else if (*cp == '\"') {
-	    extra++;
-	} else if (*cp == '\'') {
-	    extra += (strlen(apos) - 1);
-	} else if (*cp == '<') {
-	    extra += (strlen(lt) - 1);
-	} else if (*cp == '>') {
-	    extra += (strlen(gt) - 1);
-	} else if (*cp == '&') {
-	    extra += (strlen(amp) - 1);
-	}
-	cp++;
+    if (*cp == '\\') {
+        extra++;
+    } else if (*cp == '\"') {
+        extra++;
+    } else if (*cp == '\'') {
+        extra += (strlen(apos) - 1);
+    } else if (*cp == '<') {
+        extra += (strlen(lt) - 1);
+    } else if (*cp == '>') {
+        extra += (strlen(gt) - 1);
+    } else if (*cp == '&') {
+        extra += (strlen(amp) - 1);
+    }
+    cp++;
     }
 
     cp = str;
     rcp = ncp = calloc((len + extra + 1), sizeof(char));
 
     if (ncp == NULL)
-	return NULL;		/* ?? */
+    return NULL;        /* ?? */
 
     for (i = 0; i < len; i++) {
-	if (*cp == '\\') {
-	    *ncp++ = '\\';
-	    *ncp++ = *cp++;
-	} else if (*cp == '\"') {
-	    *ncp++ = '\\';
-	    *ncp++ = *cp++;
-	} else if (*cp == '\'') {
-	    strncpy(ncp, apos, strlen(apos));
-	    ncp += strlen(apos);
-	    cp++;
-	} else if (*cp == '<') {
-	    strncpy(ncp, lt, strlen(lt));
-	    ncp += strlen(lt);
-	    cp++;
-	} else if (*cp == '>') {
-	    strncpy(ncp, gt, strlen(gt));
-	    ncp += strlen(gt);
-	    cp++;
-	} else if (*cp == '&') {
-	    strncpy(ncp, amp, strlen(amp));
-	    ncp += strlen(amp);
-	    cp++;
-	} else {
-	    *ncp++ = *cp++;
-	}
+    if (*cp == '\\') {
+        *ncp++ = '\\';
+        *ncp++ = *cp++;
+    } else if (*cp == '\"') {
+        *ncp++ = '\\';
+        *ncp++ = *cp++;
+    } else if (*cp == '\'') {
+        strncpy(ncp, apos, strlen(apos));
+        ncp += strlen(apos);
+        cp++;
+    } else if (*cp == '<') {
+        strncpy(ncp, lt, strlen(lt));
+        ncp += strlen(lt);
+        cp++;
+    } else if (*cp == '>') {
+        strncpy(ncp, gt, strlen(gt));
+        ncp += strlen(gt);
+        cp++;
+    } else if (*cp == '&') {
+        strncpy(ncp, amp, strlen(amp));
+        ncp += strlen(amp);
+        cp++;
+    } else {
+        *ncp++ = *cp++;
+    }
     }
 
     *ncp = '\0';
@@ -4383,37 +4539,37 @@ xml_dump_datatype(hid_t type)
     if (H5Tcommitted(type) > 0) {
         obj_t  *found_obj;    /* Found object */
 
-	/* Data type is a shared or named data type */
-	H5Gget_objinfo(type, ".", TRUE, &statbuf);
-	found_obj = search_obj(type_table, statbuf.objno);
+    /* Data type is a shared or named data type */
+    H5Gget_objinfo(type, ".", TRUE, &statbuf);
+    found_obj = search_obj(type_table, statbuf.objno);
 
-	if (found_obj) {
-	    /* Shared data type, must be entered as an object  */
-		/* These 2 cases are the same now, but may change */
-	    char * dtxid = malloc(100);
-	    xml_name_to_XID(found_obj->objname,dtxid,100,1);
-	    if (!found_obj->recorded) {
-		/* anonymous stored data type:
-		   following the dumper's current
-		   practice:
-		   use it's object ref as its name
-		 */
-		printf("<%sNamedDataTypePtr OBJ-XID=\"%s\"/>\n",
-			xmlnsprefix, dtxid);
+    if (found_obj) {
+        /* Shared data type, must be entered as an object  */
+        /* These 2 cases are the same now, but may change */
+        char * dtxid = malloc(100);
+        xml_name_to_XID(found_obj->objname,dtxid,100,1);
+        if (!found_obj->recorded) {
+        /* anonymous stored data type:
+           following the dumper's current
+           practice:
+           use it's object ref as its name
+         */
+        printf("<%sNamedDataTypePtr OBJ-XID=\"%s\"/>\n",
+            xmlnsprefix, dtxid);
 
-	    } else {
-		/* pointer to a named data type already in XML */
+        } else {
+        /* pointer to a named data type already in XML */
                 char *t_objname = xml_escape_the_name(found_obj->objname);
-		printf("<%sNamedDataTypePtr OBJ-XID=\"%s\" H5Path=\"%s\" />\n",
-			xmlnsprefix, dtxid,t_objname);
-		free(t_objname);
-	    }
-	    free(dtxid);
-	} else {
-	    printf("<!-- h5dump error: unknown committed type. -->\n");
-	}
-	indent -= COL;
-	return;
+        printf("<%sNamedDataTypePtr OBJ-XID=\"%s\" H5Path=\"%s\" />\n",
+            xmlnsprefix, dtxid,t_objname);
+        free(t_objname);
+        }
+        free(dtxid);
+    } else {
+        printf("<!-- h5dump error: unknown committed type. -->\n");
+    }
+    indent -= COL;
+    return;
     }
     printf("<%sDataType>\n",xmlnsprefix);
     indent += COL;
@@ -4443,7 +4599,7 @@ xml_dump_dataspace(hid_t space)
     hsize_t                 size[H5DUMP_MAX_RANK];
     hsize_t                 maxsize[H5DUMP_MAX_RANK];
     int                     ndims =
-	H5Sget_simple_extent_dims(space, size, maxsize);
+    H5Sget_simple_extent_dims(space, size, maxsize);
     H5S_class_t             space_type = H5Sget_simple_extent_type(space);
     int                     i;
 
@@ -4453,43 +4609,43 @@ xml_dump_dataspace(hid_t space)
 
     switch (space_type) {
         case H5S_SCALAR:
-	    /* scalar dataspace (just a tag, no XML attrs. defined */
-	    printf("<%sScalarDataspace />\n",xmlnsprefix);
+        /* scalar dataspace (just a tag, no XML attrs. defined */
+        printf("<%sScalarDataspace />\n",xmlnsprefix);
 
             break;
         case H5S_SIMPLE:
-	    /* simple dataspace */
-	    /* <hdf5:SimpleDataspace Ndims="nd"> */
-	    printf("<%sSimpleDataspace Ndims=\"%d\">\n",xmlnsprefix, ndims);
+        /* simple dataspace */
+        /* <hdf5:SimpleDataspace Ndims="nd"> */
+        printf("<%sSimpleDataspace Ndims=\"%d\">\n",xmlnsprefix, ndims);
 
-	    /* print the <hdf5:Dimension> elements */
-	    for (i = 0; i < ndims; i++) {
-		indentation(indent + COL + COL + COL);
-		if (maxsize[i] == H5S_UNLIMITED) {
-		    HDfprintf(stdout,
-			      "<%sDimension  DimSize=\"%Hu\" MaxDimSize=\"UNLIMITED\"/>\n",
-			      xmlnsprefix,size[i]);
-		} else if (maxsize[i] == (hsize_t) 0) {
-		    HDfprintf(stdout,
-			      "<%sDimension  DimSize=\"%Hu\" MaxDimSize=\"%Hu\"/>\n",
-			      xmlnsprefix,size[i], size[i]);
-		} else {
-		    HDfprintf(stdout,
-			      "<%sDimension  DimSize=\"%Hu\" MaxDimSize=\"%Hu\"/>\n",
-			      xmlnsprefix, size[i], maxsize[i]);
-		}
-	    }
-	    indentation(indent + COL + COL);
-	    printf("</%sSimpleDataspace>\n", xmlnsprefix );
+        /* print the <hdf5:Dimension> elements */
+        for (i = 0; i < ndims; i++) {
+        indentation(indent + COL + COL + COL);
+        if (maxsize[i] == H5S_UNLIMITED) {
+            HDfprintf(stdout,
+                  "<%sDimension  DimSize=\"%Hu\" MaxDimSize=\"UNLIMITED\"/>\n",
+                  xmlnsprefix,size[i]);
+        } else if (maxsize[i] == (hsize_t) 0) {
+            HDfprintf(stdout,
+                  "<%sDimension  DimSize=\"%Hu\" MaxDimSize=\"%Hu\"/>\n",
+                  xmlnsprefix,size[i], size[i]);
+        } else {
+            HDfprintf(stdout,
+                  "<%sDimension  DimSize=\"%Hu\" MaxDimSize=\"%Hu\"/>\n",
+                  xmlnsprefix, size[i], maxsize[i]);
+        }
+        }
+        indentation(indent + COL + COL);
+        printf("</%sSimpleDataspace>\n", xmlnsprefix );
 
             break;
         case H5S_COMPLEX:
-	    printf("<!-- not yet implemented -->\n");
+        printf("<!-- not yet implemented -->\n");
 
             break;
         case H5S_NO_CLASS:
         default:
-	    printf("<!-- unknown dataspace -->\n");
+        printf("<!-- unknown dataspace -->\n");
     }
 
     indentation(indent + COL);
@@ -4514,14 +4670,14 @@ xml_dump_dataspace(hid_t space)
 static void
 xml_dump_data(hid_t obj_id, int obj_data, struct subset_t UNUSED * sset, int UNUSED pindex)
 {
-    h5dump_t               *outputformat = &xml_dataformat;
+    h5tool_format_t               *outputformat = &xml_dataformat;
     int                     status = -1;
     void                   *buf;
     hid_t                   space, type, p_type;
     int                     ndims, i;
     hsize_t                 size[64], nelmts = 1;
     int                     depth;
-    int                     stdindent = COL;	/* should be 3 */
+    int                     stdindent = COL;    /* should be 3 */
 
     outputformat->line_ncols = nCols;
     indent += COL;
@@ -4540,60 +4696,60 @@ xml_dump_data(hid_t obj_id, int obj_data, struct subset_t UNUSED * sset, int UNU
     indentation(indent + COL);
     printf("<%sDataFromFile>\n",xmlnsprefix);
     if (obj_data == DATASET_DATA) {
-	type = H5Dget_type(obj_id);
-	if (H5Tget_class(type) == H5T_REFERENCE) {
-	    status = xml_print_refs(obj_id, DATASET_DATA);
-	} else if (H5Tget_class(type) == H5T_STRING) {
-	    status = xml_print_strs(obj_id, DATASET_DATA);
-	} else {
-	    status = h5tools_dump_dset(stdout, outputformat, obj_id, -1, NULL, depth);
-	}
+    type = H5Dget_type(obj_id);
+    if (H5Tget_class(type) == H5T_REFERENCE) {
+        status = xml_print_refs(obj_id, DATASET_DATA);
+    } else if (H5Tget_class(type) == H5T_STRING) {
+        status = xml_print_strs(obj_id, DATASET_DATA);
     } else {
-	/* Attribute data */
-	type = H5Aget_type(obj_id);
+        status = h5tools_dump_dset(stdout, outputformat, obj_id, -1, NULL, depth);
+    }
+    } else {
+    /* Attribute data */
+    type = H5Aget_type(obj_id);
 
-	if (H5Tget_class(type) == H5T_REFERENCE) {
-	    /* references are done differently than
-	       the standard output:
-	       XML dumps a path to the object
-	       referenced.
-	     */
-	    status = xml_print_refs(obj_id, ATTRIBUTE_DATA);
-	    H5Tclose(type);
-	} else if (H5Tget_class(type) == H5T_STRING) {
-	    status = xml_print_strs(obj_id, ATTRIBUTE_DATA);
-	} else {
-	    /* all other data */
+    if (H5Tget_class(type) == H5T_REFERENCE) {
+        /* references are done differently than
+           the standard output:
+           XML dumps a path to the object
+           referenced.
+         */
+        status = xml_print_refs(obj_id, ATTRIBUTE_DATA);
+        H5Tclose(type);
+    } else if (H5Tget_class(type) == H5T_STRING) {
+        status = xml_print_strs(obj_id, ATTRIBUTE_DATA);
+    } else {
+        /* all other data */
             p_type = h5tools_get_native_type(type);
 
-	    H5Tclose(type);
+        H5Tclose(type);
 
-	    space = H5Aget_space(obj_id);
+        space = H5Aget_space(obj_id);
 
-	    ndims = H5Sget_simple_extent_dims(space, size, NULL);
+        ndims = H5Sget_simple_extent_dims(space, size, NULL);
 
-	    for (i = 0; i < ndims; i++)
-		nelmts *= size[i];
+        for (i = 0; i < ndims; i++)
+        nelmts *= size[i];
 
-	    buf =
-		malloc((size_t)(nelmts * MAX(H5Tget_size(type), H5Tget_size(p_type))));
-	    assert(buf);
+        buf =
+        malloc((size_t)(nelmts * MAX(H5Tget_size(type), H5Tget_size(p_type))));
+        assert(buf);
 
-	    if (H5Aread(obj_id, p_type, buf) >= 0)
+        if (H5Aread(obj_id, p_type, buf) >= 0)
                 status = h5tools_dump_mem(stdout, outputformat, obj_id,
                                           p_type, space, buf, depth);
 
-	    free(buf);
-	    H5Tclose(p_type);
-	    H5Sclose(space);
-	    H5Tclose(type);
-	}
+        free(buf);
+        H5Tclose(p_type);
+        H5Sclose(space);
+        H5Tclose(type);
+    }
     }
 
     if (status == FAIL) {
-	indentation(indent + COL);
-	printf("Unable to print data.\n");
-	status = 1;
+    indentation(indent + COL);
+    printf("Unable to print data.\n");
+    status = 1;
     }
 
     indentation(indent + COL);
@@ -4627,102 +4783,102 @@ xml_dump_attr(hid_t attr, const char *attr_name, void UNUSED * op_data)
     free(t_aname);
 
     if ((attr_id = H5Aopen_name(attr, attr_name)) >= 0) {
-	type = H5Aget_type(attr_id);
-	space = H5Aget_space(attr_id);
+    type = H5Aget_type(attr_id);
+    space = H5Aget_space(attr_id);
 
-	dump_function_table->dump_dataspace_function(space);
-	dump_function_table->dump_datatype_function(type);
+    dump_function_table->dump_dataspace_function(space);
+    dump_function_table->dump_datatype_function(type);
 
-	if (display_attr_data) {
-	    switch (H5Tget_class(type)) {
-	    case H5T_INTEGER:
-	    case H5T_FLOAT:
-	    case H5T_STRING:
-	    case H5T_BITFIELD:
-	    case H5T_OPAQUE:
-	    case H5T_ENUM:
-	    case H5T_ARRAY:
-		dump_function_table->dump_data_function(attr_id, ATTRIBUTE_DATA, NULL, 0);
-		break;
+    if (display_attr_data) {
+        switch (H5Tget_class(type)) {
+        case H5T_INTEGER:
+        case H5T_FLOAT:
+        case H5T_STRING:
+        case H5T_BITFIELD:
+        case H5T_OPAQUE:
+        case H5T_ENUM:
+        case H5T_ARRAY:
+        dump_function_table->dump_data_function(attr_id, ATTRIBUTE_DATA, NULL, 0);
+        break;
 
-	    case H5T_TIME:
-		indent += COL;
-		indentation(indent);
-		printf("<%sData>\n",xmlnsprefix);
-		indentation(indent);
-		printf("<!-- Time data not yet implemented. -->\n");
-		indentation(indent);
-		printf("<%sNoData/>\n",xmlnsprefix);
-		indentation(indent);
-		printf("<hdf5:Data>\n");
-		printf("</%sData>\n",xmlnsprefix);
-		indent -= COL;
-		break;
+        case H5T_TIME:
+        indent += COL;
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent);
+        printf("<!-- Time data not yet implemented. -->\n");
+        indentation(indent);
+        printf("<%sNoData/>\n",xmlnsprefix);
+        indentation(indent);
+        printf("<hdf5:Data>\n");
+        printf("</%sData>\n",xmlnsprefix);
+        indent -= COL;
+        break;
 
-	    case H5T_COMPOUND:
-		indentation(indent);
-		printf("<!-- Note: format of compound data not specified -->\n");
-		dump_function_table->dump_data_function(attr_id, ATTRIBUTE_DATA, NULL, 0);
-		break;
+        case H5T_COMPOUND:
+        indentation(indent);
+        printf("<!-- Note: format of compound data not specified -->\n");
+        dump_function_table->dump_data_function(attr_id, ATTRIBUTE_DATA, NULL, 0);
+        break;
 
-	    case H5T_REFERENCE:
-		indentation(indent);
-		printf("<%sData>\n",xmlnsprefix);
-		indentation(indent);
+        case H5T_REFERENCE:
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent);
                 if (!H5Tequal(type, H5T_STD_REF_OBJ)) {
                    printf("<!-- Note: Region references not supported -->\n");
                    indentation(indent);
                    printf("<%sNoData />\n",xmlnsprefix);
                 } else {
-		    printf("<%sDataFromFile>\n",xmlnsprefix);
-		    xml_print_refs(attr_id, ATTRIBUTE_DATA);
-		    indentation(indent);
-		    printf("</%sDataFromFile>\n",xmlnsprefix);
+            printf("<%sDataFromFile>\n",xmlnsprefix);
+            xml_print_refs(attr_id, ATTRIBUTE_DATA);
+            indentation(indent);
+            printf("</%sDataFromFile>\n",xmlnsprefix);
                 }
-		indentation(indent);
-		printf("</%sData>\n",xmlnsprefix);
-		break;
+        indentation(indent);
+        printf("</%sData>\n",xmlnsprefix);
+        break;
 
-	    case H5T_VLEN:
-		printf("<!-- Note: format of VL data not specified -->\n");
-		dump_function_table->dump_data_function(attr_id, ATTRIBUTE_DATA, NULL, 0);
-		break;
-	    default:
-		indentation(indent);
-		printf("<%sData>\n",xmlnsprefix);
-		indentation(indent);
-		printf("<!-- Unknown datatype: %d -->\n", H5Tget_class(type));
-		indentation(indent);
-		printf("<%sNoData/>\n",xmlnsprefix);
-		indentation(indent);
-		printf("</%sData>\n",xmlnsprefix);
-		break;
-	    }
-	} else {
-	    /* The case of an attribute never yet written ?? */
-	    indentation(indent + COL);
-	    printf("<%sData>\n",xmlnsprefix);
-	    indentation(indent + COL + COL);
-	    printf("<%sNoData/>\n",xmlnsprefix);
-	    indentation(indent + COL);
-	    printf("</%sData>\n",xmlnsprefix);
-	}
+        case H5T_VLEN:
+        printf("<!-- Note: format of VL data not specified -->\n");
+        dump_function_table->dump_data_function(attr_id, ATTRIBUTE_DATA, NULL, 0);
+        break;
+        default:
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent);
+        printf("<!-- Unknown datatype: %d -->\n", H5Tget_class(type));
+        indentation(indent);
+        printf("<%sNoData/>\n",xmlnsprefix);
+        indentation(indent);
+        printf("</%sData>\n",xmlnsprefix);
+        break;
+        }
+    } else {
+        /* The case of an attribute never yet written ?? */
+        indentation(indent + COL);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent + COL + COL);
+        printf("<%sNoData/>\n",xmlnsprefix);
+        indentation(indent + COL);
+        printf("</%sData>\n",xmlnsprefix);
+    }
 
-	H5Tclose(type);
-	H5Sclose(space);
-	H5Aclose(attr_id);
-	indentation(indent);
-	printf("</%sAttribute>\n", xmlnsprefix );
-	return SUCCEED;
+    H5Tclose(type);
+    H5Sclose(space);
+    H5Aclose(attr_id);
+    indentation(indent);
+    printf("</%sAttribute>\n", xmlnsprefix );
+    return SUCCEED;
 
     } else {
-	/* ?? failed */
-	indentation(indent + COL);
-	printf("<!-- h5dump error: unable to open attribute. -->\n");
-	indentation(indent);
-	printf("</%sAttribute>\n", xmlnsprefix );
-	d_status = EXIT_FAILURE;
-	return FAIL;
+    /* ?? failed */
+    indentation(indent + COL);
+    printf("<!-- h5dump error: unable to open attribute. -->\n");
+    indentation(indent);
+    printf("</%sAttribute>\n", xmlnsprefix );
+    d_status = EXIT_FAILURE;
+    return FAIL;
     }
 }
 
@@ -4749,46 +4905,46 @@ xml_dump_named_datatype(hid_t type, const char *name)
     char *t_prefix;
     char   *t_name;
 
-    tmp = malloc(strlen(prefix) + strlen(name) + 2);
-    strcpy(tmp, prefix);
-    strcat(tmp, "/");
-    strcat(tmp, name);
+    tmp = HDmalloc(HDstrlen(prefix) + HDstrlen(name) + 2);
+    HDstrcpy(tmp, prefix);
+    HDstrcat(tmp, "/");
+    HDstrcat(tmp, name);
 
     indentation(indent);
-    /*char **/ dtxid = malloc(100);
-    /*char **/ parentxid = malloc(100);
+    /*char **/ dtxid = HDmalloc(100);
+    /*char **/ parentxid = HDmalloc(100);
     /*char **/t_tmp = xml_escape_the_name(tmp);
     /*char **/t_prefix = xml_escape_the_name(prefix);
     /*char   **/t_name = xml_escape_the_name(name);
     xml_name_to_XID(tmp,dtxid,100,1);
     xml_name_to_XID(prefix,parentxid,100,1);
     if (strncmp(name, "#", 1) == 0) {
-	/*  Special:  this is an 'anonymous' NDT, deleted but
-	   still in use.
-	   We follow the dumper's undocumented practice, and
-	   use its object id as its name.
-	   Exactly the same as normal, but a separate case
-	   in the event we want to do something else in
-	   the future.
-	 */
-	printf("<%sNamedDataType Name=\"%s\" OBJ-XID=\"%s\" "
-		"Parents=\"%s\" H5ParentPaths=\"%s\">\n",
-		xmlnsprefix,
-		name, dtxid,
-		parentxid,(strcmp(prefix, "") ? t_prefix : "/"));
+    /*  Special:  this is an 'anonymous' NDT, deleted but
+       still in use.
+       We follow the dumper's undocumented practice, and
+       use its object id as its name.
+       Exactly the same as normal, but a separate case
+       in the event we want to do something else in
+       the future.
+     */
+    printf("<%sNamedDataType Name=\"%s\" OBJ-XID=\"%s\" "
+        "Parents=\"%s\" H5ParentPaths=\"%s\">\n",
+        xmlnsprefix,
+        name, dtxid,
+        parentxid,(HDstrcmp(prefix, "") ? t_prefix : "/"));
     } else {
-	printf("<%sNamedDataType Name=\"%s\" OBJ-XID=\"%s\" "
-		"H5Path=\"%s\" Parents=\"%s\" H5ParentPaths=\"%s\">\n",
-		xmlnsprefix,
-		t_name, dtxid,
-		t_tmp, parentxid, (strcmp(prefix, "") ? t_prefix : "/"));
+    printf("<%sNamedDataType Name=\"%s\" OBJ-XID=\"%s\" "
+        "H5Path=\"%s\" Parents=\"%s\" H5ParentPaths=\"%s\">\n",
+        xmlnsprefix,
+        t_name, dtxid,
+        t_tmp, parentxid, (HDstrcmp(prefix, "") ? t_prefix : "/"));
     }
-    free(dtxid);
-    free(parentxid);
-    free(t_tmp);
-    free(t_prefix);
-    free(t_name);
-    free(tmp);
+    HDfree(dtxid);
+    HDfree(parentxid);
+    HDfree(t_tmp);
+    HDfree(t_prefix);
+    HDfree(t_name);
+    HDfree(tmp);
 
     indent += COL;
     indentation(indent);
@@ -4833,22 +4989,22 @@ xml_dump_group(hid_t gid, const char *name)
     char *t_objname;
     char *par_name;
 
-    if (strcmp(name, "/") == 0) {
-	isRoot = 1;
-	tmp = malloc(2);
-	strcpy(tmp, "/");
+    if (HDstrcmp(name, "/") == 0) {
+    isRoot = 1;
+    tmp = HDmalloc(2);
+    HDstrcpy(tmp, "/");
     } else {
-	tmp = malloc(strlen(prefix) + strlen(name) + 2);
-	strcpy(tmp, prefix);
-	par = HDstrdup(tmp);
-	cp = strrchr(par, '/');
-	if (cp != NULL) {
-	    if ((cp == par) && strlen(par) > 1) {
-		*(cp + 1) = '\0';
-	    } else {
-		*cp = '\0';
-	    }
-	}
+    tmp = HDmalloc(HDstrlen(prefix) + HDstrlen(name) + 2);
+    HDstrcpy(tmp, prefix);
+    par = HDstrdup(tmp);
+    cp = HDstrrchr(par, '/');
+    if (cp != NULL) {
+        if ((cp == par) && HDstrlen(par) > 1) {
+        *(cp + 1) = '\0';
+        } else {
+        *cp = '\0';
+        }
+    }
     }
 
     indentation(indent);
@@ -4859,15 +5015,15 @@ xml_dump_group(hid_t gid, const char *name)
     if (statbuf.nlink > 1) {
         obj_t  *found_obj;    /* Found object */
 
-	/* Group with more than one link to it... */
-	found_obj = search_obj(group_table, statbuf.objno);
+    /* Group with more than one link to it... */
+    found_obj = search_obj(group_table, statbuf.objno);
 
-	if (found_obj == NULL) {
-	    indentation(indent);
+    if (found_obj == NULL) {
+        indentation(indent);
             error_msg(progname, "internal error (file %s:line %d)\n",
                       __FILE__, __LINE__);
-	    d_status = EXIT_FAILURE;
-	} else {
+        d_status = EXIT_FAILURE;
+    } else {
             char *t_name = xml_escape_the_name(name);
             char *grpxid = malloc(100);
             char *parentxid = malloc(100);
@@ -4935,7 +5091,7 @@ xml_dump_group(hid_t gid, const char *name)
                     /* Very special case: dump unamed type in root group */
                     for (u = 0; u < type_table->nobjs; u++) {
                         if (!type_table->objs[u].recorded) {
-                            unsigned long 	objno[2];	/*object number			*/
+                            unsigned long   objno[2];   /*object number         */
 
                             dset = H5Dopen(gid, type_table->objs[u].objname);
                             type = H5Dget_type(dset);
@@ -4972,42 +5128,42 @@ xml_dump_group(hid_t gid, const char *name)
         }
     } else {
 
-	/* only link -- must be first time! */
+    /* only link -- must be first time! */
         char *t_name = xml_escape_the_name(name);
-	char *grpxid = malloc(100);
-	char *parentxid = malloc(100);
-	if (isRoot) {
-		xml_name_to_XID("/",grpxid,100,1);
-		printf("<%sRootGroup OBJ-XID=\"%s\" H5Path=\"%s\">\n",
-			xmlnsprefix,grpxid,"/");
-	} else {
-		char *t_tmp = xml_escape_the_name(tmp);
-		par_name = xml_escape_the_name(par);
-		xml_name_to_XID(tmp,grpxid,100,1);
-		xml_name_to_XID(par,parentxid,100,1);
-		printf("<%sGroup Name=\"%s\" OBJ-XID=\"%s\" H5Path=\"%s\" "
-			"Parents=\"%s\" H5ParentPaths=\"%s\" >\n",
-		        xmlnsprefix,t_name, grpxid, t_tmp,
-			parentxid, par_name);
-		free(t_tmp);
-		free(par_name);
-	}
+    char *grpxid = malloc(100);
+    char *parentxid = malloc(100);
+    if (isRoot) {
+        xml_name_to_XID("/",grpxid,100,1);
+        printf("<%sRootGroup OBJ-XID=\"%s\" H5Path=\"%s\">\n",
+            xmlnsprefix,grpxid,"/");
+    } else {
+        char *t_tmp = xml_escape_the_name(tmp);
+        par_name = xml_escape_the_name(par);
+        xml_name_to_XID(tmp,grpxid,100,1);
+        xml_name_to_XID(par,parentxid,100,1);
+        printf("<%sGroup Name=\"%s\" OBJ-XID=\"%s\" H5Path=\"%s\" "
+            "Parents=\"%s\" H5ParentPaths=\"%s\" >\n",
+                xmlnsprefix,t_name, grpxid, t_tmp,
+            parentxid, par_name);
+        free(t_tmp);
+        free(par_name);
+    }
         free(t_name);
-	free(grpxid);
-	free(parentxid);
-	/* 1.  do all the attributes of the group */
-	H5Aiterate(gid, NULL, dump_function_table->dump_attribute_function, NULL);
+    free(grpxid);
+    free(parentxid);
+    /* 1.  do all the attributes of the group */
+    H5Aiterate(gid, NULL, dump_function_table->dump_attribute_function, NULL);
 
-	if (!strcmp(name, "/") && unamedtype) {
+    if (!strcmp(name, "/") && unamedtype) {
             unsigned u;
 
-	    /* Very special case: dump unamed type in root group */
-	    for (u = 0; u < type_table->nobjs; u++) {
-		if (!type_table->objs[u].recorded) {
-                    unsigned long 	objno[2];	/*object number			*/
+        /* Very special case: dump unamed type in root group */
+        for (u = 0; u < type_table->nobjs; u++) {
+        if (!type_table->objs[u].recorded) {
+                    unsigned long   objno[2];   /*object number         */
 
-		    dset = H5Dopen(gid, type_table->objs[u].objname);
-		    type = H5Dget_type(dset);
+            dset = H5Dopen(gid, type_table->objs[u].objname);
+            type = H5Dget_type(dset);
 
                     objno[0] = (unsigned long)(type_table->objs[u].objno);
 #if H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG
@@ -5015,33 +5171,33 @@ xml_dump_group(hid_t gid, const char *name)
 #else /* H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG */
                     objno[1] = 0;
 #endif /* H5_SIZEOF_UINT64_T>H5_SIZEOF_LONG */
-		    sprintf(type_name, "#%lu:%lu", objno[0], objno[1]);
-		    dump_function_table->dump_named_datatype_function(type, type_name);
+            sprintf(type_name, "#%lu:%lu", objno[0], objno[1]);
+            dump_function_table->dump_named_datatype_function(type, type_name);
 
-		    H5Tclose(type);
-		    H5Dclose(dset);
-		}
-	    }
-	}
+            H5Tclose(type);
+            H5Dclose(dset);
+        }
+        }
+    }
 
-  	/* iterate through all the members */
-	xtype = H5G_TYPE;
-	H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
-  	xtype = H5G_DATASET;
-  	H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
-  	xtype = H5G_GROUP;
-  	H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
-	xtype = H5G_LINK;
-	H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
+    /* iterate through all the members */
+    xtype = H5G_TYPE;
+    H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
+    xtype = H5G_DATASET;
+    H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
+    xtype = H5G_GROUP;
+    H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
+    xtype = H5G_LINK;
+    H5Giterate(gid, ".", NULL, dump_all, (void *) &xtype);
 
     }
 
     indent -= COL;
     indentation(indent);
     if (isRoot) {
-	printf("</%sRootGroup>\n",xmlnsprefix);
+    printf("</%sRootGroup>\n",xmlnsprefix);
     } else {
-	printf("</%sGroup>\n" ,xmlnsprefix);
+    printf("</%sGroup>\n" ,xmlnsprefix);
     }
     free(tmp);
 }
@@ -5070,53 +5226,53 @@ xml_print_refs(hid_t did, int source)
     hsize_t                 i;
 
     if (source == DATASET_DATA) {
-	type = H5Dget_type(did);
+    type = H5Dget_type(did);
     } else if (source == ATTRIBUTE_DATA) {
-	type = H5Aget_type(did);
+    type = H5Aget_type(did);
     } else {
-	/* return an error */
-	return FAIL;
+    /* return an error */
+    return FAIL;
     }
     if (H5Tget_class(type) != H5T_REFERENCE) {
-	/* return an error */
-	return FAIL;
+    /* return an error */
+    return FAIL;
     }
     if (!H5Tequal(type, H5T_STD_REF_OBJ)) {
-	/* region ref not supported yet... */
-	/* return an error */
-	return FAIL;
+    /* region ref not supported yet... */
+    /* return an error */
+    return FAIL;
     }
     if (source == DATASET_DATA) {
-	space = H5Dget_space(did);
-	ssiz = H5Sget_simple_extent_npoints(space);
-	ssiz *= H5Tget_size(type);
+    space = H5Dget_space(did);
+    ssiz = H5Sget_simple_extent_npoints(space);
+    ssiz *= H5Tget_size(type);
 
-	buf = calloc((size_t)ssiz, sizeof(char));
-	if (buf == NULL) {
-	    return FAIL;
-	}
-	e = H5Dread(did, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
-	/* need to check result here */
-	if (e < 0) {
-	    free(buf);
-	    return FAIL;
-	}
+    buf = calloc((size_t)ssiz, sizeof(char));
+    if (buf == NULL) {
+        return FAIL;
+    }
+    e = H5Dread(did, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    /* need to check result here */
+    if (e < 0) {
+        free(buf);
+        return FAIL;
+    }
 
     } else if (source == ATTRIBUTE_DATA) {
-	space = H5Aget_space(did);
-	ssiz = H5Sget_simple_extent_npoints(space);
-	ssiz *= H5Tget_size(type);
+    space = H5Aget_space(did);
+    ssiz = H5Sget_simple_extent_npoints(space);
+    ssiz *= H5Tget_size(type);
 
-	buf = calloc((size_t)ssiz, sizeof(char));
-	if (buf == NULL) {
-	    free(buf);
-	    return FAIL;
-	}
-	e = H5Aread(did, H5T_STD_REF_OBJ, buf);
-	/* need to check the result here */
+    buf = calloc((size_t)ssiz, sizeof(char));
+    if (buf == NULL) {
+        free(buf);
+        return FAIL;
+    }
+    e = H5Aread(did, H5T_STD_REF_OBJ, buf);
+    /* need to check the result here */
     } else {
-	/* error */
-	return FAIL;
+    /* error */
+    return FAIL;
     }
 
     refbuf = (hobj_ref_t *) buf;
@@ -5125,19 +5281,19 @@ xml_print_refs(hid_t did, int source)
     for (i = 0; i < ssiz; i++) {
         const char *path;
 
-	path = lookup_ref_path(*refbuf);
-	indentation(indent + COL);
+    path = lookup_ref_path(*refbuf);
+    indentation(indent + COL);
 
-	if (!path) {
-	    printf("\"%s\"\n", "NULL");
-	} else {
+    if (!path) {
+        printf("\"%s\"\n", "NULL");
+    } else {
             char *t_path = xml_escape_the_string(path, -1);
 
-	    printf("\"%s\"\n", t_path);
+        printf("\"%s\"\n", t_path);
             free(t_path);
-	}
+    }
 
-	refbuf++;
+    refbuf++;
     }
 
     free(buf);
@@ -5172,54 +5328,54 @@ xml_print_strs(hid_t did, int source)
     htri_t                  is_vlstr;
 
     if (source == DATASET_DATA) {
-	type = H5Dget_type(did);
+    type = H5Dget_type(did);
     } else if (source == ATTRIBUTE_DATA) {
-	type = H5Aget_type(did);
+    type = H5Aget_type(did);
     } else {
-	/* return an error */
-	return FAIL;
+    /* return an error */
+    return FAIL;
     }
     if (H5Tget_class(type) != H5T_STRING) {
-	/* return an error */
-	return FAIL;
+    /* return an error */
+    return FAIL;
     }
     is_vlstr = H5Tis_variable_str(type);
 
     if (source == DATASET_DATA) {
-	space = H5Dget_space(did);
-	ssiz = H5Sget_simple_extent_npoints(space);
-	ssiz *= H5Tget_size(type);
+    space = H5Dget_space(did);
+    ssiz = H5Sget_simple_extent_npoints(space);
+    ssiz *= H5Tget_size(type);
 
-	buf = malloc((size_t)ssiz);
+    buf = malloc((size_t)ssiz);
 
-	if (buf == NULL) {
-	    return FAIL;
-	}
+    if (buf == NULL) {
+        return FAIL;
+    }
 
-	e = H5Dread(did, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    e = H5Dread(did, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
 
-	if (e < 0) {
-	    free(buf);
-	    return FAIL;
-	}
+    if (e < 0) {
+        free(buf);
+        return FAIL;
+    }
     } else if (source == ATTRIBUTE_DATA) {
-	space = H5Aget_space(did);
-	ssiz = H5Sget_simple_extent_npoints(space);
-	ssiz *= H5Tget_size(type);
+    space = H5Aget_space(did);
+    ssiz = H5Sget_simple_extent_npoints(space);
+    ssiz *= H5Tget_size(type);
 
-	buf = malloc((size_t)ssiz);
-	if (buf == NULL) {
-	    return FAIL;
-	}
+    buf = malloc((size_t)ssiz);
+    if (buf == NULL) {
+        return FAIL;
+    }
 
-	e = H5Aread(did, type, buf);
-	if (e < 0) {
-	    free(buf);
-	    return FAIL;
-	}
+    e = H5Aread(did, type, buf);
+    if (e < 0) {
+        free(buf);
+        return FAIL;
+    }
     } else {
-	/* error */
-	return FAIL;
+    /* error */
+    return FAIL;
     }
 
     /* pull out each string... */
@@ -5236,72 +5392,25 @@ xml_print_strs(hid_t did, int source)
             if(onestring)
                 str_size = (size_t)HDstrlen(onestring);
         } else {
-    	    HDstrncpy(onestring, bp, tsiz);
+            HDstrncpy(onestring, bp, tsiz);
             str_size = tsiz;
         }
-	indentation(indent + COL);
+    indentation(indent + COL);
 
-	if (!onestring) {
-	    printf("NULL\n");
-	} else {
+    if (!onestring) {
+        printf("NULL\n");
+    } else {
             char *t_onestring = xml_escape_the_string(onestring, (int)str_size);
 
-	    printf("\"%s\"\n", t_onestring);
+        printf("\"%s\"\n", t_onestring);
             free(t_onestring);
-	}
+    }
 
        bp += tsiz;
     }
 
     return SUCCEED;
 }
-
-/*-------------------------------------------------------------------------
- * Function:    check_compression
- *
- * Purpose:     private function to check for compression and
- *              put a comment in the XML.  (Not fully implemented.)
- *
- * Return:      void
- *
- * Programmer:  REMcG
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-#ifdef LATER
-static void
-check_compression(hid_t dcpl)
-{
-    int                     nfilt;
-    int                     i;
-    H5Z_filter_t            filter;
-    char                    namebuf[20];
-    size_t                  cd_nelmts = 1;
-    unsigned int            cd_values;
-    unsigned int            flags;
-/*  not used yet:  will need to do somehting more elaborate to handle future
- * compression methods.
-    char                   *t1 = "H5Z_FILTER_DEFLATE";
-*/
-
-    nfilt = H5Pget_nfilters(dcpl);
-    if (nfilt <= 0)
-	return;
-    for (i = 0; i < nfilt; i++) {
-	filter = H5Pget_filter(dcpl, i, &flags,
-			       (size_t *) &cd_nelmts,
-			       &cd_values, 20, namebuf);
-	if (filter == H5Z_FILTER_DEFLATE) {
-	    indentation(indent + COL);
-	    printf("<%sCompression />\n",xmlnsprefix);
-	    indentation(indent + COL);
-	    printf("<!-- Compression parameter %d -->\n", cd_values);
-	}
-    }
-}
-#endif /* LATER */
 
 /*-------------------------------------------------------------------------
  * Function:    check_filters
@@ -5330,45 +5439,45 @@ check_filters(hid_t dcpl)
 
     nfilt = H5Pget_nfilters(dcpl);
     if (nfilt <= 0)
-	return;
+    return;
     for (i = 0; i < nfilt; i++) {
-	filter = H5Pget_filter(dcpl, (unsigned)i, &flags,
-			       (size_t *) &cd_nelmts,
-			       cd_values, 120, namebuf);
-	if (filter == H5Z_FILTER_DEFLATE) {
-	    indentation(indent + COL);
-	    printf("<%sDeflate Level=\"",xmlnsprefix);
+    filter = H5Pget_filter(dcpl, (unsigned)i, &flags,
+                   (size_t *) &cd_nelmts,
+                   cd_values, 120, namebuf);
+    if (filter == H5Z_FILTER_DEFLATE) {
+        indentation(indent + COL);
+        printf("<%sDeflate Level=\"",xmlnsprefix);
             if (cd_nelmts < 1) {
-		/* not sure what this means? */
-	        printf("6");
+        /* not sure what this means? */
+            printf("6");
             } else {
-	        printf("%d",cd_values[0]);
+            printf("%d",cd_values[0]);
             }
-	    printf("\"/>\n");
-	} else if (filter == H5Z_FILTER_FLETCHER32) {
-	    indentation(indent + COL);
-	    printf("<%sFletcher32 />",xmlnsprefix);
-	} else if (filter == H5Z_FILTER_SHUFFLE) {
-	    indentation(indent + COL);
-	    printf("<%sShuffle />",xmlnsprefix);
-	} else if (filter == H5Z_FILTER_SZIP) {
+        printf("\"/>\n");
+    } else if (filter == H5Z_FILTER_FLETCHER32) {
+        indentation(indent + COL);
+        printf("<%sFletcher32 />",xmlnsprefix);
+    } else if (filter == H5Z_FILTER_SHUFFLE) {
+        indentation(indent + COL);
+        printf("<%sShuffle />",xmlnsprefix);
+    } else if (filter == H5Z_FILTER_SZIP) {
 
-	    indentation(indent + COL);
-	    printf("<%sSZIP ",xmlnsprefix);
+        indentation(indent + COL);
+        printf("<%sSZIP ",xmlnsprefix);
             if (cd_nelmts < 2) {
-		/* no pixels ? */
-	        printf("Pixels_per_block=\"-1\" ");
+        /* no pixels ? */
+            printf("Pixels_per_block=\"-1\" ");
             } else {
-	        printf("Pixels_per_block=\"%d\" ",cd_values[1]);
+            printf("Pixels_per_block=\"%d\" ",cd_values[1]);
             }
-		/* analyse the options mask */
-		if (cd_values[0] & H5_SZIP_CHIP_OPTION_MASK) {
+        /* analyse the options mask */
+        if (cd_values[0] & H5_SZIP_CHIP_OPTION_MASK) {
                     printf("Mode =\"Hardware\" ");
                 } else if (cd_values[0] & H5_SZIP_ALLOW_K13_OPTION_MASK) {
                     printf("Mode =\"K13\" ");
                 }
                 printf("Coding=\"");
-		if (cd_values[0] & H5_SZIP_EC_OPTION_MASK) {
+        if (cd_values[0] & H5_SZIP_EC_OPTION_MASK) {
                     printf("Entropy");
                 } else if (cd_values[0] & H5_SZIP_NN_OPTION_MASK) {
                     printf("NN");
@@ -5376,20 +5485,20 @@ check_filters(hid_t dcpl)
                 printf("\" ");
 
                 printf("ByteOrder=\"");
-		if (cd_values[0] & H5_SZIP_LSB_OPTION_MASK) {
+        if (cd_values[0] & H5_SZIP_LSB_OPTION_MASK) {
                     printf("LSB");
                 } else if (cd_values[0] & H5_SZIP_MSB_OPTION_MASK) {
                     printf("MSB");
                 }
                 printf("\" ");
 
-		if (cd_values[0] & H5_SZIP_RAW_OPTION_MASK) {
+        if (cd_values[0] & H5_SZIP_RAW_OPTION_MASK) {
                     printf("Header=\"Raw\"");
                 }
-	        printf("/>\n");
-	} else {
-		/* unknown option */
-	}
+            printf("/>\n");
+    } else {
+        /* unknown option */
+    }
     }
 }
 
@@ -5516,6 +5625,7 @@ xml_dump_fill_value(hid_t dcpl, hid_t type)
     printf("</%sData>\n",xmlnsprefix);
     indent -= COL;
 }
+
 /*-------------------------------------------------------------------------
  * Function:    xml_dump_group
  *
@@ -5544,13 +5654,13 @@ xml_dump_dataset(hid_t did, const char *name, struct subset_t UNUSED * sset)
     hsize_t                 tempi;
     char                   *tmp;
     char                   *t_name, *t_tmp, *t_prefix;
-    char *rstr = malloc(100);
-    char *pstr = malloc(100);
+    char *rstr = HDmalloc(100);
+    char *pstr = HDmalloc(100);
 
-    tmp = malloc(strlen(prefix) + strlen(name) + 2);
-    strcpy(tmp, prefix);
-    strcat(tmp, "/");
-    strcat(tmp, name);
+    tmp = HDmalloc(HDstrlen(prefix) + HDstrlen(name) + 2);
+    HDstrcpy(tmp, prefix);
+    HDstrcat(tmp, "/");
+    HDstrcat(tmp, name);
     indentation(indent);
 
     t_name = xml_escape_the_name(name);
@@ -5560,14 +5670,14 @@ xml_dump_dataset(hid_t did, const char *name, struct subset_t UNUSED * sset)
     xml_name_to_XID(tmp, rstr, 100, 1);
     xml_name_to_XID(prefix, pstr, 100, 1);
     printf("<%sDataset Name=\"%s\" OBJ-XID=\"%s\" H5Path= \"%s\" Parents=\"%s\" H5ParentPaths=\"%s\">\n",xmlnsprefix,
-	   t_name, rstr, t_tmp, pstr, strcmp(prefix, "") ? t_prefix : "/");
+       t_name, rstr, t_tmp, pstr, strcmp(prefix, "") ? t_prefix : "/");
 
-    free(t_name);
-    free(t_tmp);
-    free(t_prefix);
-    free(rstr);
-    free(pstr);
-    free(tmp);
+    HDfree(t_name);
+    HDfree(t_tmp);
+    HDfree(t_prefix);
+    HDfree(rstr);
+    HDfree(pstr);
+    HDfree(tmp);
 
     dcpl = H5Dget_create_plist(did);
     type = H5Dget_type(did);
@@ -5575,66 +5685,66 @@ xml_dump_dataset(hid_t did, const char *name, struct subset_t UNUSED * sset)
 
     /* Print information about storage layout */
     if (H5D_CHUNKED == H5Pget_layout(dcpl)) {
-	maxdims = H5Sget_simple_extent_ndims(space);
-	chsize = (hsize_t *) malloc(maxdims * sizeof(hsize_t));
-	indent += COL;
-	indentation(indent);
-	printf("<%sStorageLayout>\n",xmlnsprefix);
-	indent += COL;
-	indentation(indent);
-	printf("<%sChunkedLayout ",xmlnsprefix);
-	ndims = H5Pget_chunk(dcpl, maxdims, chsize);
-	printf("Ndims=\"%d\">\n", ndims);
+    maxdims = H5Sget_simple_extent_ndims(space);
+    chsize = (hsize_t *) malloc(maxdims * sizeof(hsize_t));
+    indent += COL;
+    indentation(indent);
+    printf("<%sStorageLayout>\n",xmlnsprefix);
+    indent += COL;
+    indentation(indent);
+    printf("<%sChunkedLayout ",xmlnsprefix);
+    ndims = H5Pget_chunk(dcpl, maxdims, chsize);
+    printf("Ndims=\"%d\">\n", ndims);
 
-	indent += COL;
+    indent += COL;
 
-	for (i = 0; i < ndims; i++) {
-	    indentation(indent);
-	    HDfprintf(stdout, "<%sChunkDimension DimSize=\"%Hu\" />\n",
+    for (i = 0; i < ndims; i++) {
+        indentation(indent);
+        HDfprintf(stdout, "<%sChunkDimension DimSize=\"%Hu\" />\n",
                xmlnsprefix, chsize[i]);
-	}
+    }
 
-	indentation(indent);
-	printf("<%sRequiredFilter>\n",xmlnsprefix);
-	indent += COL;
-	check_filters(dcpl);
-	indent -= COL;
-	indentation(indent);
-	printf("</%sRequiredFilter>\n",xmlnsprefix);
+    indentation(indent);
+    printf("<%sRequiredFilter>\n",xmlnsprefix);
+    indent += COL;
+    check_filters(dcpl);
+    indent -= COL;
+    indentation(indent);
+    printf("</%sRequiredFilter>\n",xmlnsprefix);
 
-	indent -= COL;
+    indent -= COL;
 
-	indentation(indent);
-	printf("</%sChunkedLayout>\n",xmlnsprefix);
-	indent -= COL;
-	indentation(indent);
-	printf("</%sStorageLayout>\n",xmlnsprefix);
-	indent -= COL;
-	free(chsize);
+    indentation(indent);
+    printf("</%sChunkedLayout>\n",xmlnsprefix);
+    indent -= COL;
+    indentation(indent);
+    printf("</%sStorageLayout>\n",xmlnsprefix);
+    indent -= COL;
+    free(chsize);
     } else if (H5D_CONTIGUOUS == H5Pget_layout(dcpl)) {
-	indent += COL;
-	indentation(indent);
-	printf("<%sStorageLayout>\n",xmlnsprefix);
-	indent += COL;
-	indentation(indent);
-	printf("<%sContiguousLayout/>\n",xmlnsprefix);
-	indent -= COL;
-	indentation(indent);
-	printf("</%sStorageLayout>\n",xmlnsprefix);
-	indent -= COL;
-	indentation(indent);
+    indent += COL;
+    indentation(indent);
+    printf("<%sStorageLayout>\n",xmlnsprefix);
+    indent += COL;
+    indentation(indent);
+    printf("<%sContiguousLayout/>\n",xmlnsprefix);
+    indent -= COL;
+    indentation(indent);
+    printf("</%sStorageLayout>\n",xmlnsprefix);
+    indent -= COL;
+    indentation(indent);
     } else if (H5D_COMPACT == H5Pget_layout(dcpl)) {
-	indent += COL;
-	indentation(indent);
-	printf("<%sStorageLayout>\n",xmlnsprefix);
-	indent += COL;
-	indentation(indent);
-	printf("<%sCompactLayout/>\n",xmlnsprefix);
-	indent -= COL;
-	indentation(indent);
-	printf("</%sStorageLayout>\n",xmlnsprefix);
-	indent -= COL;
-	indentation(indent);
+    indent += COL;
+    indentation(indent);
+    printf("<%sStorageLayout>\n",xmlnsprefix);
+    indent += COL;
+    indentation(indent);
+    printf("<%sCompactLayout/>\n",xmlnsprefix);
+    indent -= COL;
+    indentation(indent);
+    printf("</%sStorageLayout>\n",xmlnsprefix);
+    indent -= COL;
+    indentation(indent);
     }
     /* and check for external.... ?? */
 
@@ -5646,36 +5756,36 @@ xml_dump_dataset(hid_t did, const char *name, struct subset_t UNUSED * sset)
     H5Pget_fill_time(dcpl, &ft);
     printf("FillTime=\"");
     switch ( ft ) {
-	case H5D_FILL_TIME_ALLOC:
+    case H5D_FILL_TIME_ALLOC:
                 printf("FillOnAlloc");
-		break;
-	case H5D_FILL_TIME_NEVER:
+        break;
+    case H5D_FILL_TIME_NEVER:
                 printf("FillNever");
-		break;
-	case H5D_FILL_TIME_IFSET:
+        break;
+    case H5D_FILL_TIME_IFSET:
                 printf("FillIfSet");
-		break;
-	default:
+        break;
+    default:
                 printf("?");
-		break;
+        break;
     }
     printf("\" ");
     H5Pget_alloc_time(dcpl, &at);
     printf("AllocationTime=\"");
     switch ( at ) {
-	case H5D_ALLOC_TIME_EARLY:
+    case H5D_ALLOC_TIME_EARLY:
                 printf("Early");
-		break;
-	case H5D_ALLOC_TIME_INCR:
+        break;
+    case H5D_ALLOC_TIME_INCR:
                 printf("Incremental");
-		break;
-	case H5D_ALLOC_TIME_LATE:
+        break;
+    case H5D_ALLOC_TIME_LATE:
                 printf("Late");
-		break;
-	case H5D_ALLOC_TIME_DEFAULT:
-	default:
+        break;
+    case H5D_ALLOC_TIME_DEFAULT:
+    default:
                 printf("?");
-		break;
+        break;
     }
     printf("\"");
     printf(">\n");
@@ -5711,77 +5821,77 @@ xml_dump_dataset(hid_t did, const char *name, struct subset_t UNUSED * sset)
     tempi = H5Dget_storage_size(did);
 
     if (display_data && (tempi > 0)) {
-	switch (H5Tget_class(type)) {
-	case H5T_INTEGER:
-	case H5T_FLOAT:
-	case H5T_STRING:
-	case H5T_BITFIELD:
-	case H5T_OPAQUE:
-	case H5T_ENUM:
-	case H5T_ARRAY:
-	    dump_function_table->dump_data_function(did, DATASET_DATA, NULL, 0);
-	    break;
+    switch (H5Tget_class(type)) {
+    case H5T_INTEGER:
+    case H5T_FLOAT:
+    case H5T_STRING:
+    case H5T_BITFIELD:
+    case H5T_OPAQUE:
+    case H5T_ENUM:
+    case H5T_ARRAY:
+        dump_function_table->dump_data_function(did, DATASET_DATA, NULL, 0);
+        break;
 
-	case H5T_TIME:
-	    indent += COL;
-	    indentation(indent);
-	    printf("<%sData>\n",xmlnsprefix);
-	    indentation(indent);
-	    printf("<!-- Time data not yet implemented. -->\n");
-	    indentation(indent);
-	    printf("<%sNoData />\n",xmlnsprefix);
-	    indentation(indent);
-	    printf("<%sData>\n",xmlnsprefix);
-	    indent -= COL;
-	    break;
+    case H5T_TIME:
+        indent += COL;
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent);
+        printf("<!-- Time data not yet implemented. -->\n");
+        indentation(indent);
+        printf("<%sNoData />\n",xmlnsprefix);
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indent -= COL;
+        break;
 
-	case H5T_COMPOUND:
-	    indentation(indent);
-	    printf("<!-- Note: format of compound data not specified -->\n");
-	    dump_function_table->dump_data_function(did, DATASET_DATA, NULL, 0);
-	    break;
+    case H5T_COMPOUND:
+        indentation(indent);
+        printf("<!-- Note: format of compound data not specified -->\n");
+        dump_function_table->dump_data_function(did, DATASET_DATA, NULL, 0);
+        break;
 
-	case H5T_REFERENCE:
-	    indentation(indent);
-	    printf("<%sData>\n",xmlnsprefix);
-	    indentation(indent);
+    case H5T_REFERENCE:
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent);
             if (!H5Tequal(type, H5T_STD_REF_OBJ)) {
                 printf("<!-- Note: Region references not supported -->\n");
                 indentation(indent);
                 printf("<%sNoData />\n",xmlnsprefix);
             } else {
-	        printf("<%sDataFromFile>\n",xmlnsprefix);
-	        xml_print_refs(did, DATASET_DATA);
-	        indentation(indent);
-	        printf("</%sDataFromFile>\n",xmlnsprefix);
+            printf("<%sDataFromFile>\n",xmlnsprefix);
+            xml_print_refs(did, DATASET_DATA);
+            indentation(indent);
+            printf("</%sDataFromFile>\n",xmlnsprefix);
             }
-	    indentation(indent);
-	    printf("</%sData>\n",xmlnsprefix);
-	    break;
+        indentation(indent);
+        printf("</%sData>\n",xmlnsprefix);
+        break;
 
-	case H5T_VLEN:
-	    printf("<!-- Note: format of VL data not specified -->\n");
-	    dump_function_table->dump_data_function(did, DATASET_DATA, NULL, 0);
-	    break;
-	default:
-	    indentation(indent);
-	    printf("<%sData>\n",xmlnsprefix);
-	    indentation(indent);
-	    printf("<!-- Unknown datatype: %d -->\n", H5Tget_class(type));
-	    indentation(indent);
-	    printf("<%sNoData/>\n",xmlnsprefix);
-	    indentation(indent);
-	    printf("</%sData>\n",xmlnsprefix);
-	    break;
-	}
+    case H5T_VLEN:
+        printf("<!-- Note: format of VL data not specified -->\n");
+        dump_function_table->dump_data_function(did, DATASET_DATA, NULL, 0);
+        break;
+    default:
+        indentation(indent);
+        printf("<%sData>\n",xmlnsprefix);
+        indentation(indent);
+        printf("<!-- Unknown datatype: %d -->\n", H5Tget_class(type));
+        indentation(indent);
+        printf("<%sNoData/>\n",xmlnsprefix);
+        indentation(indent);
+        printf("</%sData>\n",xmlnsprefix);
+        break;
+    }
     } else {
-	/* no data written */
-	indentation(indent + COL);
-	printf("<%sData>\n",xmlnsprefix);
-	indentation(indent + COL + COL);
-	printf("<%sNoData/>\n",xmlnsprefix);
-	indentation(indent + COL);
-	printf("</%sData>\n",xmlnsprefix);
+    /* no data written */
+    indentation(indent + COL);
+    printf("<%sData>\n",xmlnsprefix);
+    indentation(indent + COL + COL);
+    printf("<%sNoData/>\n",xmlnsprefix);
+    indentation(indent + COL);
+    printf("</%sData>\n",xmlnsprefix);
     }
 
     H5Tclose(type);
@@ -5808,13 +5918,13 @@ xml_dump_dataset(hid_t did, const char *name, struct subset_t UNUSED * sset)
 static void
 xml_print_enum(hid_t type)
 {
-    char                  **name = NULL;	/*member names                    */
-    unsigned char          *value = NULL;	/*value array                    */
-    unsigned                nmembs;	/*number of members                */
-    hid_t                   super;	/*enum base integer type        */
-    hid_t                   native = -1;	/*native integer data type        */
-    size_t                  dst_size;	/*destination value type size    */
-    unsigned                i;	/*miscellaneous counters        */
+    char                  **name = NULL;    /*member names                    */
+    unsigned char          *value = NULL;   /*value array                    */
+    unsigned                nmembs; /*number of members                */
+    hid_t                   super;  /*enum base integer type        */
+    hid_t                   native = -1;    /*native integer data type        */
+    size_t                  dst_size;   /*destination value type size    */
+    unsigned                i;  /*miscellaneous counters        */
     size_t                  j;
 
     nmembs = H5Tget_nmembers(type);
@@ -5834,15 +5944,15 @@ xml_print_enum(hid_t type)
      *    3. raw format
      */
     if (H5Tget_size(type) <= sizeof(long_long)) {
-	dst_size = sizeof(long_long);
+    dst_size = sizeof(long_long);
 
-	if (H5T_SGN_NONE == H5Tget_sign(type)) {
-	    native = H5T_NATIVE_ULLONG;
-	} else {
-	    native = H5T_NATIVE_LLONG;
-	}
+    if (H5T_SGN_NONE == H5Tget_sign(type)) {
+        native = H5T_NATIVE_ULLONG;
     } else {
-	dst_size = H5Tget_size(type);
+        native = H5T_NATIVE_LLONG;
+    }
+    } else {
+    dst_size = H5Tget_size(type);
     }
 
     /* Get the names and raw values of all members */
@@ -5850,13 +5960,13 @@ xml_print_enum(hid_t type)
     value = calloc(nmembs, MAX(H5Tget_size(type), dst_size));
 
     for (i = 0; i < nmembs; i++) {
-	name[i] = H5Tget_member_name(type, i);
-	H5Tget_member_value(type, i, value + i * H5Tget_size(type));
+    name[i] = H5Tget_member_name(type, i);
+    H5Tget_member_value(type, i, value + i * H5Tget_size(type));
     }
 
     /* Convert values to native data type */
     if (native > 0)
-	H5Tconvert(super, native, nmembs, value, NULL, H5P_DEFAULT);
+    H5Tconvert(super, native, nmembs, value, NULL, H5P_DEFAULT);
 
     /* Sort members by increasing value */
     /*not implemented yet */
@@ -5866,38 +5976,38 @@ xml_print_enum(hid_t type)
     for (i = 0; i < nmembs; i++) {
         char *t_name = xml_escape_the_name(name[i]);
 
-	indentation(indent);
-	printf("<%sEnumElement>\n",xmlnsprefix);
-	indentation(indent + COL);
-	printf("%s\n", t_name);
+    indentation(indent);
+    printf("<%sEnumElement>\n",xmlnsprefix);
+    indentation(indent + COL);
+    printf("%s\n", t_name);
         free(t_name);
-	indentation(indent);
-	printf("</%sEnumElement>\n",xmlnsprefix);
-	indentation(indent);
-	printf("<%sEnumValue>\n",xmlnsprefix);
-	indentation(indent + COL);
-	if (native < 0) {
-	    printf("0x");
+    indentation(indent);
+    printf("</%sEnumElement>\n",xmlnsprefix);
+    indentation(indent);
+    printf("<%sEnumValue>\n",xmlnsprefix);
+    indentation(indent + COL);
+    if (native < 0) {
+        printf("0x");
 
-	    for (j = 0; j < dst_size; j++)
-		printf("%02x", value[i * dst_size + j]);
-	} else if (H5T_SGN_NONE == H5Tget_sign(native)) {
-	    HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "u", *((unsigned long_long *)
-					      ((void *) (value + i * dst_size))));
-	} else {
-	    HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "d",
-		   *((long_long *) ((void *) (value + i * dst_size))));
-	}
-	printf("\n");
-	indentation(indent);
-	printf("</%sEnumValue>\n",xmlnsprefix);
+        for (j = 0; j < dst_size; j++)
+        printf("%02x", value[i * dst_size + j]);
+    } else if (H5T_SGN_NONE == H5Tget_sign(native)) {
+        HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "u", *((unsigned long_long *)
+                          ((void *) (value + i * dst_size))));
+    } else {
+        HDfprintf(stdout,"%" H5_PRINTF_LL_WIDTH "d",
+           *((long_long *) ((void *) (value + i * dst_size))));
+    }
+    printf("\n");
+    indentation(indent);
+    printf("</%sEnumValue>\n",xmlnsprefix);
 
     }
     indent -= COL;
 
     /* Release resources */
     for (i = 0; i < nmembs; i++)
-	free(name[i]);
+    free(name[i]);
 
     free(name);
     free(value);
@@ -5906,17 +6016,17 @@ xml_print_enum(hid_t type)
 
 
 /*-------------------------------------------------------------------------
- * Function:	h5_fileaccess
+ * Function:    h5_fileaccess
  *
- * Purpose:	Returns a file access template which is the default template
- *		but with a file driver set according to the constant or
- *		environment variable HDF5_DRIVER
+ * Purpose: Returns a file access template which is the default template
+ *      but with a file driver set according to the constant or
+ *      environment variable HDF5_DRIVER
  *
- * Return:	Success:	A file access property list
+ * Return:  Success:    A file access property list
  *
- *		Failure:	-1
+ *      Failure:    -1
  *
- * Programmer:	Robb Matzke
+ * Programmer:  Robb Matzke
  *              Thursday, November 19, 1998
  *
  * Modifications:
@@ -5927,8 +6037,8 @@ static hid_t
 h5_fileaccess(void)
 {
     static const char *multi_letters = "msbrglo";
-    const char	*val = NULL;
-    const char	*name;
+    const char  *val = NULL;
+    const char  *name;
     char s[1024];
     hid_t fapl = -1;
 
@@ -5946,53 +6056,53 @@ h5_fileaccess(void)
     if (NULL==(name=HDstrtok(s, " \t\n\r"))) return fapl;
 
     if (!HDstrcmp(name, "sec2")) {
-	/* Unix read() and write() system calls */
-	if (H5Pset_fapl_sec2(fapl)<0) return -1;
+    /* Unix read() and write() system calls */
+    if (H5Pset_fapl_sec2(fapl)<0) return -1;
     } else if (!HDstrcmp(name, "stdio")) {
-	/* Standard C fread() and fwrite() system calls */
-	if (H5Pset_fapl_stdio(fapl)<0) return -1;
+    /* Standard C fread() and fwrite() system calls */
+    if (H5Pset_fapl_stdio(fapl)<0) return -1;
     } else if (!HDstrcmp(name, "core")) {
-	/* In-core temporary file with 1MB increment */
-	if (H5Pset_fapl_core(fapl, 1024*1024, FALSE)<0) return -1;
+    /* In-core temporary file with 1MB increment */
+    if (H5Pset_fapl_core(fapl, 1024*1024, FALSE)<0) return -1;
     } else if (!HDstrcmp(name, "split")) {
-	/* Split meta data and raw data each using default driver */
-	if (H5Pset_fapl_split(fapl,
-			      "-m.h5", H5P_DEFAULT,
-			      "-r.h5", H5P_DEFAULT)<0)
-	    return -1;
+    /* Split meta data and raw data each using default driver */
+    if (H5Pset_fapl_split(fapl,
+                  "-m.h5", H5P_DEFAULT,
+                  "-r.h5", H5P_DEFAULT)<0)
+        return -1;
     } else if (!HDstrcmp(name, "multi")) {
-	/* Multi-file driver, general case of the split driver */
-	H5FD_mem_t memb_map[H5FD_MEM_NTYPES];
-	hid_t memb_fapl[H5FD_MEM_NTYPES];
-	const char *memb_name[H5FD_MEM_NTYPES];
-	char sv[H5FD_MEM_NTYPES][1024];
-	haddr_t memb_addr[H5FD_MEM_NTYPES];
-        H5FD_mem_t	mt;
+    /* Multi-file driver, general case of the split driver */
+    H5FD_mem_t memb_map[H5FD_MEM_NTYPES];
+    hid_t memb_fapl[H5FD_MEM_NTYPES];
+    const char *memb_name[H5FD_MEM_NTYPES];
+    char sv[H5FD_MEM_NTYPES][1024];
+    haddr_t memb_addr[H5FD_MEM_NTYPES];
+        H5FD_mem_t  mt;
 
-	HDmemset(memb_map, 0, sizeof memb_map);
-	HDmemset(memb_fapl, 0, sizeof memb_fapl);
-	HDmemset(memb_name, 0, sizeof memb_name);
-	HDmemset(memb_addr, 0, sizeof memb_addr);
+    HDmemset(memb_map, 0, sizeof memb_map);
+    HDmemset(memb_fapl, 0, sizeof memb_fapl);
+    HDmemset(memb_name, 0, sizeof memb_name);
+    HDmemset(memb_addr, 0, sizeof memb_addr);
 
-	assert(HDstrlen(multi_letters)==H5FD_MEM_NTYPES);
-	for (mt=H5FD_MEM_DEFAULT; mt<H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t,mt)) {
-	    memb_fapl[mt] = H5P_DEFAULT;
-	    sprintf(sv[mt], "%%s-%c.h5", multi_letters[mt]);
-	    memb_name[mt] = sv[mt];
-	    memb_addr[mt] = MAX(mt-1,0)*(HADDR_MAX/10);
-	}
+    assert(HDstrlen(multi_letters)==H5FD_MEM_NTYPES);
+    for (mt=H5FD_MEM_DEFAULT; mt<H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t,mt)) {
+        memb_fapl[mt] = H5P_DEFAULT;
+        sprintf(sv[mt], "%%s-%c.h5", multi_letters[mt]);
+        memb_name[mt] = sv[mt];
+        memb_addr[mt] = MAX(mt-1,0)*(HADDR_MAX/10);
+    }
 
-	if (H5Pset_fapl_multi(fapl, memb_map, memb_fapl, memb_name,
-			      memb_addr, FALSE)<0) {
-	    return -1;
-	}
+    if (H5Pset_fapl_multi(fapl, memb_map, memb_fapl, memb_name,
+                  memb_addr, FALSE)<0) {
+        return -1;
+    }
     } else if (!HDstrcmp(name, "family")) {
         hsize_t fam_size = 100*1024*1024; /*100 MB*/
 
-	/* Family of files, each 1MB and using the default driver */
-	if ((val=HDstrtok(NULL, " \t\n\r")))
-	    fam_size = (hsize_t)(HDstrtod(val, NULL) * 1024*1024);
-	if (H5Pset_fapl_family(fapl, fam_size, H5P_DEFAULT)<0)
+    /* Family of files, each 1MB and using the default driver */
+    if ((val=HDstrtok(NULL, " \t\n\r")))
+        fam_size = (hsize_t)(HDstrtod(val, NULL) * 1024*1024);
+    if (H5Pset_fapl_family(fapl, fam_size, H5P_DEFAULT)<0)
             return -1;
     } else if (!HDstrcmp(name, "log")) {
 #ifdef H5_WANT_H5_V1_4_COMPAT
@@ -6007,18 +6117,18 @@ h5_fileaccess(void)
             verbosity = strtol(val, NULL, 0);
 
         if (H5Pset_fapl_log(fapl, NULL, (int)verbosity) < 0)
-	    return -1;
+        return -1;
 #else /* H5_WANT_H5_V1_4_COMPAT */
         /* Log file access */
         if ((val = HDstrtok(NULL, " \t\n\r")))
             log_flags = HDstrtol(val, NULL, 0);
 
         if (H5Pset_fapl_log(fapl, NULL, (unsigned)log_flags, 0) < 0)
-	    return -1;
+        return -1;
 #endif /* H5_WANT_H5_V1_4_COMPAT */
     } else {
-	/* Unknown driver */
-	return -1;
+    /* Unknown driver */
+    return -1;
     }
 
     return fapl;
@@ -6041,4 +6151,29 @@ init_prefix(char **prfx, size_t prfx_len)
     assert(prfx_len > 0);
     *prfx = HDcalloc(prfx_len, 1);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:    add_prefix
+ *
+ * Purpose:     Add object to prefix
+ *
+ * Return:      void
+ *
+ *-------------------------------------------------------------------------
+ */
+static void
+add_prefix(char **prfx, size_t *prfx_len, const char *name)
+{
+    size_t new_len = HDstrlen(*prfx) + HDstrlen(name) + 2;
+
+    /* Check if we need more space */
+    if(*prfx_len <= new_len) {
+        *prfx_len = new_len + 1;
+        *prfx = HDrealloc(*prfx, *prfx_len);
+    }
+
+    /* Append object name to prefix */
+    HDstrcat(HDstrcat(*prfx, "/"), name);
+} /* end add_prefix */
 

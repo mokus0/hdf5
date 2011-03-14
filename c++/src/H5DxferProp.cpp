@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -33,27 +34,27 @@ const DSetMemXferPropList DSetMemXferPropList::DEFAULT;
 // Function     Default constructor
 ///\brief	Default constructor: creates a stub dataset memory and
 ///		transfer property list object.
-// Programmer:  Binh-Minh Ribler - 2000
+// Programmer:	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 DSetMemXferPropList::DSetMemXferPropList() : PropList(H5P_DATASET_XFER) {}
 
 //--------------------------------------------------------------------------
-// Function     DSetMemXferPropList copy constructor
+// Function	DSetMemXferPropList copy constructor
 ///\brief	Copy constructor: makes a copy of the original
 ///		DSetMemXferPropList object
-///\param       original - IN: Original dataset memory and transfer property
+///\param	original - IN: Original dataset memory and transfer property
 ///				list object to copy
-// Programmer:  Binh-Minh Ribler - 2000
+// Programmer:	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 DSetMemXferPropList::DSetMemXferPropList(const DSetMemXferPropList& original) : PropList(original) {}
 
 //--------------------------------------------------------------------------
-// Function     DSetMemXferPropList overloaded constructor
+// Function	DSetMemXferPropList overloaded constructor
 ///\brief	Creates a DSetMemXferPropList object using the id of an
 ///		existing DSetMemXferPropList.
-///\param       plist_id - IN: Id of an existing dataset memory and transfer
+///\param	plist_id - IN: Id of an existing dataset memory and transfer
 ///				property list
-// Programmer:  Binh-Minh Ribler - 2000
+// Programmer:	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 DSetMemXferPropList::DSetMemXferPropList(const hid_t plist_id) : PropList(plist_id) {}
 
@@ -274,7 +275,7 @@ void DSetMemXferPropList::getBtreeRatios( double& left, double& middle, double& 
 //--------------------------------------------------------------------------
 // Function:	DSetMemXferPropList::setVlenMemManager
 ///\brief	Sets the memory manager for variable-length datatype allocation.
-///\param       alloc_func - IN: User's allocate routine
+///\param	alloc_func - IN: User's allocate routine
 ///\param	alloc_info - IN: User's allocation parameters
 ///\param	free_func  - IN: User's free routine
 ///\param	free_info  - IN: User's free parameters
@@ -308,7 +309,7 @@ void DSetMemXferPropList::setVlenMemManager() const
 //--------------------------------------------------------------------------
 // Function:	DSetMemXferPropList::getVlenMemManager
 ///\brief	Gets the memory manager for variable-length datatype allocation
-///\param       alloc_func - OUT: User's allocate routine
+///\param	alloc_func - OUT: User's allocate routine
 ///\param	alloc_info - OUT: User's allocation parameters
 ///\param	free_func  - OUT: User's free routine
 ///\param	free_info  - OUT: User's free parameters
@@ -328,7 +329,7 @@ void DSetMemXferPropList::getVlenMemManager( H5MM_allocate_t& alloc_func, void**
 //--------------------------------------------------------------------------
 // Function:	DSetMemXferPropList::setMulti
 ///\brief	Sets the data transfer property list for the multi-file driver.
-///\param       memb_dxpl - OUT: Array of data access property lists
+///\param	memb_dxpl - OUT: Array of data access property lists
 ///\exception	H5::PropListIException
 ///\par Description
 ///		This function can only be used after the member map has
@@ -348,7 +349,7 @@ void DSetMemXferPropList::setMulti(const hid_t *memb_dxpl)
 //--------------------------------------------------------------------------
 // Function:	DSetMemXferPropList::getMulti
 ///\brief	Returns multi-file data transfer property list information.
-///\param       memb_dxpl - OUT: Array of data access property lists
+///\param	memb_dxpl - OUT: Array of data access property lists
 ///\exception	H5::PropListIException
 // Programmer:	Binh-Minh Ribler - July, 2004
 //--------------------------------------------------------------------------
@@ -365,11 +366,11 @@ void DSetMemXferPropList::getMulti(hid_t *memb_dxpl)
 //--------------------------------------------------------------------------
 // Function:	DSetMemXferPropList::setSmallDataBlockSize
 ///\brief	Sets the size of a contiguous block reserved for small data.
-///\param       size - IN: Maximum size, in bytes, of the small data block.
+///\param	size - IN: Maximum size, in bytes, of the small data block.
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For detail, please refer to the C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSmallData
+/// <A HREF="../RM_H5P.html#Property-SetSmallData">../RM_H5P.html#Property-SetSmallData</A>
 // Programmer:	Binh-Minh Ribler - July, 2004
 //--------------------------------------------------------------------------
 void DSetMemXferPropList::setSmallDataBlockSize(hsize_t size)
@@ -409,7 +410,7 @@ hsize_t DSetMemXferPropList::getSmallDataBlockSize()
 ///\par Description
 ///		For information, please refer to the C layer Reference
 ///		Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetHyperVectorSize
+/// <A HREF="../RM_H5P.html#Property-SetHyperVectorSize">../RM_H5P.html#Property-SetHyperVectorSize</A>
 // Programmer:	Binh-Minh Ribler - July, 2004
 //--------------------------------------------------------------------------
 void DSetMemXferPropList::setHyperVectorSize(size_t vector_size)
@@ -423,7 +424,7 @@ void DSetMemXferPropList::setHyperVectorSize(size_t vector_size)
 }
 
 //--------------------------------------------------------------------------
-// Function:	DSetMemXferPropList::getSmallDataBlockSize
+// Function:	DSetMemXferPropList::getHyperVectorSize
 ///\brief	Returns the number of I/O vectors to be read/written in
 ///		hyperslab I/O.
 ///\return	Number of I/O vectors

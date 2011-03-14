@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "hdf5.h"
@@ -92,7 +93,7 @@ int h5tools_canreadf(const char* name, /* object name, serves also as boolean pr
     return 0;
 
 /*-------------------------------------------------------------------------
- * H5Z_FILTER_DEFLATE	   1 , deflation like gzip
+ * H5Z_FILTER_DEFLATE      1 , deflation like gzip
  *-------------------------------------------------------------------------
  */
   case H5Z_FILTER_DEFLATE:
@@ -185,7 +186,7 @@ int h5tools_can_encode( H5Z_filter_t filtn)
 
   switch (filtn)
   {
-    /* user defined filter	   */
+    /* user defined filter     */
   default:
     return 0;
 

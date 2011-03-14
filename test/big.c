@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -20,6 +21,8 @@
 
 const char *FILENAME[] = {
     "big",
+    "sec2",
+    "stdio",
     NULL
 };
 
@@ -29,6 +32,9 @@ const char *FILENAME[] = {
 #define WRT_SIZE	4*1024
 #define FAMILY_SIZE	1024*1024*1024
 
+/* Define big file as 2GB */
+#define BIG_FILE 0x80000000UL
+ 
 #define MAX_TRIES       100
 
 #if H5_SIZEOF_LONG_LONG >= 8
@@ -118,7 +124,7 @@ is_sparse(void)
 
     if ((fd=HDopen("x.h5", O_RDWR|O_TRUNC|O_CREAT, 0666))<0) return 0;
     if (HDlseek(fd, (off_t)(1024*1024), SEEK_SET)!=1024*1024) return 0;
-    if (5!=HDwrite(fd, "hello", 5)) return 0;
+    if (5!=HDwrite(fd, "hello", (size_t)5)) return 0;
     if (HDclose(fd)<0) return 0;
     if (HDstat("x.h5", &sb)<0) return 0;
     if (HDunlink("x.h5")<0) return 0;
@@ -128,6 +134,47 @@ is_sparse(void)
     return (0);
 #endif
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	supports_big
+ *
+ * Purpose:	Determines if the file system of the current working
+ *		directory supports big files.
+ *
+ * Return:	Success:	Non-zero if big files are supported; zero
+ *				otherwise.
+ *
+ *		Failure:	zero
+ *
+ * Programmer:	Raymond Lu
+ *              Wednesday, April 18, 2007
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+supports_big(void)
+{
+    int		fd;
+
+    if ((fd=HDopen("y.h5", O_RDWR|O_TRUNC|O_CREAT, 0666))<0) return 0;
+
+    /* Write a few bytes at 2GB */
+    if (HDlseek(fd, BIG_FILE, SEEK_SET)!=BIG_FILE) return 0;
+    if (5!=HDwrite(fd, "hello", (size_t)5)) return 0;
+
+    /* Write a few bytes at 4GB */
+    if (HDlseek(fd, 2*BIG_FILE, SEEK_SET) != 2*BIG_FILE) return 0;
+    if (5!=HDwrite(fd, "hello", (size_t)5)) return 0;
+
+    if (HDclose(fd)<0) return 0;
+    if (HDunlink("y.h5")<0) return 0;
+
+    return (1);
+}
+
 
 
 /*-------------------------------------------------------------------------
@@ -172,7 +219,7 @@ enough_room(hid_t fapl)
 	if ((off_t)size != HDlseek(fd[i], (off_t)size, SEEK_SET)) {
 	    goto done;
 	}
-	if (1!=HDwrite(fd[i], "X", 1)) {
+	if (1!=HDwrite(fd[i], "X", (size_t)1)) {
 	    goto done;
 	}
     }
@@ -209,17 +256,16 @@ enough_room(hid_t fapl)
  *-------------------------------------------------------------------------
  */
 static int
-writer (hid_t fapl, int wrt_n)
+writer(char* filename, hid_t fapl, int wrt_n)
 {
     hsize_t	size1[4] = {8, 1024, 1024, 1024};
     hsize_t	size2[1] = {GB8LL};
     hsize_t	hs_start[1];
     hsize_t	hs_size[1];
     hid_t	file=-1, space1=-1, space2=-1, mem_space=-1, d1=-1, d2=-1;
-    int		*buf = malloc (sizeof(int) * WRT_SIZE);
+    int		*buf = (int*)malloc (sizeof(int) * WRT_SIZE);
     int		i, j;
     FILE	*out = fopen(DNAME, "w");
-    char	filename[1024];
     hid_t       dcpl;
 
     TESTING("large dataset write");
@@ -228,7 +274,6 @@ writer (hid_t fapl, int wrt_n)
      * We might be on a machine that has 32-bit files, so create an HDF5 file
      * which is a family of files.  Each member of the family will be 1GB
      */
-    h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
     if ((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl))<0) {
 	goto error;
     }
@@ -320,22 +365,20 @@ writer (hid_t fapl, int wrt_n)
  *-------------------------------------------------------------------------
  */
 static int
-reader (hid_t fapl)
+reader (char *filename, hid_t fapl)
 {
     FILE	*script = NULL;
     hid_t	file=-1, mspace=-1, fspace=-1, d2=-1;
     char	ln[128], *s;
     hsize_t	hs_offset[1];
     hsize_t	hs_size[1] = {WRT_SIZE};
-    int		*buf = malloc (sizeof(int) * WRT_SIZE);
+    int		*buf = (int*)malloc (sizeof(int) * WRT_SIZE);
     int		i, j, zero, wrong, nerrors=0;
-    char	filename[1024];
 
     /* Open script file */
     script = fopen (DNAME, "r");
 
     /* Open HDF5 file */
-    h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
     if ((file=H5Fopen(filename, H5F_ACC_RDONLY, fapl))<0) goto error;
 
     /* Open the dataset */
@@ -346,7 +389,7 @@ reader (hid_t fapl)
     if ((mspace = H5Screate_simple (1, hs_size, hs_size))<0) goto error;
 
     /* Read each region */
-    while (fgets (ln, sizeof(ln), script)) {
+    while (fgets (ln, (int)sizeof(ln), script)) {
 	if ('#'!=ln[0]) break;
 	i = (int)strtol (ln+1, &s, 10);
 	hs_offset[0] = HDstrtoll (s, NULL, 0);
@@ -459,6 +502,7 @@ main (int ac, char **av)
     hsize_t	family_size_def;	/* default family file size */
     double	family_size_def_dbl;	/* default family file size */
     int		cflag=1;		/* check file system before test */
+    char	filename[1024];
 
     /* parameters setup */
     family_size_def = FAMILY_SIZE;
@@ -497,7 +541,8 @@ main (int ac, char **av)
     h5_reset();
     fapl = h5_fileaccess();
 
-    /* The file driver must be the family driver */
+    /* Test big file with the family driver */
+    puts("Testing big file with the Family Driver ");
     if (H5FD_FAMILY!=H5Pget_driver(fapl)) {
 	HDfprintf(stdout,
 	   "Changing file drivers to the family driver, %Hu bytes each\n",
@@ -542,10 +587,61 @@ main (int ac, char **av)
 	}
     }
 
-    /* Do the test */
-    if (writer(fapl, WRT_N)) goto error;
-    if (reader(fapl)) goto error;
-    puts("All big tests passed.");
+    /* Do the test with the Family Driver */
+    h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
+
+    if (writer(filename, fapl, WRT_N)) goto error;
+    if (reader(filename, fapl)) goto error;
+
+    puts("Test passed with the Family Driver.");
+
+    /*
+     * We shouldn't run this test if the file system doesn't support big files 
+     * because we would generate multi-gigabyte files.
+     */
+    puts("\nChecking if file system supports big files...");
+    if (!supports_big()) {
+        puts("Tests for sec2 and stdio are skipped because file system does not support big files.");
+        usage();
+        goto quit;
+    }
+
+    /* Clean up the test file */
+    if (h5_cleanup(FILENAME, fapl)) remove(DNAME);
+
+    /* Test big file with the SEC2 driver */
+    puts("Testing big file with the SEC2 Driver ");
+
+    fapl = h5_fileaccess();
+    if(H5Pset_fapl_sec2(fapl)<0)
+
+    HDmemset(filename, 0, sizeof(filename));
+    h5_fixname(FILENAME[2], fapl, filename, sizeof filename);
+
+    if (writer(filename, fapl, WRT_N)) goto error;
+    if (reader(filename, fapl)) goto error;
+
+    puts("Test passed with the SEC2 Driver.");
+
+#ifdef H5_HAVE_FSEEKO
+    /* Clean up the test file */
+    if (h5_cleanup(FILENAME, fapl)) remove(DNAME);
+
+    /* Test big file with the STDIO driver only if fseeko is supported,
+     * because the OFFSET parameter of fseek has the type LONG, not big
+     * enough to support big files. */
+    puts("\nTesting big file with the STDIO Driver ");
+
+    fapl = h5_fileaccess();
+    if(H5Pset_fapl_stdio(fapl)<0)
+
+    HDmemset(filename, 0, sizeof(filename));
+    h5_fixname(FILENAME[1], fapl, filename, sizeof filename);
+
+    if (writer(filename, fapl, WRT_N)) goto error;
+    if (reader(filename, fapl)) goto error;
+    puts("Test passed with the STDIO Driver.");
+#endif
 
 quit:
     /* End with normal exit code */

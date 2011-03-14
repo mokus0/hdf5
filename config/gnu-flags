@@ -1,5 +1,6 @@
 #							-*- shell-script -*-
 #
+# Copyright by The HDF Group.
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -9,8 +10,8 @@
 # of the source code distribution tree; Copyright.html can be found at the
 # root level of an installed copy of the electronic HDF5 document set and
 # is linked from the top-level documents page.  It can also be found at
-# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 
 
 # This file should be sourced into configure if the compiler is the
@@ -117,13 +118,19 @@ case "$cc_vendor-$cc_version" in
             case "$host_cpu_model" in
                 # Hmm.. this might not catch Celerons, but it won't hurt them either...
                 *Pro*|*II*|*III*|*IV*|*Athlon*)
-                    arch="-march=i686"
+                    # architecture-specific optimizations cause problems
+                    # for some users who build binaries to be used on
+                    # multiple architectures.
+                    # arch="-march=i686"
                 ;;
             esac
             ;;
 
         *-i686)
-            arch="-march=i686"
+                    # architecture-specific optimizations cause problems
+                    # for some users who build binaries to be used on
+                    # multiple architectures.
+                    #arch="-march=i686"
             ;;
     esac
 
@@ -142,7 +149,7 @@ case "$cc_vendor-$cc_version" in
       gcc-2.95.[34])
         PROD_CFLAGS="-O3"
         ;;
-      gcc-3.[0-4]*|gcc-4.[01]*)
+      gcc-3.[0-4]*|gcc-4.[012]*)
         # The optimization level is reduced for gcc 3.* and 4.* due to problems
         # with code generation for src/H5Tconv.c with the -O2 & -O3 
         # optimization levels (which shows up as failures for various integer
@@ -192,7 +199,11 @@ case "$cc_vendor-$cc_version" in
     CFLAGS="$CFLAGS -Wno-long-long"
 
     # Append warning flags from gcc-3* case
-    DEBUG_CFLAGS="$DEBUG_CFLAGS -Wfloat-equal -Wmissing-format-attribute -Wpadded"
+    # (don't use -Wpadded flag for normal builds, many of the warnings its
+    #   issuing can't be fixed and they are making it hard to detect other,
+    #   more important warnings)
+    #DEBUG_CFLAGS="$DEBUG_CFLAGS -Wfloat-equal -Wmissing-format-attribute -Wpadded"
+    DEBUG_CFLAGS="$DEBUG_CFLAGS -Wfloat-equal -Wmissing-format-attribute"
 
     # Append warning flags from gcc-3.2* case
     DEBUG_CFLAGS="$DEBUG_CFLAGS -Wmissing-noreturn -Wpacked -Wdisabled-optimization -Wmultichar"

@@ -1,4 +1,5 @@
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!   Copyright by The HDF Group.                                               *
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
 !                                                                             *
@@ -8,8 +9,8 @@
 !   of the source code distribution tree; Copyright.html can be found at the  *
 !   root level of an installed copy of the electronic HDF5 document set and   *
 !   is linked from the top-level documents page.  It can also be found at     *
-!   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-!   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+!   http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+!   access to either file, you may request a copy from help@hdfgroup.org.     *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
 !
@@ -158,7 +159,7 @@
           !
           CALL h5rget_object_type_f(dsetr_id, ref(3), obj_type, error) 
               CALL check("h5rget_object_type_f",error,total_error)
-          if (obj_type == 2) then 
+          if (obj_type == H5G_DATASET_F) then 
               CALL h5rdereference_f(dsetr_id, ref(3), dset1_id, error)
                   CALL check("h5rdereference_f",error,total_error)
           
@@ -172,7 +173,7 @@
           !
           CALL h5rget_object_type_f(dsetr_id, ref(4), obj_type, error) 
               CALL check("h5rget_object_type_f",error,total_error)
-          if (obj_type == 3) then 
+          if (obj_type == H5G_TYPE_F) then 
               CALL h5rdereference_f(dsetr_id, ref(4), type_id, error)
                   CALL check("h5rdereference_f",error,total_error)
           end if

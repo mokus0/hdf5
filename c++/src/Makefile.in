@@ -2,17 +2,18 @@
 ## HDF5-C++ Library Makefile(.in)
 ##
 ##
-## Copyright by the Board of Trustees of the University of Illinois.
-## All rights reserved.
-##
-## This file is part of HDF5.  The full HDF5 copyright notice, including
-## terms governing use, modification, and redistribution, is contained in
-## the files COPYING and Copyright.html.  COPYING can be found at the root
-## of the source code distribution tree; Copyright.html can be found at the
-## root level of an installed copy of the electronic HDF5 document set and
-## is linked from the top-level documents page.  It can also be found at
-## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# Copyright by The HDF Group.
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 ##
 ##
 ##
@@ -47,7 +48,8 @@ PUB_HDR=H5Cpp.h H5AbstractDs.h H5AtomType.h H5Attribute.h H5Classes.h           
         H5DcreatProp.h H5DxferProp.h H5EnumType.h H5Exception.h H5FaccProp.h    \
         H5FcreatProp.h H5File.h H5FloatType.h H5Group.h H5IdComponent.h         \
         H5Include.h H5IntType.h H5Library.h H5Object.h H5PredType.h             \
-        H5PropList.h H5StrType.h H5CppDoc.h H5ArrayType.h H5VarLenType.h
+        H5PropList.h H5StrType.h H5CppDoc.h H5ArrayType.h H5VarLenType.h        \
+        H5cxx_pubconf.h
 
 PUB_PROGS=h5c++
 

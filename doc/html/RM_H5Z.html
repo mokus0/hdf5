@@ -8,6 +8,7 @@ HDF5/H5Z API Specification
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -17,15 +18,13 @@ HDF5/H5Z API Specification
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem -->
-
-</head>
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
@@ -38,7 +37,7 @@ HDF5/H5Z API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -62,7 +61,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -175,7 +174,7 @@ data compression.
 <dl>
   <dt><strong>Name:</strong> <a name="Compression-FilterAvail">H5Zfilter_avail</a>
   <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Zfilter_avail</code>(<em>H5Z_filter_t</em> <code>filter</code>)
+    <dd><em>htri_t</em> <code>H5Zfilter_avail</code>(<em>H5Z_filter_t</em> <code>filter</code>)
   <dt><strong>Purpose:</strong>
     <dd>Determines whether a filter is available.
   <dt><strong>Description:</strong>
@@ -184,13 +183,14 @@ data compression.
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>H5Z_filter_t</em>&nbsp;<code>filter&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>H5Z_filter_t</em>&nbsp;<code>filter&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: Filter identifier.
               See the introduction to this section of the reference manual 
               for a list of valid filter identifiers.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
-    <dd>Returns a non-negative value if successful;
+    <dd>Returns a Boolean value (<code>TRUE</code>/<code>FALSE</code>) 
+        if successful; 
         otherwise returns a negative value.
   <dt><strong>Fortran90 Interface:</strong> h5zfilter_avail_f
     <dd>
@@ -669,7 +669,7 @@ END SUBROUTINE h5zunregister_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -693,7 +693,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -701,13 +701,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <hr>
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
 <address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified:  2 September 2004");
+document.writeln("Last modified:  13 June 2006");
 -->
 </SCRIPT>
  

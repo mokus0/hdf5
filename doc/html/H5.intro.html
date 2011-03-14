@@ -5,6 +5,7 @@
 <!-- #BeginLibraryItem "/ed_libs/styles_Intro.lbi" -->
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -14,25 +15,24 @@
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
 <link href="ed_styles/IntroElect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem -->
-
-</HEAD>
+<!-- #EndLibraryItem --></HEAD>
 
 <BODY  bgcolor="#FFFFFF">
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_Intro.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_Intro.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -323,7 +323,11 @@ Atomic datatypes can also be system-specific, or <I><CODE>NATIVE</CODE></I>, and
 <li><em>Named</em> datatypes are either atomic or compound datatypes that have been specifically designated to be shared across datasets.
 </ul>
 <I><P>Atomic datatypes</I> include integers and floating-point numbers. Each atomic type belongs to a particular class and has several properties: size, order, precision, and offset. In this introduction, we consider only a few of these properties.
-<P>Atomic classes include integer, float, date and time, string, bit field, and opaque. <I>(Note: Only integer, float and string  classes are available in the current implementation.)
+<P>Atomic classes include integer, float, 
+<!-- date and time, 
+    (DISCUSSION OF TIME DATATYPE COMMENTED OUT 6 FEB 2006,
+     UNTIL IT IS PROPERLY SUPPORTED IN THE LIBRARY.) -->
+string, bit field, and opaque. <I>(Note: Only integer, float and string  classes are available in the current implementation.)
 </I><P>Properties of integer types include size, order (endian-ness), and signed-ness (signed/unsigned).
 <P>Properties of float types include the size and location of the exponent and mantissa, and the location of the sign bit.
 <P>The datatypes that are supported in the current implementation are: 
@@ -3125,12 +3129,13 @@ For the example codes, see
 <p align=right><font size=-1><a href="#Intro-TOC">(Return to TOC)</a></font> 
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_Intro.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_Intro.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -3148,13 +3153,13 @@ For the example codes, see
  
 <!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
 <address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem -->
  
-Last modified: 26 March 2001 
+Last modified: 6 February 2006 
 
 </td><td align=right valign=top>
 <a href="Copyright.html">Copyright</a>&nbsp;&nbsp;

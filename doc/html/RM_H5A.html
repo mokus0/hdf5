@@ -7,6 +7,7 @@ HDF5/H5A API Specification
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -16,27 +17,26 @@ HDF5/H5A API Specification
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem -->
-
-</head>
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -60,7 +60,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -253,9 +253,10 @@ END SUBROUTINE h5aclose_f
     <dd>Creates a dataset as an attribute of another group, dataset, 
         or named datatype.
 <dt><strong>Description:</strong>
-    <dd><code>H5Acreate</code> creates an attribute named <code>name</code>
-        and attached to the object specified with <code>loc_id</code>.  
-        <code>loc_id</code> is a group, dataset, or named datatype identifier.
+    <dd><code>H5Acreate</code> creates the attribute <code>name</code>
+        attached to the object specified with <code>loc_id</code>.  
+        <code>loc_id</code> can be a group, dataset, or named datatype 
+        identifier.
         <p>
         The attribute name specified in <code>name</code> must be unique. 
         Attempting to create an attribute with the same name as an already 
@@ -407,7 +408,7 @@ END SUBROUTINE h5adelete_f
             <td valign="top">IN: The size of the buffer to store the name in.</td></tr>
         <tr>
 		    <td valign="top"><em>char *</em><code>buf</code></td>
-            <td valign="top">IN: Buffer to store name in.</td></tr>
+            <td valign="top">OUT: Buffer to store name in.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
     <dd>Returns the length of the attribute's name, which may be
@@ -925,13 +926,14 @@ END SUBROUTINE h5awrite_f
     </table></ul>
 </dl>
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -955,20 +957,21 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
 </center>
 <hr>
-<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
+<address>
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 16 October 2003");
+document.writeln("Last modified: 11 October 2006");
 -->
 </SCRIPT>
  

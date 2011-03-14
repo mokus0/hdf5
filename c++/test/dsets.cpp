@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*****************************************************************************
@@ -29,6 +30,14 @@
 #else
 #include <iostream>
 #endif
+#include <string>
+
+#ifndef H5_NO_NAMESPACE
+#ifndef H5_NO_STD
+    using std::cerr;
+    using std::endl;
+#endif  // H5_NO_STD
+#endif
 
 #include "testhdf5.h"	// C test header file
 #include "H5Cpp.h"	// C++ API header file
@@ -39,13 +48,13 @@ using namespace H5;
 
 #include "h5cpputil.h"	// C++ utilility header file
 
-const string	FILE1("dataset.h5");
-const string	DSET_DEFAULT_NAME("default");
-const string	DSET_CHUNKED_NAME("chunked");
-const string	DSET_SIMPLE_IO_NAME("simple_io");
-const string	DSET_TCONV_NAME	("tconv");
-const string	DSET_COMPRESS_NAME("compressed");
-const string	DSET_BOGUS_NAME	("bogus");
+const H5std_string	FILE1("dataset.h5");
+const H5std_string	DSET_DEFAULT_NAME("default");
+const H5std_string	DSET_CHUNKED_NAME("chunked");
+const H5std_string	DSET_SIMPLE_IO_NAME("simple_io");
+const H5std_string	DSET_TCONV_NAME	("tconv");
+const H5std_string	DSET_COMPRESS_NAME("compressed");
+const H5std_string	DSET_BOGUS_NAME	("bogus");
 
 const int H5Z_FILTER_BOGUS = 305;
 
@@ -172,41 +181,7 @@ test_create( H5File& file)
 	return -1;
     }
 }   // test_create
-
-/*-------------------------------------------------------------------------
- * Function:	check_values
- *
- * Purpose:	Checks a read value against the written value.  If they are
- *		different, the function will print out a message and the
- *		different values.  This function is made to reuse the code
- *		segment that is used in various places throughout
- *		test_compression and in test_simple_io.  Where the C version
- *		of this code segment "goto error," this function will
- *		return -1.
- *
- * Return:	Success:	0
- *
- *		Failure:	-1
- *
- * Programmer:	Binh-Minh Ribler (using C code segment for checking values)
- *		Friday, February 6, 2001
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static int
-check_values (hsize_t i, hsize_t j, int apoint, int acheck)
-{
-    if (apoint != acheck)
-    {
-	cerr << "    Read different values than written.\n" << endl;
-	cerr << "    At index " << (unsigned long)i << "," <<
-   	(unsigned long)j << endl;
-	return -1;
-    }
-    return 0;
-} // check_values
+
 
 /*-------------------------------------------------------------------------
  * Function:	test_simple_io
@@ -1035,7 +1010,7 @@ main(void)
     }
     catch (Exception E)
     {
-	return(test_report(nerrors, string(" Dataset")));
+	return(test_report(nerrors, H5std_string(" Dataset")));
     }
 
     // Clean up data file
@@ -1043,7 +1018,7 @@ main(void)
 
     // Print out dsets test results
     cerr << endl << endl;
-    return(test_report(nerrors, string(" Dataset")));
+    return(test_report(nerrors, H5std_string(" Dataset")));
 }   // main
 
 /*-------------------------------------------------------------------------

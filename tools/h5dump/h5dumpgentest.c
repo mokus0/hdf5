@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -78,8 +79,11 @@
 #define FILE49  "tstr3.h5"
 #define FILE50  "taindices.h5"
 #define FILE51  "tlonglinks.h5"
-
-
+#define FILE52  "tldouble.h5"
+/* FILE53 and 54  not defined in this version, features not defined  */
+#define FILE55  "tbinary.h5"
+#define FILE56  "tbigdims.h5"
+#define FILE57  "thyperslab.h5"
 
 /*-------------------------------------------------------------------------
  * prototypes
@@ -447,7 +451,11 @@ static void gent_hardlink(void)
     group = H5Gopen(fid, "/g1");
     H5Glink (group, H5G_LINK_HARD, "/g2", "g1.1");
     H5Gclose(group);
+    
+     /* create a link to the root group */
+    H5Glink (fid, H5G_LINK_HARD, "/", "g3");
     H5Fclose(fid);
+
 }
 
 /*
@@ -5067,8 +5075,8 @@ static void gent_string(void)
  c_t      buf3 = {24, "Four score and seven\n years ago our forefathers brought forth on this continent a new nation"};
  char     buf4[] = {"Four score and seven\n years ago our forefathers brought forth on this continent a new nation"};
  hsize_t  dims1[]  = {1};
- hsize_t		dims2[]  = {SPACE1_DIM1};
- hsize_t		dims4[1];
+ hsize_t        dims2[]  = {SPACE1_DIM1};
+ hsize_t        dims4[1];
  int      ret;
 
  dims4[0] = sizeof(buf4);
@@ -5144,11 +5152,10 @@ static void gent_string(void)
  assert(ret>=0);
 }
 
-
 /*-------------------------------------------------------------------------
  * Function: gent_aindices
  *
- * Purpose: make several datasets for the array indices tests
+ * Purpose: make several datasets for the array indices and subsetting tests
  *
  *-------------------------------------------------------------------------
  */
@@ -5157,35 +5164,35 @@ static void gent_aindices(void)
  hid_t    fid;     /* file id */
  hid_t    gid[6];  /* group ids */
  hsize_t  dims1[1]  = {100};
- hsize_t  dims2[2]  = {2,100};
- hsize_t  dims3[3]  = {2,2,100};
- hsize_t  dims4[4]  = {2,3,4,5};
+ hsize_t  dims2[2]  = {10,10};
+ hsize_t  dims3[3]  = {2,10,10};
+ hsize_t  dims4[4]  = {2,2,10,10};
  int      buf1[100];
- int      buf2[2][100];
- int      buf3[2][2][100];
- int      buf4[2][3][4][5];
+ int      buf2[10][10];
+ int      buf3[2][10][10];
+ int      buf4[2][2][10][10];
  int      i, j, k, l, n, ret;
 
  for (i=n=0; i<100; i++){
   buf1[i]=n++;
  }
 
- for (i=n=0; i<2; i++){
-  for (j=0; j<100; j++){
+ for (i=n=0; i<10; i++){
+  for (j=0; j<10; j++){
    buf2[i][j]=n++;
   }
  }
  for (i=n=0; i<2; i++){
-  for (j=0; j<2; j++){
-   for (k=0; k<100; k++){
+  for (j=0; j<10; j++){
+   for (k=0; k<10; k++){
     buf3[i][j][k]=n++;
    }
   }
  }
  for (i=n=0; i<2; i++){
-  for (j=0; j<3; j++){
-   for (k=0; k<4; k++){
-    for (l=0; l<5; l++){
+  for (j=0; j<2; j++){
+   for (k=0; k<10; k++){
+    for (l=0; l<10; l++){
      buf4[i][j][k][l]=n++;
     }
    }
@@ -5228,6 +5235,7 @@ static void gent_aindices(void)
  */
  ret=H5Fclose(fid);
  assert(ret>=0);
+
 }
 
 /*-------------------------------------------------------------------------
@@ -5239,9 +5247,9 @@ static void gent_aindices(void)
  */
 static void gent_longlinks(void)
 {
-    hid_t		fid = (-1);     /* File ID */
-    hid_t		gid = (-1);     /* Group ID */
-    hid_t		gid2 = (-1);    /* Datatype ID */
+    hid_t       fid = (-1);     /* File ID */
+    hid_t       gid = (-1);     /* Group ID */
+    hid_t       gid2 = (-1);    /* Datatype ID */
     char               *objname = NULL; /* Name of object [Long] */
     size_t              u;              /* Local index variable */
 
@@ -5280,6 +5288,272 @@ static void gent_longlinks(void)
     HDfree(objname);
 }
 
+/*-------------------------------------------------------------------------
+ * Function: gent_ldouble
+ *
+ * Purpose: make file with a long double dataset
+ *
+ *-------------------------------------------------------------------------
+ */
+static int gent_ldouble(void)
+{
+ hid_t       fid;
+ hid_t       did;
+ hid_t       tid;
+ hid_t       sid;
+ size_t      size;
+ hsize_t     dims[1] = {3};
+ long double buf[3] = {1,2,3};
+
+ if ((fid = H5Fcreate(FILE52, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT))<0)
+  goto error;
+
+ if ((sid = H5Screate_simple(1, dims, NULL))<0)
+  goto error;
+
+ if ((tid = H5Tcopy(H5T_NATIVE_LDOUBLE))<0)
+  goto error;
+
+ if ((size = H5Tget_size(tid))==0)
+  goto error;
+
+ if ((did = H5Dcreate(fid, "dset", tid, sid, H5P_DEFAULT))<0)
+  goto error;
+
+ if (H5Dwrite(did,tid,H5S_ALL,H5S_ALL,H5P_DEFAULT,buf)<0)
+  goto error;
+
+ if (H5Sclose(sid)<0)
+  goto error;
+ if (H5Tclose(tid)<0)
+  goto error;
+ if (H5Dclose(did)<0)
+  goto error;
+ if (H5Fclose(fid)<0)
+  goto error;
+
+ return 0;
+
+error:
+ printf("error !\n");
+ return -1;
+
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:    gent_binary
+ *
+ * Purpose:     Generate a file to be used in the binary output test 
+ *              Contains:
+ *              1) an integer dataset
+ *              2) a float dataset
+ *              3) an array dataset
+ *              4) a large double dataset
+ *
+ *-------------------------------------------------------------------------
+ */
+static void
+gent_binary(void)
+{
+ hid_t    fid, sid, did, tid;
+ hsize_t  dims[1] = {6};
+ hsize_t  dimarray[1] = {2};
+ hsize_t  dimsl[1] = {100000};
+ int      ibuf[6]  = {1,2,3,4,5,6};
+ float    fbuf[6]  = {1,2,3,4,5,6};
+ int      abuf[2][6] = {{1,2,3,4,5,6},{7,8,9,10,11,12}};  /* array */
+ double   *dbuf=NULL;
+
+ fid = H5Fcreate(FILE55, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+
+/*-------------------------------------------------------------------------
+ * integer
+ *-------------------------------------------------------------------------
+ */
+ sid = H5Screate_simple(1, dims, NULL);
+ did = H5Dcreate(fid, "integer", H5T_NATIVE_INT, sid, H5P_DEFAULT);
+ H5Dwrite(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, ibuf);
+ H5Dclose(did);
+ H5Sclose(sid);
+
+/*-------------------------------------------------------------------------
+ * float
+ *-------------------------------------------------------------------------
+ */
+ sid = H5Screate_simple(1, dims, NULL);
+ did = H5Dcreate(fid, "float", H5T_NATIVE_FLOAT, sid, H5P_DEFAULT);
+ H5Dwrite(did, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, fbuf);
+ H5Dclose(did);
+ H5Sclose(sid);
+
+/*-------------------------------------------------------------------------
+ * array
+ *-------------------------------------------------------------------------
+ */
+ tid = H5Tarray_create(H5T_NATIVE_INT, 1, dims, NULL);
+ sid = H5Screate_simple(1, dimarray, NULL);
+ did = H5Dcreate(fid, "array", tid, sid, H5P_DEFAULT);
+ H5Dwrite(did, tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, abuf);
+ H5Dclose(did);
+ H5Tclose(tid);
+ H5Sclose(sid);
+
+/*-------------------------------------------------------------------------
+ * double
+ *-------------------------------------------------------------------------
+ */
+ sid = H5Screate_simple(1, dimsl, NULL);
+ did = H5Dcreate(fid, "double", H5T_NATIVE_DOUBLE, sid, H5P_DEFAULT);
+ dbuf=calloc(100000,sizeof(double));
+ if (dbuf!=NULL)
+ {
+  H5Dwrite(did, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, dbuf);
+  free(dbuf);
+ }
+ H5Dclose(did);
+ H5Sclose(sid);
+
+ /* close */
+ H5Fclose(fid);
+}
+
+/*-------------------------------------------------------------------------
+ * Function: gen_bigdims
+ *
+ * Purpose: generate a dataset with dimensions greater than 4GB
+ *          and write one hyperslab on the boundary
+ *
+ *-------------------------------------------------------------------------
+ */
+#define GB4LL    ((unsigned long_long) 4*1024*1024*1024)
+#define DIM_4GB  (GB4LL + 10)
+
+static void gent_bigdims(void)
+{
+    hid_t   fid;
+    hid_t   did;
+    hid_t   f_sid;
+    hid_t   m_sid;
+    hid_t   tid;
+    hid_t   dcpl;
+    hsize_t dims[1]={DIM_4GB};                 /* dataset dimensions */
+    hsize_t chunk_dims[1]={1024};              /* chunk dimensions */
+    hsize_t hs_start[1];
+    hsize_t hs_size[1];                        /* hyperslab dimensions */
+    size_t  size;
+    char    fillvalue=0;
+    char    *buf=NULL;
+    hsize_t i;
+    char    c;
+    size_t  nelmts;
+    int     ret;
+
+    /* create a file */
+    fid  = H5Fcreate(FILE56, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    assert(fid>=0);
+    
+    /* create dataset */ 
+    if ((dcpl = H5Pcreate(H5P_DATASET_CREATE))<0)
+        goto out;
+    if (H5Pset_fill_value(dcpl, H5T_NATIVE_SCHAR, &fillvalue)<0)
+        goto out;
+    if (H5Pset_chunk(dcpl, 1, chunk_dims)<0)
+        goto out;
+    if ((f_sid = H5Screate_simple(1,dims,NULL))<0)
+        goto out;
+    if ((did = H5Dcreate(fid,"dset4gb",H5T_NATIVE_SCHAR,f_sid,dcpl))<0)
+        goto out;
+    if ((tid = H5Dget_type(did))<0) 
+        goto out;
+    if ((size = H5Tget_size(tid))<=0)
+        goto out;
+    
+    /* select an hyperslab */
+    nelmts = 20;
+    hs_start[0] = GB4LL - 10;
+    hs_size[0]  = nelmts;
+    
+    if ((m_sid = H5Screate_simple(1, hs_size, hs_size))<0) 
+        goto out;
+    
+    buf=(char *) malloc((unsigned)(nelmts*size));
+    
+    for (i=0, c=0; i<nelmts; i++, c++) 
+    {
+        buf[i] = c;
+    }
+    
+    if (H5Sselect_hyperslab (f_sid,H5S_SELECT_SET,hs_start,NULL,hs_size,NULL)<0) 
+        goto out;
+    if (H5Dwrite (did,H5T_NATIVE_SCHAR,m_sid,f_sid,H5P_DEFAULT,buf)<0) 
+        goto out;
+    
+    
+    free(buf);
+    buf=NULL;
+    
+    /* close */
+    if(H5Sclose(f_sid)<0)
+        goto out;
+    if(H5Sclose(m_sid)<0)
+        goto out;
+    if(H5Pclose(dcpl)<0)
+        goto out;
+    if(H5Dclose(did)<0)
+        goto out;
+
+    ret=H5Fclose(fid);
+    assert(ret>=0);
+    
+    return;
+    
+out:
+    printf("Error.....\n");
+    H5E_BEGIN_TRY {
+        H5Pclose(dcpl);
+        H5Sclose(f_sid);
+        H5Sclose(m_sid);
+        H5Dclose(did);
+        H5Fclose(fid);
+    } H5E_END_TRY;
+    return;
+    
+}
+
+
+
+
+/*-------------------------------------------------------------------------
+ * Function: gent_hyperslab
+ *
+ * Purpose: make a dataset for hyperslab read
+ *
+ *-------------------------------------------------------------------------
+ */
+static void gent_hyperslab(void)
+{
+ hid_t    fid;     /* file id */
+ hsize_t  dims[2]  = {32,4097}; /* big enough data size to force a second stripmine read */
+ double   *buf;
+ int      i, ret;
+
+ buf = malloc(32 * 4097 * sizeof(double) );
+ for (i = 0; i < 32 * 4097; i++)
+  buf[i] = 1;
+
+ /* create a file */
+ fid  = H5Fcreate(FILE57, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+ assert(fid>=0);
+
+ write_dset(fid,2,dims,"stripmine",H5T_NATIVE_DOUBLE,buf);
+
+ ret=H5Fclose(fid);
+ assert(ret>=0);
+
+ free(buf);
+}
 
 /*-------------------------------------------------------------------------
  * Function: main
@@ -5340,6 +5614,10 @@ int main(void)
     gent_string();
     gent_aindices();
     gent_longlinks();
+    gent_ldouble();
+    gent_binary();
+    gent_bigdims();
+    gent_hyperslab();
 
     return 0;
 }

@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Class CompType inherits from DataType and provides accesses to a compound
@@ -36,24 +37,21 @@ class H5_DLLCPP CompType : public DataType {
 	// to create another datatype of the same class
 	H5T_class_t getMemberClass( unsigned member_num ) const;
 
-	// Returns the dimensionality of the specified member.
-	int getMemberDims( unsigned member_num, size_t* dims, int* perm ) const; // obsolete
-
 	// Returns the index of a member in this compound data type.
 	int getMemberIndex(const char* name) const;
-	int getMemberIndex(const string& name) const;
+	int getMemberIndex(const H5std_string& name) const;
 
 	// Returns the offset of a member of this compound datatype.
 	size_t getMemberOffset( unsigned memb_no ) const;
 
 	// Returns the name of a member of this compound datatype.
-	string getMemberName( unsigned member_num ) const;
+	H5std_string getMemberName( unsigned member_num ) const;
 
 	// Returns the generic datatype of the specified member in
 	// this compound datatype.
 	DataType getMemberDataType( unsigned member_num ) const;
 
-	// Returns the compound datatype of the specified member in
+	// Returns the array datatype of the specified member in
 	// this compound datatype.
 	ArrayType getMemberArrayType( unsigned member_num ) const;
 
@@ -77,7 +75,7 @@ class H5_DLLCPP CompType : public DataType {
 	// this compound datatype.
 	StrType getMemberStrType( unsigned member_num ) const;
 
-	// Returns the compound datatype of the specified member in
+	// Returns the variable length datatype of the specified member in
 	// this compound datatype.
 	VarLenType getMemberVarLenType( unsigned member_num ) const;
 
@@ -85,13 +83,13 @@ class H5_DLLCPP CompType : public DataType {
 	int getNmembers() const;
 
 	// Adds a new member to this compound datatype.
-	void insertMember( const string& name, size_t offset, const DataType& new_member ) const;
+	void insertMember( const H5std_string& name, size_t offset, const DataType& new_member ) const;
 
 	// Recursively removes padding from within this compound datatype.
 	void pack() const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("CompType"); }
+	virtual H5std_string fromClass () const { return("CompType"); }
 
 	// Default constructor
 	CompType();

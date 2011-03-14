@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5StrType_H
@@ -25,11 +26,11 @@ class H5_DLLCPP StrType : public AtomType {
 	// Creates a string type using a predefined type
 	StrType(const PredType& pred_type);
 
-	// Creates a string type with specified length
-	StrType(const size_t& size);
+	// Creates a string type with specified length - may be obsolete
+	StrType(const PredType& pred_type, const size_t& size);
 
-	// Creates a string type with specified length - will be obsolete
-	StrType(const PredType& pred_type, const size_t size);
+	// Creates a string type with specified length
+	StrType(const int dummy, const size_t& size);
 
         // Gets the string datatype of the specified dataset
 	StrType(const DataSet& dataset);
@@ -47,7 +48,7 @@ class H5_DLLCPP StrType : public AtomType {
 	void setStrpad(H5T_str_t strpad) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return ("StrType"); }
+	virtual H5std_string fromClass () const { return("StrType"); }
 
 	// default constructor
 	StrType();

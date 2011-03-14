@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -23,30 +24,29 @@
  *                      the H5O package.  Therefore, do not change
  *                      any definitions in this file!
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 
 #define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
 
-#include "H5private.h"
-#include "H5Eprivate.h"
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5FLprivate.h"	/* Free Lists				*/
-#include "H5MMprivate.h"
-#include "H5Opkg.h"             /* Object header functions                 */
+#include "H5MFprivate.h"	/* File memory management		*/
+#include "H5Opkg.h"             /* Object headers			*/
 
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_cont_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_cont_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p);
 static herr_t H5O_cont_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static size_t H5O_cont_size(const H5F_t *f, const void *_mesg);
 static herr_t H5O_cont_free(void *mesg);
+static herr_t H5O_cont_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t adj_link);
 static herr_t H5O_cont_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			     int indent, int fwidth);
 
-/* This message derives from H5O */
-const H5O_class_t H5O_CONT[1] = {{
+/* This message derives from H5O message class */
+const H5O_msg_class_t H5O_MSG_CONT[1] = {{
     H5O_CONT_ID,            	/*message id number             */
     "hdr continuation",     	/*message name for debugging    */
     sizeof(H5O_cont_t),     	/*native message size           */
@@ -56,11 +56,11 @@ const H5O_class_t H5O_CONT[1] = {{
     H5O_cont_size,          	/*size of header continuation   */
     NULL,                   	/*reset method			*/
     H5O_cont_free,	        /* free method			*/
-    NULL,		        /* file delete method		*/
+    H5O_cont_delete,		/* file delete method		*/
     NULL,			/* link method			*/
     NULL, 		    	/*get share method		*/
     NULL,		    	/*set share method		*/
-    H5O_cont_debug,         	/*debugging                     */
+    H5O_cont_debug         	/*debugging                     */
 }};
 
 /* Declare the free list for H5O_cont_t's */
@@ -85,7 +85,7 @@ H5FL_DEFINE(H5O_cont_t);
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_cont_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
+H5O_cont_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
 {
     H5O_cont_t             *cont = NULL;
     void                   *ret_value;
@@ -95,7 +95,6 @@ H5O_cont_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t U
     /* check args */
     assert(f);
     assert(p);
-    assert (!sh);
 
     /* decode */
     if (NULL==(cont = H5FL_MALLOC(H5O_cont_t)))
@@ -208,6 +207,39 @@ H5O_cont_free (void *mesg)
 } /* end H5O_cont_free() */
 
 
+/*-------------------------------------------------------------------------
+ * Function:    H5O_cont_delete
+ *
+ * Purpose:     Free file space referenced by message
+ *
+ * Return:      Non-negative on success/Negative on failure
+ *
+ * Programmer:  Quincey Koziol
+ *              Monday, October 10, 2005
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5O_cont_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t UNUSED adj_link)
+{
+    const H5O_cont_t     *mesg = (const H5O_cont_t *) _mesg;
+    herr_t ret_value = SUCCEED;   /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5O_cont_delete)
+
+    /* check args */
+    HDassert(f);
+    HDassert(mesg);
+
+    /* Release space for chunk */
+    if(H5MF_xfree(f, H5FD_MEM_OHDR, dxpl_id, mesg->addr, (hsize_t)mesg->size) < 0)
+        HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free object header chunk")
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_cont_delete() */
+
+
 /*-------------------------------------------------------------------------
  * Function:    H5O_cont_debug
  *

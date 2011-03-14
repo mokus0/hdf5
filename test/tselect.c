@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -4056,13 +4057,33 @@ test_select_valid(void)
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Selection Validity\n"));
 
+    MESSAGE(8, ( "Case 1 : sub_space is not a valid dataspace\n"));
+    dims[0] = dims[1] = H5S_UNLIMITED;
+
+    sub_space = H5Screate_simple(2,dims,NULL);
+    VERIFY(sub_space, FAIL, "H5Screate_simple"); 
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, FAIL, "H5Sselect_valid");
+
+    /* Set arrays and dataspace for the rest of the cases */
     count[0] = count[1] = 1;
     dims[0] = dims[1] = maxdims[0] = maxdims[1] = 10;
 
     main_space = H5Screate_simple(2,dims,maxdims);
     CHECK(main_space, FAIL, "H5Screate_simple");
 
-    MESSAGE(8, ( "Case 1 : in the dimensions\nTry offset (4,4) and size(6,6), the original space is of size (10,10)\n"));
+    MESSAGE(8, ( "Case 2 : sub_space is a valid but closed dataspace\n"));
+    sub_space = H5Scopy(main_space);
+    CHECK(sub_space, FAIL, "H5Scopy");
+
+    error=H5Sclose(sub_space);
+    CHECK(error, FAIL, "H5Sclose");
+
+    valid=H5Sselect_valid(sub_space);
+    VERIFY(valid, FAIL, "H5Sselect_valid");
+
+    MESSAGE(8, ( "Case 3 : in the dimensions\nTry offset (4,4) and size(6,6), the original space is of size (10,10)\n"));
     start[0] = start[1] = 4;
     size[0] = size[1] = 6;
 
@@ -4084,7 +4105,7 @@ test_select_valid(void)
     error=H5Sclose(sub_space);
     CHECK(error, FAIL, "H5Sclose");
 
-    MESSAGE(8, ( "Case 2 : exceed dimensions by 1\nTry offset (5,5) and size(6,6), the original space is of size (10,10)\n"));
+    MESSAGE(8, ( "Case 4 : exceed dimensions by 1\nTry offset (5,5) and size(6,6), the original space is of size (10,10)\n"));
     start[0] = start[1] = 5;
     size[0] = size[1] = 6;
 
@@ -4106,7 +4127,7 @@ test_select_valid(void)
     error=H5Sclose(sub_space);
     CHECK(error, FAIL, "H5Sclose");
 
-    MESSAGE(8, ( "Case 3 : exceed dimensions by 2\nTry offset (6,6) and size(6,6), the original space is of size (10,10)\n"));
+    MESSAGE(8, ( "Case 5 : exceed dimensions by 2\nTry offset (6,6) and size(6,6), the original space is of size (10,10)\n"));
     start[0] = start[1] = 6;
     size[0] = size[1] = 6;
 
@@ -4127,6 +4148,7 @@ test_select_valid(void)
 
     error=H5Sclose(sub_space);
     CHECK(error, FAIL, "H5Sclose");
+
     error=H5Sclose(main_space);
     CHECK(error, FAIL, "H5Sclose");
 }   /* test_select_valid() */

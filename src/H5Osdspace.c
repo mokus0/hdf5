@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5O_PACKAGE	/*suppress error about including H5Opkg	  */
@@ -25,7 +26,7 @@
 
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_sdspace_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_sdspace_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p);
 static herr_t H5O_sdspace_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_sdspace_copy(const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_sdspace_size(const H5F_t *f, const void *_mesg);
@@ -34,10 +35,10 @@ static herr_t H5O_sdspace_free (void *_mesg);
 static herr_t H5O_sdspace_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg,
 				FILE * stream, int indent, int fwidth);
 
-/* This message derives from H5O */
-const H5O_class_t H5O_SDSPACE[1] = {{
+/* This message derives from H5O message class */
+const H5O_msg_class_t H5O_MSG_SDSPACE[1] = {{
     H5O_SDSPACE_ID,	    	/* message id number		    	*/
-    "simple_dspace",	    	/* message name for debugging	   	*/
+    "dataspace",	    	/* message name for debugging	   	*/
     sizeof(H5S_extent_t),   	/* native message size		    	*/
     H5O_sdspace_decode,	    	/* decode message			*/
     H5O_sdspace_encode,	    	/* encode message			*/
@@ -49,7 +50,7 @@ const H5O_class_t H5O_SDSPACE[1] = {{
     NULL,			/* link method			*/
     NULL,		    	/* get share method			*/
     NULL, 			/* set share method			*/
-    H5O_sdspace_debug,	        /* debug the message		    	*/
+    H5O_sdspace_debug	        /* debug the message		    	*/
 }};
 
 #define H5O_SDSPACE_VERSION	1
@@ -88,7 +89,7 @@ H5FL_ARR_EXTERN(hsize_t);
         Added a version number and reformatted the message for aligment.
 --------------------------------------------------------------------------*/
 static void *
-H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
+H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
 {
     H5S_extent_t	*sdim = NULL;/* New extent dimensionality structure */
     void		*ret_value;
@@ -100,7 +101,6 @@ H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_
     /* check args */
     assert(f);
     assert(p);
-    assert (!sh);
 
     /* decode */
     if ((sdim = H5FL_CALLOC(H5S_extent_t)) != NULL) {
@@ -128,8 +128,15 @@ H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_
         if (sdim->rank > 0) {
             if (NULL==(sdim->size=H5FL_ARR_MALLOC(hsize_t,sdim->rank)))
                 HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-            for (i = 0; i < sdim->rank; i++)
+            for (i = 0; i < sdim->rank; i++) {
                 H5F_DECODE_LENGTH (f, p, sdim->size[i]);
+#ifndef H5_HAVE_LARGE_HSIZET
+                /* Rudimentary check for overflow of the dimension size */
+                if(sdim->size[i] == 0)
+                    HGOTO_ERROR(H5E_DATASPACE, H5E_BADSIZE, NULL, "invalid size detected");
+#endif /* H5_HAVE_LARGE_HSIZET */
+            } /* end for */
+
             if (flags & H5S_VALID_MAX) {
                 if (NULL==(sdim->max=H5FL_ARR_MALLOC(hsize_t,sdim->rank)))
                     HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
@@ -428,3 +435,4 @@ H5O_sdspace_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *mesg,
 
     FUNC_LEAVE_NOAPI(SUCCEED);
 }
+

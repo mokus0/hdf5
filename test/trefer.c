@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -81,8 +82,9 @@ test_reference_obj(void)
     hobj_ref_t      *wbuf,      /* buffer to write to disk */
                *rbuf,       /* buffer read from disk */
                *tbuf;       /* temp. buffer read from disk */
+    hobj_ref_t  nvrbuf[3]={0,100,1000000000}; /* buffer with non-valid refs */
     unsigned      *tu32;      /* Temporary pointer to uint32 data */
-    int        i;          /* counting variables */
+    int        i, j;          /* counting variables */
     const char *write_comment="Foo!"; /* Comments for group */
     char read_comment[10];
     herr_t		ret;		/* Generic return value		*/
@@ -289,6 +291,17 @@ test_reference_obj(void)
         VERIFY(ret, 3, "H5Tget_nmembers");
     }
 
+    /* Attempting to retrieve type of object using non-valid refs */
+    for (j=0; j<3; j++){
+#ifdef H5_WANT_H5_V1_4_COMPAT
+        ret = H5Rget_object_type(dataset,&nvrbuf[j]);
+        VERIFY(ret, H5G_UNKNOWN, "H5Rget_object_type");
+#else /* H5_WANT_H5_V1_4_COMPAT */
+        ret = H5Rget_obj_type(dataset,H5R_OBJECT,&nvrbuf[j]);
+        VERIFY(ret, H5G_UNKNOWN, "H5Rget_obj_type");
+#endif /* H5_WANT_H5_V1_4_COMPAT */
+    }
+
     /* Close datatype */
     ret = H5Tclose(tid1);
     CHECK(ret, FAIL, "H5Tclose");
@@ -333,10 +346,11 @@ test_reference_region(void)
     hsize_t	high[SPACE2_RANK];	/* Selection bounds */
     hdset_reg_ref_t      *wbuf,		/* buffer to write to disk */
                *rbuf;       /* buffer read from disk */
+    hdset_reg_ref_t  nvrbuf[3]={0,100,1000000000}; /* buffer with non-valid refs */
     uint8_t    *dwbuf,      /* Buffer for writing numeric data to disk */
                *drbuf;      /* Buffer for reading numeric data from disk */
     uint8_t    *tu8;        /* Temporary pointer to uint8 data */
-    int        i;           /* counting variables */
+    int        i, j;           /* counting variables */
     herr_t	ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -552,6 +566,17 @@ test_reference_region(void)
     /* Close dereferenced Dataset */
     ret = H5Dclose(dset2);
     CHECK(ret, FAIL, "H5Dclose");
+
+    /* Attempting to retrieve type of object using non-valid refs */
+    for (j=0; j<3; j++){
+#ifdef H5_WANT_H5_V1_4_COMPAT
+        ret = H5Rget_object_type(dset1,&nvrbuf[j]);
+        VERIFY(ret, H5G_UNKNOWN, "H5Rget_object_type");
+#else /* H5_WANT_H5_V1_4_COMPAT */
+        ret = H5Rget_obj_type(dset1,H5R_DATASET_REGION,&nvrbuf[j]);
+        VERIFY(ret, H5G_UNKNOWN, "H5Rget_obj_type");
+#endif /* H5_WANT_H5_V1_4_COMPAT */
+    }
 
     /* Close Dataset */
     ret = H5Dclose(dset1);

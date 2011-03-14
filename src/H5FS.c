@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -83,8 +84,16 @@ H5FS_get_stack(void)
     if (!fstack) {
         /* no associated value with current thread - create one */
         fstack = (H5FS_t *)HDmalloc(sizeof(H5FS_t));  /* Don't use H5MM_malloc() here, it causes infinite recursion */
-        pthread_setspecific(H5TS_funcstk_key_g, (void *)fstack);
+        HDassert(fstack);
+
+        /* Set the thread-specific info */
 	fstack->nused=0;
+
+        /* (It's not necessary to release this in this API, it is
+         *      released by the "key destructor" set up in the H5TS
+         *      routines.  See calls to pthread_key_create() in H5TS.c -QAK)
+         */
+        pthread_setspecific(H5TS_funcstk_key_g, (void *)fstack);
     }
 
     FUNC_LEAVE_NOAPI_NOFS(fstack);

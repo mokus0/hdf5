@@ -7,6 +7,7 @@ HDF5/H5S API Specification
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -16,15 +17,13 @@ HDF5/H5S API Specification
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem -->
-
-</head>
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
@@ -37,7 +36,7 @@ HDF5/H5S API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -61,7 +60,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -1379,20 +1378,23 @@ END SUBROUTINE h5sselect_all_f
 <dt><strong>Fortran90 Interface:</strong> h5sselect_elements_f
     <dd>
 	<pre>
-SUBROUTINE h5sselect_elements_f(space_id, operator, num_elements,
+SUBROUTINE h5sselect_elements_f(space_id, operator, rank, num_elements,
                                 coord, hdferr) 
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN) :: space_id  ! Dataspace identifier 
-  INTEGER, INTENT(IN) :: op               ! Flag, valid values are:
+  INTEGER, INTENT(IN) :: operator         ! Flag, valid values are:
                                           !    H5S_SELECT_SET_F 
                                           !    H5S_SELECT_OR_F 
-  INTEGER, INTENT(IN) :: num_elements     ! Number of elements to be selected
+  INTEGER, INTENT(IN) :: rank             ! Number of dataspace 
+                                          ! dimensions</pre>
+<!-- NEW PAGE -->
+<pre>  INTEGER(SIZE_T), INTENT(IN) :: num_elements     
+                                          ! Number of elements to be 
+                                          ! selected
   INTEGER(HSIZE_T), DIMENSION(*,*), INTENT(IN) :: coord 
                                           ! Array with the coordinates
                                           ! of the selected elements:
-                                          ! coord(num_elements, rank)</pre>
-<!-- NEW PAGE -->
-<pre>
+                                          ! coord(num_elements, rank)
   INTEGER, INTENT(OUT) :: hdferr          ! Error code
                                           ! 0 on success and -1 on failure
 END SUBROUTINE h5sselect_elements_f
@@ -1906,7 +1908,7 @@ END SUBROUTINE h5sset_extent_simple_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -1930,7 +1932,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -1938,13 +1940,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <hr>
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
 <address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 3 October 2005");
+document.writeln("Last modified: 11 October 2006");
 -->
 </SCRIPT> 
 

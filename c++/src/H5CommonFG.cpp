@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -85,10 +86,10 @@ Group CommonFG::createGroup( const char* name, size_t size_hint ) const
 // Function:	CommonFG::createGroup
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Group CommonFG::createGroup( const string& name, size_t size_hint ) const
+Group CommonFG::createGroup( const H5std_string& name, size_t size_hint ) const
 {
    return( createGroup( name.c_str(), size_hint ));
 }
@@ -123,10 +124,10 @@ Group CommonFG::openGroup( const char* name ) const
 // Function:	CommonFG::openGroup
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Group CommonFG::openGroup( const string& name ) const
+Group CommonFG::openGroup( const H5std_string& name ) const
 {
    return( openGroup( name.c_str() ));
 }
@@ -167,10 +168,10 @@ DataSet CommonFG::createDataSet( const char* name, const DataType& data_type, co
 // Function:	CommonFG::createDataSet
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSet CommonFG::createDataSet( const string& name, const DataType& data_type, const DataSpace& data_space, const DSetCreatPropList& create_plist ) const
+DataSet CommonFG::createDataSet( const H5std_string& name, const DataType& data_type, const DataSpace& data_space, const DSetCreatPropList& create_plist ) const
 {
    return( createDataSet( name.c_str(), data_type, data_space, create_plist ));
 }
@@ -204,10 +205,10 @@ DataSet CommonFG::openDataSet( const char* name ) const
 // Function:	CommonFG::openDataSet
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSet CommonFG::openDataSet( const string& name ) const
+DataSet CommonFG::openDataSet( const H5std_string& name ) const
 {
    return( openDataSet( name.c_str() ));
 }
@@ -241,10 +242,10 @@ void CommonFG::link( H5G_link_t link_type, const char* curr_name, const char* ne
 // Function:	CommonFG::link
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a curr_name and \a new_name.
+///		\c H5std_string for \a curr_name and \a new_name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::link( H5G_link_t link_type, const string& curr_name, const string& new_name ) const
+void CommonFG::link( H5G_link_t link_type, const H5std_string& curr_name, const H5std_string& new_name ) const
 {
    link( link_type, curr_name.c_str(), new_name.c_str() );
 }
@@ -269,10 +270,10 @@ void CommonFG::unlink( const char* name ) const
 // Function:	CommonFG::unlink
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::unlink( const string& name ) const
+void CommonFG::unlink( const H5std_string& name ) const
 {
    unlink( name.c_str() );
 }
@@ -283,6 +284,11 @@ void CommonFG::unlink( const string& name ) const
 ///\param	src - IN: Object's original name
 ///\param	dst - IN: Object's new name
 ///\exception	H5::FileIException or H5::GroupIException
+///\note
+///		Exercise care in moving groups as it is possible to render
+///		data in a file inaccessible with Group::move. Please refer
+///		to the Group Interface in the HDF5 User's Guide at:
+/// <A HREF="../Groups.html">../Groups.html</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void CommonFG::move( const char* src, const char* dst ) const
@@ -298,10 +304,10 @@ void CommonFG::move( const char* src, const char* dst ) const
 // Function:	CommonFG::move
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a src and \a dst.
+///		\c H5std_string for \a src and \a dst.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::move( const string& src, const string& dst ) const
+void CommonFG::move( const H5std_string& src, const H5std_string& dst ) const
 {
    move( src.c_str(), dst.c_str() );
 }
@@ -313,6 +319,10 @@ void CommonFG::move( const string& src, const string& dst ) const
 ///\param	follow_link - IN: Link flag
 ///\param	statbuf - OUT: Buffer to return information about the object
 ///\exception	H5::FileIException or H5::GroupIException
+///\par Description
+///		For more information, please refer to the C layer Reference
+///		Manual at:
+/// <A HREF="../RM_H5G.html#Group-GetObjinfo">../RM_H5G.html#Group-GetObjinfo</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void CommonFG::getObjinfo( const char* name, hbool_t follow_link, H5G_stat_t& statbuf ) const
@@ -328,12 +338,40 @@ void CommonFG::getObjinfo( const char* name, hbool_t follow_link, H5G_stat_t& st
 // Function:	CommonFG::getObjinfo
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::getObjinfo( const string& name, hbool_t follow_link, H5G_stat_t& statbuf ) const
+void CommonFG::getObjinfo( const H5std_string& name, hbool_t follow_link, H5G_stat_t& statbuf ) const
 {
    getObjinfo( name.c_str(), follow_link, statbuf );
+}
+
+//--------------------------------------------------------------------------
+// Function:	CommonFG::getObjinfo
+///\brief	This is an overloaded member function, provided for convenience.
+///		It differs from the above functions in that it doesn't have
+///		the paramemter \a follow_link.
+// Programmer	Binh-Minh Ribler - Nov, 2005
+//--------------------------------------------------------------------------
+void CommonFG::getObjinfo( const char* name, H5G_stat_t& statbuf ) const
+{
+   herr_t ret_value = H5Gget_objinfo( getLocId(), name, 0, &statbuf );
+   if( ret_value < 0 )
+   {
+      throwException("getObjinfo", "H5Gget_objinfo failed");
+   }
+}
+
+//--------------------------------------------------------------------------
+// Function:	CommonFG::getObjinfo
+///\brief	This is an overloaded member function, provided for convenience.
+///		It differs from the above function in that it takes an
+///		\c H5std_string for \a name.
+// Programmer	Binh-Minh Ribler - Nov, 2005
+//--------------------------------------------------------------------------
+void CommonFG::getObjinfo( const H5std_string& name, H5G_stat_t& statbuf ) const
+{
+   getObjinfo( name.c_str(), statbuf );
 }
 
 //--------------------------------------------------------------------------
@@ -345,7 +383,7 @@ void CommonFG::getObjinfo( const string& name, hbool_t follow_link, H5G_stat_t& 
 ///\exception	H5::FileIException or H5::GroupIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-string CommonFG::getLinkval( const char* name, size_t size ) const
+H5std_string CommonFG::getLinkval( const char* name, size_t size ) const
 {
    char* value_C = new char[size+1];  // temporary C-string for C API
 
@@ -354,7 +392,7 @@ string CommonFG::getLinkval( const char* name, size_t size ) const
    {
       throwException("getLinkval", "H5Gget_linkval failed");
    }
-   string value = string( value_C );
+   H5std_string value = H5std_string( value_C );
    delete []value_C;
    return( value );
 }
@@ -363,10 +401,10 @@ string CommonFG::getLinkval( const char* name, size_t size ) const
 // Function:	CommonFG::getLinkval
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-string CommonFG::getLinkval( const string& name, size_t size ) const
+H5std_string CommonFG::getLinkval( const H5std_string& name, size_t size ) const
 {
    return( getLinkval( name.c_str(), size ));
 }
@@ -399,10 +437,10 @@ void CommonFG::setComment( const char* name, const char* comment ) const
 // Function:	CommonFG::setComment
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name and \a comment.
+///		\c H5std_string for \a name and \a comment.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::setComment( const string& name, const string& comment ) const
+void CommonFG::setComment( const H5std_string& name, const H5std_string& comment ) const
 {
    setComment( name.c_str(), comment.c_str() );
 }
@@ -427,10 +465,10 @@ void CommonFG::removeComment(const char* name) const
 // Function:	CommonFG::removeComment
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - May 2005
 //--------------------------------------------------------------------------
-void CommonFG::removeComment(const string& name) const
+void CommonFG::removeComment(const H5std_string& name) const
 {
    removeComment (name.c_str());
 }
@@ -443,7 +481,7 @@ void CommonFG::removeComment(const string& name) const
 ///\exception	H5::FileIException or H5::GroupIException
 // Programmer	Binh-Minh Ribler - May 2005
 //--------------------------------------------------------------------------
-string CommonFG::getComment (const string& name) const
+H5std_string CommonFG::getComment (const H5std_string& name) const
 {
    size_t bufsize = 256;        // anticipating the comment's length
    hid_t loc_id = getLocId();   // temporary variable
@@ -468,7 +506,7 @@ string CommonFG::getComment (const string& name) const
    {
       throwException("getComment", "H5Gget_comment failed");
    }
-   string comment = string( comment_C );
+   H5std_string comment = H5std_string(comment_C);
    delete []comment_C;
    return (comment);
 }
@@ -483,7 +521,7 @@ string CommonFG::getComment (const string& name) const
 ///\exception	H5::FileIException or H5::GroupIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-string CommonFG::getComment( const char* name, size_t bufsize ) const
+H5std_string CommonFG::getComment( const char* name, size_t bufsize ) const
 {
    // temporary C-string for the object's comment
    char* comment_C = new char[bufsize+1];
@@ -495,7 +533,7 @@ string CommonFG::getComment( const char* name, size_t bufsize ) const
    {
       throwException("getComment", "H5Gget_comment failed");
    }
-   string comment = string( comment_C );
+   H5std_string comment = H5std_string(comment_C);
    delete []comment_C;
    return( comment );
 }
@@ -504,10 +542,10 @@ string CommonFG::getComment( const char* name, size_t bufsize ) const
 // Function:	CommonFG::getComment
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-string CommonFG::getComment( const string& name, size_t bufsize ) const
+H5std_string CommonFG::getComment( const H5std_string& name, size_t bufsize ) const
 {
    return( getComment( name.c_str(), bufsize ));
 }
@@ -541,10 +579,10 @@ void CommonFG::mount( const char* name, H5File& child, PropList& plist ) const
 // Function:	CommonFG::mount
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::mount( const string& name, H5File& child, PropList& plist ) const
+void CommonFG::mount( const H5std_string& name, H5File& child, PropList& plist ) const
 {
    mount( name.c_str(), child, plist );
 }
@@ -572,45 +610,13 @@ void CommonFG::unmount( const char* name ) const
 // Function:	CommonFG::unmount
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void CommonFG::unmount( const string& name ) const
+void CommonFG::unmount( const H5std_string& name ) const
 {
    unmount( name.c_str() );
 }
-
-//--------------------------------------------------------------------------
-// Function:	CommonFG::p_open_data_type (private)
-// Purpose	Opens the named datatype and returns the datatype's identifier.
-// Return	Id of the datatype
-// Exception	H5::FileIException or H5::GroupIException
-// Description
-//              This private function is used by the member functions
-//		CommonFG::openXxxType, where Xxx indicates the specific
-//		datatypes.
-// Programmer	Binh-Minh Ribler - 2000
-//--------------------------------------------------------------------------
-hid_t CommonFG::p_open_data_type( const char* name ) const
-{
-   // Call C function H5Topen to open the named datatype in this group,
-   // giving either the file or group id
-   hid_t datatype_id = H5Topen( getLocId(), name );
-
-   // If the datatype's opening failed, throw an exception
-   if( datatype_id < 0 )
-   {
-      throwException("openDataType", "H5Topen failed");
-   }
-
-   // No failure, return the datatype id
-   return( datatype_id );
-}
-
-//
-// The following member functions use the private function
-// p_open_data_type to open a named datatype in this location
-//
 
 //--------------------------------------------------------------------------
 // Function:	CommonFG::openDataType
@@ -622,18 +628,28 @@ hid_t CommonFG::p_open_data_type( const char* name ) const
 //--------------------------------------------------------------------------
 DataType CommonFG::openDataType( const char* name ) const
 {
-   DataType data_type(p_open_data_type(name));
-   return( data_type );
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openDataType", "H5Topen failed");
+   }
+   // No failure, create and return the DataType object
+   DataType data_type(type_id);
+   return(data_type);
 }
 
 //--------------------------------------------------------------------------
 // Function:	CommonFG::openDataType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataType CommonFG::openDataType( const string& name ) const
+DataType CommonFG::openDataType( const H5std_string& name ) const
 {
    return( openDataType( name.c_str()) );
 }
@@ -644,11 +660,21 @@ DataType CommonFG::openDataType( const string& name ) const
 ///\param	name  - IN: Name of the array datatype to open
 ///\return	ArrayType instance
 ///\exception	H5::FileIException or H5::GroupIException
-// Programmer	Binh-Minh Ribler - 2000
+// Programmer	Binh-Minh Ribler - Jul, 2005
 //--------------------------------------------------------------------------
 ArrayType CommonFG::openArrayType( const char* name ) const
 {
-   ArrayType array_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openArrayType", "H5Topen failed");
+   }
+   // No failure, create and return the ArrayType object
+   ArrayType array_type (type_id);
    return(array_type);
 }
 
@@ -656,10 +682,10 @@ ArrayType CommonFG::openArrayType( const char* name ) const
 // Function:	CommonFG::openArrayType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
-// Programmer	Binh-Minh Ribler - 2000
+///		\c H5std_string for \a name.
+// Programmer	Binh-Minh Ribler - Jul, 2005
 //--------------------------------------------------------------------------
-ArrayType CommonFG::openArrayType( const string& name ) const
+ArrayType CommonFG::openArrayType( const H5std_string& name ) const
 {
    return( openArrayType( name.c_str()) );
 }
@@ -674,7 +700,17 @@ ArrayType CommonFG::openArrayType( const string& name ) const
 //--------------------------------------------------------------------------
 CompType CommonFG::openCompType( const char* name ) const
 {
-   CompType comp_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openCompType", "H5Topen failed");
+   }
+   // No failure, create and return the CompType object
+   CompType comp_type(type_id);
    return(comp_type);
 }
 
@@ -682,10 +718,10 @@ CompType CommonFG::openCompType( const char* name ) const
 // Function:	CommonFG::openCompType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-CompType CommonFG::openCompType( const string& name ) const
+CompType CommonFG::openCompType( const H5std_string& name ) const
 {
    return( openCompType( name.c_str()) );
 }
@@ -700,7 +736,17 @@ CompType CommonFG::openCompType( const string& name ) const
 //--------------------------------------------------------------------------
 EnumType CommonFG::openEnumType( const char* name ) const
 {
-   EnumType enum_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openEnumType", "H5Topen failed");
+   }
+   // No failure, create and return the EnumType object
+   EnumType enum_type(type_id);
    return(enum_type);
 }
 
@@ -708,10 +754,10 @@ EnumType CommonFG::openEnumType( const char* name ) const
 // Function:	CommonFG::openEnumType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-EnumType CommonFG::openEnumType( const string& name ) const
+EnumType CommonFG::openEnumType( const H5std_string& name ) const
 {
    return( openEnumType( name.c_str()) );
 }
@@ -726,7 +772,17 @@ EnumType CommonFG::openEnumType( const string& name ) const
 //--------------------------------------------------------------------------
 IntType CommonFG::openIntType( const char* name ) const
 {
-   IntType int_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openIntType", "H5Topen failed");
+   }
+   // No failure, create and return the IntType object
+   IntType int_type(type_id);
    return(int_type);
 }
 
@@ -734,10 +790,10 @@ IntType CommonFG::openIntType( const char* name ) const
 // Function:	CommonFG::openIntType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-IntType CommonFG::openIntType( const string& name ) const
+IntType CommonFG::openIntType( const H5std_string& name ) const
 {
    return( openIntType( name.c_str()) );
 }
@@ -752,7 +808,17 @@ IntType CommonFG::openIntType( const string& name ) const
 //--------------------------------------------------------------------------
 FloatType CommonFG::openFloatType( const char* name ) const
 {
-   FloatType float_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openFloatType", "H5Topen failed");
+   }
+   // No failure, create and return the FloatType object
+   FloatType float_type(type_id);
    return(float_type);
 }
 
@@ -760,10 +826,10 @@ FloatType CommonFG::openFloatType( const char* name ) const
 // Function:	CommonFG::openFloatType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-FloatType CommonFG::openFloatType( const string& name ) const
+FloatType CommonFG::openFloatType( const H5std_string& name ) const
 {
    return( openFloatType( name.c_str()) );
 }
@@ -778,7 +844,17 @@ FloatType CommonFG::openFloatType( const string& name ) const
 //--------------------------------------------------------------------------
 StrType CommonFG::openStrType( const char* name ) const
 {
-   StrType str_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openStrType", "H5Topen failed");
+   }
+   // No failure, create and return the StrType object
+   StrType str_type(type_id);
    return(str_type);
 }
 
@@ -786,10 +862,10 @@ StrType CommonFG::openStrType( const char* name ) const
 // Function:	CommonFG::openStrType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-StrType CommonFG::openStrType( const string& name ) const
+StrType CommonFG::openStrType( const H5std_string& name ) const
 {
    return( openStrType( name.c_str()) );
 }
@@ -800,11 +876,21 @@ StrType CommonFG::openStrType( const string& name ) const
 ///\param	name  - IN: Name of the variable length datatype to open
 ///\return	VarLenType instance
 ///\exception	H5::FileIException or H5::GroupIException
-// Programmer	Binh-Minh Ribler - 2000
+// Programmer	Binh-Minh Ribler - Jul, 2005
 //--------------------------------------------------------------------------
 VarLenType CommonFG::openVarLenType( const char* name ) const
 {
-   VarLenType varlen_type(p_open_data_type(name));
+   // Call C function H5Topen to open the named datatype in this group,
+   // given either the file or group id
+   hid_t type_id = H5Topen(getLocId(), name);
+
+   // If the datatype's opening failed, throw an exception
+   if( type_id < 0 )
+   {
+      throwException("openVarLenType", "H5Topen failed");
+   }
+   // No failure, create and return the VarLenType object
+   VarLenType varlen_type(type_id);
    return(varlen_type);
 }
 
@@ -812,10 +898,10 @@ VarLenType CommonFG::openVarLenType( const char* name ) const
 // Function:	CommonFG::openVarLenType
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
-// Programmer	Binh-Minh Ribler - 2000
+///		\c H5std_string for \a name.
+// Programmer	Binh-Minh Ribler - Jul, 2005
 //--------------------------------------------------------------------------
-VarLenType CommonFG::openVarLenType( const string& name ) const
+VarLenType CommonFG::openVarLenType( const H5std_string& name ) const
 {
    return( openVarLenType( name.c_str()) );
 }
@@ -847,10 +933,10 @@ int CommonFG::iterateElems( const char* name, int *idx, H5G_iterate_t op , void*
 // Function:	CommonFG::iterateElems
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes an
-///		\c std::string for \a name.
+///		\c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-int CommonFG::iterateElems( const string& name, int *idx, H5G_iterate_t op , void* op_data )
+int CommonFG::iterateElems( const H5std_string& name, int *idx, H5G_iterate_t op , void* op_data )
 {
    return( iterateElems( name.c_str(), idx, op, op_data ));
 }
@@ -888,7 +974,7 @@ hsize_t CommonFG::getNumObjs() const
 ///		each time the group is opened.
 // Programmer	Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
-string CommonFG::getObjnameByIdx(hsize_t idx) const
+H5std_string CommonFG::getObjnameByIdx(hsize_t idx) const
 {
     // call H5Gget_objname_by_idx with name as NULL to get its length
     ssize_t name_len = H5Gget_objname_by_idx(getLocId(), idx, NULL, 0);
@@ -898,11 +984,11 @@ string CommonFG::getObjnameByIdx(hsize_t idx) const
     }
 
     // now, allocate C buffer to get the name
-    char* name_C = new char[name_len];
-    name_len = H5Gget_objname_by_idx(getLocId(), idx, name_C, name_len);
+    char* name_C = new char[name_len+1];
+    name_len = H5Gget_objname_by_idx(getLocId(), idx, name_C, name_len+1);
 
     // clean up and return the string
-    string name = string(name_C);
+    H5std_string name = H5std_string(name_C);
     delete []name_C;
     return (name);
 }
@@ -924,16 +1010,16 @@ string CommonFG::getObjnameByIdx(hsize_t idx) const
 ///		each time the group is opened.
 // Programmer	Binh-Minh Ribler - January, 2003
 //--------------------------------------------------------------------------
-ssize_t CommonFG::getObjnameByIdx(hsize_t idx, string& name, size_t size) const
+ssize_t CommonFG::getObjnameByIdx(hsize_t idx, H5std_string& name, size_t size) const
 {
-   char* name_C = new char[size];
-   ssize_t name_len = H5Gget_objname_by_idx(getLocId(), idx, name_C, size);
+   char* name_C = new char[size+1];
+   ssize_t name_len = H5Gget_objname_by_idx(getLocId(), idx, name_C, size+1);
    if(name_len < 0)
    {
       throwException("getObjnameByIdx", "H5Gget_objname_by_idx failed");
    }
-   name = string( name_C );
-   delete [] name_C;
+   name = H5std_string(name_C);
+   delete []name_C;
    return (name_len);
 }
 
@@ -967,15 +1053,15 @@ H5G_obj_t CommonFG::getObjTypeByIdx(hsize_t idx) const
 ///\exception	H5::FileIException or H5::GroupIException
 // Programmer	Binh-Minh Ribler - January, 2003
 //--------------------------------------------------------------------------
-H5G_obj_t CommonFG::getObjTypeByIdx(hsize_t idx, string& type_name) const
+H5G_obj_t CommonFG::getObjTypeByIdx(hsize_t idx, H5std_string& type_name) const
 {
    H5G_obj_t obj_type = H5Gget_objtype_by_idx(getLocId(), idx);
    switch (obj_type)
    {
-	case H5G_LINK: type_name = string("symbolic link"); break;
-	case H5G_GROUP: type_name = string("group"); break;
-	case H5G_DATASET: type_name = string("dataset"); break;
-	case H5G_TYPE: type_name = string("datatype"); break;
+	case H5G_LINK: type_name = H5std_string("symbolic link"); break;
+	case H5G_GROUP: type_name = H5std_string("group"); break;
+	case H5G_DATASET: type_name = H5std_string("dataset"); break;
+	case H5G_TYPE: type_name = H5std_string("datatype"); break;
 	case H5G_UNKNOWN:
 	default:
    	{

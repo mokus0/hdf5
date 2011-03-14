@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -204,6 +205,21 @@ test_h5s_basic(void)
     sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
     VERIFY(sid1, FAIL, "H5Screate_simple");
 
+    dims1[0] = H5S_UNLIMITED;
+    sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
+    VERIFY(sid1, FAIL, "H5Screate_simple");
+
+    dims1[0]=0;
+    sid1 = H5Screate(H5S_SIMPLE);
+    CHECK(sid1, FAIL, "H5Screate");
+
+    ret = H5Sset_extent_simple(sid1,SPACE1_RANK,dims1,NULL);
+    VERIFY(ret, FAIL, "H5Sset_extent_simple");
+
+    ret = H5Sclose(sid1);
+    CHECK_I(ret, "H5Sclose");
+
+    dims1[0] = H5S_UNLIMITED;
     sid1 = H5Screate(H5S_SIMPLE);
     CHECK(sid1, FAIL, "H5Screate");
 

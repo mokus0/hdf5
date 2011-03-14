@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -104,7 +105,6 @@ H5_DLL int H5Sget_simple_extent_ndims(hid_t space_id);
 H5_DLL int H5Sget_simple_extent_dims(hid_t space_id, hsize_t dims[],
 				      hsize_t maxdims[]);
 H5_DLL htri_t H5Sis_simple(hid_t space_id);
-H5_DLL herr_t H5Sset_space(hid_t space_id, int rank, const hsize_t *dims);
 H5_DLL hssize_t H5Sget_select_npoints(hid_t spaceid);
 H5_DLL herr_t H5Sselect_hyperslab(hid_t space_id, H5S_seloper_t op,
 				   const hsize_t start[],

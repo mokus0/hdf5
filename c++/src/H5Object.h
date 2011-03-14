@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5Object_H
@@ -32,7 +33,7 @@ class H5_DLLCPP H5Object;  // forward declaration for UserData4Aiterate
 
 // Define the operator function pointer for H5Aiterate().
 typedef void (*attr_operator_t)( H5Object& loc/*in*/,
-				 const string attr_name/*in*/,
+				 const H5std_string attr_name/*in*/,
 				 void *operator_data/*in,out*/);
 
 class UserData4Aiterate { // user data for attribute iteration
@@ -51,11 +52,11 @@ class H5_DLLCPP H5Object : public IdComponent {
 	// Creates an attribute for a group, dataset, or named datatype.
 	// PropList is currently not used, so always be default.
 	Attribute createAttribute( const char* name, const DataType& type, const DataSpace& space, const PropList& create_plist = PropList::DEFAULT ) const;
-	Attribute createAttribute( const string& name, const DataType& type, const DataSpace& space, const PropList& create_plist = PropList::DEFAULT ) const;
+	Attribute createAttribute( const H5std_string& name, const DataType& type, const DataSpace& space, const PropList& create_plist = PropList::DEFAULT ) const;
 
 	// Opens an attribute given its name.
 	Attribute openAttribute( const char* name ) const;
-	Attribute openAttribute( const string& name ) const;
+	Attribute openAttribute( const H5std_string& name ) const;
 
 	// Opens an attribute given its index.
 	Attribute openAttribute( const unsigned int idx ) const;
@@ -64,7 +65,7 @@ class H5_DLLCPP H5Object : public IdComponent {
 	void flush( H5F_scope_t scope ) const;
 
 	// Gets the name of the file, in which this HDF5 object belongs.
-	string getFileName() const;
+	H5std_string getFileName() const;
 
 	// Determines the number of attributes attached to this object.
 	int getNumAttrs() const;
@@ -74,11 +75,11 @@ class H5_DLLCPP H5Object : public IdComponent {
 
 	// Removes the named attribute from this object.
 	void removeAttr( const char* name ) const;
-	void removeAttr( const string& name ) const;
+	void removeAttr( const H5std_string& name ) const;
 
 	// Renames the attribute to a new name.
 	void renameAttr(const char* oldname, const char* newname) const;
-	void renameAttr(const string& oldname, const string& newname) const;
+	void renameAttr(const H5std_string& oldname, const H5std_string& newname) const;
 
 	// Copy constructor: makes copy of an H5Object object.
 	H5Object(const H5Object& original);

@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5FileCreatPropList_H
@@ -25,6 +26,9 @@ class H5_DLLCPP FileCreatPropList : public PropList {
    public:
 	// Default file creation property list.
 	static const FileCreatPropList DEFAULT;
+
+	// Creates a file create property list.
+	FileCreatPropList();
 
 	// Retrieves version information for various parts of a file.
 	void getVersion( unsigned& super, unsigned& freelist, unsigned& stab, unsigned& shhdr ) const;
@@ -66,10 +70,7 @@ class H5_DLLCPP FileCreatPropList : public PropList {
 	void setIstorek( unsigned ik ) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("FileCreatPropList"); }
-
-	// Creates a file create property list.
-	FileCreatPropList();
+	virtual H5std_string fromClass () const { return("FileCreatPropList"); }
 
 	// Copy constructor: creates a copy of a FileCreatPropList object.
 	FileCreatPropList(const FileCreatPropList& orig);

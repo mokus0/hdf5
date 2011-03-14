@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5CPPDOC_H
@@ -29,7 +30,7 @@
  * It is assumed that the user has knowledge of the HDF5 file format
  * and its components.  If you are not familiar with HDF5 file format,
  * and would like to find out more, please refer to the HDF5 documentation
- * at http://hdf.ncsa.uiuc.edu/HDF5/doc/H5.intro.html
+ * at http://hdfgroup.org/HDF5/doc/index.html
  *
  * Because the HDF5 library maps very well to
  * the object oriented design approach, classes in the C++ API can
@@ -50,7 +51,7 @@
   \endverbatim
  * \section install_sec Installation
  *
- * Please refer to the file release_docs/INSTALL_Windows_withcpp.txt
+ * Please refer to the file release_docs/INSTALL_Windows.txt
  * under the top directory for information about installing, building,
  * and testing the C++ API.
  *

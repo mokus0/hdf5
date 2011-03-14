@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -180,7 +181,7 @@ void FloatType::setEbias( size_t ebias ) const
 ///		\a norm_string.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5T_norm_t FloatType::getNorm( string& norm_string ) const
+H5T_norm_t FloatType::getNorm( H5std_string& norm_string ) const
 {
    H5T_norm_t norm = H5Tget_norm( id );  // C routine
    // Returns a valid normalization type if successful
@@ -233,7 +234,7 @@ void FloatType::setNorm( H5T_norm_t norm ) const
 ///		\a pad_string.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5T_pad_t FloatType::getInpad( string& pad_string ) const
+H5T_pad_t FloatType::getInpad( H5std_string& pad_string ) const
 {
    H5T_pad_t pad_type = H5Tget_inpad( id );
    // Returns a valid padding type if successful

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5P_PACKAGE		/*suppress error about including H5Ppkg	  */
@@ -34,6 +35,9 @@
 
 /* Static function prototypes */
 static herr_t H5P_set_layout(H5P_genplist_t *plist, H5D_layout_t layout);
+
+/* Declare extern the free list to manage blocks of type conversion data */
+H5FL_BLK_EXTERN(type_conv);
 
 
 /*-------------------------------------------------------------------------
@@ -1245,7 +1249,6 @@ herr_t
 H5Pset_fill_value(hid_t plist_id, hid_t type_id, const void *value)
 {
     H5O_fill_t	        fill;
-    H5T_t		*type = NULL;
     H5P_genplist_t *plist;      /* Property list pointer */
     herr_t ret_value=SUCCEED;   /* return value */
 
@@ -1265,6 +1268,10 @@ H5Pset_fill_value(hid_t plist_id, hid_t type_id, const void *value)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't reset fill value");
 
     if(value) {
+        H5T_t *type;            /* Datatype for fill value */
+        H5T_path_t *tpath;      /* Conversion information */
+
+        /* Retrieve pointer to datatype */
 	if (NULL==(type=H5I_object_verify(type_id, H5I_DATATYPE)))
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
 
@@ -1275,6 +1282,30 @@ H5Pset_fill_value(hid_t plist_id, hid_t type_id, const void *value)
         if (NULL==(fill.buf=H5MM_malloc(fill.size)))
             HGOTO_ERROR(H5E_RESOURCE, H5E_CANTINIT, FAIL, "memory allocation failed for fill value");
         HDmemcpy(fill.buf, value, fill.size);
+
+        /* Set up type conversion function */
+        if(NULL == (tpath = H5T_path_find(type, type, NULL, NULL, H5AC_ind_dxpl_id)))
+            HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unable to convert between src and dest data types")
+
+        /* If necessary, convert fill value datatypes (which copies VL components, etc.) */
+        if(!H5T_path_noop(tpath)) {
+            uint8_t *bkg_buf = NULL;    /* Background conversion buffer */
+
+            /* Allocate a background buffer */
+            if(H5T_path_bkg(tpath) && NULL == (bkg_buf = H5FL_BLK_CALLOC(type_conv, (size_t)fill.size)))
+                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+
+            /* Convert the fill value */
+            if(H5T_convert(tpath, type_id, type_id, (size_t)1, (size_t)0, (size_t)0, fill.buf, bkg_buf, H5AC_ind_dxpl_id) < 0) {
+                if(bkg_buf)
+                    H5FL_BLK_FREE(type_conv, bkg_buf);
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTCONVERT, FAIL, "datatype conversion failed")
+            } /* end if */
+
+            /* Release the background buffer */
+            if(bkg_buf)
+                H5FL_BLK_FREE(type_conv, bkg_buf);
+        } /* end if */
     } else {
 	fill.type = fill.buf = NULL;
 	fill.size = (size_t)-1;

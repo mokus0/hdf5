@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "testphdf5.h"
@@ -334,7 +335,7 @@ void big_dataset(void)
     VRFY((ret >= 0), "H5Fclose succeeded");
 
     /* Check that file of the correct size was created */
-    file_size=h5_mpi_get_file_size(filename, MPI_COMM_WORLD, MPI_INFO_NULL);
+    file_size=h5_get_file_size(filename);
     VRFY((file_size == 2147485696ULL), "File is correct size");
 
     /*
@@ -363,7 +364,7 @@ void big_dataset(void)
     VRFY((ret >= 0), "H5Fclose succeeded");
 
     /* Check that file of the correct size was created */
-    file_size=h5_mpi_get_file_size(filename, MPI_COMM_WORLD, MPI_INFO_NULL);
+    file_size=h5_get_file_size(filename);
     VRFY((file_size == 4294969344ULL), "File is correct size");
 
     /*
@@ -392,7 +393,7 @@ void big_dataset(void)
     VRFY((ret >= 0), "H5Fclose succeeded");
 
     /* Check that file of the correct size was created */
-    file_size=h5_mpi_get_file_size(filename, MPI_COMM_WORLD, MPI_INFO_NULL);
+    file_size=h5_get_file_size(filename);
     VRFY((file_size == 8589936640ULL), "File is correct size");
 
     /* Close fapl */
@@ -1569,7 +1570,7 @@ void io_mode_confusion(void)
 
 
     if ( verbose )
-        HDfprintf(stdout, "%0d:%s: Done.\n", mpi_rank);
+        HDfprintf(stdout, "%0d:%s: Done.\n", mpi_rank, fcn_name);
 
     return;
 

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -145,7 +146,7 @@ h5_cleanup(const char *base_name[], hid_t fapl)
     int		retval=0;
     hid_t	driver;
 
-    if (!HDgetenv("HDF5_NOCLEANUP")) {
+    if (GetTestCleanup()){
 	for (i = 0; base_name[i]; i++) {
 	    if (h5_fixname(base_name[i], fapl, filename, sizeof(filename)) == NULL)
 		continue;
@@ -272,6 +273,7 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
     char           *ptr, last = '\0';
     size_t          i, j;
     hid_t           driver = -1;
+    int		    isppdriver = 0;	/* if the driver is MPI parallel */
 
     if (!base_name || !fullname || size < 1)
         return NULL;
@@ -289,8 +291,33 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
 	    suffix = NULL;
     }
 
-    /* Use different ones depending on parallel or serial driver used. */
-    if (H5P_DEFAULT != fapl && H5FD_MPIO == driver){
+    /* Must first check fapl is not H5P_DEFAULT (-1) because H5FD_XXX
+     * could be of value -1 if it is not defined.
+     */
+    isppdriver = H5P_DEFAULT != fapl && 
+	(H5FD_MPIO==driver || H5FD_MPIPOSIX==driver);
+
+    /* Check HDF5_NOCLEANUP environment setting.
+     * (The #ifdef is needed to prevent compile failure in case MPI is not
+     * configured.)
+     */
+    if (isppdriver){
+#ifdef H5_HAVE_PARALLEL
+	if (getenv_all(MPI_COMM_WORLD, 0, "HDF5_NOCLEANUP"))
+	    SetTestNoCleanup();
+#endif  /* H5_HAVE_PARALLEL */
+    }else{
+	if (HDgetenv("HDF5_NOCLEANUP"))
+	    SetTestNoCleanup();
+    }
+
+    /* Check what prefix to use for test files. Process HDF5_PARAPREFIX and
+     * HDF5_PREFIX.
+     * Use different ones depending on parallel or serial driver used.
+     * (The #ifdef is needed to prevent compile failure in case MPI is not
+     * configured.)
+     */
+    if (isppdriver){
 #ifdef H5_HAVE_PARALLEL
 	/*
          * For parallel:
@@ -337,7 +364,7 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
 
     /* Prepend the prefix value to the base name */
     if (prefix && *prefix) {
-        if (H5P_DEFAULT != fapl && H5FD_MPIO == driver) {
+	if (isppdriver){
             /* This is a parallel system */
             char *subdir;
 
@@ -420,6 +447,37 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
     }
 
     return fullname;
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	h5_rmprefix
+ *
+ * Purpose:	This "removes" the MPIO driver prefix part of the file name
+ *		by returning a pointer that points at the non-prefix component
+ *              part of the file name.  E.g.,
+ *		    Input			Return
+ *		    pfs:/scratch1/dataX		/scratch1/dataX
+ *		    /scratch2/dataY         	/scratch2/dataY
+ *		Note that there is no change to the original file name.
+ *
+ * Return:	Success:	a pointer at the non-prefix part.
+ *
+ * Programmer:	Albert Cheng; Jun  1, 2006
+ *
+ *-------------------------------------------------------------------------
+ */
+char *
+h5_rmprefix(const char *filename)
+{
+    char *ret_ptr;
+
+    if ((ret_ptr = HDstrstr(filename, ":")) == NULL)
+	ret_ptr = filename;
+    else
+	ret_ptr++;
+    
+    return(ret_ptr);
 }
 
 
@@ -773,30 +831,32 @@ h5_dump_info_object(MPI_Info info)
 
 
 /*-------------------------------------------------------------------------
- * Function:	h5_get_file_size
+ * Function:    h5_get_file_size
  *
- * Purpose:	Get the current size of a file (in bytes)
+ * Purpose:     Get the current size of a file (in bytes)
  *
- * Return:	Success:	Size of file in bytes (could be 0)
- *		Failure:	0
+ * Return:      Success:        Size of file in bytes
+ *              Failure:        -1
  *
- * Programmer:	Quincey Koziol
+ * Programmer:  Quincey Koziol
  *              Saturday, March 22, 2003
  *
  * Modifications:
+ *      Albert Cheng, Nov 22, 2006
+ *      Changed Failure return value to -1.
  *
  *-------------------------------------------------------------------------
  */
-off_t
+h5_stat_size_t
 h5_get_file_size(const char *filename)
 {
     h5_stat_t	sb;
 
     /* Get the file's statistics */
-    if (HDstat(filename, &sb)>=0)
-        return((off_t)sb.st_size);
+    if (HDstat(filename, &sb)==0)
+        return((h5_stat_size_t)sb.st_size);
 
-    return(0);
+    return(-1);
 } /* end get_file_size() */
 
 /*

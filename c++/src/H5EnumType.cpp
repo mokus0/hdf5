@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -132,7 +133,7 @@ void EnumType::insert( const char* name, void *value ) const
 ///		argument \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void EnumType::insert( const string& name, void *value ) const
+void EnumType::insert( const H5std_string& name, void *value ) const
 {
     insert( name.c_str(), value );
 }
@@ -146,7 +147,7 @@ void EnumType::insert( const string& name, void *value ) const
 ///\exception	H5::DataTypeIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-string EnumType::nameOf( void *value, size_t size ) const
+H5std_string EnumType::nameOf( void *value, size_t size ) const
 {
    char* name_C = new char[size+1];  // temporary C-string for C API
 
@@ -159,7 +160,7 @@ string EnumType::nameOf( void *value, size_t size ) const
       throw DataTypeIException("EnumType::nameOf", "H5Tenum_nameof failed");
    }
    // otherwise, create the string to hold the datatype name and return it
-   string name = string( name_C );
+   H5std_string name = H5std_string(name_C);
    delete []name_C;
    return( name );
 }
@@ -190,7 +191,7 @@ void EnumType::valueOf( const char* name, void *value ) const
 ///		argument \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void EnumType::valueOf( const string& name, void *value ) const
+void EnumType::valueOf( const H5std_string& name, void *value ) const
 {
     valueOf( name.c_str(), value );
 }
@@ -223,7 +224,7 @@ int EnumType::getMemberIndex(const char *name) const
 ///		argument \a name.
 // Programmer   Binh-Minh Ribler - May 16, 2002
 //--------------------------------------------------------------------------
-int EnumType::getMemberIndex(const string& name) const
+int EnumType::getMemberIndex(const H5std_string& name) const
 {
     return(EnumType::getMemberIndex(name.c_str()));
 }

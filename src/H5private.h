@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:	Robb Matzke <matzke@llnl.gov>
@@ -427,6 +428,8 @@
 #   define LLONG_MAX	((long_long)(((unsigned long_long)1		      \
 				      <<(8*sizeof(long_long)-1))-1))
 #   define LLONG_MIN    ((long_long)(-LLONG_MAX)-1)
+#endif
+#ifndef ULLONG_MAX
 #   define ULLONG_MAX	((unsigned long_long)((long_long)(-1)))
 #endif
 #ifndef SIZET_MAX
@@ -499,6 +502,14 @@ H5_DLL void H5_timer_begin (H5_timer_t *timer);
 H5_DLL void H5_timer_end (H5_timer_t *sum/*in,out*/,
 			   H5_timer_t *timer/*in,out*/);
 H5_DLL void H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds);
+
+/* Depth of object copy */
+typedef enum {
+    H5_COPY_NULL,       /* Null destination names */
+    H5_COPY_LIMITED,    /* Limited copy from source to destination, omitting path fields */
+    H5_COPY_SHALLOW,    /* Shallow copy from source to destination, just copy field pointers */
+    H5_COPY_DEEP        /* Deep copy from source to destination, including duplicating fields pointed to */
+} H5_copy_depth_t;
 
 /*
  * Redefine all the POSIX functions.  We should never see a POSIX
@@ -607,7 +618,11 @@ H5_DLL int HDfprintf (FILE *stream, const char *fmt, ...);
 #define HDfrexpl(X,N)		frexp(X,N)
 #endif /* H5_HAVE_FREXPL */
 /* fscanf() variable arguments */
-#define HDfseek(F,O,W)		fseek(F,O,W)
+#ifdef H5_HAVE_FSEEKO
+     #define HDfseek(F,O,W)	fseeko(F,O,W)
+#else
+     #define HDfseek(F,O,W)	fseek(F,O,W)
+#endif
 #define HDfsetpos(F,P)		fsetpos(F,P)
 /* definitions related to the file stat utilities */
 #ifdef WIN32
@@ -679,7 +694,11 @@ typedef off_t                   h5_stat_size_t;
         #define HDlseek(F,O,W)  _lseeki64(F,O,W)
      #endif
 #else
-#define HDlseek(F,O,W)		lseek(F,O,W)
+     #ifdef H5_HAVE_FSEEK64
+        #define HDlseek(F,O,W)	lseek64(F,O,W)
+     #else
+        #define HDlseek(F,O,W)	lseek(F,O,W)
+     #endif
 #endif
 #define HDmalloc(Z)		malloc(Z)
 #define HDmblen(S,N)		mblen(S,N)
@@ -748,7 +767,9 @@ typedef off_t                   h5_stat_size_t;
 #define HDsetpgid(P,PG)		setpgid(P,PG)
 #define HDsetsid()		setsid()
 #define HDsetuid(U)		setuid(U)
+#ifndef WIN32
 #define HDsetvbuf(F,S,M,Z)	setvbuf(F,S,M,Z)
+#endif
 #define HDsigaction(N,A)	sigaction(N,A)
 #define HDsigaddset(S,N)	sigaddset(S,N)
 #define HDsigdelset(S,N)	sigdelset(S,N)
@@ -845,7 +866,9 @@ H5_DLL int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDvfprintf(F,FMT,A)	vfprintf(F,FMT,A)
 #define HDvprintf(FMT,A)	vprintf(FMT,A)
 #define HDvsprintf(S,FMT,A)	vsprintf(S,FMT,A)
-#ifdef H5_HAVE_VSNPRINTF
+#ifdef WIN32
+#define HDvsnprintf(S,N,FMT,A) _vsnprintf(S,N,FMT,A)
+#else
 #   define HDvsnprintf(S,N,FMT,A) vsnprintf(S,N,FMT,A)
 #endif
 #define HDwait(W)		wait(W)
@@ -1188,7 +1211,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
 /*
  * Use this macro for API functions that shouldn't perform _any_ initialization
  *      of the library or an interface, just perform tracing, etc.  Examples
- *      are: H5close, H5check_version, H5Eget_major, H5Eget_minor.
+ *      are: H5check_version, H5Eget_major, H5Eget_minor, etc.
  *
  */
 #define FUNC_ENTER_API_NOINIT(func_name) {{                                   \
@@ -1196,6 +1219,20 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
     FUNC_ENTER_COMMON(func_name,H5_IS_API(#func_name));                       \
     FUNC_ENTER_API_THREADSAFE;                                                \
     H5_PUSH_FUNC(func_name);                                                  \
+    BEGIN_MPE_LOG(func_name);                                                 \
+    {
+
+/*
+ * Use this macro for API functions that shouldn't perform _any_ initialization
+ *      of the library or an interface or push themselves on the function
+ *      stack, just perform tracing, etc.  Examples
+ *      are: H5close, etc.
+ *
+ */
+#define FUNC_ENTER_API_NOINIT_NOFS(func_name) {{                              \
+    FUNC_ENTER_API_VARS(func_name)                                            \
+    FUNC_ENTER_COMMON(func_name,H5_IS_API(#func_name));                       \
+    FUNC_ENTER_API_THREADSAFE;                                                \
     BEGIN_MPE_LOG(func_name);                                                 \
     {
 
@@ -1298,6 +1335,14 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
         FINISH_MPE_LOG;                                                       \
         H5TRACE_RETURN(ret_value);					      \
         H5_POP_FUNC;                                                          \
+        FUNC_LEAVE_API_THREADSAFE                                             \
+        return (ret_value);						      \
+    } /*end scope from end of FUNC_ENTER*/                                    \
+}} /*end scope from beginning of FUNC_ENTER*/
+
+#define FUNC_LEAVE_API_NOFS(ret_value)                                        \
+        FINISH_MPE_LOG;                                                       \
+        H5TRACE_RETURN(ret_value);					      \
         FUNC_LEAVE_API_THREADSAFE                                             \
         return (ret_value);						      \
     } /*end scope from end of FUNC_ENTER*/                                    \

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -125,7 +126,7 @@ hsize_t FileCreatPropList::getUserblock() const
 ///\par Description
 ///		For information on setting sizes, please refer to the
 ///		C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSizes
+/// <A HREF="../RM_H5P.html#Property-SetSizes">../RM_H5P.html#Property-SetSizes</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setSizes( size_t sizeof_addr, size_t sizeof_size ) const
@@ -166,7 +167,7 @@ void FileCreatPropList::getSizes( size_t& sizeof_addr, size_t& sizeof_size ) con
 ///\exception   H5::PropListIException
 ///\par Description
 ///             For information, please see the C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSymK
+/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
 // Programmer   Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setSymk( int ik, int lk ) const
@@ -187,7 +188,7 @@ void FileCreatPropList::setSymk( int ik, int lk ) const
 ///\exception   H5::PropListIException
 ///\par Description
 ///             For information, please see
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSymK
+/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
 // Programmer   Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::getSymk( int& ik, int& lk ) const
@@ -209,7 +210,7 @@ void FileCreatPropList::getSymk( int& ik, int& lk ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see the C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSymK
+/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setSymk( unsigned ik, unsigned lk ) const
@@ -229,7 +230,7 @@ void FileCreatPropList::setSymk( unsigned ik, unsigned lk ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSymK
+/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::getSymk( unsigned& ik, unsigned& lk ) const
@@ -251,7 +252,7 @@ void FileCreatPropList::getSymk( unsigned& ik, unsigned& lk ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see the C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetIstoreK
+/// <A HREF="../RM_H5P.html#Property-SetIstoreK">../RM_H5P.html#Property-SetIstoreK</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setIstorek( unsigned ik ) const
@@ -271,7 +272,7 @@ void FileCreatPropList::setIstorek( unsigned ik ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetIstoreK
+/// <A HREF="../RM_H5P.html#Property-SetIstoreK">../RM_H5P.html#Property-SetIstoreK</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 unsigned FileCreatPropList::getIstorek() const

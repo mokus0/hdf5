@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -234,6 +235,7 @@ H5_DLL ssize_t H5D_contig_writevv(const H5D_io_info_t *io_info,
     const void *buf);
 
 /* Functions that operate on compact dataset storage */
+H5_DLL herr_t H5D_compact_fill(H5D_t *dset, hid_t dxpl_id);
 H5_DLL ssize_t H5D_compact_readvv(const H5D_io_info_t *io_info,
     size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_size_arr[], hsize_t dset_offset_arr[],
     size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_size_arr[], hsize_t mem_offset_arr[],
@@ -283,7 +285,8 @@ H5_DLL ssize_t H5D_efl_writevv(const H5D_io_info_t *io_info,
     const void *buf);
 
 #ifdef H5_HAVE_PARALLEL
-/* MPI-IO function to read directly from app buffer to file rky980813 */
+
+/* MPI-IO function to read , it will select either regular or irregular read */
 H5_DLL herr_t H5D_mpio_select_read(H5D_io_info_t *io_info,
     size_t nelmts, size_t elmt_size,
     const struct H5S_t *file_space, const struct H5S_t *mem_space,
@@ -332,3 +335,4 @@ H5_DLL herr_t H5D_layout_contig_size_test(hid_t did, hsize_t *size);
 #endif /* H5D_TESTING */
 
 #endif /*_H5Dpkg_H*/
+

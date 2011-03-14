@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*****************************************************************************
@@ -42,14 +43,28 @@
 
  ***************************************************************************/
 
-// Use C version of the header file testhdf5.h instead of re-coding it
-#include "testhdf5.h"
-
-#include "H5Cpp.h"
+#ifdef OLD_HEADER_FILENAME
+#include <iostream.h>
+#else
+#include <iostream>
+#endif
+#include <string>
 
 #ifndef H5_NO_NAMESPACE
-using namespace H5;
+#ifndef H5_NO_STD
+    using std::cerr;
+    using std::endl;
+#endif  // H5_NO_STD
+#endif
+
+#include "testhdf5.h"	// C test header file
+#include "H5Cpp.h"	// C++ API header file
+
+#ifndef H5_NO_NAMESPACE
+    using namespace H5;
 #endif  /* !H5_NO_NAMESPACE */
+
+#include "h5cpputil.h"  // C++ utilility header file
 
 int
 main(int argc, char *argv[])
@@ -61,17 +76,23 @@ main(int argc, char *argv[])
     AddTest("file", test_file, cleanup_file, "File I/O Operations", NULL);
     // testing dataspace functionalities in th5s.cpp
     AddTest("h5s",  test_h5s,  cleanup_h5s,  "Dataspaces", NULL);
-
-/* Comment out tests that are not done yet. - BMR, Feb 2001
+    // testing attribute functionalities in tattr.cpp
     AddTest("attr", test_attr, cleanup_attr,  "Attributes", NULL);
+    // testing reference functionalities in trefer.cpp
+    AddTest("reference", test_reference, cleanup_reference,  "References", NULL);
+    // testing variable-length strings in tvlstr.cpp
+    AddTest("vlstrings", test_vlstrings, cleanup_vlstrings,  "Variable-Length Strings", NULL);
+    AddTest("types", test_types, cleanup_types,  "Generic Data Types", NULL);
+    AddTest("compound", test_compound, cleanup_compound,  "Compound Data Types", NULL);
+    AddTest("filter", test_filters, cleanup_filters,  "Various Filters", NULL);
+/* Comment out tests that are not done yet. - BMR, Feb 2001
     AddTest("select", test_select, cleanup_select,  "Selections", NULL);
     AddTest("time", test_time, cleanup_time,  "Time Datatypes", NULL);
-    AddTest("reference", test_reference, cleanup_reference,  "References", NULL);
     AddTest("vltypes", test_vltypes, cleanup_vltypes,  "Variable-Length Datatypes", NULL);
-    AddTest("vlstrings", test_vlstrings, cleanup_vlstrings,  "Variable-Length Strings", NULL);
     AddTest("iterate", test_iterate, cleanup_iterate,  "Group & Attribute Iteration", NULL);
     AddTest("array", test_array, cleanup_array,  "Array Datatypes", NULL);
     AddTest("genprop", test_genprop, cleanup_genprop,  "Generic Properties", NULL);
+
 Comment out tests that are not done yet */
 
     /* Display testing information */

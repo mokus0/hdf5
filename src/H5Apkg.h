@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -38,6 +39,7 @@
 #include "H5Aprivate.h"
 
 /* Other private headers needed by this file */
+#include "H5FLprivate.h"	/* Free Lists				*/
 #include "H5Sprivate.h"		/* Dataspace				*/
 #include "H5Tprivate.h"		/* Datatype functions			*/
 
@@ -53,6 +55,12 @@ struct H5A_t {
     void        *data;      /* Attribute data (on a temporary basis) */
     size_t      data_size;  /* Size of data on disk */
 };
+
+/* Declare extern the free list for H5A_t's */
+H5FL_EXTERN(H5A_t);
+
+/* Declare extern a free list to manage blocks of type conversion data */
+H5FL_BLK_EXTERN(attr_buf);
 
 /* Function prototypes for H5A package scope */
 H5_DLL H5A_t       *H5A_copy(H5A_t *new_attr, const H5A_t *old_attr, unsigned update_flags);

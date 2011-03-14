@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -109,12 +110,17 @@ test_file_create(void)
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Low-Level File Creation I/O\n"));
 
+    /* First ensure the file does not exist */
+    remove(FILE1);
+
+    /* Try opening a non-existant file */
+    fid1 = H5Fopen(FILE1, H5F_ACC_RDWR, H5P_DEFAULT);
+    VERIFY(fid1, FAIL, "H5Fopen");
+
     /* Test create with various sequences of H5F_ACC_EXCL and */
     /* H5F_ACC_TRUNC flags */
 
     /* Create with H5F_ACC_EXCL */
-    /* First ensure the file does not exist */
-    remove(FILE1);
     fid1 = H5Fcreate(FILE1, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
     CHECK(fid1, FAIL, "H5Fcreate");
 
@@ -931,7 +937,7 @@ test_get_file_id(void)
      * this attribute.  And close it.
      */
     datatype_id=H5Tcopy(H5T_NATIVE_INT);
-    CHECK(ret, FAIL, "H5Acreate");
+    CHECK(ret, FAIL, "H5Tcopy");
 
     ret = H5Tcommit(fid, TYPE_NAME, datatype_id);
     CHECK(ret, FAIL, "H5Tcommit");

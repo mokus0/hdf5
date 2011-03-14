@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,20 +9,18 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
  *
- * Created:             H5Gproto.h
+ * Created:             H5Gpublic.h
  *                      Jul 11 1997
  *                      Robb Matzke <matzke@llnl.gov>
  *
  * Purpose:             Public declarations for the H5G package (symbol
  *                      tables).
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -136,3 +135,4 @@ H5_DLL int H5Gget_comment(hid_t loc_id, const char *name, size_t bufsize,
 }
 #endif
 #endif
+

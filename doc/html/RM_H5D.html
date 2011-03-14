@@ -7,6 +7,7 @@ HDF5/H5D API Specification
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -16,27 +17,26 @@ HDF5/H5D API Specification
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem -->
-
-</head>
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -60,7 +60,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -127,7 +127,6 @@ and set and retrieve their constant or persistent properties.
       <li><a href="#Dataset-Extend">H5Dextend</a>
       <li><a href="#Dataset-Fill">H5Dfill</a>
       <li><a href="#Dataset-GetCreatePlist">H5Dget_create_plist</a>
-      <li><a href="#Dataset-GetOffset">H5Dget_offset</a>
 	</ul>     
     </td>
     
@@ -135,12 +134,12 @@ and set and retrieve their constant or persistent properties.
     
     <td valign="top">
 	<ul>
+      <li><a href="#Dataset-GetOffset">H5Dget_offset</a>
       <li><a href="#Dataset-GetSpace">H5Dget_space</a>
       <li><a href="#Dataset-GetSpaceStatus">H5Dget_space_status</a>
       <li><a href="#Dataset-GetStorageSize">H5Dget_storage_size</a>
       <li><a href="#Dataset-GetType">H5Dget_type</a>
       <li><a href="#Dataset-Iterate">H5Diterate</a>
-      <li><a href="#Dataset-Open">H5Dopen</a>
 	</ul>
     </td>
     
@@ -148,6 +147,7 @@ and set and retrieve their constant or persistent properties.
     
     <td valign="top">
 	<ul>
+      <li><a href="#Dataset-Open">H5Dopen</a>
       <li><a href="#Dataset-Read">H5Dread</a>
       <li><a href="#Dataset-VLGetBuf">H5Dvlen_get_buf_size</a>
       <li><a href="#Dataset-VLReclaim">H5Dvlen_reclaim</a>
@@ -185,7 +185,9 @@ as the corresponding C function.
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
     <li><a href="#Dataset-Read">h5dread_f</a>
+    <li><a href="#Dataset-Read">h5dread_vl_f</a>
     <li><a href="#Dataset-Write">h5dwrite_f</a>
+    <li><a href="#Dataset-Write">h5dwrite_vl_f</a>
 <!--<li><a href="#Dataset-Iterate">h5diterate_f</a>                     -->
 <!--<li><a href="#Dataset-Debug">h5ddebug_f</a>                         -->
     <li><a href="#Dataset-Extend">h5dextend_f</a>
@@ -270,6 +272,9 @@ END SUBROUTINE h5dclose_f
         the name specified in <code>name</code> already exists at the
         location specified in <code>loc_id</code>.
         <p>
+        As is the case for any object in a group, 
+        the length of a dataset name is not limited.  
+        <p>
         <code>create_plist_id</code> is a <code>H5P_DATASET_CREATE</code>
         property list created with <code>H5Pcreate</code> and
         initialized with the various functions described above.
@@ -293,7 +298,7 @@ END SUBROUTINE h5dclose_f
 	of specifying when space will be allocated for a dataset, and
 	of specifying when fill values will be written to a dataset.
 	For further information on these topics, see the document 
-	<a href="http://hdf.ncsa.uiuc.edu/RFC/Fill_Value/FillValue.html"> 
+        <a href="http://hdfgroup.org/HDF5/doc_resource/H5Fill_Values.html">
 	<cite>Fill Value and Dataset Storage Allocation Issues in HDF5</cite></a> 
 	and the descriptions of the following HDF5 functions in this 
 	<cite>HDF5 Reference Manual</cite>:
@@ -400,32 +405,40 @@ END SUBROUTINE h5dcreate_f
         <em>const hsize_t *</em> <code>size</code>
     )
 <dt><strong>Purpose:</strong>
-    <dd>Extends a dataset with unlimited dimension.
+    <dd>Extends a dataset. 
 <dt><strong>Description:</strong>
     <dd><code>H5Dextend</code> verifies that the dataset is at least of size
-        <code>size</code>.  
+        <code>size</code>, extending it if necessary.  
         The dimensionality of <code>size</code> is the same as that of
         the dataspace of the dataset being changed.
-        This function cannot be applied to a dataset with fixed dimensions.
+	<p>
+        This function can be applied to the following datasets:
+        <ul>
+          <li>Any dataset with unlimited dimensions
+          <li>A dataset with fixed dimensions if the current dimension sizes
+          are less than the maximum sizes set with <code>maxdims</code> (see 
+          <a href="RM_H5S.html#Dataspace-CreateSimple">
+          <code>H5Screate_simple</code></a>)
+        </ul>
 	<p>
 	Space on disk is immediately allocated for the new dataset extent 
-        if the dataset's space allocation time is set to 
+        if the dataset&rsquo;s space allocation time is set to 
 	<code>H5D_ALLOC_TIME_EARLY</code>.
-	Fill values will be written to the dataset if the dataset's fill time 
-	is set to <code>H5D_FILL_TIME_IFSET</code> or 
+	Fill values will be written to the dataset if the dataset&rsquo;s 
+        fill time is set to <code>H5D_FILL_TIME_IFSET</code> &nbsp;or&nbsp; 
 	<code>H5D_FILL_TIME_ALLOC</code>.
-	(Also see 
-	<a href="RM_H5P.html#Property-SetFillTime">H5Pset_fill_time</a>
-	and 
-	<a href="RM_H5P.html#Property-SetAllocTime">H5Pset_alloc_time</a>.)
+	(See <a href="RM_H5P.html#Property-SetFillTime">
+        <code>H5Pset_fill_time</code></a>
+	and <a href="RM_H5P.html#Property-SetAllocTime">
+        <code>H5Pset_alloc_time</code></a>.)
 
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>dataset_id</code></td>
+            <td valign="top"><em>hid_t</em> <code>dataset_id</code></td>
             <td valign="top">IN: Identifier of the dataset.</td></tr>
         <tr>
-		    <td valign="top"><em>const&nbsp;hsize_t&nbsp;*</em>&nbsp;<code>size&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>const&nbsp;hsize_t&nbsp;*</em>&nbsp;<code>size&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: Array containing the new magnitude of each dimension.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
@@ -1184,12 +1197,35 @@ END SUBROUTINE h5dopen_f
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
 <dt><strong>Fortran90 Interface:</strong> h5dread_f
-    
-	<dd>
+    <dd>There is no direct FORTRAN couterpart for the C function 
+        <code>H5Dread</code>.  
+        Instead, that functionality is provided by two FORTRAN functions:
+        
+    <center>
+    <table width=80%>
+      <tr valign=top align=left>
+            <td>
+              <code>h5dread_f</code>
+            </td>
+            <td>&nbsp;&nbsp;</td><td>
+              <strong>Purpose:</strong>
+              Reads data other than variable-length data. 
+            </td>
+        </tr>
+        <tr valign=top align=left>
+            <td>
+              <code>h5dread_vl_f</code>
+            </td><td>&nbsp;&nbsp;</td><td>
+              <strong>Purpose:</strong>
+              Reads variable-length data. 
+            </td>
+        </tr>
+    </table>
+    </center>
+				
 	<pre>
 SUBROUTINE h5dread_f(dset_id, mem_type_id, buf, dims, hdferr, &amp; 
                      mem_space_id, file_space_id, xfer_prp)
-
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN) :: dset_id     ! Dataset identifier
   INTEGER(HID_T), INTENT(IN) :: mem_type_id ! Memory datatype identifier
@@ -1213,9 +1249,48 @@ SUBROUTINE h5dread_f(dset_id, mem_type_id, buf, dims, hdferr, &amp;
                                             ! Default value is H5S_ALL_F
   INTEGER(HID_T), OPTIONAL, INTENT(IN) :: xfer_prp 
                                             ! Transfer property list identifier
-                                            ! Default value is H5P_DEFAULT_F             
+                                            ! Default value is H5P_DEFAULT_F 
 END SUBROUTINE h5dread_f
 	</pre>
+
+	<pre>
+
+SUBROUTINE h5dread_vl_f(dset_id, mem_type_id, buf, dims, len, hdferr, &amp; 
+                     mem_space_id, file_space_id, xfer_prp)
+  IMPLICIT NONE
+  INTEGER(HID_T), INTENT(IN) :: dset_id     ! Dataset identifier
+  INTEGER(HID_T), INTENT(IN) :: mem_type_id ! Memory datatype identifier
+  TYPE, INTENT(INOUT), & DIMENSION(dims(1),dims(2)) :: buf
+                                            ! Data buffer; may be a scalar 
+                                            ! or an array
+                                            ! TYPE must be one of the following
+                                            !     INTEGER
+                                            !     REAL
+                                            !     CHARACTER
+  INTEGER(HSIZE_T), INTENT(IN), DIMENSION(2)  :: dims 
+                                            ! Array to hold corresponding 
+                                            ! dimension sizes of data 
+                                            ! buffer buf 
+                                            ! dim(k) has value of the k-th 
+                                            ! dimension of buffer buf
+                                            ! Values are ignored if buf is 
+                                            ! a scalar
+  INTEGER(SIZE_T), INTENT(INOUT), DIMENSION(*)  :: len 
+                                            ! Array to store length of
+                                            ! each element
+  INTEGER, INTENT(OUT) :: hdferr            ! Error code 
+                                            ! 0 on success and -1 on failure
+  INTEGER(HID_T), OPTIONAL, INTENT(IN) :: mem_space_id 
+                                            ! Memory dataspace identfier 
+                                            ! Default value is H5S_ALL_F 
+  INTEGER(HID_T), OPTIONAL, INTENT(IN) :: file_space_id 
+                                            ! File dataspace identfier 
+                                            ! Default value is H5S_ALL_F
+  INTEGER(HID_T), OPTIONAL, INTENT(IN) :: xfer_prp 
+                                            ! Transfer property list identifier
+                                            ! Default value is H5P_DEFAULT_F
+END SUBROUTINE h5dread_vl_f
+        </pre>
 
 		<!--<dt><strong>Non-C API(s):</strong>
     	<dd>
@@ -1577,12 +1652,35 @@ SUBROUTINE
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
 <dt><strong>Fortran90 Interface:</strong> h5dwrite_f
-	
-	<dd>
+    <dd>There is no direct FORTRAN couterpart for the C function 
+        <code>H5Dwrite</code>.  
+        Instead, that functionality is provided by two FORTRAN functions:
+        
+    <center>
+    <table width=80%>
+      <tr valign=top align=left>
+            <td>
+              <code>h5dwrite_f</code>
+            </td>
+            <td>&nbsp;&nbsp;</td><td>
+              <strong>Purpose:</strong>
+              Writes data other than variable-length data. 
+            </td>
+        </tr>
+        <tr valign=top align=left>
+            <td>
+              <code>h5dwrite_vl_f</code>
+            </td><td>&nbsp;&nbsp;</td><td>
+              <strong>Purpose:</strong>
+              Writes variable-length data. 
+            </td>
+        </tr>
+    </table>
+    </center>
+				
 	<pre>
 SUBROUTINE h5dwrite_f(dset_id, mem_type_id, buf, dims, hdferr, &amp; 
                       mem_space_id, file_space_id, xfer_prp)
-
   IMPLICIT NONE
   INTEGER(HID_T), INTENT(IN) :: dset_id      ! Dataset identifier
   INTEGER(HID_T), INTENT(IN) :: mem_type_id  ! Memory datatype identifier
@@ -1608,9 +1706,48 @@ SUBROUTINE h5dwrite_f(dset_id, mem_type_id, buf, dims, hdferr, &amp;
                                              ! Transfer property list 
                                              ! identifier; default value 
                                              ! is H5P_DEFAULT_F 
-            
 END SUBROUTINE h5dwrite_f
 	</pre>
+
+	<pre>
+
+SUBROUTINE h5dwrite_vl_f(dset_id, mem_type_id, buf, dims, len, hdferr, &amp; 
+                     mem_space_id, file_space_id, xfer_prp)
+  IMPLICIT NONE
+  INTEGER(HID_T), INTENT(IN) :: dset_id     ! Dataset identifier
+  INTEGER(HID_T), INTENT(IN) :: mem_type_id ! Memory datatype identifier
+  TYPE, INTENT(IN), & DIMENSION(dims(1),dims(2)) :: buf
+                                            ! Data buffer; may be a scalar 
+                                            ! or an array
+                                            ! TYPE must be one of the following
+                                            !     INTEGER
+                                            !     REAL
+                                            !     CHARACTER
+  INTEGER(HSIZE_T), INTENT(IN), DIMENSION(2)  :: dims 
+                                            ! Array to hold corresponding 
+                                            ! dimension sizes of data 
+                                            ! buffer buf 
+                                            ! dim(k) has value of the k-th 
+                                            ! dimension of buffer buf
+                                            ! Values are ignored if buf is 
+                                            ! a scalar
+  INTEGER(SIZE_T), INTENT(IN), DIMENSION(*)  :: len 
+                                            ! Array to store length of
+                                            ! each element
+  INTEGER, INTENT(OUT) :: hdferr            ! Error code 
+                                            ! 0 on success and -1 on failure
+  INTEGER(HID_T), OPTIONAL, INTENT(IN) :: mem_space_id 
+                                            ! Memory dataspace identfier 
+                                            ! Default value is H5S_ALL_F 
+  INTEGER(HID_T), OPTIONAL, INTENT(IN) :: file_space_id 
+                                            ! File dataspace identfier 
+                                            ! Default value is H5S_ALL_F
+  INTEGER(HID_T), OPTIONAL, INTENT(IN) :: xfer_prp 
+                                            ! Transfer property list identifier
+                                            ! Default value is H5P_DEFAULT_F
+END SUBROUTINE h5dwrite_vl_f
+        </pre>
+
 		
 		<!--<dt><strong>Non-C API(s):</strong>
     	<dd>
@@ -1632,13 +1769,14 @@ END SUBROUTINE h5dwrite_f
     </table></ul>
 </dl>
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -1662,20 +1800,21 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
 </center>
 <hr>
-<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
+<address>
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 8 September 2004");
+document.writeln("Last modified: 15 August 2007");
 -->
 </SCRIPT>
  

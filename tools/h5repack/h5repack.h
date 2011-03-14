@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
@@ -18,8 +19,8 @@
 
 #include "hdf5.h"
 #include "h5trav.h"
-#include "h5diff.h"
-#include "h5tools.h"
+
+
 
 #define H5FOPENERROR "unable to open file"
 
@@ -28,7 +29,6 @@
 
 #define MAX_NC_NAME 256 /* max length of a name */
 #define MAX_VAR_DIMS 32 /* max per variable dimensions */
-
 
 /*-------------------------------------------------------------------------
  * data structures for command line options
@@ -43,11 +43,12 @@ typedef struct {
 /*
  the type of filter and additional parameter
  type can be one of the filters
- H5Z_FILTER_NONE       0,  uncompress if compressed
- H5Z_FILTER_DEFLATE	   1 , deflation like gzip
- H5Z_FILTER_SHUFFLE    2 , shuffle the data
- H5Z_FILTER_FLETCHER32 3 , letcher32 checksum of EDC
- H5Z_FILTER_SZIP       4 , szip compression
+ H5Z_FILTER_NONE        0,  uncompress if compressed
+ H5Z_FILTER_DEFLATE     1 , deflation like gzip
+ H5Z_FILTER_SHUFFLE     2 , shuffle the data
+ H5Z_FILTER_FLETCHER32  3 , letcher32 checksum of EDC
+ H5Z_FILTER_SZIP        4 , szip compression
+
 */
 
 #define CDVALUES 2
@@ -55,11 +56,6 @@ typedef struct {
 typedef struct {
  H5Z_filter_t filtn;               /* filter identification number */
  int          cd_values[CDVALUES]; /* filter client data values */
- /* extra input for szip, selects the coding method
-    entropy coding method: EC=0
-    nearest neighbor coding method: NN=1
- */
- int          szip_coding;
 } filter_info_t;
 
 /* chunk lengths along each dimension and rank */
@@ -70,7 +66,7 @@ typedef struct {
 
 /* we currently define a maximum value for the filters array,
    that corresponds to the current library filters */
-#define H5_REPACK_MAX_NFILTERS 4
+#define H5_REPACK_MAX_NFILTERS 6
 
 /* information for one object, contains PATH, CHUNK info and FILTER info */
 typedef struct {
@@ -84,9 +80,9 @@ typedef struct {
 
 /* store a table of all objects */
 typedef struct {
- int         size;
- int         nelems;
- pack_info_t *objs;
+ unsigned int size;
+ unsigned int nelems;
+ pack_info_t  *objs;
 } pack_opttbl_t;
 
 
@@ -103,8 +99,9 @@ typedef struct {
  filter_info_t   filter_g;    /*global filter INFO for the ALL case */
  chunk_info_t    chunk_g;     /*global chunk INFO for the ALL case */
  H5D_layout_t    layout_g;    /*global layout information for the ALL case */
- int verbose;                 /*verbose mode */
- hsize_t threshold;               /*minimum size to compress, in bytes */
+ int             verbose;     /*verbose mode */
+ hsize_t         threshold;   /*minimum size to compress, in bytes */
+ int             use_native;  /*use a native type in write */  
 } pack_opt_t;
 
 
@@ -147,30 +144,16 @@ int copy_objects(const char* fnamein,
                  const char* fnameout,
                  pack_opt_t *options);
 
-void print_objlist(const char *filename,
-                   int nobjects,
-                   trav_info_t *travi );
-
-int do_copy_objects(hid_t fidin,
-                    hid_t fidout,
-                    trav_table_t *travt,
-                    pack_opt_t *options);
-
-int copy_attr(hid_t loc_in,
-              hid_t loc_out,
-              pack_opt_t *options
-              );
-
 int do_copy_refobjs(hid_t fidin,
                     hid_t fidout,
                     trav_table_t *travt,
                     pack_opt_t *options); /* repack options */
 
 
-
-void read_info(const char *filename,pack_opt_t *options);
 void init_packobject(pack_info_t *obj);
 int print_filters(hid_t dcpl_id);
+int have_request(pack_opt_t *options);
+
 
 
 
@@ -182,9 +165,9 @@ int print_filters(hid_t dcpl_id);
 int apply_filters(const char* name,    /* object name from traverse list */
                   int rank,            /* rank of dataset */
                   hsize_t *dims,       /* dimensions of dataset */
-                  hid_t dcpl_id,       /* dataset creation property list */
-                  hid_t type_id,       /* datatype */
-                  pack_opt_t *options); /* repack options */
+                  hid_t dcpl_id,       /* (IN,OUT) dataset creation property list */
+                  pack_opt_t *options, /* repack options */
+                  int *has_filter);     /* (OUT) object NAME has a filter */
 
 int has_filter(hid_t dcpl_id,
                H5Z_filter_t filtnin);
@@ -247,78 +230,7 @@ obj_list_t* parse_layout(const char *str,
 const char* get_sfilter (H5Z_filter_t filtn);
 int         parse_number(char *str);
 
-/*-------------------------------------------------------------------------
- * tests
- *-------------------------------------------------------------------------
- */
-
-#define FNAME0     "test0.h5"
-#define FNAME0OUT  "test0.out.h5"
-#define FNAME1     "test1.h5"
-#define FNAME1OUT  "test1.out.h5"
-#define FNAME2     "test2.h5"
-#define FNAME2OUT  "test2.out.h5"
-#define FNAME3     "test3.h5"
-#define FNAME3OUT  "test3.out.h5"
-#define FNAME4     "test4.h5"
-#define FNAME4OUT  "test4.out.h5"
-#define FNAME5     "test5.h5"
-#define FNAME5OUT  "test5.out.h5"
-#define FNAME6     "test6.h5"
-#define FNAME7     "test_szip.h5"
-#define FNAME8     "test_deflate.h5"
-#define FNAME9     "test_shuffle.h5"
-#define FNAME10    "test_fletcher32.h5"
-#define FNAME11    "test_all.h5"
-#define FNAME7OUT     "test_szip.out.h5"
-#define FNAME8OUT     "test_deflate.out.h5"
-#define FNAME9OUT     "test_shuffle.out.h5"
-#define FNAME10OUT    "test_fletcher32.out.h5"
-#define FNAME11OUT    "test_all.out.h5"
-
-int make_testfiles(void);
-
-int write_dset( hid_t loc_id,
-                int rank,
-                hsize_t *dims,
-                const char *dset_name,
-                hid_t type_id,
-                void *buf );
-int write_attr(hid_t loc_id,
-               int rank,
-               hsize_t *dims,
-               const char *attr_name,
-               hid_t type_id,
-               void *buf);
-void write_attr_in(hid_t loc_id,
-                   const char* dset_name, /* for saving reference to dataset*/
-                   hid_t fid, /* for reference create */
-                   int make_diffs /* flag to modify data buffers */);
-void write_dset_in(hid_t loc_id,
-                   const char* dset_name, /* for saving reference to dataset*/
-                   hid_t file_id,
-                   int make_diffs /* flag to modify data buffers */);
-
-
-
-/*-------------------------------------------------------------------------
- * tests utils
- *-------------------------------------------------------------------------
- */
-int make_dset(hid_t loc_id,
-              const char *name,
-              hid_t sid,
-              hid_t dcpl,
-              void *buf);
-
-int make_attr(hid_t loc_id,
-               int rank,
-               hsize_t *dims,
-               const char *attr_name,
-               hid_t type_id,
-               void *buf);
-
-
 
 
 #endif  /* H5REPACK_H__ */
+

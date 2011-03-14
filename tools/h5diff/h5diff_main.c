@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "h5diff.h"
@@ -17,35 +18,45 @@
 #include <assert.h>
 
 static void usage(void);
-static int check_n_input( const char* );
-static int check_f_input( const char* );
-
+static int  check_n_input( const char* );
+static int  check_f_input( const char* );
+static void print_info(diff_opt_t* options);
 
 /*-------------------------------------------------------------------------
  * Function: main
  *
  * Purpose: h5diff main program
  *
- * Return: An  exit status of 0 means no differences were found, 1 means some
+ * Return: An exit status of 0 means no differences were found, 1 means some
  *   differences were found.
  *
- * Programmer: Pedro Vicente Nunes, pvn@ncsa.uiuc.edu
+ * Programmer: Pedro Vicente Nunes, pvn@hdfgroup.org
  *
  * Date: May 9, 2003
  *
  * Comments:
  *
- * Modifications: July 2004
+ * Modifications: 
+ *
+ * July 2004
  *  Introduced the four modes:
  *   Normal mode: print the number of differences found and where they occured
  *   Report mode: print the above plus the differences
  *   Verbose mode: print the above plus a list of objects and warnings
  *   Quiet mode: do not print output
  *
-	* Modifications: October 2005
-	*  Introduced a new field 'not_cmp' to 'diff_opt_t' that detects
-	*  if some objects are not comparable and prints the message
-	*  "Some objects are not comparable"
+ * October 2005
+ *  Introduced a new field 'not_cmp' to 'diff_opt_t' that detects
+ *  if some objects are not comparable and prints the message
+ *  "Some objects are not comparable"
+ *
+ * February 2007
+ *  Added comparison for dataset regions. 
+ *  Added support for reading and comparing by hyperslabs for large files.
+ *  Inclusion of a relative error formula to compare floating
+ *   point numbers in order to deal with floating point uncertainty. 
+ *  Printing of dataset dimensions along with dataset name.
+ *
  *-------------------------------------------------------------------------
  */
 
@@ -73,7 +84,6 @@ int main(int argc, const char *argv[])
 
  if ( argc<3 )
  {
-  printf("Number of arguments is only %d\n", argc );
   usage();
  }
 
@@ -203,35 +213,7 @@ int main(int argc, const char *argv[])
 
  nfound = h5diff(fname1,fname2,objname1,objname2,&options);
 
-/*-------------------------------------------------------------------------
- * print how many differences were found
- *-------------------------------------------------------------------------
- */
- if (!options.m_quiet)
- {
-  if (options.cmn_objs==0)
-  {
-   printf("No common objects found. Files are not comparable.\n");
-   if (!options.m_verbose)
-    printf("Use -v for a list of objects.\n");
-  }
-  else
-  {
-   if (!options.err_stat)
-    print_found(nfound);
-  }
-
-		if (options.not_cmp==1)
-  {
-			printf("--------------------------------\n");
-   printf("Some objects are not comparable\n");
-			printf("--------------------------------\n");
-   if (!options.m_verbose)
-    printf("Use -v for a list of objects.\n");
-  }
-
-
- }
+ print_info(&options);
 
 /*-------------------------------------------------------------------------
  * exit code
@@ -330,7 +312,7 @@ int check_f_input( const char *str )
 static
 void usage(void)
 {
- printf("Usage: h5diff file1 file2 [OPTIONS] [obj1[obj2]] \n");
+ printf("usage: h5diff file1 file2 [OPTIONS] [obj1[obj2]] \n");
  printf("\n");
  printf("file1             File name of the first HDF5 file\n");
  printf("file2             File name of the second HDF5 file\n");
@@ -338,19 +320,19 @@ void usage(void)
  printf("[obj2]            Name of an HDF5 object, in absolute path\n");
  printf("[OPTIONS] are:\n");
  printf("[-h]              Print out this information\n");
- printf("[-r]              Report mode. Print the differences\n");
- printf("[-v]              Verbose mode. Print the differences, list of objects, warnings\n");
+ printf("[-r]              Report mode. Print differences\n");
+ printf("[-v]              Verbose mode. Print differences, list of objects, warnings\n");
  printf("[-q]              Quiet mode. Do not do output\n");
  printf("[-n count]        Print difference up to count number\n");
  printf("[-d delta]        Print difference when it is greater than limit delta\n");
  printf("[-p relative]     Print difference when it is greater than a relative limit\n");
  printf("\n");
  printf("Items in [] are optional\n");
- printf("[obj1] and [obj2] are HDF5 objects (datasets, groups or datatypes)\n");
+ printf("[obj1] and [obj2] are HDF5 objects (datasets, groups, datatypes or links)\n");
  printf("The 'count' value must be a positive integer\n");
  printf("The 'delta' and 'relative' values must be positive numbers\n");
  printf("The -d compare criteria is |a - b| > delta\n");
- printf("The -p compare criteria is |1 - b/a| > relative\n");
+ printf("The -p compare criteria is |(b-a)/a| > relative\n");
  printf("\n");
  printf("h5diff has four modes of output:\n");
  printf(" Normal mode: print the number of differences found and where they occured\n");
@@ -377,8 +359,45 @@ void usage(void)
  printf("   h5diff file1 file1 /g1/dset1 /g1/dset2\n");
  printf("\n");
  printf("   to compare '/g1/dset1' and '/g1/dset2' in the same file\n");
+ printf("\n");
+ printf("If no objects are specified, h5diff only compares objects with the same ");
+ printf("absolute path in both files. The compare criteria is: ");
+ printf("1) datasets: numerical array differences 2) groups: name string difference ");
+ printf("3) datatypes: the return value of H5Tequal 2) links: name string difference of the linked value\n");
+
  exit(0);
 }
 
 
 
+/*-------------------------------------------------------------------------
+ * Function: print_info
+ *
+ * Purpose: print several information messages
+ *
+ *-------------------------------------------------------------------------
+ */
+
+static
+void  print_info(diff_opt_t* options)
+{
+ if (options->m_quiet || options->err_stat)
+  return;
+
+ if (options->cmn_objs==0)
+ {
+  printf("No common objects found. Files are not comparable.\n");
+  if (!options->m_verbose)
+   printf("Use -v for a list of objects.\n");
+ }
+
+ if (options->not_cmp==1)
+ {
+  printf("--------------------------------\n");
+  printf("Some objects are not comparable\n");
+  printf("--------------------------------\n");
+  if (!options->m_verbose)
+   printf("Use -v for a list of objects.\n");
+ }
+
+}

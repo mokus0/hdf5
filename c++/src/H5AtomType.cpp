@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -71,14 +72,14 @@ void AtomType::setSize( size_t size ) const
 }
 
 //--------------------------------------------------------------------------
-// Function:    AtomType::getOrder
-///\brief       Returns the byte order of an atomic datatype.
-///\return      Byte order, which can be:
-///             \li \c H5T_ORDER_LE
-///             \li \c H5T_ORDER_BE
-///             \li \c H5T_ORDER_VAX
-///\exception   H5::DataTypeIException
-// Programmer   Binh-Minh Ribler - Mar, 2005
+// Function:	AtomType::getOrder
+///\brief	Returns the byte order of an atomic datatype.
+///\return	Byte order, which can be:
+///		\li \c H5T_ORDER_LE
+///		\li \c H5T_ORDER_BE
+///		\li \c H5T_ORDER_VAX
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
 H5T_order_t AtomType::getOrder() const
 {
@@ -89,29 +90,29 @@ H5T_order_t AtomType::getOrder() const
    if( type_order == H5T_ORDER_ERROR )
    {
       throw DataTypeIException(inMemFunc("getOrder"),
-                "H5Tget_order returns H5T_ORDER_ERROR");
+		"H5Tget_order returns H5T_ORDER_ERROR");
    }
    return( type_order );
 }
 
 //--------------------------------------------------------------------------
-// Function:    AtomType::getOrder
-///\brief       This is an overloaded member function, provided for convenience.
-///             It takes a reference to a \c std::string for the buffer that
-///             provide the text description of the returned byte order.
-///             The text description can be either of the following:
-///             "Little endian byte ordering (0)";
-///             "Big endian byte ordering (1)";
-///             "VAX mixed byte ordering (2)";
-///\param       order_string - OUT: Text description of the returned byte order
-///\return      Byte order, which can be:
-///             \li \c H5T_ORDER_LE
-///             \li \c H5T_ORDER_BE
-///             \li \c H5T_ORDER_VAX
-///\exception   H5::DataTypeIException
-// Programmer   Binh-Minh Ribler - 2000
+// Function:	AtomType::getOrder
+///\brief	This is an overloaded member function, provided for convenience.
+///		It takes a reference to a \c H5std_string for the buffer that
+///		provide the text description of the returned byte order.
+///		The text description can be either of the following:
+///		"Little endian byte ordering (0)";
+///		"Big endian byte ordering (1)";
+///		"VAX mixed byte ordering (2)";
+///\param	order_string - OUT: Text description of the returned byte order
+///\return	Byte order, which can be:
+///		\li \c H5T_ORDER_LE
+///		\li \c H5T_ORDER_BE
+///		\li \c H5T_ORDER_VAX
+///\exception	H5::DataTypeIException
+// Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5T_order_t AtomType::getOrder( string& order_string ) const
+H5T_order_t AtomType::getOrder( H5std_string& order_string ) const
 {
    // Call the overloaded to get the type order without text
    H5T_order_t type_order = getOrder();
@@ -177,7 +178,7 @@ size_t AtomType::getPrecision() const
 ///\exception	H5::DataTypeIException
 ///\par Description
 ///		For information, please see C layer Reference Manuat at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5T.html#Datatype-SetPrecision
+/// <A HREF="../RM_H5T.html#Datatype-SetPrecision">../RM_H5T.html#Datatype-SetPrecision</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void AtomType::setPrecision( size_t precision ) const
@@ -197,7 +198,7 @@ void AtomType::setPrecision( size_t precision ) const
 ///\exception	H5::DataTypeIException
 ///\par Description
 ///		For information, please see C layer Reference Manuat at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5T.html#Datatype-GetOffset
+/// <A HREF="../RM_H5T.html#Datatype-GetOffset">../RM_H5T.html#Datatype-GetOffset</A>
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
 //		12/05/00: due to C API change
@@ -224,7 +225,7 @@ int AtomType::getOffset() const
 ///\exception	H5::DataTypeIException
 ///\par Description
 ///		For information, please see C layer Reference Manuat at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5T.html#Datatype-SetOffset
+/// <A HREF="../RM_H5T.html#Datatype-SetOffset">../RM_H5T.html#Datatype-SetOffset</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void AtomType::setOffset( size_t offset ) const
@@ -262,7 +263,7 @@ void AtomType::getPad( H5T_pad_t& lsb, H5T_pad_t& msb ) const
 }
 
 //--------------------------------------------------------------------------
-// Function:	AtomType::getPad
+// Function:	AtomType::setPad
 ///\brief	Sets the least and most-significant bits padding types.
 ///\param	lsb - IN: Least-significant bit padding type
 ///\param	msb - IN: Most-significant bit padding type

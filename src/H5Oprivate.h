@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -28,16 +29,19 @@
 #define _H5Oprivate_H
 
 /* Include the public header file for this API */
-#include "H5Opublic.h"          /* Object header functions                */
+#include "H5Opublic.h"          /* Object header functions              */
 
 /* Public headers needed by this file */
-#include "H5Dpublic.h"          /* Dataset functions                      */
-#include "H5Spublic.h"		/* Dataspace functions			  */
+#include "H5Dpublic.h"          /* Dataset functions                    */
+#include "H5Spublic.h"		/* Dataspace functions			*/
 
 /* Private headers needed by this file */
-#include "H5HGprivate.h"        /* Global heap functions                  */
-#include "H5Tprivate.h"		/* Datatype functions			  */
-#include "H5Zprivate.h"         /* I/O pipeline filters			  */
+#include "H5Tprivate.h"		/* Datatype functions			*/
+#include "H5Zprivate.h"         /* I/O pipeline filters			*/
+
+/* Forward references of package typedefs */
+typedef struct H5O_msg_class_t H5O_msg_class_t;
+typedef struct H5O_t H5O_t;
 
 /* Object header macros */
 #define H5O_MIN_SIZE	H5O_ALIGN(32)	/*min obj header data size	     */
@@ -201,11 +205,7 @@ typedef struct H5O_name_t {
  */
 
 typedef struct H5O_shared_t {
-    hbool_t		in_gh;		/*shared by global heap?	     */
-    union {
-	H5HG_t		gh;		/*global heap info		     */
-	H5G_entry_t	ent;		/*symbol table entry info	     */
-    } u;
+    H5G_entry_t	ent;			/*symbol table entry info	     */
 } H5O_shared_t;
 
 /*
@@ -279,7 +279,7 @@ H5_DLL herr_t H5O_delete(H5F_t *f, hid_t dxpl_id, haddr_t addr);
 H5_DLL herr_t H5O_get_info(H5G_entry_t *ent, H5O_stat_t *ostat, hid_t dxpl_id);
 H5_DLL herr_t H5O_iterate(const H5G_entry_t *ent, unsigned type_id, H5O_operator_t op,
     void *op_data, hid_t dxpl_id);
-H5_DLL herr_t H5O_debug_id(hid_t type_id, H5F_t *f, hid_t dxpl_id, const void *mesg, FILE *stream, int indent, int fwidth);
+H5_DLL herr_t H5O_debug_id(unsigned type_id, H5F_t *f, hid_t dxpl_id, const void *mesg, FILE *stream, int indent, int fwidth);
 H5_DLL herr_t H5O_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream, int indent,
 			 int fwidth);
 

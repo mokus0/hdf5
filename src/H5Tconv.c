@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -22,6 +23,7 @@
 #include "H5private.h"		/*generic functions			  */
 #include "H5Eprivate.h"		/*error handling			  */
 #include "H5FLprivate.h"	/*Free Lists	                          */
+#include "H5HGprivate.h"	/* Global Heaps				*/
 #include "H5Iprivate.h"		/*ID functions		   		  */
 #include "H5MMprivate.h"	/*memory management			  */
 #include "H5Pprivate.h"		/* Property Lists			  */
@@ -2428,11 +2430,11 @@ H5T_conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
 
             /* Set flags to indicate we are writing to or reading from the file */
             if(dst->shared->u.vlen.f!=NULL)
-                write_to_file=TRUE;
+                write_to_file = TRUE;
 
             /* Set the flag for nested VL case */
             if(write_to_file && parent_is_vlen && bkg!=NULL)
-                nested=1;
+                nested = TRUE;
 
             /* The outer loop of the type conversion macro, controlling which */
             /* direction the buffer is walked */
@@ -2494,8 +2496,13 @@ H5T_conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
                             dst_size=seq_len*dst_base_size;
 
                             /* Check if conversion buffer is large enough, resize if
-                             * necessary */
-                            if(conv_buf_size<MAX(src_size,dst_size)) {
+                             * necessary.  If the SEQ_LEN is 0, allocate a minimal size buffer. */
+			    if(!seq_len && !conv_buf) {
+                                conv_buf_size=((1/H5T_VLEN_MIN_CONF_BUF_SIZE)+1)*H5T_VLEN_MIN_CONF_BUF_SIZE;
+                                if((conv_buf=H5FL_BLK_MALLOC(vlen_seq,conv_buf_size))==NULL)
+                                    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion");
+			    }
+                            else if(conv_buf_size<MAX(src_size,dst_size)) {
                                 /* Only allocate conversion buffer in H5T_VLEN_MIN_CONF_BUF_SIZE increments */
                                 conv_buf_size=((MAX(src_size,dst_size)/H5T_VLEN_MIN_CONF_BUF_SIZE)+1)*H5T_VLEN_MIN_CONF_BUF_SIZE;
                                 if((conv_buf=H5FL_BLK_REALLOC(vlen_seq,conv_buf, conv_buf_size))==NULL)
@@ -2558,10 +2565,11 @@ H5T_conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
                             if(nested && seq_len<(ssize_t)bg_seq_len) {
                                 size_t parent_seq_len;
                                 size_t     u;
+                                uint8_t *tmp_p;
 
-                                uint8_t *tmp_p=tmp_buf;
-                                tmp_p += seq_len*dst_base_size;
-                                for(u=0; u<(bg_seq_len-seq_len); u++) {
+                                /* TMP_P is reset each time in the loop because DST_BASE_SIZE may include some data in addition to VL info. - SLU */
+                                for(u=seq_len; u<bg_seq_len; u++) {
+                                    tmp_p = (uint8_t*)tmp_buf + u*dst_base_size;  
                                     UINT32DECODE(tmp_p, parent_seq_len);
                                     if(parent_seq_len>0) {
                                         H5F_addr_decode(dst->shared->u.vlen.f, (const uint8_t **)&tmp_p, &(parent_hobjid.addr));

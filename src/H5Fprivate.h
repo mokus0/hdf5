@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -433,8 +434,8 @@ H5_DLL MPI_Comm H5F_mpi_get_comm(const H5F_t *f);
 #endif /* H5_HAVE_PARALLEL */
 
 /* Functions than check file mounting information */
-H5_DLL htri_t H5F_is_mount(const H5F_t *file);
-H5_DLL htri_t H5F_has_mount(const H5F_t *file);
+H5_DLL hbool_t H5F_is_mount(const H5F_t *file);
+H5_DLL hbool_t H5F_has_mount(const H5F_t *file);
 
 /* Functions than retrieve values set from the FCPL */
 H5_DLL size_t H5F_sizeof_addr(const H5F_t *f);

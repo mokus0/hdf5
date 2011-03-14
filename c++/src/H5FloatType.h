@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5FloatType_H
@@ -41,19 +42,19 @@ class H5_DLLCPP FloatType : public AtomType {
 	void setFields( size_t spos, size_t epos, size_t esize, size_t mpos, size_t msize ) const;
 
 	// Retrieves the internal padding type for unused bits in floating-point datatypes.
-	H5T_pad_t getInpad( string& pad_string ) const;
+	H5T_pad_t getInpad( H5std_string& pad_string ) const;
 
 	// Fills unused internal floating point bits.
 	void setInpad( H5T_pad_t inpad ) const;
 
 	// Retrieves mantissa normalization of a floating-point datatype.
-	H5T_norm_t getNorm( string& norm_string ) const;
+	H5T_norm_t getNorm( H5std_string& norm_string ) const;
 
 	// Sets the mantissa normalization of a floating-point datatype.
 	void setNorm( H5T_norm_t norm ) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return ("FloatType"); }
+	virtual H5std_string fromClass () const { return("FloatType"); }
 
 	// Default constructor
 	FloatType();

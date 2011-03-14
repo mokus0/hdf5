@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5EnumType_H
@@ -38,26 +39,26 @@ class H5_DLLCPP EnumType : public DataType {
 
 	// Returns the index of a member in this enumeration data type.
 	int getMemberIndex(const char* name) const;
-	int getMemberIndex(const string& name) const;
+	int getMemberIndex(const H5std_string& name) const;
 
 	// Returns the value of an enumeration datatype member
 	void getMemberValue( unsigned memb_no, void *value ) const;
 
 	// Inserts a new member to this enumeration type.
 	void insert( const char* name, void *value ) const;
-	void insert( const string& name, void *value ) const;
+	void insert( const H5std_string& name, void *value ) const;
 
 	// Returns the symbol name corresponding to a specified member
 	// of this enumeration datatype.
-	string nameOf( void *value, size_t size ) const;
+	H5std_string nameOf( void *value, size_t size ) const;
 
 	// Returns the value corresponding to a specified member of this
 	// enumeration datatype.
 	void valueOf( const char* name, void *value ) const;
-	void valueOf( const string& name, void *value ) const;
+	void valueOf( const H5std_string& name, void *value ) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("EnumType"); }
+	virtual H5std_string fromClass () const { return("EnumType"); }
 
 	// Default constructor
 	EnumType();

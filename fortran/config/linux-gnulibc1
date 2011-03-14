@@ -1,5 +1,6 @@
 #							-*- shell-script -*-
 #
+# Copyright by The HDF Group.
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -9,8 +10,8 @@
 # of the source code distribution tree; Copyright.html can be found at the
 # root level of an installed copy of the electronic HDF5 document set and
 # is linked from the top-level documents page.  It can also be found at
-# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 
 
 # This file is part of the HDF5 build script.  It is processed shortly
@@ -18,7 +19,6 @@
 # the various compile modes.
 #
 # See BlankForm in this directory for details.
-
 # The default compiler is `gcc'.
 if test -z "$CC"; then
     CC=gcc
@@ -35,10 +35,14 @@ fi
 . $srcdir/config/intel-flags
 
 
-# The default Fortran 90 compiler
+# Use default Fortran 90 compiler according to what C compiler is used.
 if test "X-" = "X-$F9X"; then
     case $CC_BASENAME in
-        gcc*|pgcc*)
+        gcc*)
+            F9X=g95
+            F9X_BASENAME=g95
+            ;;
+        pgcc*)
             F9X=pgf90
             F9X_BASENAME=pgf90
             ;;
@@ -51,12 +55,14 @@ if test "X-" = "X-$F9X"; then
             F9X_BASENAME=mpif90
             ;;
     esac
-else
+fi
+
+# Figure out the F9X_BASENAME
     case $F9X in
         # The PGI and Intel compilers are automatically detected below
         ifc*|ifort*|pgf90*)
             ;;
-	g95)
+	g95|*/g95)
 	    F9X_BASENAME=g95
 	    ;;
 	*mpif90)
@@ -69,8 +75,9 @@ else
 	    # Try both options.
             tmpfile=/tmp/cmpver.$$
             ( $F9X -v; $F9X -V) >$tmpfile 2>&1
-	    if grep '(g95!)' $tmpfile > /dev/null; then
+	    if grep 'g95' $tmpfile > /dev/null; then
 		F9X_BASENAME=g95
+		CFLAGS="$CFLAGS -DH5_G95" 
 	    elif grep 'Absoft' $tmpfile > /dev/null; then
 		F9X_BASENAME=f95
 	    elif grep 'Portland Group' $tmpfile > /dev/null; then
@@ -96,7 +103,6 @@ else
             $RM $tmpfile
             ;;
     esac
-fi
 
 #
 # HDF5 integers

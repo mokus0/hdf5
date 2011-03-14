@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,11 +9,12 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5I_PACKAGE		/*suppress error about including H5Ipkg	  */
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Bprivate.h"		/* B-link trees				*/
@@ -711,16 +713,16 @@ herr_t
 H5close(void)
 {
     /*
-     * Don't call FUNC_ENTER() since we don't want to initialize the whole
-     * thing just to release it all right away.  It is safe to call this
-     * function for an uninitialized library.
+     * Don't call normal FUNC_ENTER() since we don't want to initialize the
+     * whole library just to release it all right away.  It is safe to call
+     * this function for an uninitialized library.
      */
-    FUNC_ENTER_API_NOINIT(H5close)
+    FUNC_ENTER_API_NOINIT_NOFS(H5close)
     H5TRACE0("e","");
 
     H5_term_library();
 
-    FUNC_LEAVE_API(SUCCEED)
+    FUNC_LEAVE_API_NOFS(SUCCEED)
 }
 
 
@@ -2153,7 +2155,7 @@ H5_trace (const double *returning, const char *func, const char *type, ...)
                             /* Save the rank of simple data spaces for arrays */
                             /* This may generate recursive call to the library... -QAK */
                             {
-                                H5S_t *space = H5I_object(obj);
+                                H5S_t *space = (H5S_t *)H5I_object(obj);
                                 if (H5S_SIMPLE==H5S_GET_EXTENT_TYPE(space)) {
                                     asize[argno] = H5S_GET_EXTENT_NDIMS(space);
                                 }
@@ -2399,7 +2401,7 @@ H5_trace (const double *returning, const char *func, const char *type, ...)
 
                 /* Get the class name and print it */
                 /* This may generate recursive call to the library... -QAK */
-                if(NULL != (pclass = H5I_object(pclass_id)) &&
+                if(NULL != (pclass = (H5P_genclass_t *)H5I_object(pclass_id)) &&
                         (class_name=H5P_get_class_name(pclass))!=NULL) {
 		    fprintf (out, class_name);
                     H5MM_xfree(class_name);

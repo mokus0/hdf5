@@ -1,5 +1,6 @@
 #							-*- shell-script -*-
 #
+# Copyright by The HDF Group.
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -9,8 +10,8 @@
 # of the source code distribution tree; Copyright.html can be found at the
 # root level of an installed copy of the electronic HDF5 document set and
 # is linked from the top-level documents page.  It can also be found at
-# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 
 
 # This file is part of the HDF5 build script.  It is processed shortly
@@ -45,7 +46,7 @@ case $CC_BASENAME in
 	# Turn off shared lib option.  It causes some test suite to fail.
 	enable_shared="${enable_shared:-no}"
         # Use -D_LARGE_FILES by default to support large file size.
-        CFLAGS="-qlanglvl=ansi -D_LARGE_FILES $CFLAGS"
+        CFLAGS="-qlanglvl=stdc99 -D_LARGE_FILES $CFLAGS"
 	DEBUG_CFLAGS="-g"
 	DEBUG_CPPFLAGS=
 	# -O causes test/dtypes to fail badly. Turn it off for now.

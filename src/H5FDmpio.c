@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -741,6 +742,9 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
     MPI_Comm                    comm_dup=MPI_COMM_NULL;
     MPI_Info                    info_dup=MPI_INFO_NULL;
     H5FD_t			*ret_value;     /* Return value */
+#ifndef H5_HAVE_MPI_GET_SIZE
+    struct stat                 stat_buf;
+#endif
 
     FUNC_ENTER_NOAPI(H5FD_mpio_open, NULL)
 
@@ -815,9 +819,18 @@ H5FD_mpio_open(const char *name, unsigned flags, hid_t fapl_id,
 
     /* Only processor p0 will get the filesize and broadcast it. */
     if (mpi_rank == 0) {
-        /* Get current file size */
+        /* Get current file size.  If MPI_File_get_size is disabled in configuration
+         * because it doesn't return correct value (SGI Altix Propack 4), 
+         * use stat to get the file size. */
+#ifdef H5_HAVE_MPI_GET_SIZE
         if (MPI_SUCCESS != (mpi_code=MPI_File_get_size(fh, &size)))
             HMPI_GOTO_ERROR(NULL, "MPI_File_get_size failed", mpi_code)
+#else
+        if((mpi_code=HDstat(name, &stat_buf))<0)
+            HMPI_GOTO_ERROR(NULL, "stat failed", mpi_code)
+        /* Hopefully this casting is safe */
+        size = (MPI_Offset)(stat_buf.st_size);
+#endif
     } /* end if */
 
     /* Broadcast file size */

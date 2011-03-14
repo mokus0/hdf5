@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -105,7 +106,7 @@ void H5Library::getLibVersion( unsigned& majnum, unsigned& minnum, unsigned& rel
 ///\par Description
 ///		For information about library version, please refer to
 ///		the C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5.html#Library-VersCheck
+/// <A HREF="../RM_H5.html#Library-VersCheck">../RM_H5.html#Library-VersCheck</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void H5Library::checkVersion(unsigned majnum, unsigned minnum, unsigned relnum)
@@ -160,7 +161,7 @@ void H5Library::garbageCollect()
 ///		Setting a value of -1 for a limit means no limit of that type.
 ///		For more information on free list limits, please refer to C
 ///		layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5.html#Library-SetFreeListLimits
+/// <A HREF="../RM_H5.html#Library-SetFreeListLimits">../RM_H5.html#Library-SetFreeListLimits</A>
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
 void H5Library::setFreeListLimits(int reg_global_lim, int reg_list_lim,

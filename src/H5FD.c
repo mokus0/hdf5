@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -1541,11 +1542,11 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
     if (type != H5FD_MEM_DRAW) {
         /* Handle metadata differently from "raw" data */
         if ((ret_value = H5FD_alloc_metadata(file, type, dxpl_id, size)) == HADDR_UNDEF)
-            HGOTO_ERROR(H5E_VFL, H5E_CANTFREE, HADDR_UNDEF, "can't allocate for metadata")
+            HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate for metadata")
     } else {
         /* Allocate "raw" data */
         if ((ret_value = H5FD_alloc_raw(file, type, dxpl_id, size)) == HADDR_UNDEF)
-            HGOTO_ERROR(H5E_VFL, H5E_CANTFREE, HADDR_UNDEF, "can't allocate for raw data")
+            HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate for raw data")
     }
 
 done:
@@ -1824,7 +1825,8 @@ H5FD_alloc_metadata(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
              */
             if (size >= file->def_meta_block_size) {
                 /* Allocate more room for this new block the regular way */
-                new_meta = H5FD_real_alloc(file, type, dxpl_id, size);
+                if(HADDR_UNDEF==(new_meta = H5FD_real_alloc(file, type, dxpl_id, size)))
+                    HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate metadata block")
 
                 /*
                  * Check if the new metadata is at the end of the current
@@ -1846,8 +1848,9 @@ H5FD_alloc_metadata(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
                 }
             } else {
                 /* Allocate another metadata block */
-                new_meta = H5FD_real_alloc(file, H5FD_MEM_DEFAULT, dxpl_id,
-                                           file->def_meta_block_size);
+                if(HADDR_UNDEF==(new_meta = H5FD_real_alloc(file, H5FD_MEM_DEFAULT, dxpl_id,
+                                           file->def_meta_block_size)))
+                    HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate metadata block")
 
                 /*
                  * Check if the new metadata is at the end of the current
@@ -1883,7 +1886,8 @@ H5FD_alloc_metadata(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
         }
     } else {
         /* Allocate data the regular way */
-        ret_value = H5FD_real_alloc(file, type, dxpl_id, size);
+        if(HADDR_UNDEF==(ret_value = H5FD_real_alloc(file, type, dxpl_id, size)))
+            HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate metadata block")
     }
 
 done:
@@ -1931,7 +1935,8 @@ H5FD_alloc_raw(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
             /* Check if the block asked for is too large for the "small data" block */
             if (size >= file->def_sdata_block_size) {
                 /* Allocate more room for this new block the regular way */
-                new_data = H5FD_real_alloc(file, type, dxpl_id, size);
+                if(HADDR_UNDEF==(new_data = H5FD_real_alloc(file, type, dxpl_id, size)))
+                    HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate raw data block")
 
                 /*
                  * Check if the new raw data is at the end of the current
@@ -1953,8 +1958,9 @@ H5FD_alloc_raw(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
                 }
             } else {
                 /* Allocate another "small data" block */
-                new_data = H5FD_real_alloc(file, type, dxpl_id,
-                                           file->def_sdata_block_size);
+                if(HADDR_UNDEF==(new_data = H5FD_real_alloc(file, type, dxpl_id,
+                                           file->def_sdata_block_size)))
+                    HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate raw data block")
 
                 /*
                  * Check if the new raw data is at the end of the current
@@ -1993,7 +1999,8 @@ H5FD_alloc_raw(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
         }
     } else {
         /* Allocate data the regular way */
-        ret_value = H5FD_real_alloc(file, type, dxpl_id, size);
+        if(HADDR_UNDEF==(ret_value = H5FD_real_alloc(file, type, dxpl_id, size)))
+            HGOTO_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF, "can't allocate raw data block")
     }
 
 done:
@@ -3297,9 +3304,9 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, size_t si
                         /* Reallocate the metadata accumulator buffer */
                         if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,file->accum_buf_size))==NULL)
                             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer")
-#ifdef H5_USING_PURIFY
-HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_size));
-#endif /* H5_USING_PURIFY */
+#ifdef H5_CLEAR_MEMORY
+HDmemset(file->meta_accum + file->accum_size, 0, (file->accum_buf_size - (file->accum_size + size)));
+#endif /* H5_CLEAR_MEMORY */
                     } /* end if */
 
                     /* Move the existing metadata to the proper location */
@@ -3325,9 +3332,9 @@ HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_s
                         /* Reallocate the metadata accumulator buffer */
                         if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,file->accum_buf_size))==NULL)
                             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer")
-#ifdef H5_USING_PURIFY
-HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_size));
-#endif /* H5_USING_PURIFY */
+#ifdef H5_CLEAR_MEMORY
+HDmemset(file->meta_accum + file->accum_size + size, 0, (file->accum_buf_size - (file->accum_size + size)));
+#endif /* H5_CLEAR_MEMORY */
                     } /* end if */
 
                     /* Copy the new metadata to the end */
@@ -3360,9 +3367,9 @@ HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_s
                         /* Reallocate the metadata accumulator buffer */
                         if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,file->accum_buf_size))==NULL)
                             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer")
-#ifdef H5_USING_PURIFY
-HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_size));
-#endif /* H5_USING_PURIFY */
+#ifdef H5_CLEAR_MEMORY
+HDmemset(file->meta_accum + file->accum_size, 0, (file->accum_buf_size - file->accum_size));
+#endif /* H5_CLEAR_MEMORY */
                     } /* end if */
 
                     /* Calculate the proper offset of the existing metadata */
@@ -3394,9 +3401,9 @@ HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_s
                         /* Reallocate the metadata accumulator buffer */
                         if ((file->meta_accum=H5FL_BLK_REALLOC(meta_accum,file->meta_accum,file->accum_buf_size))==NULL)
                             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate metadata accumulator buffer")
-#ifdef H5_USING_PURIFY
-HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_size));
-#endif /* H5_USING_PURIFY */
+#ifdef H5_CLEAR_MEMORY
+HDmemset(file->meta_accum + file->accum_size, 0, (file->accum_buf_size - file->accum_size));
+#endif /* H5_CLEAR_MEMORY */
                     } /* end if */
 
                     /* Copy the new metadata to the end */
@@ -3431,9 +3438,12 @@ HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_s
 
                     /* Note the new buffer size */
                     file->accum_buf_size=size;
-#ifdef H5_USING_PURIFY
-HDmemset(file->meta_accum+file->accum_size,0,(file->accum_buf_size-file->accum_size));
-#endif /* H5_USING_PURIFY */
+#ifdef H5_CLEAR_MEMORY
+{
+size_t clear_size = MAX(file->accum_size, size);
+HDmemset(file->meta_accum + clear_size, 0, (file->accum_buf_size - clear_size));
+}
+#endif /* H5_CLEAR_MEMORY */
                 } /* end if */
                 else {
                     /* Check if we should shrink the accumulator buffer */
@@ -3668,7 +3678,9 @@ herr_t H5FD_get_vfd_handle(H5FD_t *file, hid_t fapl, void** file_handle)
     FUNC_ENTER_NOAPI(H5FD_get_vfd_handle, FAIL)
 
     assert(file_handle);
-    if(file->cls->get_handle && ((ret_value=file->cls->get_handle(file, fapl, file_handle)) < 0))
+    if(NULL==file->cls->get_handle)
+	HGOTO_ERROR(H5E_VFL, H5E_UNSUPPORTED, NULL, "file driver has no `get_vfd_handle' method");
+    if((ret_value=file->cls->get_handle(file, fapl, file_handle)) < 0)
         HGOTO_ERROR(H5E_FILE, H5E_CANTGET, FAIL, "can't get file handle for file driver")
 
 done:

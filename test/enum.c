@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -132,7 +133,8 @@ test_noconv(hid_t file)
 			 E1_RED,   E1_BLUE,  E1_GREEN, E1_BLACK, E1_WHITE,
 			 E1_RED,   E1_WHITE, E1_GREEN, E1_GREEN, E1_BLUE};
     c_e1	data2[NELMTS(data1)];
-    hsize_t	i, ds_size[1]={NELMTS(data1)};
+    hsize_t	ds_size[1]={NELMTS(data1)};
+    size_t	i;
 
     TESTING("no-conversion datasets");
     if ((cwg=H5Gcreate(file, "test_noconv", 0))<0) goto error;
@@ -201,7 +203,8 @@ static int
 test_tr1(hid_t file)
 {
     hid_t	cwg=-1, m_type=-1, f_type=-1, space=-1, dset=-1;
-    hsize_t	i, ds_size[1]={10};
+    hsize_t	ds_size[1]={10};
+    size_t	i;
     c_e1	eval;
     int		ival;
     static c_e1	data1[10]={E1_RED,   E1_GREEN, E1_BLUE,  E1_GREEN, E1_WHITE,
@@ -282,7 +285,8 @@ static int
 test_tr2(hid_t file)
 {
     hid_t	cwg=-1, m_type=-1, f_type=-1, space=-1, dset=-1;
-    hsize_t	i, ds_size[1]={10};
+    hsize_t	ds_size[1]={10};
+    size_t	i;
     c_e1	val1;
     int		val2;
     static c_e1	data1[10]={E1_RED,   E1_GREEN, E1_BLUE,  E1_GREEN, E1_WHITE,

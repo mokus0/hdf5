@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce configure.
 dnl
+dnl Copyright by The HDF Group.
 dnl Copyright by the Board of Trustees of the University of Illinois.
 dnl All rights reserved.
 dnl
@@ -9,13 +10,13 @@ dnl the files COPYING and Copyright.html.  COPYING can be found at the root
 dnl of the source code distribution tree; Copyright.html can be found at the
 dnl root level of an installed copy of the electronic HDF5 document set and
 dnl is linked from the top-level documents page.  It can also be found at
-dnl http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+dnl http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+dnl access to either file, you may request a copy from help@hdfgroup.org.
 
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.82.2.107 2005/11/06 23:46:40 hdfadmin Exp $)
+AC_REVISION($Id: configure.in 14030 2007-07-31 03:04:21Z epourmal $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +25,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 Fortran], [1.6.5], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5 Fortran], [1.6.6], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/HDF5.f90])
 AC_CONFIG_HEADER([src/H5config_fortran.h])
 
@@ -68,6 +69,12 @@ AC_SUBST(HSSIZE_T)
 AC_SUBST(HID_T)
 AC_SUBST(SIZE_T)
 AC_SUBST(OBJECT_NAMELEN_DEFAULT_F)
+
+dnl Support FC variable to define Fortran compiler if F9X variable is
+dnl not used.  This should be depreciated in the future.
+if test "x" = "x$F9X"; then
+  F9X=${FC}
+fi
 
 dnl ----------------------------------------------------------------------
 dnl Dump all shell variables values.
@@ -183,6 +190,118 @@ AC_PROG_CPP	dnl this is checked for when AC_HEADER_STDC is done
 CC_BASENAME="`echo $CC |cut -f1 -d' ' |xargs basename 2>/dev/null`"
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
+
+dnl ----------------------------------------------------------------------
+dnl The following variables are used to distinguish between building a
+dnl serial and parallel library.
+dnl
+dnl    HAVE_PARALLEL	-- defined in H5config.h if we are building
+dnl			   a parallel library even if configure wasn't
+dnl			   able to find some header file or library that
+dnl			   might be required. This is defined if the
+dnl			   compiler looks like a parallel compiler (e.g.,
+dnl			   mpif90 or mpf90) or if the user explicitly states
+dnl			   that a parallel library is being built by supplying
+dnl			   the `--enable-parallel' configure switch.
+dnl
+dnl    PARALLEL		-- This variable is set to a non-null value if
+dnl			   configure thinks we're compiling a parallel
+dnl			   version of the library.
+dnl
+dnl    RUNSERIAL	-- This is a command which will be prepended to
+dnl			   the executable name to run the executable using
+dnl			   a single process. For serial versions of the
+dnl			   library this will normally be empty. For parallel
+dnl			   versions it might be something like `mpirun -np 1'.
+dnl			   The value of this variable is substituted in *.in
+dnl			   files.
+dnl
+dnl    RUNPARALLEL	-- This is a command which will be prepended to
+dnl			   the executable name to run the executable on
+dnl			   multiple processors. For the serial library the
+dnl			   value will normally be the empty string. For
+dnl			   parallel library it should be something like
+dnl			   `mpi -np $$NPROCS' where NPROCS will eventually
+dnl			   contain the number of processors on which to run
+dnl			   the executable (the double dollarsigns are to
+dnl			   protect the expansion until make executes the
+dnl			   command).  The value of this variable is
+dnl			   substituted in *.in files.
+dnl
+AC_SUBST(PARALLEL)
+AC_SUBST(RUNSERIAL)
+AC_SUBST(RUNPARALLEL)
+AC_SUBST(TESTPARALLEL)
+AC_SUBST(BUILD_PARALLEL_CONDITIONAL_TRUE)
+AC_SUBST(BUILD_PARALLEL_CONDITIONAL_FALSE)
+
+dnl variables related to conditions of parallel build.
+
+dnl ----------------------------------------------------------------------
+dnl If the compiler is obviously a parallel compiler then we're building
+dnl a parallel version of hdf5 and should define HAVE_PARALLEL. Furthermore,
+dnl the name of the compiler might tell us how to run the resulting
+dnl executable. For `mpif90' the executable should be run with `mpirun'
+dnl from the same directory as mpif90 if it exists.
+dnl
+case "$F9X" in
+  *mpif90*)
+    dnl The mpich compiler. Use mpirun from the same directory if it
+    dnl exists.
+    PARALLEL=mpif90
+    AC_MSG_CHECKING(for mpirun)
+
+    dnl Find the path where mpif90 is located.
+    cmd=`echo $F9X |cut -f1 -d' '`
+    if (echo $cmd |grep / >/dev/null); then
+      path="`echo $cmd |sed 's/\(.*\)\/.*$/\1/'`"
+    else
+      for path in `echo $PATH |tr : ' '`; do
+        if test -x $path/$cmd; then
+          break;
+        fi
+      done
+    fi
+
+    dnl Is there an mpirun at that path?
+    if test -x $path/mpirun; then
+      AC_MSG_RESULT($path/mpirun)
+      RUNSERIAL="${RUNSERIAL:-none}"
+
+      if test -z "$RUNPARALLEL"; then
+        RUNPARALLEL="$path/mpirun -np \$\${NPROCS:=2}"
+      fi
+    else
+      AC_MSG_RESULT(none)
+    fi
+    ;;
+
+  *mpxlf* | *mpxlf_r* | *mpxlf90* | *mpxlf90_r* | *mpxlf95* | *mpxlf95_r*)
+    dnl The IBM compiler
+    PARALLEL="$F9X"
+    ;;
+
+  *)
+    dnl Probably not a parallel compiler, but if `--enable-parallel'
+    dnl is defined below then we're still building a parallel hdf5.
+    ;;
+esac
+
+dnl ----------------------------------------------------------------------------
+dnl If shared libraries are being used with parallel, disable them, unless the 
+dnl user explicity enables them via the '--enable-shared' option.
+if test "X${enable_shared}" = "X" -a "X${enable_parallel}" = "Xyes"; then
+    echo '    shared libraries disabled in parallel'
+    enable_shared="no"
+elif test "X${enable_shared}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
+    echo '    shared libraries explicitly enabled by user'
+elif test "X${enable_shared}" = "X" -a "X${PARALLEL}" != "X"; then
+    echo '    shared libraries disabled when a parallel compiler is being used'
+    enable_shared="no"
+elif test "X${enable_shared}" = "Xyes" -a "X${PARALLEL}" != "X"; then
+    echo '    shared libraries explicitly enabled by user'
+fi
+
 AM_PROG_LIBTOOL
 
 dnl ----------------------------------------------------------------------
@@ -596,47 +715,6 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
 fi
 
 dnl ----------------------------------------------------------------------
-dnl Should the Stream Virtual File Driver be compiled in ?
-dnl
-AC_MSG_CHECKING([for Stream Virtual File Driver support])
-AC_ARG_ENABLE([stream-vfd],
-              [AC_HELP_STRING([--enable-stream-vfd],
-                              [Build the Stream Virtual File Driver
-                               [default=no]])],
-              [STREAM_VFD=$enableval])
-
-if test "$STREAM_VFD" = "yes"; then
-  AC_MSG_RESULT([yes])
-  AC_CHECK_HEADERS([netinet/tcp.h sys/filio.h])
-  AC_DEFINE([HAVE_STREAM], [1],
-            [Define if the stream virtual file driver should be compiled])
-
-  dnl Check if 'socklen_t' available
-  AC_MSG_CHECKING([if socklen_t is defined])
-  AC_TRY_COMPILE([
-#include <stdio.h>
-#include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-  ],
-    [socklen_t foo; return 0;],
-    AC_DEFINE([HAVE_SOCKLEN_T], 1,
-              [Define if \`socklen_t' is defined])
-    AC_MSG_RESULT([yes]),
-    AC_MSG_RESULT([no])
-  )
-else
-  AC_MSG_RESULT([not configured])
-fi
-
-dnl ----------------------------------------------------------------------
 dnl Checks for header files.
 dnl
 
@@ -657,98 +735,6 @@ AC_TRY_FCOMPILE([
 ], AC_MSG_RESULT(yes),
    AC_MSG_RESULT(no)
    FFLAGS="$FFLAGS_saved")
-
-dnl ----------------------------------------------------------------------
-dnl The following variables are used to distinguish between building a
-dnl serial and parallel library.
-dnl
-dnl    HAVE_PARALLEL	-- defined in H5config.h if we are building
-dnl			   a parallel library even if configure wasn't
-dnl			   able to find some header file or library that
-dnl			   might be required. This is defined if the
-dnl			   compiler looks like a parallel compiler (e.g.,
-dnl			   mpif90 or mpf90) or if the user explicitly states
-dnl			   that a parallel library is being built by supplying
-dnl			   the `--enable-parallel' configure switch.
-dnl
-dnl    PARALLEL		-- This variable is set to a non-null value if
-dnl			   configure thinks we're compiling a parallel
-dnl			   version of the library.
-dnl
-dnl    RUNSERIAL	-- This is a command which will be prepended to
-dnl			   the executable name to run the executable using
-dnl			   a single process. For serial versions of the
-dnl			   library this will normally be empty. For parallel
-dnl			   versions it might be something like `mpirun -np 1'.
-dnl			   The value of this variable is substituted in *.in
-dnl			   files.
-dnl
-dnl    RUNPARALLEL	-- This is a command which will be prepended to
-dnl			   the executable name to run the executable on
-dnl			   multiple processors. For the serial library the
-dnl			   value will normally be the empty string. For
-dnl			   parallel library it should be something like
-dnl			   `mpi -np $$NPROCS' where NPROCS will eventually
-dnl			   contain the number of processors on which to run
-dnl			   the executable (the double dollarsigns are to
-dnl			   protect the expansion until make executes the
-dnl			   command).  The value of this variable is
-dnl			   substituted in *.in files.
-dnl
-AC_SUBST(PARALLEL)
-AC_SUBST(RUNSERIAL)
-AC_SUBST(RUNPARALLEL)
-AC_SUBST(TESTPARALLEL)
-
-dnl ----------------------------------------------------------------------
-dnl If the compiler is obviously a parallel compiler then we're building
-dnl a parallel version of hdf5 and should define HAVE_PARALLEL. Furthermore,
-dnl the name of the compiler might tell us how to run the resulting
-dnl executable. For `mpif90' the executable should be run with `mpirun'
-dnl from the same directory as mpif90 if it exists.
-dnl
-case "$F9X" in
-  *mpif90*)
-    dnl The mpich compiler. Use mpirun from the same directory if it
-    dnl exists.
-    PARALLEL=mpif90
-    AC_MSG_CHECKING(for mpirun)
-
-    dnl Find the path where mpif90 is located.
-    cmd=`echo $F9X |cut -f1 -d' '`
-    if (echo $cmd |grep / >/dev/null); then
-      path="`echo $cmd |sed 's/\(.*\)\/.*$/\1/'`"
-    else
-      for path in `echo $PATH |tr : ' '`; do
-        if test -x $path/$cmd; then
-          break;
-        fi
-      done
-    fi
-
-    dnl Is there an mpirun at that path?
-    if test -x $path/mpirun; then
-      AC_MSG_RESULT($path/mpirun)
-      RUNSERIAL="${RUNSERIAL:-none}"
-
-      if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="$path/mpirun -np \$\${NPROCS:=2}"
-      fi
-    else
-      AC_MSG_RESULT(none)
-    fi
-    ;;
-
-  *mpxlf* | *mpxlf_r* | *mpxlf90* | *mpxlf90_r* | *mpxlf95* | *mpxlf95_r*)
-    dnl The IBM compiler
-    PARALLEL="$F9X"
-    ;;
-
-  *)
-    dnl Probably not a parallel compiler, but if `--enable-parallel'
-    dnl is defined below then we're still building a parallel hdf5.
-    ;;
-esac
 
 dnl ----------------------------------------------------------------------
 dnl Turn on internal I/O filters by setting macros in header files
@@ -784,8 +770,13 @@ case "X-$FILTERS" in
     ;;
 esac
 
+dnl Avoid depending upon Character Ranges.
+dnl These are defined by autoconf.
+dnl as_cr_letters='abcdefghijklmnopqrstuvwxyz'
+dnl as_cr_LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
 if test -n "$FILTERS"; then
-  for filter in `echo $FILTERS | tr 'a-z,' 'A-Z '`; do
+  for filter in `echo $FILTERS | tr ${as_cr_letters}',' ${as_cr_LETTERS}' '`; do
 dnl ----------------------------------------------------------------------
 dnl Have to use separate 'if' construct for each filter, so that autoheader
 dnl can detect the AC_DEFINE for each one...
@@ -831,11 +822,11 @@ case "X-$enable_parallel" in
     dnl Try link a simple MPI program.  If fail, try again with -lmpi.
     AC_TRY_FLINK(mpif.h, [
         integer:: ierr
-        call mpi_file_open( ierr )],,
+        call mpi_init( ierr )],,
         AC_CHECK_FLIB(mpi, [
           include 'mpif.h'
           integer:: ierr
-          call mpi_file_open( ierr )],, PARALLEL=no))
+          call mpi_init( ierr )],, PARALLEL=no))
 
     dnl Then try link a simple MPI-IO program.  If fail, try again with
     dnl -lmpio.
@@ -1095,6 +1086,71 @@ dnl Some cleanup stuff
 rm -f conftest core core.* *.core conftest.o conftest.c dummy.o $ac_clean_files
 
 dnl ----------------------------------------------------------------------
+dnl Should the Stream Virtual File Driver be compiled in ?
+dnl
+AC_MSG_CHECKING([for Stream Virtual File Driver support])
+AC_ARG_ENABLE([stream-vfd],
+              [AC_HELP_STRING([--enable-stream-vfd],
+                              [Build the Stream Virtual File Driver
+                               [default=no]])],
+              [STREAM_VFD=$enableval])
+
+dnl If the Stream VFD should not be used, say so.
+if test "$STREAM_VFD" != "yes"; then
+  AC_MSG_RESULT([not configured])
+fi
+
+dnl If the stream VFD is being used with parallel, disable it.
+dnl Using both stream VFD and parallel is a weird case and seems to cause errors on some
+dnl platforms.
+if test "$STREAM_VFD" = "yes" -a "X${enable_parallel}" = "Xyes"; then
+    AC_MSG_RESULT([not supported in parallel])
+    echo "    warning! Stream-VFD is not supported in parallel"
+    STREAM_VFD=no
+fi
+if test "$STREAM_VFD" = "yes" -a "X${PARALLEL}" != "X"; then
+    AC_MSG_RESULT([not supported in parallel])
+    echo "    warning! Stream-VFD is not supported when a parallel compiler is being used"
+    STREAM_VFD=no
+fi
+
+dnl Otherwise, use Stream VFD.
+if test "$STREAM_VFD" = "yes"; then
+  AC_MSG_RESULT([yes])
+
+    dnl Change to the C language
+    AC_LANG_C
+  AC_CHECK_HEADERS([netinet/tcp.h sys/filio.h])
+  AC_DEFINE([HAVE_STREAM], [1],
+            [Define if the stream virtual file driver should be compiled])
+
+  dnl Check if 'socklen_t' available
+  AC_MSG_CHECKING([if socklen_t is defined])
+  AC_TRY_COMPILE([
+#include <stdio.h>
+#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+  ],
+    [socklen_t foo; return 0;],
+    AC_DEFINE([HAVE_SOCKLEN_T], 1,
+              [Define if \`socklen_t' is defined])
+    AC_MSG_RESULT([yes]),
+    AC_MSG_RESULT([no])
+  )
+
+    dnl Change back to the Fortran 90 language
+    AC_LANG_FORTRAN9X
+fi
+
+dnl ----------------------------------------------------------------------
 dnl Set some variables for general configuration information to be saved
 dnl and installed with the libraries.
 dnl
@@ -1216,10 +1272,15 @@ dnl First the stamp1 file for H5config.h.in
 mkdir ./config >/dev/null 2>&1
 touch ./config/stamp1
 
-PARALLEL_MAKE=
-
+dnl Set parallel build conditions depending on if TESTPARALLEL is defined.
 if test -n "$TESTPARALLEL"; then
   PARALLEL_MAKE=$TESTPARALLEL/Makefile
+  BUILD_PARALLEL_CONDITIONAL_TRUE=
+  BUILD_PARALLEL_CONDITIONAL_FALSE='#'
+else
+  PARALLEL_MAKE=
+  BUILD_PARALLEL_CONDITIONAL_TRUE='#'
+  BUILD_PARALLEL_CONDITIONAL_FALSE=
 fi
 
 dnl Then the config.status file (but not makefiles)
@@ -1239,6 +1300,7 @@ AC_CONFIG_FILES([config/depend1
                  src/Makefile
                  test/Makefile
                  $PARALLEL_MAKE
+                 examples/testh5fc.sh
                  examples/Makefile])
 AC_OUTPUT
 no_create=$saved_no_create
@@ -1270,19 +1332,20 @@ if test -z "$ECHO_N" -o -z "$ECHO_C"; then
   fi
 fi
 
+dnl cache the output to be printed later.
+config_summary="../#fortran_configure_summary"
+rm -f $config_summary
+
 PRINT_PLAIN() {
-  echo $ECHO_N "$1$ECHO_C"
-  echo $ECHO_N "$1$ECHO_C" 1>>src/libhdf5_fortran.settings
+  echo $ECHO_N "$1$ECHO_C" 1>>$config_summary
 }
 
 PRINT_N() {
-  echo $ECHO_N "$1:  $ECHO_C"
-  echo $ECHO_N "$1:  $ECHO_C" 1>>src/libhdf5_fortran.settings
+  echo $ECHO_N "$1:  $ECHO_C" 1>>$config_summary
 }
 
 PRINT() {
-  echo "$1"
-  echo "$1" 1>>src/libhdf5_fortran.settings
+  echo "$1" 1>>$config_summary
 }
 
 dnl ----------------------------------------------------------------------
@@ -1312,9 +1375,6 @@ IF_ENABLED_DISABLED() {
   fi
 }
 
-PRINT "Fortran Configure Summary"
-PRINT "Compiling Options:"
-
 PRINT_N "               Fortran Compiler"
 PRINT "$F9X"
 
@@ -1332,5 +1392,3 @@ PRINT "$CPPFLAGS"
 
 PRINT_N "                        LDFLAGS"
 PRINT "$LDFLAGS"
-
-PRINT "Features:"

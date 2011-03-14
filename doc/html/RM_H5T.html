@@ -7,6 +7,7 @@ HDF5/H5T API Specification
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -16,15 +17,13 @@ HDF5/H5T API Specification
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
 <link href="ed_styles/RMelect.css" rel="stylesheet" type="text/css">
-<!-- #EndLibraryItem -->
-
-</head>
+<!-- #EndLibraryItem --></head>
 
 <body bgcolor="#FFFFFF">
 <!-- HEADER RIGHT " " -->
@@ -37,7 +36,7 @@ HDF5/H5T API Specification
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -61,7 +60,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -529,6 +528,9 @@ END SUBROUTINE h5tclose_f
         The <code>loc_id</code> is either a file or group identifier  
         which, when combined with <code>name</code>, refers to a new 
         named datatype.
+        <p>
+        As is the case for any object in a group, 
+        the length of the name of a named datatype is not limited.  
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
@@ -1045,13 +1047,15 @@ END SUBROUTINE h5tenum_insert_f
 <dl>
 <dt><strong>Name:</strong> <a name="Datatype-EnumNameOf">H5Tenum_nameof</a>
 <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Tenum_nameof</code>(<em>hid_t</em> <code>type</code>
+    <dd><em>herr_t</em> <code>H5Tenum_nameof</code>(
+        <em>hid_t</em> <code>type</code>,
         <em>void</em> *<code>value</code>,
         <em>char</em> *<code>name</code>,
         <em>size_t</em> <code>size</code>
     )
 <dt><strong>Purpose:</strong>
-    <dd>Returns the symbol name corresponding to a specified member of an enumeration datatype.
+    <dd>Returns the symbol name corresponding to a specified 
+        member of an enumeration datatype.
 <dt><strong>Description:</strong>
     <dd><code>H5Tenum_nameof</code> finds the symbol name that 
         corresponds to the specified <code>value</code>
@@ -1066,17 +1070,18 @@ END SUBROUTINE h5tenum_insert_f
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>type</code></td>
+            <td valign="top"><em>hid_t</em> <code>type</code></td>
             <td valign="top">IN: Enumeration datatype identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>void</em>&nbsp;*<code>value,&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>void</em>&nbsp;*<code>value&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: Value of the enumeration datatype.</td></tr>
         <tr>
-		    <td valign="top"><em>char</em> *<code>name</code>,</td>
+            <td valign="top"><em>char</em> *<code>name</code></td>
             <td valign="top">OUT: Buffer for output of the symbol name.</td></tr>
         <tr>
-		    <td valign="top"><em>size_t</em> <code>size</code></td>
-            <td valign="top">IN: Anticipated size of the symbol name, in bytes (characters).</td></tr>
+            <td valign="top"><em>size_t</em> <code>size</code></td>
+            <td valign="top">IN: Anticipated size of the symbol name, 
+                in bytes (characters).</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful.
@@ -1111,7 +1116,8 @@ END SUBROUTINE h5tenum_nameof_f
 <dl>
 <dt><strong>Name:</strong> <a name="Datatype-EnumValueOf">H5Tenum_valueof</a>
 <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Tenum_valueof</code>(<em>hid_t</em> <code>type</code>
+    <dd><em>herr_t</em> <code>H5Tenum_valueof</code>(
+        <em>hid_t</em> <code>type</code>,
         <em>char</em> *<code>name</code>,
         <em>void</em> *<code>value</code>
     )
@@ -1128,14 +1134,16 @@ END SUBROUTINE h5tenum_nameof_f
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>type</code></td>
+            <td valign="top"><em>hid_t</em> <code>type</code></td>
             <td valign="top">IN: Enumeration datatype identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>const&nbsp;char</em>&nbsp;*<code>name,&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">IN: Symbol name of the enumeration datatype.</td></tr>
+            <td valign="top"><em>const&nbsp;char</em>&nbsp;*<code>name&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">IN: Symbol name of the enumeration 
+                datatype.</td></tr>
         <tr>
-		    <td valign="top"><em>void</em> *<code>value</code>,</td>
-            <td valign="top">OUT: Buffer for output of the value of the enumeration datatype.</td></tr>
+            <td valign="top"><em>void</em> *<code>value</code></td>
+            <td valign="top">OUT: Buffer for output of the value 
+                of the enumeration datatype.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
@@ -1410,6 +1418,9 @@ END SUBROUTINE h5tget_array_ndims_f
         <p>
         Note that the library returns <code>H5T_STRING</code> for 
         both fixed-length and variable-length strings.
+        <p>
+        Note that the time datatype class, <code>H5T_TIME</code>, 
+        is not fully supported in the current version of the HDF5 Library.
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
@@ -1462,10 +1473,14 @@ END SUBROUTINE h5tget_class_f
 <dt><strong>Description:</strong>
     <dd><code>H5Tget_cset</code> retrieves the character set type 
         of a string datatype.  Valid character set types are:
-        <dl><ul>
-            <dt>H5T_CSET_ASCII (<code>0</code>)
-               <dd>Character set is US ASCII
-        </ul></dl>
+        <table>
+            <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </td><td><code>H5T_CSET_ASCII</code> &nbsp; 
+            </td><td>(<code>0</code>)
+            </td><td>&nbsp;&nbsp;&nbsp;&nbsp;
+            </td><td>Character set is US ASCII.
+            </td></tr>
+        </table>
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
@@ -2130,8 +2145,8 @@ END SUBROUTINE h5tget_member_value_f
 	</table>
         <p>
 	<code>H5Tget_native_type</code> is designed primarily for
-	use with intenger and floating point datatypes.
-	Time, bifield, opaque, and reference datatypes are returned
+	use with integer and floating point datatypes.
+	String, time, bitfield, opaque, and reference datatypes are returned
 	as a copy of <code>type_id</code>.
         <p>
         The identifier returned by <code>H5Tget_native_type</code> 
@@ -2140,10 +2155,10 @@ END SUBROUTINE h5tget_member_value_f
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>type_id</code></td>
+            <td valign="top"><em>hid_t</em> <code>type_id</code></td>
             <td valign="top">Datatype identifier for the dataset datatype.</td></tr>
         <tr>
-		    <td valign="top"><em>H5T_direction_t</em>&nbsp;<code>direction&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>H5T_direction_t</em>&nbsp;<code>direction&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">Direction of search.</td></tr>
     </table></ul>
 <!-- NEW PAGE -->
@@ -2545,13 +2560,14 @@ END SUBROUTINE h5tget_pad_f
 <dt><strong>Purpose:</strong>
     <dd>Returns the precision of an atomic datatype.
 <dt><strong>Description:</strong>
-    <dd><code>H5Tget_precision</code> returns the precision of an atomic datatype.  The
-        precision is the number of significant bits which, unless padding is
-        present, is 8 times larger than the value returned by H5Tget_size().
+    <dd><code>H5Tget_precision</code> returns the precision of an atomic 
+        datatype.  The precision is the number of significant bits which, 
+        unless padding is present, is 8 times larger than the value returned 
+        by <code>H5Tget_size</code>.
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em>&nbsp;<code>type_id&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>hid_t</em>&nbsp;<code>type_id&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">Identifier of datatype to query.</td></tr>
     </table></ul>
 <dt><strong>Returns:</strong>
@@ -2906,7 +2922,7 @@ SUBROUTINE h5tis_variable_str_f(type_id, status, hdferr)
   INTEGER(HID_T), INTENT(IN) :: type_id   ! Datatype identifier 
   LOGICAL, INTENT(OUT)       :: status    ! Logical flag:
                                           !    .TRUE. if datatype is a 
-                                          !         varibale string
+                                          !         variable string
                                           !    .FALSE. otherwise 
   INTEGER, INTENT(OUT) :: hdferr          ! Error code
 END SUBROUTINE h5tis_variable_str_f
@@ -3203,15 +3219,19 @@ SUBROUTINE
 <dt><strong>Purpose:</strong>
     <dd>Sets character set to be used.
 <dt><strong>Description:</strong>
-    <dd><code>H5Tset_cset</code> the character set to be used.
+    <dd><code>H5Tset_cset</code> sets the character set to be used.
         <p>
         HDF5 is able to distinguish between character sets of different
         nationalities and to convert between them to the extent possible.
         Valid character set types are:
-        <ul> <dl>
-            <dt>H5T_CSET_ASCII (<code>0</code>)
-               <dd>Character set is US ASCII.
-        </dl> </ul>
+        <table>
+            <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </td><td><code>H5T_CSET_ASCII</code> &nbsp; 
+            </td><td>(<code>0</code>)
+            </td><td>&nbsp;&nbsp;&nbsp;&nbsp;
+            </td><td>Character set is US ASCII.
+            </td></tr>
+        </table>
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
@@ -3772,7 +3792,8 @@ END SUBROUTINE h5tset_pad_f
 <dt><strong>Description:</strong>
     <dd><code>H5Tset_precision</code> sets the precision of an atomic datatype.  
         The precision is the number of significant bits which, unless padding 
-        is present, is 8 times larger than the value returned by H5Tget_size().
+        is present, is 8 times larger than the value returned by 
+        <code>H5Tget_size</code>.
         <P>If the precision is increased then the offset is decreased and then
             the size is increased to insure that significant bits do not "hang
             over" the edge of the datatype.
@@ -4201,7 +4222,7 @@ END SUBROUTINE h5tvlen_create_f
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -4225,7 +4246,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -4233,13 +4254,13 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 <hr>
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
 <address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 7 November 2005");
+document.writeln("Last modified: 13 June 2006");
 -->
 </SCRIPT>
  

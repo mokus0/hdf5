@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -308,28 +309,6 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type,
     return (ret_pl);
 }
 
-/*
- * Check the size of a file using MPI routines
- */
-MPI_Offset
-h5_mpi_get_file_size(const char *filename, MPI_Comm comm, MPI_Info info)
-{
-    MPI_File	fh;             /* MPI file handle */
-    MPI_Offset	size=0;         /* File size to return */
-
-    if (MPI_SUCCESS != MPI_File_open(comm, (char*)filename, MPI_MODE_RDONLY, info, &fh))
-        goto done;
-
-    if (MPI_SUCCESS != (MPI_File_get_size(fh, &size)))
-        goto done;
-
-    if (MPI_SUCCESS != MPI_File_close(&fh))
-        size=0;
-
-done:
-    return(size);
-}
-
 int main(int argc, char **argv)
 {
     int mpi_size, mpi_rank;				/* mpi variables */
@@ -385,6 +364,13 @@ int main(int argc, char **argv)
 	    "extendible dataset collective read", PARATESTFILE);
     AddTest("eidsetw2", extend_writeInd2, NULL,
 	    "extendible dataset independent write #2", PARATESTFILE);
+    AddTest("selnone", none_selection_chunk, NULL,
+	    "chunked dataset with none-selection", PARATESTFILE);
+
+    AddTest("calloc", test_chunk_alloc, NULL,
+	    "parallel extend Chunked allocation on serial file", PARATESTFILE);
+    AddTest("fltread", test_filter_read, NULL,
+	    "parallel read of dataset written serially with filters", PARATESTFILE);
 
 #ifdef H5_HAVE_FILTER_DEFLATE
     AddTest("cmpdsetr", compress_readAll, NULL,
@@ -507,12 +493,8 @@ int main(int argc, char **argv)
     if (MAINPROCESS && GetTestSummary())
         TestSummary();
 
-    /* Clean up test files, if allowed */
-    if (GetTestCleanup() && !getenv("HDF5_NOCLEANUP"))
-	h5_cleanup(FILENAME, fapl);
-    else
-	/* h5_cleanup would have closed fapl.  Now must do it explicitedly */
-	H5Pclose(fapl);
+    /* Clean up test files */
+    h5_cleanup(FILENAME, fapl);
 
     nerrors += GetTestNumErrs();
 

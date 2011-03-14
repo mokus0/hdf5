@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5A_PACKAGE             /*prevent warning from including H5Apkg   */
@@ -28,7 +29,7 @@
 
 /* PRIVATE PROTOTYPES */
 static herr_t H5O_attr_encode (H5F_t *f, uint8_t *p, const void *mesg);
-static void *H5O_attr_decode (H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_attr_decode (H5F_t *f, hid_t dxpl_id, const uint8_t *p);
 static void *H5O_attr_copy (const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_attr_size (const H5F_t *f, const void *_mesg);
 static herr_t H5O_attr_reset (void *_mesg);
@@ -38,8 +39,8 @@ static herr_t H5O_attr_link(H5F_t *f, hid_t dxpl_id, const void *_mesg);
 static herr_t H5O_attr_debug (H5F_t *f, hid_t dxpl_id, const void *_mesg,
 			      FILE * stream, int indent, int fwidth);
 
-/* This message derives from H5O */
-const H5O_class_t H5O_ATTR[1] = {{
+/* This message derives from H5O message class */
+const H5O_msg_class_t H5O_MSG_ATTR[1] = {{
     H5O_ATTR_ID,		/* message id number            */
     "attribute",		/* message name for debugging   */
     sizeof(H5A_t),		/* native message size          */
@@ -53,7 +54,7 @@ const H5O_class_t H5O_ATTR[1] = {{
     H5O_attr_link,		/* link method			*/
     NULL,			/* get share method		*/
     NULL,			/* set share method		*/
-    H5O_attr_debug,		/* debug the message            */
+    H5O_attr_debug		/* debug the message            */
 }};
 
 /* This is the initial version, which does not have support for shared datatypes */
@@ -64,12 +65,6 @@ const H5O_class_t H5O_ATTR[1] = {{
 
 /* Flags for attribute flag encoding */
 #define H5O_ATTR_FLAG_TYPE_SHARED       0x01
-
-/* Declare extern the free list for H5A_t's */
-H5FL_EXTERN(H5A_t);
-
-/* Declare extern the free list for attribute data buffers */
-H5FL_BLK_EXTERN(attr_buf);
 
 /* Declare external the free list for H5S_t's */
 H5FL_EXTERN(H5S_t);
@@ -94,35 +89,24 @@ H5FL_EXTERN(H5S_extent_t);
         This function decodes the "raw" disk form of a attribute message
     into a struct in memory native format.  The struct is allocated within this
     function using malloc() and is returned to the caller.
- *
- * Modifications:
- * 	Robb Matzke, 17 Jul 1998
- *	Added padding for alignment.
- *
- * 	Robb Matzke, 20 Jul 1998
- *	Added a version number at the beginning.
- *
- *	Raymond Lu, 8 April 2004
- *	Changed Dataspace operation on H5S_simple_t to H5S_extent_t.
- *
 --------------------------------------------------------------------------*/
 static void *
-H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
+H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p)
 {
     H5A_t		*attr = NULL;
     H5S_extent_t	*extent;	/*extent dimensionality information  */
     size_t		name_len;   	/*attribute name length */
     int		        version;	/*message version number*/
-    unsigned            flags=0;        /* Attribute flags */
+    unsigned            flags = 0;        /* Attribute flags */
     H5A_t		*ret_value;     /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT(H5O_attr_decode);
 
     /* check args */
-    assert(f);
-    assert(p);
+    HDassert(f);
+    HDassert(p);
 
-    if (NULL==(attr = H5FL_CALLOC(H5A_t)))
+    if(NULL == (attr = H5FL_CALLOC(H5A_t)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* Version number */
@@ -157,18 +141,18 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
 	H5O_shared_t *shared;   /* Shared information */
 
         /* Get the shared information */
-	if (NULL == (shared = (H5O_SHARED->decode) (f, dxpl_id, p, NULL)))
+	if (NULL == (shared = (H5O_MSG_SHARED->decode) (f, dxpl_id, p)))
 	    HGOTO_ERROR(H5E_OHDR, H5E_CANTDECODE, NULL, "unable to decode shared message");
 
         /* Get the actual datatype information */
-        if((attr->dt= H5O_shared_read(f, dxpl_id, shared, H5O_DTYPE, NULL))==NULL)
+        if((attr->dt= H5O_shared_read(f, dxpl_id, shared, H5O_MSG_DTYPE, NULL))==NULL)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTDECODE, NULL, "can't decode attribute datatype");
 
         /* Free the shared information */
-        H5O_free_real(H5O_SHARED, shared);
+        H5O_free_real(H5O_MSG_SHARED, shared);
     } /* end if */
     else {
-        if((attr->dt=(H5O_DTYPE->decode)(f,dxpl_id,p,NULL))==NULL)
+        if((attr->dt=(H5O_MSG_DTYPE->decode)(f,dxpl_id,p))==NULL)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTDECODE, NULL, "can't decode attribute datatype");
     } /* end else */
     if(version < H5O_ATTR_VERSION_NEW)
@@ -180,7 +164,7 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
     if (NULL==(attr->ds = H5FL_CALLOC(H5S_t)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
-    if((extent=(H5O_SDSPACE->decode)(f,dxpl_id,p,NULL))==NULL)
+    if((extent=(H5O_MSG_SDSPACE->decode)(f,dxpl_id,p))==NULL)
         HGOTO_ERROR(H5E_ATTR, H5E_CANTDECODE, NULL, "can't decode attribute dataspace");
 
     /* Copy the extent information */
@@ -190,8 +174,8 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
     H5FL_FREE(H5S_extent_t,extent);
 
     /* Default to entire dataspace being selected */
-    if(H5S_select_all(attr->ds,0)<0)
-        HGOTO_ERROR (H5E_DATASPACE, H5E_CANTSET, NULL, "unable to set all selection");
+    if(H5S_select_all(attr->ds, 0) < 0)
+        HGOTO_ERROR(H5E_DATASPACE, H5E_CANTSET, NULL, "unable to set all selection")
 
     if(version < H5O_ATTR_VERSION_NEW)
         p += H5O_ALIGN(attr->ds_size);
@@ -212,9 +196,18 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
     attr->initialized=1;
 
     /* Set return value */
-    ret_value=attr;
+    ret_value = attr;
 
 done:
+    if(!ret_value)
+        if(attr) {
+            /* Free dynamicly allocated items */
+            if(H5A_free(attr) < 0)
+                HDONE_ERROR(H5E_ATTR, H5E_CANTRELEASE, NULL, "can't release attribute info")
+
+            H5FL_FREE(H5A_t, attr);
+        } /* end if */
+
     FUNC_LEAVE_NOAPI(ret_value);
 }
 
@@ -313,16 +306,16 @@ H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
         HDmemset(&sh_mesg,0,sizeof(H5O_shared_t));
 
         /* Get shared message information from datatype */
-        if ((H5O_DTYPE->get_share)(f, attr->dt, &sh_mesg/*out*/)<0)
+        if ((H5O_MSG_DTYPE->get_share)(f, attr->dt, &sh_mesg/*out*/)<0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL, "can't encode shared attribute datatype");
 
         /* Encode shared message information for datatype */
-        if((H5O_SHARED->encode)(f,p,&sh_mesg)<0)
+        if((H5O_MSG_SHARED->encode)(f,p,&sh_mesg)<0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL, "can't encode shared attribute datatype");
     } /* end if */
     else {
         /* Encode datatype information */
-        if((H5O_DTYPE->encode)(f,p,attr->dt)<0)
+        if((H5O_MSG_DTYPE->encode)(f,p,attr->dt)<0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL, "can't encode attribute datatype");
     } /* end else */
     if(version < H5O_ATTR_VERSION_NEW) {
@@ -333,7 +326,7 @@ H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
         p += attr->dt_size;
 
     /* encode the attribute dataspace */
-    if((H5O_SDSPACE->encode)(f,p,&(attr->ds->extent))<0)
+    if((H5O_MSG_SDSPACE->encode)(f,p,&(attr->ds->extent))<0)
         HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL, "can't encode attribute dataspace");
     if(version < H5O_ATTR_VERSION_NEW) {
         HDmemset(p+attr->ds_size, 0, H5O_ALIGN(attr->ds_size)-attr->ds_size);
@@ -657,14 +650,14 @@ H5O_attr_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream, int in
         HDmemset(&sh_mesg,0,sizeof(H5O_shared_t));
 
         /* Get shared message information from datatype */
-        if ((H5O_DTYPE->get_share)(f, mesg->dt, &sh_mesg/*out*/)<0)
+        if ((H5O_MSG_DTYPE->get_share)(f, mesg->dt, &sh_mesg/*out*/)<0)
             HGOTO_ERROR(H5E_ATTR, H5E_CANTENCODE, FAIL, "can't retrieve shared message information");
 
-        debug=H5O_SHARED->debug;
+        debug=H5O_MSG_SHARED->debug;
         dt_mesg=&sh_mesg;
     } /* end if */
     else {
-        debug=H5O_DTYPE->debug;
+        debug=H5O_MSG_DTYPE->debug;
         dt_mesg=mesg->dt;
     } /* end else */
     if(debug)

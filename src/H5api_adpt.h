@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -33,6 +34,16 @@
 #define H5_DLL
 #define H5_DLLVAR extern
 #endif /* _HDF5DLL_ */
+
+#if defined(HDF5_HLDLL)
+#pragma warning(disable: 4273)	/* Disable the dll linkage warnings */
+#define H5_HLDLL __declspec(dllexport)
+#elif defined(_HDF5USEHLDLL_)
+#define H5_HLDLL __declspec(dllimport)
+#else
+#define H5_HLDLL
+#endif /* _HDF5_HLDLL */
+
 
 #if defined(_HDF5TESTDLL_)
 #pragma warning(disable: 4273)	/* Disable the dll linkage warnings */
@@ -83,6 +94,7 @@
 
 #else /*WIN32*/
 #define H5_DLL
+#define H5_HLDLL
 #define H5_DLLVAR extern
 #define H5_DLLCPP
 #define H5TEST_DLL

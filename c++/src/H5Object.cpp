@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -36,7 +37,7 @@ namespace H5 {
 // problem.  May be moved to Iterator later.
 extern "C" herr_t userAttrOpWrpr( hid_t loc_id, const char* attr_name, void* op_data )
 {
-   string s_attr_name = string( attr_name );
+   H5std_string s_attr_name = H5std_string( attr_name );
 #ifdef NO_STATIC_CAST
    UserData4Aiterate* myData = (UserData4Aiterate *) op_data;
 #else
@@ -53,7 +54,7 @@ extern "C" herr_t userAttrOpWrpr( hid_t loc_id, const char* attr_name, void* op_
 //		set it to a valid HDF5 id.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-H5Object::H5Object() : IdComponent() {}
+H5Object::H5Object() : IdComponent(0) {}
 
 //--------------------------------------------------------------------------
 // Function:	H5Object overloaded constructor (protected)
@@ -119,10 +120,10 @@ Attribute H5Object::createAttribute( const char* name, const DataType& data_type
 // Function:	H5Object::createAttribute
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for \a name.
+///		a reference to an \c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Attribute H5Object::createAttribute( const string& name, const DataType& data_type, const DataSpace& data_space, const PropList& create_plist ) const
+Attribute H5Object::createAttribute( const H5std_string& name, const DataType& data_type, const DataSpace& data_space, const PropList& create_plist ) const
 {
    return( createAttribute( name.c_str(), data_type, data_space, create_plist ));
 }
@@ -153,10 +154,10 @@ Attribute H5Object::openAttribute( const char* name ) const
 // Function:	H5Object::openAttribute
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for \a name.
+///		a reference to an \c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-Attribute H5Object::openAttribute( const string& name ) const
+Attribute H5Object::openAttribute( const H5std_string& name ) const
 {
    return( openAttribute( name.c_str()) );
 }
@@ -196,7 +197,7 @@ Attribute H5Object::openAttribute( const unsigned int idx ) const
 ///\par Description
 ///		For information, please refer to the C layer Reference Manual
 ///		at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5A.html#Annot-Iterate
+/// <A HREF="../RM_H5A.html#Annot-Iterate">../RM_H5A.html#Annot-Iterate</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 int H5Object::iterateAttrs( attr_operator_t user_op, unsigned * idx, void *op_data )
@@ -260,10 +261,10 @@ void H5Object::removeAttr( const char* name ) const
 // Function:	H5Object::removeAttr
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for \a name.
+///		a reference to an \c H5std_string for \a name.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void H5Object::removeAttr( const string& name ) const
+void H5Object::removeAttr( const H5std_string& name ) const
 {
    removeAttr( name.c_str() );
 }
@@ -289,10 +290,10 @@ void H5Object::renameAttr(const char* oldname, const char* newname) const
 // Function:	H5Object::renameAttr
 ///\brief	This is an overloaded member function, provided for convenience.
 ///		It differs from the above function in that it takes
-///		a reference to an \c std::string for the names.
+///		a reference to an \c H5std_string for the names.
 // Programmer	Binh-Minh Ribler - Mar, 2005
 //--------------------------------------------------------------------------
-void H5Object::renameAttr(const string& oldname, const string& newname) const
+void H5Object::renameAttr(const H5std_string& oldname, const H5std_string& newname) const
 {
    renameAttr (oldname.c_str(), newname.c_str());
 }
@@ -325,7 +326,7 @@ void H5Object::flush(H5F_scope_t scope ) const
 ///\exception	H5::IdComponentException
 // Programmer	Binh-Minh Ribler - Jul, 2004
 //--------------------------------------------------------------------------
-string H5Object::getFileName() const
+H5std_string H5Object::getFileName() const
 {
    try {
       return(p_get_file_name());

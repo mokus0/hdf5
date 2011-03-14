@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <string>
@@ -57,34 +58,52 @@ StrType::StrType( const PredType& pred_type ) : AtomType()
 //--------------------------------------------------------------------------
 // Function:	StrType overloaded constructor
 ///\brief	Creates a string datatype with a specified length
-///\param	existing_id - IN: Id of an existing datatype
+///\param	pred_type - IN: String predefined type to replicate.
+///\param	size	  - IN: Length of the new string type
 ///\exception	H5::DataTypeIException
 // Description
 // 		The 1st argument could have been skipped, but this
 // 		constructor will collide with the one that takes an
 // 		existing id.
 //
-// 		Update: by passing 'size' by reference will avoid the
-// 		clashing problem, so the 1st argument can actually be
-// 		omitted.  This constructor should be replaced by the
-// 		other after announcing. - May, 2004
+//		Update: replacing the 1st argument with a dummy 0 to
+//		avoid the clashing problem, that doesn't eliminate the
+//		the 1st argument but it's simpler for the user to type
+//		a '0' than PredType::C_S1.  - Dec 2, 2005
 ///\note
-///		This constructor will be obsolete in later releases,
-///		please use StrType( const size_t& size ) instead.
+///		The use of this constructor can be shortened by using
+///		its overloaded below as StrType(0, size).
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-StrType::StrType( const PredType& pred_type, const size_t size ) : AtomType()
+StrType::StrType( const PredType& pred_type, const size_t& size ) : AtomType()
 {
    // use DataType::copy to make a copy of the string predefined type
    // then set its length
    copy(pred_type);
    setSize(size);
 }
-StrType::StrType( const size_t& size ) : AtomType()
+
+//--------------------------------------------------------------------------
+// Function:	StrType overloaded constructor
+///\brief	Creates a string datatype with a specified length
+///\param	dummy - IN: To simplify calling the previous constructor
+///			and avoid prototype clash with another constructor
+///\param	size  - IN: Length of the new string type
+///\exception	H5::DataTypeIException
+///\par Description
+///		The 1st argument is just a dummy to simplify calling the
+///		previous constructor, such as:
+///		StrType atype(0, size) instead of
+///		StrType atype(PredType::C_S1, size)
+///\note
+///		This constructor may replace the previous one in the future.
+// Programmer	Binh-Minh Ribler - Nov 28, 2005
+//--------------------------------------------------------------------------
+StrType::StrType( const int dummy, const size_t& size ) : AtomType()
 {
    // use DataType::copy to make a copy of the string predefined type
    // then set its length
-   copy(H5T_C_S1);
+   copy(PredType::C_S1);
    setSize(size);
 }
 
@@ -105,7 +124,7 @@ StrType::StrType( const hid_t existing_id ) : AtomType( existing_id ) {}
 StrType::StrType( const StrType& original ) : AtomType ( original ) {}
 
 //--------------------------------------------------------------------------
-// Function:	EnumType overloaded constructor
+// Function:	StrType overloaded constructor
 ///\brief	Gets the string datatype of the specified dataset
 ///\param	dataset - IN: Dataset that this string datatype associates with
 ///\exception	H5::DataTypeIException
@@ -145,9 +164,9 @@ H5T_cset_t StrType::getCset() const
 //--------------------------------------------------------------------------
 // Function:	StrType::setCset
 ///\brief	Sets character set to be used.
-///\param	cset - IN: character set type
-///\exception	H5::DataTypeIException
+///\param	cset - IN: character set type, which can be:
 ///		\li \c H5T_CSET_ASCII (0) - Character set is US ASCII.
+///\exception	H5::DataTypeIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void StrType::setCset( H5T_cset_t cset ) const
@@ -161,7 +180,7 @@ void StrType::setCset( H5T_cset_t cset ) const
 }
 
 //--------------------------------------------------------------------------
-// Function:	StrType::getCset
+// Function:	StrType::getStrpad
 ///\brief	Retrieves the storage mechanism for of this string datatype.
 ///\return	String storage mechanism, which can be:
 ///		\li \c H5T_STR_NULLTERM (0) - Null terminate (as C does)
@@ -190,7 +209,7 @@ H5T_str_t StrType::getStrpad() const
 ///\exception	H5::DataTypeIException
 ///\par Description
 ///		For detail, please refer to the C layer Reference Manual at:
-/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5T.html#Datatype-SetStrpad
+/// <A HREF="../RM_H5T.html#Datatype-SetStrpad">../RM_H5T.html#Datatype-SetStrpad</A>
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void StrType::setStrpad( H5T_str_t strpad ) const

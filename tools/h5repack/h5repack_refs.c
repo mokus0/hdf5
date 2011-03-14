@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,29 +9,26 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "H5private.h"
 #include "h5repack.h"
+#include "H5private.h"
+#include "h5tools.h"
 
-static const char* MapIdToName(hid_t refobj_id,
-                               trav_table_t *travt);
+/*-------------------------------------------------------------------------
+ * local functions
+ *-------------------------------------------------------------------------
+ */
 
+static const char* MapIdToName(hid_t refobj_id,trav_table_t *travt);
 static void close_obj(H5G_obj_t1 obj_type, hid_t obj_id);
-
-
-static int copy_refs_attr(hid_t loc_in,
-                          hid_t loc_out,
-                          pack_opt_t *options,
-                          trav_table_t *travt,
-                          hid_t fidout         /* for saving references */
-                          );
+static int copy_refs_attr(hid_t loc_in,hid_t loc_out,pack_opt_t *options,trav_table_t *travt,hid_t fidout);
 
 /*-------------------------------------------------------------------------
  * Function: do_copy_refobjs
@@ -61,12 +59,12 @@ int do_copy_refobjs(hid_t fidin,
  hid_t     space_id=(-1);          /* space ID */
  hid_t     ftype_id=(-1);          /* file data type ID */
  hid_t     mtype_id=(-1);          /* memory data type ID */
- size_t    msize;             /* memory size of memory type */
- hsize_t   nelmts;            /* number of elements in dataset */
- int       rank;              /* rank of dataset */
- hsize_t   dims[H5S_MAX_RANK];/* dimensions of dataset */
- int       next;              /* external files */
- int       i, j;
+ size_t    msize;                  /* memory size of memory type */
+ hsize_t   nelmts;                 /* number of elements in dataset */
+ int       rank;                   /* rank of dataset */
+ hsize_t   dims[H5S_MAX_RANK];     /* dimensions of dataset */
+ unsigned int i, j;
+ int       k;
 
 /*-------------------------------------------------------------------------
  * browse
@@ -82,6 +80,22 @@ int do_copy_refobjs(hid_t fidin,
   *-------------------------------------------------------------------------
   */
   case H5G_GROUP:
+      
+  /*-------------------------------------------------------------------------
+   * copy referenced objects in attributes
+   *-------------------------------------------------------------------------
+   */
+   
+   if ((grp_out=H5Gopen(fidout,travt->objs[i].name))<0)
+    goto error;
+   if((grp_in = H5Gopen (fidin,travt->objs[i].name))<0)
+    goto error;
+   if (copy_refs_attr(grp_in,grp_out,options,travt,fidout)<0)
+    goto error;
+   if (H5Gclose(grp_out)<0)
+    goto error;
+   if (H5Gclose(grp_in)<0)
+    goto error;
 
    /*-------------------------------------------------------------------------
     * check for hard links
@@ -120,8 +134,8 @@ int do_copy_refobjs(hid_t fidin,
    if ( H5Sget_simple_extent_dims(space_id,dims,NULL)<0)
     goto error;
    nelmts=1;
-   for (j=0; j<rank; j++)
-    nelmts*=dims[j];
+   for (k=0; k<rank; k++)
+    nelmts*=dims[k];
 
    if ((mtype_id=h5tools_get_native_type(ftype_id))<0)
     goto error;
@@ -129,12 +143,7 @@ int do_copy_refobjs(hid_t fidin,
    if ((msize=H5Tget_size(mtype_id))==0)
     goto error;
 
-/*-------------------------------------------------------------------------
- * check for external files
- *-------------------------------------------------------------------------
- */
-   if ((next=H5Pget_external_count (dcpl_id))<0)
-    goto error;
+
 /*-------------------------------------------------------------------------
  * check if the dataset creation property list has filters that
  * are not registered in the current configuration
@@ -142,7 +151,7 @@ int do_copy_refobjs(hid_t fidin,
  * 2) the internal filters might be turned off
  *-------------------------------------------------------------------------
  */
-   if (next==0 && h5tools_canreadf((NULL),dcpl_id)==1)
+   if (h5tools_canreadf((NULL),dcpl_id)==1)
    {
 /*-------------------------------------------------------------------------
  * test for a valid output dataset
@@ -181,7 +190,7 @@ int do_copy_refobjs(hid_t fidin,
 
      if ((obj_type = H5Rget_obj_type(dset_in,H5R_OBJECT,buf))<0)
       goto error;
-     refbuf=HDmalloc((unsigned)nelmts*msize);
+     refbuf=HDcalloc((unsigned)nelmts,msize);
      if ( refbuf==NULL){
       printf( "cannot allocate memory\n" );
       goto error;
@@ -466,14 +475,14 @@ static int copy_refs_attr(hid_t loc_in,
                           hid_t fidout         /* for saving references */
                           )
 {
- hid_t      attr_id=-1;      /* attr ID */
- hid_t      attr_out=-1;     /* attr ID */
- hid_t      space_id=-1;     /* space ID */
- hid_t      ftype_id=-1;     /* file data type ID */
- hid_t      mtype_id=-1;     /* memory data type ID */
- size_t     msize;        /* memory size of type */
- hsize_t    nelmts;       /* number of elements in dataset */
- int        rank;         /* rank of dataset */
+ hid_t      attr_id=-1;        /* attr ID */
+ hid_t      attr_out=-1;       /* attr ID */
+ hid_t      space_id=-1;       /* space ID */
+ hid_t      ftype_id=-1;       /* file data type ID */
+ hid_t      mtype_id=-1;       /* memory data type ID */
+ size_t     msize;             /* memory size of type */
+ hsize_t    nelmts;            /* number of elements in dataset */
+ int        rank;              /* rank of dataset */
  hsize_t    dims[H5S_MAX_RANK];/* dimensions of dataset */
  char       name[255];
  int        n, j;
@@ -555,7 +564,8 @@ static int copy_refs_attr(hid_t loc_in,
 
      if ((obj_type = H5Rget_obj_type(attr_id,H5R_OBJECT,buf))<0)
       goto error;
-     refbuf=HDmalloc((unsigned)nelmts*msize);
+     refbuf=HDcalloc((unsigned)nelmts,msize);
+
      if ( refbuf==NULL){
       printf( "cannot allocate memory\n" );
       goto error;
@@ -750,11 +760,11 @@ static void close_obj(H5G_obj_t1 obj_type, hid_t obj_id)
 static const char* MapIdToName(hid_t refobj_id,
                                trav_table_t *travt)
 {
- hid_t id;
- hid_t fid;
- H5G_stat_t refstat;    /* Stat for the refobj id */
- H5G_stat_t objstat;    /* Stat for objects in the file */
- int   i;
+ hid_t        id;
+ hid_t        fid;
+ H5G_stat_t   refstat;    /* Stat for the refobj id */
+ H5G_stat_t   objstat;    /* Stat for objects in the file */
+ unsigned int i;
 
  /* obtain information to identify the referenced object uniquely */
  if(H5Gget_objinfo(refobj_id, ".", 0, &refstat) <0)

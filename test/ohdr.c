@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:  Robb Matzke <matzke@llnl.gov>
@@ -66,6 +67,7 @@ main(void)
     H5G_entry_t	oh_ent;
     time_t	time_new, ro;
     int		i;
+    herr_t      ret;                    /* Generic return value */
 
     /* Reset library */
     h5_reset();
@@ -269,6 +271,50 @@ main(void)
 	H5_FAILED();
 	puts("    H5O_read() should have failed but didn't");
 	H5Eclear();
+	goto error;
+    }
+    PASSED();
+
+
+    /*
+     * Constant message handling.
+     * (can't write to them, but should be able to remove them)
+     */
+    TESTING("constant message handling");
+    time_new = 22222222;
+    if(H5O_modify(&oh_ent, H5O_MTIME_NEW_ID, H5O_NEW_MESG, H5O_FLAG_CONSTANT, 0, &time_new, H5P_DATASET_XFER_DEFAULT) < 0) {
+	H5_FAILED();
+	H5Eprint(stdout);
+	goto error;
+    }
+    if(H5AC_flush(f, H5P_DATASET_XFER_DEFAULT, TRUE)<0) {
+	H5_FAILED();
+	H5Eprint(stdout);
+	goto error;
+    }
+    if(NULL == H5O_read(&oh_ent, H5O_MTIME_NEW_ID, 0, &ro, H5P_DATASET_XFER_DEFAULT)) {
+	H5_FAILED();
+	H5Eprint(stdout);
+	goto error;
+    }
+    if(ro != time_new) {
+	H5_FAILED();
+	HDfprintf(stdout, "    got: {%ld}\n", (long)ro);
+	HDfprintf(stdout, "    ans: {%ld}\n", (long)time_new);
+	goto error;
+    }
+    time_new = 33333333;
+    H5E_BEGIN_TRY {
+        ret = H5O_modify(&oh_ent, H5O_MTIME_NEW_ID, 0, 0, 0, &time_new, H5P_DATASET_XFER_DEFAULT);
+    } H5E_END_TRY;
+    if(ret >= 0) {
+	H5_FAILED();
+	H5Eprint(stdout);
+	goto error;
+    }
+    if(H5O_remove(&oh_ent, H5O_MTIME_NEW_ID, H5O_ALL, TRUE, H5P_DATASET_XFER_DEFAULT) < 0) {
+	H5_FAILED();
+	H5Eprint(stdout);
 	goto error;
     }
     PASSED();

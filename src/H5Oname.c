@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -32,8 +33,9 @@
 #include "H5MMprivate.h"
 #include "H5Opkg.h"             /* Object header functions                  */
 
+
 /* PRIVATE PROTOTYPES */
-static void *H5O_name_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_name_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p);
 static herr_t H5O_name_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_name_copy(const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_name_size(const H5F_t *f, const void *_mesg);
@@ -41,8 +43,8 @@ static herr_t H5O_name_reset(void *_mesg);
 static herr_t H5O_name_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			     int indent, int fwidth);
 
-/* This message derives from H5O */
-const H5O_class_t H5O_NAME[1] = {{
+/* This message derives from H5O message class */
+const H5O_msg_class_t H5O_MSG_NAME[1] = {{
     H5O_NAME_ID,            	/*message id number             */
     "name",                 	/*message name for debugging    */
     sizeof(H5O_name_t),     	/*native message size           */
@@ -56,7 +58,7 @@ const H5O_class_t H5O_NAME[1] = {{
     NULL,			/* link method			*/
     NULL,		    	/*get share method		*/
     NULL,			/*set share method		*/
-    H5O_name_debug,         	/*debug the message             */
+    H5O_name_debug         	/*debug the message             */
 }};
 
 
@@ -79,8 +81,7 @@ const H5O_class_t H5O_NAME[1] = {{
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_name_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
-		H5O_shared_t UNUSED *sh)
+H5O_name_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p)
 {
     H5O_name_t          *mesg;
     void                *ret_value;     /* Return value */
@@ -90,7 +91,6 @@ H5O_name_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
     /* check args */
     assert(f);
     assert(p);
-    assert (!sh);
 
     /* decode */
     if (NULL==(mesg = H5MM_calloc(sizeof(H5O_name_t))) ||

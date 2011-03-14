@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
@@ -28,7 +29,6 @@
 #include "H5Spkg.h"		/* Dataspaces 				*/
 
 /* Local static function prototypes */
-static H5S_t * H5S_create(H5S_class_t type);
 static herr_t H5S_set_extent_simple (H5S_t *space, unsigned rank,
     const hsize_t *dims, const hsize_t *max);
 static htri_t H5S_is_simple(const H5S_t *sdim);
@@ -288,7 +288,7 @@ H5S_term_interface(void)
  EXAMPLES
  REVISION LOG
 --------------------------------------------------------------------------*/
-static H5S_t *
+H5S_t *
 H5S_create(H5S_class_t type)
 {
     H5S_t *ret_value;
@@ -1247,6 +1247,10 @@ H5Sis_simple(hid_t space_id)
     dimensions in the DIMS array are used as the maximum dimensions.
     Currently, only the first dimension in the array (the slowest) may be
     unlimited in size.
+ MODIFICATIONS
+    Christian Chilan 01/05/2007 
+    Verifies that each element of DIMS is not equal to H5S_UNLIMITED.
+
 --------------------------------------------------------------------------*/
 herr_t
 H5Sset_extent_simple(hid_t space_id, int rank, const hsize_t dims[/*rank*/],
@@ -1268,6 +1272,8 @@ H5Sset_extent_simple(hid_t space_id, int rank, const hsize_t dims[/*rank*/],
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "invalid rank");
     if (dims) {
         for (u=0; u<rank; u++) {
+            if (H5S_UNLIMITED==dims[u])
+                HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "current dimension must have a specific size, not H5S_UNLIMITED");
             if (((max!=NULL && max[u]!=H5S_UNLIMITED) || max==NULL) && dims[u]==0)
                 HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "invalid dimension size");
         }
@@ -1549,7 +1555,10 @@ done:
  * Programmer:	Quincey Koziol
  *		Tuesday, January  27, 1998
  *
- * Modifications:
+ * Modifications: Christian Chilan 01/05/2007
+ *                Verifies that each element of DIMS is not equal to
+ *                H5S_UNLIMITED. 
+ *              
  *
  *-------------------------------------------------------------------------
  */
@@ -1573,6 +1582,8 @@ H5Screate_simple(int rank, const hsize_t dims[/*rank*/],
         HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "no dimensions specified");
     /* Check whether the current dimensions are valid */
     for (i=0; i<rank; i++) {
+        if (H5S_UNLIMITED==dims[i])
+            HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "current dimension must have a specific size, not H5S_UNLIMITED");
         if (maxdims) {
             if (H5S_UNLIMITED!=maxdims[i] && maxdims[i]<dims[i])
                 HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "maxdims is smaller than dims");

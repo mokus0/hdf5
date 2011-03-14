@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -248,8 +249,6 @@ test_many(hid_t file)
  * Programmer:	Robb Matzke
  *              Friday, September 25, 1998
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 static int
@@ -260,12 +259,12 @@ test_symlink(hid_t file)
     TESTING("symlink removal");
 
     /* Create a test group and symlink */
-    if ((work=H5Gcreate(file, "/test_symlink", 0))<0) goto error;
-    if (H5Glink(work, H5G_LINK_SOFT, "link_value", "link")<0) goto error;
-    if (H5Gunlink(work, "link")<0) goto error;
+    if ((work=H5Gcreate(file, "/test_symlink", 0))<0) TEST_ERROR;
+    if (H5Glink(work, H5G_LINK_SOFT, "link_value", "link")<0) TEST_ERROR;
+    if (H5Gunlink(work, "link")<0) TEST_ERROR;
 
     /* Cleanup */
-    if (H5Gclose(work)<0) goto error;
+    if (H5Gclose(work)<0) TEST_ERROR;
     PASSED();
     return 0;
 
@@ -529,10 +528,10 @@ test_filespace(void)
     hsize_t     dims[FILESPACE_NDIMS]= {FILESPACE_DIM0, FILESPACE_DIM1, FILESPACE_DIM2};        /* Dataset dimensions */
     hsize_t     chunk_dims[FILESPACE_NDIMS]= {FILESPACE_CHUNK0, FILESPACE_CHUNK1, FILESPACE_CHUNK2};        /* Chunk dimensions */
     hsize_t     attr_dims[FILESPACE_ATTR_NDIMS]= {FILESPACE_ATTR_DIM0, FILESPACE_ATTR_DIM1};        /* Attribute dimensions */
-    int        *data;           /* Pointer to dataset buffer */
+    int        *data = NULL;    /* Pointer to dataset buffer */
     int        *tmp_data;       /* Temporary pointer to dataset buffer */
-    off_t       empty_size;     /* Size of an empty file */
-    off_t       file_size;      /* Size of each file created */
+    h5_stat_size_t	empty_size;     /* Size of an empty file */
+    h5_stat_size_t	file_size;      /* Size of each file created */
     herr_t	status;         /* Function status return value */
     unsigned u,v,w;             /* Local index variables */
 
@@ -574,7 +573,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of an empty file */
-    if((empty_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((empty_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
 /* Create common objects for datasets */
 
@@ -631,7 +630,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -655,7 +654,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -679,7 +678,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -703,7 +702,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -727,7 +726,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -773,7 +772,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -797,7 +796,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -860,7 +859,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -887,7 +886,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -911,7 +910,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -941,7 +940,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -970,7 +969,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -1050,7 +1049,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -1083,7 +1082,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -1116,7 +1115,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -1153,7 +1152,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -1202,7 +1201,7 @@ test_filespace(void)
     if(H5Fclose(file)<0) TEST_ERROR;
 
     /* Get the size of the file */
-    if((file_size=h5_get_file_size(filename))==0) TEST_ERROR;
+    if((file_size=h5_get_file_size(filename))<0) TEST_ERROR;
 
     /* Verify the file is correct size */
     if(file_size!=empty_size) TEST_ERROR;
@@ -1231,6 +1230,10 @@ test_filespace(void)
     return 0;
 
 error:
+    /* Release dataset buffer */
+    if(data)
+        HDfree(data);
+
     return 1;
 } /* end test_filespace() */
 
@@ -1505,7 +1508,7 @@ test_unlink_rightleaf(hid_t fid)
         ngroups = 150;  /* Number of groups to create */
     char name[256];     /* Name of object to create */
 
-    TESTING("Deleting right-most child in non-leaf B-tree node");
+    TESTING("deleting right-most child in non-leaf B-tree node");
 
     /* Allocate space for the group IDs */
     gids = (hid_t *) HDmalloc (ngroups * sizeof(hid_t));
@@ -1529,6 +1532,9 @@ test_unlink_rightleaf(hid_t fid)
     /* Close all the groups */
     for (n = 0; n < ngroups; n++)
         if(H5Gclose(gids[n])<0) TEST_ERROR;
+
+    /* Close root group ID */
+    if(H5Gclose(rootid)<0) TEST_ERROR;
 
     /* Free memory */
     HDfree(gids);
@@ -1566,7 +1572,7 @@ test_unlink_rightnode(hid_t fid)
         ngroups = 150;  /* Number of groups to create */
     char name[256];     /* Name of object to create */
 
-    TESTING("Deleting right-most child in non-leaf B-tree node");
+    TESTING("deleting right-most child in non-leaf B-tree node");
 
     /* Allocate space for the group IDs */
     gids = (hid_t *) HDmalloc (ngroups * sizeof(hid_t));
@@ -1590,6 +1596,9 @@ test_unlink_rightnode(hid_t fid)
     if(H5Gunlink(fid,"/ZoneB79")<0) TEST_ERROR;
     if(H5Gunlink(fid,"/ZoneB8")<0) TEST_ERROR;
     if(H5Gunlink(fid,"/ZoneB80")<0) TEST_ERROR;
+
+    /* Close root group ID */
+    if(H5Gclose(rootid)<0) TEST_ERROR;
 
     /* Free memory */
     HDfree(gids);
@@ -1627,7 +1636,7 @@ test_unlink_middlenode(hid_t fid)
         ngroups = 250;  /* Number of groups to create */
     char name[256];     /* Name of object to create */
 
-    TESTING("Deleting right-most child in non-leaf B-tree node");
+    TESTING("deleting right-most child in non-leaf B-tree node");
 
     /* Allocate space for the group IDs */
     gids = (hid_t *) HDmalloc (ngroups * sizeof(hid_t));
@@ -1795,6 +1804,9 @@ test_unlink_middlenode(hid_t fid)
     if(H5Gunlink(fid,"/ZoneC8")<0) TEST_ERROR;
     if(H5Gunlink(fid,"/ZoneC80")<0) TEST_ERROR;
 
+    /* Close root group ID */
+    if(H5Gclose(rootid)<0) TEST_ERROR;
+
     /* Free memory */
     HDfree(gids);
 
@@ -1828,7 +1840,7 @@ test_resurrect_dataset(void)
     hid_t       f=-1, s=-1, d=-1, fapl=-1;
     char	filename[1024];
 
-    TESTING("Resurrecting dataset after deletion");
+    TESTING("resurrecting dataset after deletion");
 
     /* Create file */
     fapl = h5_fileaccess();
@@ -1902,7 +1914,7 @@ test_resurrect_datatype(void)
     hid_t       file=-1, type=-1, fapl=-1;
     char        filename[1024];
 
-    TESTING("Resurrecting datatype after deletion");
+    TESTING("resurrecting datatype after deletion");
 
     /* Create file */
     fapl = h5_fileaccess();
@@ -1972,7 +1984,7 @@ test_resurrect_group(void)
     hid_t       file=-1, group=-1, fapl=-1;
     char        filename[1024];
 
-    TESTING("Resurrecting group after deletion");
+    TESTING("resurrecting group after deletion");
 
     /* Create file */
     fapl = h5_fileaccess();
@@ -2047,11 +2059,11 @@ test_unlink_chunked_dataset(void)
     hsize_t chunk_dims[FILESPACE_NDIMS]={FILESPACE_CHUNK0,FILESPACE_CHUNK1,FILESPACE_CHUNK2};
     char filename[1024];
 
-    TESTING("Unlinking chunked dataset");
+    TESTING("unlinking chunked dataset");
 
     /* Create file */
     fapl_id = h5_fileaccess();
-    h5_fixname(FILENAME[7], fapl_id, filename, sizeof filename);
+    h5_fixname(FILENAME[9], fapl_id, filename, sizeof filename);
 
     /* Create the file */
     if((file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id))<0) TEST_ERROR;
@@ -2084,7 +2096,7 @@ test_unlink_chunked_dataset(void)
     if(H5Fclose(file_id)<0) TEST_ERROR;
 
     /* Re-open the file */
-    if((file_id = H5Fopen(filename, H5F_ACC_RDWR, H5P_DEFAULT))<0) TEST_ERROR;
+    if((file_id = H5Fopen(filename, H5F_ACC_RDWR, fapl_id))<0) TEST_ERROR;
 
     /* Delete the dataset */
     if(H5Gunlink(file_id, DATASETNAME)<0) TEST_ERROR;
@@ -2196,6 +2208,7 @@ main(void)
     nerrors += test_unlink_chunked_dataset();
 
     /* Close */
+    if (H5Pclose(fapl2)<0) TEST_ERROR;
     if (H5Fclose(file)<0) TEST_ERROR;
     if (nerrors) {
 	printf("***** %d FAILURE%s! *****\n", nerrors, 1==nerrors?"":"S");

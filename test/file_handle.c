@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -21,7 +22,7 @@
 
 #include "h5test.h"
 
-#define KB              1024
+#define KB              1024U
 #define FAMILY_NUMBER   4
 #define FAMILY_SIZE     (1*KB)
 #define FAMILY_SIZE2    (5*KB)
@@ -149,7 +150,7 @@ test_core(void)
 
     /* Set property list and file name for CORE driver */
     fapl = h5_fileaccess();
-    if(H5Pset_fapl_core(fapl, CORE_INCREMENT, TRUE)<0)
+    if(H5Pset_fapl_core(fapl, (size_t)CORE_INCREMENT, TRUE)<0)
         goto error;
     h5_fixname(FILENAME[1], fapl, filename, sizeof filename);
 
@@ -224,7 +225,7 @@ test_family(void)
     hid_t       access_fapl = -1;
     char        filename[1024];
     char        dname[]="dataset";
-    int         i, j;
+    unsigned int i, j;
     int         *fhandle=NULL, *fhandle2=NULL;
     int         buf[FAMILY_NUMBER][FAMILY_SIZE];
     hsize_t     dims[2]={FAMILY_NUMBER, FAMILY_SIZE};

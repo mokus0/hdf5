@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "H5TA.h"
@@ -63,7 +64,7 @@ hid_t H5TB_create_type(hid_t loc_id,
  *
  * Date: January 17, 2001
  *
- * Comments: The data is packed
+ * Comments: 
  *
  * Modifications:
  *
@@ -541,8 +542,9 @@ herr_t H5TBwrite_fields_name( hid_t loc_id,
  hid_t    member_type_id;
  hid_t    nmtype_id;
  hsize_t  count[1];
- hsize_t offset[1];
- hid_t    sid=-1;
+ hsize_t  offset[1];
+ hid_t    mem_space_id=-1;
+ hid_t    file_space_id=-1;
  char     *member_name;
  hssize_t  nfields;
  hssize_t  i, j;
@@ -625,34 +627,34 @@ herr_t H5TBwrite_fields_name( hid_t loc_id,
 
  }
 
-  /* Get the dataspace handle */
- if ( (sid = H5Dget_space( did )) < 0 )
+ /* Get the dataspace handles */
+ if ( (file_space_id = H5Dget_space( did )) < 0 )
+  goto out;
+ if ( (mem_space_id = H5Screate_simple(1, &nrecords, NULL)) < 0 )
   goto out;
 
  /* Define a hyperslab in the dataset */
  offset[0] = start;
  count[0]  = nrecords;
- if ( H5Sselect_hyperslab( sid, H5S_SELECT_SET, offset, NULL, count, NULL) < 0 )
+ if ( H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset, NULL, count, NULL) < 0 )
   goto out;
 
  /* Write */
- if ( H5Dwrite( did, write_type_id, H5S_ALL, sid, PRESERVE, data ) < 0 )
+ if ( H5Dwrite( did, write_type_id, mem_space_id, file_space_id, PRESERVE, data ) < 0 )
   goto out;
 
- /* End access to the write id */
+ /* close */
  if ( H5Tclose( write_type_id ) )
   goto out;
-
- /* Release the datatype. */
  if ( H5Tclose( tid ) < 0 )
   return -1;
-
- /* End access to the dataset */
  if ( H5Dclose( did ) < 0 )
   return -1;
-
- /* End access to the property list */
  if ( H5Pclose( PRESERVE ) < 0 )
+  return -1;
+ if ( H5Sclose( file_space_id ) < 0 )
+  return -1;
+ if ( H5Sclose( mem_space_id ) < 0 )
   return -1;
 
 return 0;
@@ -662,7 +664,8 @@ out:
  H5E_BEGIN_TRY {
   H5Pclose(PRESERVE);
   H5Dclose(did);
-  H5Sclose(sid);
+  H5Sclose(file_space_id);
+  H5Sclose(mem_space_id);
   H5Tclose(write_type_id);
   H5Tclose(tid);
  } H5E_END_TRY;
@@ -712,7 +715,8 @@ herr_t H5TBwrite_fields_index( hid_t loc_id,
  hid_t    nmtype_id;
  hsize_t  count[1];
  hsize_t offset[1];
- hid_t    sid=-1;
+ hid_t    mem_space_id=-1;
+ hid_t    file_space_id=-1;
  char     *member_name;
  hsize_t  i, j;
  hid_t    PRESERVE;
@@ -788,34 +792,34 @@ herr_t H5TBwrite_fields_index( hid_t loc_id,
 
  }
 
-  /* Get the dataspace handle */
- if ( (sid = H5Dget_space( did )) < 0 )
+  /* Get the dataspace handles */
+ if ( (file_space_id = H5Dget_space( did )) < 0 )
+  goto out;
+ if ( (mem_space_id = H5Screate_simple(1, &nrecords, NULL)) < 0 )
   goto out;
 
  /* Define a hyperslab in the dataset */
  offset[0] = start;
  count[0]  = nrecords;
- if ( H5Sselect_hyperslab( sid, H5S_SELECT_SET, offset, NULL, count, NULL) < 0 )
+ if ( H5Sselect_hyperslab( file_space_id, H5S_SELECT_SET, offset, NULL, count, NULL) < 0 )
   goto out;
 
  /* Write */
- if ( H5Dwrite( did, write_type_id, H5S_ALL, sid, PRESERVE, data ) < 0 )
+ if ( H5Dwrite( did, write_type_id, mem_space_id, file_space_id, PRESERVE, data ) < 0 )
   goto out;
 
- /* End access to the write id */
+ /* close */
  if ( H5Tclose( write_type_id ) )
   goto out;
-
- /* Release the datatype. */
  if ( H5Tclose( tid ) < 0 )
   return -1;
-
- /* End access to the dataset */
  if ( H5Dclose( did ) < 0 )
   return -1;
-
- /* End access to the property list */
  if ( H5Pclose( PRESERVE ) < 0 )
+  return -1;
+ if ( H5Sclose( file_space_id ) < 0 )
+  return -1;
+ if ( H5Sclose( mem_space_id ) < 0 )
   return -1;
 
 return 0;
@@ -825,7 +829,8 @@ out:
  H5E_BEGIN_TRY {
   H5Pclose(PRESERVE);
   H5Dclose(did);
-  H5Sclose(sid);
+  H5Sclose(file_space_id);
+  H5Sclose(mem_space_id);
   H5Tclose(write_type_id);
   H5Tclose(tid);
  } H5E_END_TRY;
@@ -3492,18 +3497,22 @@ out:
 
 int H5TB_find_field( const char *field, const char *field_list )
 {
- const char *start = field_list;
- const char *end;
-
- while ( (end = strstr( start, "," )) != 0 ) {
-    if ( strncmp(start,field,(size_t)(end-start)) == 0 ) return 1;
-    start = end + 1;
- }
-
- if ( strcmp( start, field ) == 0 ) return 1;
-
- return -1;
-
+    const char *start = field_list;
+    const char *end;
+    
+    while ( (end = strstr( start, "," )) != 0 ) 
+    {
+        size_t count = end - start;
+        if ( strncmp(start, field, count) == 0 && count == strlen(field) )
+            return 1;
+        start = end + 1;
+    }
+    
+    if ( strcmp( start, field ) == 0 )
+        return 1;
+    
+    return -1;
+    
 }
 
 

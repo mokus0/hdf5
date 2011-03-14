@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5D_PACKAGE		/*suppress error about including H5Dpkg	  */
@@ -218,13 +219,18 @@ done:
     parameter is NULL, use "buf_type" for the fill value datatype.
  EXAMPLES
  REVISION LOG
+    Raymond Lu - 20 March 2007
+    If there's VL type of data, the address of the data is copied multiple
+    times into the buffer, causing some trouble when the data is released.
+    Instead, make multiple copies of fill value first, then do conversion
+    on each element so that each of them has a copy of the VL data. 
 --------------------------------------------------------------------------*/
 static herr_t
 H5D_fill(const void *fill, const H5T_t *fill_type, void *buf, const H5T_t *buf_type, const H5S_t *space, hid_t dxpl_id)
 {
-    H5T_path_t *tpath = NULL;   /* Conversion information*/
     uint8_t *tconv_buf = NULL;  /* Data type conv buffer */
     uint8_t *bkg_buf = NULL;    /* Temp conversion buffer */
+    uint8_t *tmp_buf = NULL;    /* Temp conversion buffer */
     hid_t src_id = -1, dst_id = -1;     /* Temporary type IDs */
     size_t src_type_size;       /* Size of source type	*/
     size_t dst_type_size;       /* Size of destination type*/
@@ -234,13 +240,13 @@ H5D_fill(const void *fill, const H5T_t *fill_type, void *buf, const H5T_t *buf_t
     FUNC_ENTER_NOAPI_NOINIT(H5D_fill)
 
     /* Check args */
-    assert(fill_type);
-    assert(buf);
-    assert(buf_type);
-    assert(space);
+    HDassert(fill_type);
+    HDassert(buf);
+    HDassert(buf_type);
+    HDassert(space);
 
     /* Make sure the dataspace has an extent set */
-    if( !(H5S_has_extent(space)) )
+    if(!(H5S_has_extent(space)) )
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "dataspace extent has not been set")
 
     /* Get the memory and file datatype sizes */
@@ -248,43 +254,131 @@ H5D_fill(const void *fill, const H5T_t *fill_type, void *buf, const H5T_t *buf_t
     dst_type_size = H5T_get_size(buf_type);
 
     /* Get the maximum buffer size needed and allocate it */
-    buf_size=MAX(src_type_size,dst_type_size);
-    if (NULL==(tconv_buf = H5FL_BLK_MALLOC(type_elem,buf_size)) || NULL==(bkg_buf = H5FL_BLK_CALLOC(type_elem,buf_size)))
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+    buf_size = MAX(src_type_size, dst_type_size);
 
-    /* Check for actual fill value to replicate */
-    if(fill==NULL)
-        /* If there's no fill value, just use zeros */
-        HDmemset(tconv_buf,0,dst_type_size);
+    /* If there's no fill value, just use zeros */
+    if(fill == NULL) {
+        /* Allocate space & initialize conversion buffer to zeros */
+        if(NULL == (tconv_buf = H5FL_BLK_CALLOC(type_elem, buf_size)))
+            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+
+        /* Fill the selection in the memory buffer */
+        if(H5S_select_fill(tconv_buf, dst_type_size, space, buf) < 0)
+            HGOTO_ERROR(H5E_DATASET, H5E_CANTENCODE, FAIL, "filling selection failed")
+    } /* end if */
     else {
-        /* Copy the user's data into the buffer for conversion */
-        HDmemcpy(tconv_buf,fill,src_type_size);
+        H5T_path_t *tpath;      /* Conversion path information */
 
         /* Set up type conversion function */
-        if (NULL == (tpath = H5T_path_find(fill_type, buf_type, NULL, NULL, dxpl_id)))
+        if(NULL == (tpath = H5T_path_find(fill_type, buf_type, NULL, NULL, dxpl_id)))
             HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unable to convert between src and dest data types")
 
-        /* Convert memory buffer into disk buffer */
-        if (!H5T_path_noop(tpath)) {
-            if ((src_id = H5I_register(H5I_DATATYPE, H5T_copy(fill_type, H5T_COPY_ALL)))<0 ||
-                    (dst_id = H5I_register(H5I_DATATYPE, H5T_copy(buf_type, H5T_COPY_ALL)))<0)
+        /* Construct source & destination datatype IDs, if we will need them */
+        if(!H5T_path_noop(tpath)) {
+            if((src_id = H5I_register(H5I_DATATYPE, H5T_copy(fill_type, H5T_COPY_ALL))) < 0)
                 HGOTO_ERROR(H5E_DATASET, H5E_CANTREGISTER, FAIL, "unable to register types for conversion")
 
-            /* Perform data type conversion */
-            if (H5T_convert(tpath, src_id, dst_id, 1, 0, 0, tconv_buf, bkg_buf, dxpl_id)<0)
-                HGOTO_ERROR(H5E_DATASET, H5E_CANTCONVERT, FAIL, "data type conversion failed")
+            if((dst_id = H5I_register(H5I_DATATYPE, H5T_copy(buf_type, H5T_COPY_ALL))) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTREGISTER, FAIL, "unable to register types for conversion")
         } /* end if */
-    } /* end if */
 
-    /* Fill the selection in the memory buffer */
-    if(H5S_select_fill(tconv_buf, dst_type_size, space, buf)<0)
-        HGOTO_ERROR(H5E_DATASET, H5E_CANTENCODE, FAIL, "filling selection failed")
+        /* If there's VL type of data, make multiple copies of fill value first, 
+         * then do conversion on each element so that each of them has a copy 
+         * of the VL data. 
+         */
+        if(TRUE == H5T_detect_class(fill_type, H5T_VLEN)) {
+            H5D_dxpl_cache_t _dxpl_cache;       /* Data transfer property cache buffer */
+            H5D_dxpl_cache_t *dxpl_cache = &_dxpl_cache;   /* Data transfer property cache */
+            H5S_sel_iter_t mem_iter;            /* Memory selection iteration info */
+            hssize_t nelmts;                    /* Number of data elements */
+
+            /* Get the number of elements in the selection */
+            nelmts = H5S_GET_SELECT_NPOINTS(space);
+            HDassert(nelmts >= 0);
+            H5_CHECK_OVERFLOW(nelmts, hssize_t, size_t);
+
+            /* Allocate a temporary buffer */
+            if(NULL == (tmp_buf = H5FL_BLK_MALLOC(type_conv, (size_t)nelmts * buf_size)))
+                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+
+            /* Allocate a background buffer, if necessary */
+            if(H5T_path_bkg(tpath) && NULL == (bkg_buf = H5FL_BLK_CALLOC(type_conv, (size_t)nelmts * buf_size)))
+                HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+
+            /* Replicate the file's fill value into the temporary buffer */
+            H5V_array_fill(tmp_buf, fill, src_type_size, (size_t)nelmts);
+
+            /* Convert from file's fill value into memory form */
+            if(H5T_convert(tpath, src_id, dst_id, (size_t)nelmts, (size_t)0, (size_t)0, tmp_buf, bkg_buf, dxpl_id) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTCONVERT, FAIL, "data type conversion failed")
+
+            /* Fill the DXPL cache values for later use */
+            if(H5D_get_dxpl_cache(dxpl_id, &dxpl_cache) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTGET, FAIL, "can't fill dxpl cache")
+
+            /* Create a selection iterator for scattering the elements to memory buffer */
+            if(H5S_select_iter_init(&mem_iter, space, dst_type_size) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to initialize memory selection information")
+
+            /* Scatter the data into memory */
+            if(H5D_select_mscat(tmp_buf, space, &mem_iter, (size_t)nelmts, dxpl_cache, buf/*out*/) < 0) {
+                H5S_SELECT_ITER_RELEASE(&mem_iter);
+                HGOTO_ERROR(H5E_DATASET, H5E_READERROR, FAIL, "scatter failed")
+            } /* end if */
+
+            /* Release the selection iterator */
+            if(H5S_SELECT_ITER_RELEASE(&mem_iter) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTFREE, FAIL, "Can't release selection iterator")
+        } /* end if */
+        else {
+            const uint8_t *fill_buf;          /* Buffer to use for writing fill values */
+
+            /* Convert disk buffer into memory buffer */
+            if(!H5T_path_noop(tpath)) {
+                /* Allocate space for conversion buffer */
+                if(NULL == (tconv_buf = H5FL_BLK_MALLOC(type_elem, buf_size)))
+                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+
+                /* Copy the user's data into the buffer for conversion */
+                HDmemcpy(tconv_buf, fill, src_type_size);
+
+                /* If there's no VL type of data, do conversion first then fill the data into
+                 * the memory buffer. */
+                if(H5T_path_bkg(tpath) && NULL == (bkg_buf = H5FL_BLK_CALLOC(type_elem, buf_size)))
+                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed")
+
+                /* Perform datatype conversion */
+                if(H5T_convert(tpath, src_id, dst_id, (size_t)1, (size_t)0, (size_t)0, tconv_buf, bkg_buf, dxpl_id) < 0)
+                    HGOTO_ERROR(H5E_DATASET, H5E_CANTCONVERT, FAIL, "data type conversion failed")
+
+                /* Point at temporary buffer */
+                fill_buf = tconv_buf;
+            } /* end if */
+            else
+                fill_buf = fill;
+
+            /* Fill the selection in the memory buffer */
+            if(H5S_select_fill(fill_buf, dst_type_size, space, buf) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTENCODE, FAIL, "filling selection failed")
+        } /* end else */
+    } /* end else */
 
 done:
-    if (tconv_buf)
-        H5FL_BLK_FREE(type_elem,tconv_buf);
-    if (bkg_buf)
-        H5FL_BLK_FREE(type_elem,bkg_buf);
+    if(src_id != (-1) && H5I_dec_ref(src_id) < 0)
+        HDONE_ERROR(H5E_DATASET, H5E_CANTFREE, FAIL, "Can't decrement temporary datatype ID")
+    if(dst_id != (-1) && H5I_dec_ref(dst_id) < 0)
+        HDONE_ERROR(H5E_DATASET, H5E_CANTFREE, FAIL, "Can't decrement temporary datatype ID")
+    if(tmp_buf)
+        H5FL_BLK_FREE(type_conv, tmp_buf);
+    if(tconv_buf)
+        H5FL_BLK_FREE(type_elem, tconv_buf);
+    if(bkg_buf) {
+        if(TRUE == H5T_detect_class(fill_type, H5T_VLEN))
+            H5FL_BLK_FREE(type_conv, bkg_buf);
+        else
+            H5FL_BLK_FREE(type_elem, bkg_buf);
+    } /* end if */
+
     FUNC_LEAVE_NOAPI(ret_value)
 }   /* H5D_fill() */
 
@@ -2328,8 +2422,8 @@ H5D_create_chunk_map(const H5D_t *dataset, const H5T_t *mem_type, const H5S_t *f
     if((fm->msel_type=H5S_GET_SELECT_TYPE(equiv_mspace))<H5S_SEL_NONE)
         HGOTO_ERROR (H5E_DATASET, H5E_BADSELECT, FAIL, "unable to convert from file to memory data space")
 
-    /* Check if file selection is a point selection */
-    if(fsel_type==H5S_SEL_POINTS) {
+    /* Check if file selection is a point or none selection */
+    if(fsel_type==H5S_SEL_POINTS || fsel_type == H5S_SEL_NONE) {
         /* Create temporary datatypes for selection iteration */
         if((f_tid = H5I_register(H5I_DATATYPE, H5T_copy(dataset->shared->type, H5T_COPY_ALL)))<0)
             HGOTO_ERROR (H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to register file datatype")
@@ -2366,7 +2460,7 @@ H5D_create_chunk_map(const H5D_t *dataset, const H5T_t *mem_type, const H5S_t *f
     } /* end else */
 
     /* Build the memory selection for each chunk */
-    if(fsel_type!=H5S_SEL_POINTS && H5S_select_shape_same(file_space,equiv_mspace)==TRUE) {
+    if(fsel_type!=H5S_SEL_POINTS && fsel_type!=H5S_SEL_NONE && H5S_select_shape_same(file_space,equiv_mspace)==TRUE) {
         /* Reset chunk template information */
         fm->mchunk_tmpl=NULL;
 

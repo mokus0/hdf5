@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -266,7 +267,7 @@ void TestParseCmdLine(int argc, char *argv[])
             exit(0);
         }
 	else if ((HDstrcmp(*argv, "-cleanoff") == 0) || (HDstrcmp(*argv, "-c") == 0))
-            CleanUp = 0;
+	    SetTestNoCleanup();
 	else {
 	    /* non-standard option.  Break out. */
 	    break;
@@ -391,6 +392,19 @@ int GetTestSummary(void)
 int GetTestCleanup(void)
 {
     return(CleanUp);
+}
+
+/*
+ * Set cleanup to no.
+ * Return previous cleanup value.
+ */
+int SetTestNoCleanup(void)
+{
+    int oldval;
+
+    oldval = CleanUp;
+    CleanUp = 0;
+    return(oldval);
 }
 
 /*

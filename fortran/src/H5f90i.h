@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
@@ -62,7 +63,9 @@ typedef int               size_t_f;
 typedef int               int_f;
 typedef int               hid_t_f;
 typedef float             real_f;
-#define FNAME(x) x
+#if defined H5_G95
+#define FNAME_POST2_UNDERSCORE
+#endif
 #if defined H5_ABSOFT
 #define DF_CAPFNAMES
 #endif /*H5_ABSOFT*/
@@ -210,7 +213,7 @@ typedef float          real_f;
 #if defined _WINDOWS || defined WIN32
 
 typedef char              *_fcd;
-typedef int               haddr_t_f;
+typedef long double       haddr_t_f;
 typedef int               hsize_t_f;
 typedef int               hssize_t_f;
 typedef int               size_t_f;
@@ -240,7 +243,7 @@ typedef float             real_f;
 #if !defined(FNAME_PRE_UNDERSCORE) && defined(FNAME_POST_UNDERSCORE)
 #   define FNAME(x)     x##_
 #endif
-#if !defined(FNAME_PRE_UNDERSCORE) && !defined(FNAME_POST_UNDERSCORE)
+#if !defined(FNAME_PRE_UNDERSCORE) && !defined(FNAME_POST_UNDERSCORE) && !defined(FNAME_POST2_UNDERSCORE)
 #   define FNAME(x)     x
 #endif
 #if !defined(FNAME_PRE_UNDERSCORE) && defined(FNAME_POST2_UNDERSCORE)

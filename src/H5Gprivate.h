@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -19,11 +20,6 @@
  *                      Robb Matzke <matzke@llnl.gov>
  *
  * Purpose:             Library-visible declarations.
- *
- * Modifications:       Aug 22, 2002
- *                      Pedro Vicente <pvn@ncsa.uiuc.edu>
- *                      Added 'names' field to H5G_entry_t
- *                      Added H5G_replace_name
  *
  *-------------------------------------------------------------------------
  */
@@ -78,6 +74,14 @@ typedef enum H5G_type_t {
     H5G_NCACHED         = 3     /*THIS MUST BE LAST                          */
 } H5G_type_t;
 
+/* Type of operation being performed for call to H5G_name_replace() */
+typedef enum {
+    H5G_NAME_MOVE = 0,          /* H5*move call    */
+    H5G_NAME_UNLINK,            /* H5Gunlink call  */
+    H5G_NAME_MOUNT,             /* H5Fmount call   */
+    H5G_NAME_UNMOUNT            /* H5Funmount call */
+} H5G_names_op_t;
+
 /*
  * A symbol table entry caches these parameters from object header
  * messages...  The values are entered into the symbol table when an object
@@ -109,29 +113,14 @@ typedef struct H5G_entry_t {
     size_t      name_off;               /*offset of name within name heap    */
     haddr_t     header;                 /*file address of object header      */
     H5F_t       *file;                  /*file to which this obj hdr belongs */
+    H5RS_str_t  *full_path_r;           /* Path to object, as seen from root of current file mounting hierarchy */
     H5RS_str_t  *user_path_r;           /* Path to object, as opened by user */
-    H5RS_str_t  *canon_path_r;          /* Path to object, as found in file  */
-    unsigned    user_path_hidden;       /* Whether the user's path is valid  */
+    unsigned    obj_hidden;             /* Whether the object is visible in group hier. */
 } H5G_entry_t;
 
 typedef struct H5G_t H5G_t;
 typedef struct H5G_shared_t H5G_shared_t;
 
-/* Type of operation being performed for call to H5G_replace_name() */
-typedef enum {
-    OP_MOVE = 0,        /* H5*move call    */
-    OP_UNLINK,          /* H5Gunlink call  */
-    OP_MOUNT,           /* H5Fmount call   */
-    OP_UNMOUNT          /* H5Funmount call */
-} H5G_names_op_t;
-
-/* Depth of group entry copy */
-typedef enum {
-    H5G_COPY_NULL,      /* Null destination names */
-    H5G_COPY_LIMITED,   /* Limited copy from source to destination, omitting name & old name fields */
-    H5G_COPY_SHALLOW,   /* Copy from source to destination, including name & old name fields */
-    H5G_COPY_DEEP       /* Deep copy from source to destination, including duplicating name & old name fields */
-} H5G_ent_copy_depth_t;
 
 /*
  * Library prototypes...  These are the ones that other packages routinely
@@ -153,9 +142,6 @@ H5_DLL herr_t H5G_insert(H5G_entry_t *loc, const char *name,
 H5_DLL herr_t H5G_find(H5G_entry_t *loc, const char *name,
                         H5G_entry_t *ent/*out*/, hid_t dxpl_id);
 H5_DLL H5F_t *H5G_insertion_file(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
-H5_DLL  herr_t H5G_replace_name(int type, H5G_entry_t *loc,
-        H5RS_str_t *src_name, H5G_entry_t *src_loc,
-        H5RS_str_t *dst_name, H5G_entry_t *dst_loc, H5G_names_op_t op);
 H5_DLL  herr_t H5G_free_grp_name(H5G_t *grp);
 H5_DLL herr_t H5G_get_shared_count(H5G_t *grp);
 H5_DLL herr_t H5G_mount(H5G_t *grp);
@@ -164,10 +150,10 @@ H5_DLL herr_t H5G_unmount(H5G_t *grp);
 /*
  * These functions operate on symbol table nodes.
  */
-H5_DLL herr_t H5G_node_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream,
-			      int indent, int fwidth, haddr_t heap);
 H5_DLL herr_t H5G_node_init(H5F_t *f);
 H5_DLL herr_t H5G_node_close(const H5F_t *f);
+H5_DLL herr_t H5G_node_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream,
+			      int indent, int fwidth, haddr_t heap);
 
 /*
  * These functions operate on symbol table entries.  They're used primarily
@@ -179,9 +165,18 @@ H5_DLL herr_t H5G_ent_decode(H5F_t *f, const uint8_t **pp,
 			      H5G_entry_t *ent/*out*/);
 H5_DLL const H5G_cache_t *H5G_ent_cache(const H5G_entry_t *ent, H5G_type_t *cache_type);
 H5_DLL herr_t H5G_ent_copy(H5G_entry_t *dst, const H5G_entry_t *src,
-            H5G_ent_copy_depth_t depth);
+            H5_copy_depth_t depth);
 H5_DLL herr_t H5G_ent_reset(H5G_entry_t *ent);
-H5_DLL herr_t H5G_free_ent_name(H5G_entry_t *ent);
 H5_DLL herr_t H5G_ent_debug(H5F_t *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * stream,
 			     int indent, int fwidth, haddr_t heap);
+
+/*
+ * These functions operate on group hierarchy names.
+ */
+H5_DLL herr_t H5G_name_free(H5G_entry_t *ent);
+H5_DLL  herr_t H5G_name_replace(int type, H5G_entry_t *loc,
+        H5RS_str_t *dst_name, H5G_entry_t *dst_loc, H5G_names_op_t op);
+H5_DLL ssize_t H5G_get_name(hid_t id, char *name/*out*/, size_t size);
+
 #endif
+

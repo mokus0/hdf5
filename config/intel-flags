@@ -1,5 +1,6 @@
 #							-*- shell-script -*-
 #
+# Copyright by The HDF Group.
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -9,8 +10,8 @@
 # of the source code distribution tree; Copyright.html can be found at the
 # root level of an installed copy of the electronic HDF5 document set and
 # is linked from the top-level documents page.  It can also be found at
-# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 
 
 # This file should be sourced into configure if the compiler is the
@@ -93,6 +94,9 @@ fi
 # Please follow the pattern below by adding new versions at the top, copying
 # the information from the previous version and adding modifications to that.
 case "$cc_vendor-$cc_version" in
+    icc-10.0*)
+        PROD_CFLAGS="-O1 -Wl,-s"
+        ;;
     icc-8.0*)
 	# v8.0 -O3 infinite loops when compiling test/tselect.c. Use -O2.
 	PROD_CFLAGS="-O2 -Wl,-s"

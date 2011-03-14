@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce configure.
 dnl
+dnl Copyright by The HDF Group.
 dnl Copyright by the Board of Trustees of the University of Illinois.
 dnl All rights reserved.
 dnl
@@ -9,13 +10,13 @@ dnl the files COPYING and Copyright.html.  COPYING can be found at the root
 dnl of the source code distribution tree; Copyright.html can be found at the
 dnl root level of an installed copy of the electronic HDF5 document set and
 dnl is linked from the top-level documents page.  It can also be found at
-dnl http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+dnl http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+dnl access to either file, you may request a copy from help@hdfgroup.org.
 
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.267.2.133 2005/11/06 23:46:37 hdfadmin Exp $)
+AC_REVISION($Id: configure.in 14063 2007-08-09 20:51:55Z mcgreevy $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +25,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.6.5], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5], [1.6.6], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -80,22 +81,16 @@ set >&AS_MESSAGE_LOG_FD
 AC_MSG_RESULT([done])
 
 dnl ----------------------------------------------------------------------
-dnl Some platforms have broken tr, basename, and/or xargs programs. Check
+dnl Some platforms have broken basename, and/or xargs programs. Check
 dnl that it actually does what it's supposed to do. Catch this early
-dnl since configure relies upon tr heavily and there's no use continuing
+dnl since configure relies upon them heavily and there's no use continuing
 dnl if it's broken.
 dnl
-AC_MSG_CHECKING([if tr works])
-AC_SUBST(TR)
-if test "X${TR}" = "X"; then
-  TR=tr
-fi
-TR_TEST="`echo Test | ${TR} 'a-z,' 'A-Z '`"
-if test "X${TR_TEST}" != "XTEST"; then
-  AC_MSG_ERROR([tr program doesn't work])
-else
-  AC_MSG_RESULT([yes])
-fi
+
+dnl Avoid depending upon Character Ranges.
+dnl These are defined by autoconf.
+dnl as_cr_letters='abcdefghijklmnopqrstuvwxyz'
+dnl as_cr_LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 AC_MSG_CHECKING([if basename works])
 BASENAME_TEST="`basename /foo/bar/baz/qux/basename_works`"
@@ -172,32 +167,12 @@ case $host_os in
     ;;
 esac
 
-AC_ARG_ENABLE([hsizet],
-              [AC_HELP_STRING([--disable-hsizet],
-                              [Datasets can normally be larger than
-                               memory and/or files but some compilers are
-                               unable to handle this (including versions
-                               of GCC before 2.8.0). Disabling the
-                               feature causes dataset sizes to be
-                               restricted to the size of core memory, or
-                               'size_t'.])],
-              [HSIZET=$enableval])
-
 AC_MSG_CHECKING([for sizeof hsize_t and hssize_t])
-
 AC_SUBST(HSIZET)
-case $HSIZET in
-  no|small)
-    AC_MSG_RESULT([small])
-    HSIZET=small
-    ;;
-  *)
-    AC_MSG_RESULT([large])
-    HSIZET=large
-    AC_DEFINE([HAVE_LARGE_HSIZET], [1],
-              [Define if it's safe to use `long long' for hsize_t and hssize_t])
-    ;;
-esac
+AC_MSG_RESULT([large])
+HSIZET=large
+AC_DEFINE([HAVE_LARGE_HSIZET], [1],
+          [Define if it's safe to use `long long' for hsize_t and hssize_t])
 
 host_config="none"
 for f in $host_cpu-$host_vendor-$host_os \
@@ -334,6 +309,150 @@ export AR
 
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
+dnl ----------------------------------------------------------------------
+dnl The following variables are used to distinguish between building a
+dnl serial and parallel library.
+dnl
+dnl    HAVE_PARALLEL	-- defined in H5config.h if we are building
+dnl			   a parallel library even if configure wasn't
+dnl			   able to find some header file or library that
+dnl			   might be required. This is defined if the
+dnl			   compiler looks like a parallel compiler (e.g.,
+dnl			   mpicc or mpcc) or if the user explicitly states
+dnl			   that a parallel library is being built by supplying
+dnl			   the `--enable-parallel' configure switch.
+dnl
+dnl    PARALLEL		-- This variable is set to a non-null value if
+dnl			   configure thinks we're compiling a parallel
+dnl			   version of the library.
+dnl
+dnl    RUNSERIAL	-- This is a command which will be prepended to
+dnl			   the executable name to run the executable using
+dnl			   a single process. For serial versions of the
+dnl			   library this will normally be empty. For parallel
+dnl			   versions it might be something like `mpirun -np 1'.
+dnl			   The value of this variable is substituted in *.in
+dnl			   files.
+dnl
+dnl    RUNPARALLEL	-- This is a command which will be prepended to
+dnl			   the executable name to run the executable on
+dnl			   multiple processors. For the serial library the
+dnl			   value will normally be the empty string. For
+dnl			   parallel library it should be something like
+dnl			   `mpi -np $$NPROCS' where NPROCS will eventually
+dnl			   contain the number of processors on which to run
+dnl			   the executable (the double dollarsigns are to
+dnl			   protect the expansion until make executes the
+dnl			   command).  The value of this variable is
+dnl			   substituted in *.in files.
+dnl
+AC_SUBST([PARALLEL])
+AC_SUBST([RUNSERIAL])
+AC_SUBST([RUNPARALLEL])
+AC_SUBST([TESTPARALLEL])
+AC_SUBST([BUILD_PARALLEL_CONDITIONAL_TRUE])
+AC_SUBST([BUILD_PARALLEL_CONDITIONAL_FALSE])
+
+dnl ----------------------------------------------------------------------
+dnl If the compiler is obviously a parallel compiler then we're building
+dnl a parallel version of hdf5 and should define HAVE_PARALLEL. Furthermore,
+dnl the name of the compiler might tell us how to run the resulting
+dnl executable. For `mpicc' the executable should be run with `mpirun' from
+dnl the same directory as mpicc if it exists.
+dnl
+case "$CC_BASENAME" in
+  mpicc)
+    dnl The mpich compiler. Use mpirun from the same directory if it
+    dnl exists.
+    PARALLEL=mpicc
+    AC_MSG_CHECKING([for mpirun])
+
+    dnl Find the path where mpicc is located.
+    cmd="`echo $CC | cut -f1 -d' '`"
+    if (echo $cmd | grep / >/dev/null); then
+      path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
+    else
+      for path in `echo $PATH | tr : ' '`; do
+        if test -x $path/$cmd; then
+          break
+        fi
+      done
+    fi
+
+    dnl Is there an mpirun at that path?
+    if test -x $path/mpirun; then
+      AC_MSG_RESULT([$path/mpirun])
+      RUNSERIAL="${RUNSERIAL:-none}"
+
+      if test -z "$RUNPARALLEL"; then
+        RUNPARALLEL="$path/mpirun -np \$\${NPROCS:=3}"
+      fi
+    else
+      AC_MSG_RESULT([none])
+    fi
+    ;;
+
+  hcc)
+    dnl The LAM compiler. Use mpirun_lam or mpirun from the same directory
+    dnl if it exists.
+    PARALLEL=hcc
+    AC_MSG_CHECKING([for mpirun_lam or mpirun])
+
+    dnl Find the path where hcc is located
+    cmd="`echo $CC | cut -f1 -d' '`"
+    if (echo $cmd | grep / >/dev/null); then
+      path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
+    else
+      for path in `echo $PATH | tr : ' '`; do
+        if test -x $path/$cmd; then
+          break
+        fi
+      done
+    fi
+
+    dnl Is there an mpirun_lam or mpirun at that path?
+    if test -x $path/mpirun_lam -o -x $path/mpirun; then
+      if test -x $path/mpirun_lam; then
+        cmd=mpirun_lam
+      else
+        cmd=mpirun
+      fi
+      AC_MSG_RESULT([$path/$cmd])
+      RUNSERIAL="${RUNSERIAL:-none}"
+      if test -z "$RUNPARALLEL"; then
+        RUNPARALLEL="$path/$cmd -np \$\${NPROCS:=3}"
+      fi
+    else
+      AC_MSG_RESULT([none])
+    fi
+    ;;
+
+  mpcc|mpcc_r)
+    dnl The IBM compiler
+    PARALLEL="$CC_BASENAME"
+    ;;
+
+  *)
+    dnl Probably not a parallel compiler, but if `--enable-parallel'
+    dnl is defined below then we're still building a parallel hdf5.
+    ;;
+esac
+
+dnl ----------------------------------------------------------------------------
+dnl If shared libraries are being used with parallel, disable them, unless the 
+dnl user explicity enables them via the '--enable-shared' option.
+if test "X${enable_shared}" = "X" -a "X${enable_parallel}" = "Xyes"; then
+    echo '    shared libraries disabled in parallel'
+    enable_shared="no"
+elif test "X${enable_shared}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
+    echo '    shared libraries explicitly enabled by user'
+elif test "X${enable_shared}" = "X" -a "X${PARALLEL}" != "X"; then
+    echo '    shared libraries disabled when a parallel compiler is being used'
+    enable_shared="no"
+elif test "X${enable_shared}" = "Xyes" -a "X${PARALLEL}" != "X"; then
+    echo '    shared libraries explicitly enabled by user'
+fi
+
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 
@@ -654,8 +773,8 @@ esac
 
 AC_TRY_COMPILE([#include <sys/types.h>],
                [off64_t n = 0;],
-               [AC_CHECK_FUNCS([lseek64 fseek64])],
-               [AC_MSG_RESULT([skipping test for lseek64() and fseek64()])])
+               [AC_CHECK_FUNCS([lseek64 fseek64 fseeko ftello])],
+               [AC_MSG_RESULT([skipping test for lseek64(), fseek64(), fseeko(), and ftello])])
 
 dnl ----------------------------------------------------------------------
 dnl Data types and their sizes.
@@ -997,12 +1116,19 @@ case $withval in
 esac
 
 if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
-    AC_DEFINE(HAVE_FILTER_SZIP, 1,
-            [Define if support for szip filter is enabled])
-    USE_FILTER_SZIP="yes"
-
     dnl SZLIB library is available.  Check if it can encode
     AC_MSG_CHECKING([for szlib encoder])
+
+    AC_CACHE_VAL([hdf5_cv_szlib_functional],
+        [AC_TRY_RUN([
+        #include <szlib.h>
+
+        int main(void)
+        {
+            SZ_encoder_enabled();
+            exit(0);
+        }
+        ], [hdf5_cv_szlib_functional=yes], [hdf5_cv_szlib_functional=no],)])
 
     AC_CACHE_VAL([hdf5_cv_szlib_can_encode],
         [AC_TRY_RUN([
@@ -1018,24 +1144,39 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
         }
         ], [hdf5_cv_szlib_can_encode=yes], [hdf5_cv_szlib_can_encode=no],)])
 
+    if test ${hdf5_cv_szlib_functional} = "no"; then
+        hdf5_cv_szlib_can_encode=broken
+    else
+        AC_DEFINE(HAVE_FILTER_SZIP, 1,
+                [Define if support for szip filter is enabled])
+        USE_FILTER_SZIP="yes"
+    fi
+
     if test ${hdf5_cv_szlib_can_encode} = "yes"; then
         AC_MSG_RESULT([yes])
-    else
+    fi
+    if test ${hdf5_cv_szlib_can_encode} = "no"; then
         AC_MSG_RESULT([no])
+    fi
+    if test ${hdf5_cv_szlib_can_encode} = "broken"; then
+        AC_MSG_RESULT([shared szlib library cannot be linked. disabling szip. use static szip library instead.])
     fi
 
     dnl Add "szip" to external filter list
-    if test "X$EXTERNAL_FILTERS" != "X"; then
-        EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
-    fi
-    EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip"
     if test ${hdf5_cv_szlib_can_encode} = "yes"; then
-        EXTERNAL_FILTERS="${EXTERNAL_FILTERS}(encoder)"
-    else
-        EXTERNAL_FILTERS="${EXTERNAL_FILTERS}(no encoder)"
+        if test "X$EXTERNAL_FILTERS" != "X"; then
+            EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
+        fi
+        EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(encoder)"
     fi
-fi
+    if test ${hdf5_cv_szlib_can_encode} = "no"; then
+        if test "X$EXTERNAL_FILTERS" != "X"; then
+            EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
+        fi
+        EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip(no encoder)"
+    fi
 
+fi
 
 dnl ----------------------------------------------------------------------
 dnl Is SSL library present? It is needed by GLOBUS-GASS and Grid Storage
@@ -1349,49 +1490,6 @@ else
 fi
 
 dnl ----------------------------------------------------------------------
-dnl Should the Stream Virtual File Driver be compiled in ?
-dnl
-AC_MSG_CHECKING([for Stream Virtual File Driver support])
-AC_ARG_ENABLE([stream-vfd],
-              [AC_HELP_STRING([--enable-stream-vfd],
-                              [Build the Stream Virtual File Driver
-                               [default=yes]])],
-              [STREAM_VFD=$enableval],
-              [STREAM_VFD=yes])
-
-if test "$STREAM_VFD" = "yes"; then
-  AC_MSG_RESULT([yes])
-  AC_CHECK_HEADERS([netinet/in.h])
-  AC_CHECK_HEADERS([netinet/tcp.h], , , [#include <netinet/in.h>])
-  AC_CHECK_HEADERS([sys/filio.h])
-  AC_DEFINE([HAVE_STREAM], [1],
-            [Define if the stream virtual file driver should be compiled])
-
-  dnl Check if 'socklen_t' available
-  AC_MSG_CHECKING([if socklen_t is defined])
-  AC_TRY_COMPILE([
-#include <stdio.h>
-#include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-  ],
-    [socklen_t foo; return 0;],
-    AC_DEFINE([HAVE_SOCKLEN_T], 1, [Define if `socklen_t' is defined])
-    AC_MSG_RESULT([yes]),
-    AC_MSG_RESULT([no])
-  )
-else
-  AC_MSG_RESULT([not configured])
-fi
-
-dnl ----------------------------------------------------------------------
 dnl How does one figure out the local time zone?  Anyone know of a
 dnl Posix way to do this?
 dnl
@@ -1634,9 +1732,10 @@ case "X-$enableval" in
     AC_MSG_RESULT([suppressed])
     ;;
 esac
-   
+ 
 dnl ----------------------------------------------------------------------
 dnl Turn on debugging by setting compiler flags
+dnl This must come after the enable-production since it depends on production.
 dnl
 AC_MSG_CHECKING(for debug flags)
 AC_ARG_ENABLE([debug],
@@ -1644,9 +1743,19 @@ AC_ARG_ENABLE([debug],
                               [Turn on debugging in all packages. One may
                                also specify a comma-separated list of
                                package names without the leading H5 or
-                               the word no. The default is most
-                               packages.])],
+                               the word no. The default is most packages
+                               if production is disabled; no if it is enabled.
+                               ])],
               [DEBUG_PKG=$enableval])
+
+dnl Default to no if producton is enabled
+if test "X-$DEBUG_PKG" = X- ; then
+    if test "$enable_production" = yes ; then
+        DEBUG_PKG=no
+    else
+        DEBUG_PKG=yes
+    fi
+fi
 
 AC_SUBST([DEBUG_PKG])
 all_packages="ac,b,d,e,f,g,hg,hl,i,mf,mm,o,p,s,t,v,z"
@@ -1661,7 +1770,7 @@ case "X-$DEBUG_PKG" in
     CPPFLAGS="$CPPFLAGS -UNDEBUG"
     AC_MSG_RESULT([all ($DEBUG_PKG)])
     ;;
-  X-|X-no|X-none)
+  X-no|X-none)
     AC_MSG_RESULT([none])
     DEBUG_PKG=
     CPPFLAGS="$CPPFLAGS -DNDEBUG"
@@ -1672,7 +1781,7 @@ case "X-$DEBUG_PKG" in
 esac
 
 if test -n "$DEBUG_PKG"; then
-  for pkg in `echo $DEBUG_PKG | ${TR} 'a-z,' 'A-Z '`; do
+  for pkg in `echo $DEBUG_PKG | tr ${as_cr_letters}',' ${as_cr_LETTERS}' '`; do
     CPPFLAGS="$CPPFLAGS -DH5${pkg}_DEBUG"
   done
 fi
@@ -1775,135 +1884,34 @@ case "X-$INSTRUMENT" in
     ;;
 esac
 
-dnl Checkpoint the cache
-AC_CACHE_SAVE
-
 dnl ----------------------------------------------------------------------
-dnl The following variables are used to distinguish between building a
-dnl serial and parallel library.
+dnl Check if they would like to securely clear file buffers before they are
+dnl     written.
 dnl
-dnl    HAVE_PARALLEL	-- defined in H5config.h if we are building
-dnl			   a parallel library even if configure wasn't
-dnl			   able to find some header file or library that
-dnl			   might be required. This is defined if the
-dnl			   compiler looks like a parallel compiler (e.g.,
-dnl			   mpicc or mpcc) or if the user explicitly states
-dnl			   that a parallel library is being built by supplying
-dnl			   the `--enable-parallel' configure switch.
-dnl
-dnl    PARALLEL		-- This variable is set to a non-null value if
-dnl			   configure thinks we're compiling a parallel
-dnl			   version of the library.
-dnl
-dnl    RUNSERIAL	-- This is a command which will be prepended to
-dnl			   the executable name to run the executable using
-dnl			   a single process. For serial versions of the
-dnl			   library this will normally be empty. For parallel
-dnl			   versions it might be something like `mpirun -np 1'.
-dnl			   The value of this variable is substituted in *.in
-dnl			   files.
-dnl
-dnl    RUNPARALLEL	-- This is a command which will be prepended to
-dnl			   the executable name to run the executable on
-dnl			   multiple processors. For the serial library the
-dnl			   value will normally be the empty string. For
-dnl			   parallel library it should be something like
-dnl			   `mpi -np $$NPROCS' where NPROCS will eventually
-dnl			   contain the number of processors on which to run
-dnl			   the executable (the double dollarsigns are to
-dnl			   protect the expansion until make executes the
-dnl			   command).  The value of this variable is
-dnl			   substituted in *.in files.
-dnl
-AC_SUBST([PARALLEL])
-AC_SUBST([RUNSERIAL])
-AC_SUBST([RUNPARALLEL])
-AC_SUBST([TESTPARALLEL])
+AC_SUBST([CLEARFILEBUF])
+AC_MSG_CHECKING([whether to clear file buffers])
+AC_ARG_ENABLE([clear-file-buffers],
+              [AC_HELP_STRING([--enable-clear-file-buffers],
+                              [Securely clear file buffers before writing
+                              to file.  Default=yes.])],
+              [CLEARFILEBUF=$enableval])
 
-dnl ----------------------------------------------------------------------
-dnl If the compiler is obviously a parallel compiler then we're building
-dnl a parallel version of hdf5 and should define HAVE_PARALLEL. Furthermore,
-dnl the name of the compiler might tell us how to run the resulting
-dnl executable. For `mpicc' the executable should be run with `mpirun' from
-dnl the same directory as mpicc if it exists.
-dnl
-case "$CC_BASENAME" in
-  mpicc)
-    dnl The mpich compiler. Use mpirun from the same directory if it
-    dnl exists.
-    PARALLEL=mpicc
-    AC_MSG_CHECKING([for mpirun])
-
-    dnl Find the path where mpicc is located.
-    cmd="`echo $CC | cut -f1 -d' '`"
-    if (echo $cmd | grep / >/dev/null); then
-      path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
-    else
-      for path in `echo $PATH | ${TR} : ' '`; do
-        if test -x $path/$cmd; then
-          break
-        fi
-      done
-    fi
-
-    dnl Is there an mpirun at that path?
-    if test -x $path/mpirun; then
-      AC_MSG_RESULT([$path/mpirun])
-      RUNSERIAL="${RUNSERIAL:-none}"
-
-      if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="$path/mpirun -np \$\${NPROCS:=3}"
-      fi
-    else
-      AC_MSG_RESULT([none])
-    fi
-    ;;
-
-  hcc)
-    dnl The LAM compiler. Use mpirun_lam or mpirun from the same directory
-    dnl if it exists.
-    PARALLEL=hcc
-    AC_MSG_CHECKING([for mpirun_lam or mpirun])
-
-    dnl Find the path where hcc is located
-    cmd="`echo $CC | cut -f1 -d' '`"
-    if (echo $cmd | grep / >/dev/null); then
-      path="`echo $cmd | sed 's/\(.*\)\/.*$/\1/'`"
-    else
-      for path in `echo $PATH | ${TR} : ' '`; do
-        if test -x $path/$cmd; then
-          break
-        fi
-      done
-    fi
-
-    dnl Is there an mpirun_lam or mpirun at that path?
-    if test -x $path/mpirun_lam -o -x $path/mpirun; then
-      if test -x $path/mpirun_lam; then
-        cmd=mpirun_lam
-      else
-        cmd=mpirun
-      fi
-      AC_MSG_RESULT([$path/$cmd])
-      RUNSERIAL="${RUNSERIAL:-none}"
-      if test -z "$RUNPARALLEL"; then
-        RUNPARALLEL="$path/$cmd -np \$\${NPROCS:=3}"
-      fi
-    else
-      AC_MSG_RESULT([none])
-    fi
-    ;;
-
-  mpcc|mpcc_r)
-    dnl The IBM compiler
-    PARALLEL="$CC_BASENAME"
-    ;;
-
+case "X-$CLEARFILEBUF" in
   *)
-    dnl Probably not a parallel compiler, but if `--enable-parallel'
-    dnl is defined below then we're still building a parallel hdf5.
+      CLEARFILEBUF=yes
+      AC_MSG_RESULT([yes])
+      AC_DEFINE([CLEAR_MEMORY], [1],
+                [Define if the memory buffers being written to disk should be
+                cleared before writing.])
+    ;;
+  X-no)
+      CLEARFILEBUF=no
+      AC_MSG_RESULT([no])
     ;;
 esac
+
+dnl Checkpoint the cache
+AC_CACHE_SAVE
 
 dnl ----------------------------------------------------------------------
 dnl What header files and libraries do we have to look for for parallel
@@ -2089,7 +2097,37 @@ if test -n "$PARALLEL"; then
   else
     AC_MSG_RESULT([no])
   fi
-  
+
+dnl ----------------------------------------------------------------------
+dnl Set the flag to indicate that the MPI_File_get_size() function
+dnl works.  The default is enabled unless the user knows the function
+dnl doesn't work on the system and disables it.  (This flag should be set
+dnl for all machines except for SGI Altix Propack 4 where the function 
+dnl doesn't return correct file size.)
+dnl
+AC_ARG_ENABLE([mpi-size],
+              [AC_HELP_STRING([--enable-mpi-size],
+                              [Some systems (only SGI Altix Propack 4 so far) return wrong value
+                               from MPI_File_get_size.  By disabling this function, the library
+                               will replace it with stat to get the correct file size.
+                               [default=yes]])],
+              [MPI_GET_SIZE=$enableval])
+
+AC_MSG_CHECKING([if MPI_File_get_size is enabled])
+
+AC_SUBST(MPI_GET_SIZE)
+case "X-$MPI_GET_SIZE" in
+  X-no)
+    AC_MSG_RESULT([no])
+    MPI_GET_SIZE=no
+    ;;
+  X-yes|*)
+    AC_MSG_RESULT([yes])
+    MPI_GET_SIZE=yes
+    AC_DEFINE([HAVE_MPI_GET_SIZE], [1],
+              [Define if MPI_File_get_size works correctly])
+    ;;
+esac
 
 dnl ----------------------------------------------------------------------
 dnl Check to see whether the complicate MPI derived datatype works. 
@@ -2108,6 +2146,68 @@ else
   AC_MSG_RESULT([no])
 fi
 fi
+
+dnl ----------------------------------------------------------------------
+dnl Should the Stream Virtual File Driver be compiled in ?
+dnl
+AC_MSG_CHECKING([for Stream Virtual File Driver support])
+AC_ARG_ENABLE([stream-vfd],
+              [AC_HELP_STRING([--enable-stream-vfd],
+                              [Build the Stream Virtual File Driver
+                               [default=yes]])],
+              [STREAM_VFD=$enableval],
+              [STREAM_VFD=yes])
+
+dnl If the user explicitly disabled Stream VFD, say so.
+if test "$STREAM_VFD" != "yes"; then
+  AC_MSG_RESULT([not configured])
+fi
+
+dnl If the stream VFD is being used with parallel, disable it.
+dnl Using both stream VFD and parallel is a weird case and seems to cause errors on some
+dnl platforms.
+if test "$STREAM_VFD" = "yes" -a "X${enable_parallel}" = "Xyes"; then
+    AC_MSG_RESULT([not supported in parallel])
+    echo "    warning! Stream-VFD is not supported in parallel"
+    STREAM_VFD=no
+fi
+if test "$STREAM_VFD" = "yes" -a "X${PARALLEL}" != "X"; then
+    AC_MSG_RESULT([not supported in parallel])
+    echo "    warning! Stream-VFD is not supported when a parallel compiler is being used"
+    STREAM_VFD=no
+fi  
+    
+dnl Otherwise, use Stream VFD.
+if test "$STREAM_VFD" = "yes"; then
+  AC_MSG_RESULT([yes])
+  AC_CHECK_HEADERS([netinet/in.h])
+  AC_CHECK_HEADERS([netinet/tcp.h], , , [#include <netinet/in.h>])
+  AC_CHECK_HEADERS([sys/filio.h])
+  AC_DEFINE([HAVE_STREAM], [1],
+            [Define if the stream virtual file driver should be compiled])
+
+  dnl Check if 'socklen_t' available
+  AC_MSG_CHECKING([if socklen_t is defined])
+  AC_TRY_COMPILE([
+#include <stdio.h>
+#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+  ],
+    [socklen_t foo; return 0;],
+    AC_DEFINE([HAVE_SOCKLEN_T], 1, [Define if `socklen_t' is defined])
+    AC_MSG_RESULT([yes]),
+    AC_MSG_RESULT([no])
+  )
+fi
+
 
 dnl ----------------------------------------------------------------------
 dnl Turn on internal I/O filters by setting macros in header files
@@ -2146,7 +2246,7 @@ case "X-$FILTERS" in
 esac
 
 if test -n "$FILTERS"; then
-  for filter in `echo $FILTERS | ${TR} 'a-z,' 'A-Z '`; do
+  for filter in `echo $FILTERS | tr ${as_cr_letters}',' ${as_cr_LETTERS}' '`; do
     dnl ------------------------------------------------------------------
     dnl Have to use separate 'if' construct for each filter, so that
     dnl autoheader can detect the AC_DEFINE for each one...
@@ -2390,10 +2490,15 @@ touch ./config/stamp1
 saved_no_create=$no_create
 no_create=yes
 
-PARALLEL_MAKE=""
-
+dnl Set parallel build conditions depending on if TESTPARALLEL is defined.
 if test -n "$TESTPARALLEL"; then
   PARALLEL_MAKE="$TESTPARALLEL/Makefile $TESTPARALLEL/testph5.sh"
+  BUILD_PARALLEL_CONDITIONAL_TRUE=
+  BUILD_PARALLEL_CONDITIONAL_FALSE='#'
+else
+  PARALLEL_MAKE=""
+  BUILD_PARALLEL_CONDITIONAL_TRUE='#'
+  BUILD_PARALLEL_CONDITIONAL_FALSE=
 fi
 
 
@@ -2401,8 +2506,11 @@ fi
 # to do : fortran with hl
 if test "X$HDF5_HL" = "Xyes"; then
  HL_FILES="hl/Makefile
+	   hl/examples/Makefile
 	   hl/src/Makefile
-           hl/test/Makefile"
+           hl/test/Makefile
+           hl/tools/Makefile
+           hl/tools/gif2h5/Makefile"
 fi
 
 AC_CONFIG_FILES([src/libhdf5.settings
@@ -2431,8 +2539,8 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/lib/Makefile
                  tools/misc/Makefile
                  tools/misc/h5cc
-                 tools/gifconv/Makefile
                  examples/Makefile
+                 examples/testh5cc.sh
                  doc/Makefile
                  doc/html/Makefile
                  doc/html/ed_libs/Makefile
@@ -2501,6 +2609,11 @@ PRINT_N() {
   echo $ECHO_N "$1:  $ECHO_C" 1>>src/libhdf5.settings
 }
 
+PRINT_F() {
+  cat "$1"
+  cat "$1" 1>>src/libhdf5.settings
+}
+
 PRINT() {
   echo "$1"
   echo "$1" 1>>src/libhdf5.settings
@@ -2533,6 +2646,7 @@ IF_ENABLED_DISABLED() {
   fi
 }
 
+PRINT ""
 PRINT "Configure Summary"
 PRINT "Compiling Options:"
 
@@ -2581,15 +2695,32 @@ IF_YES_NO "$TRACE_API"
 PRINT_N "   Optimization Instrumentation"
 IF_YES_NO "$INSTRUMENT"
 
+PRINT ""
 PRINT "Languages:"
+PRINT "----------"
 
 PRINT_N "                            C++"
 IF_YES_NO "$HDF_CXX"
+summary_file="#c++_configure_summary"
+if test X$HDF_CXX = Xyes -a -f $summary_file ; then
+
+    PRINT_F $summary_file
+    rm -f $summary_file
+    PRINT ""
+fi
 
 PRINT_N "                        Fortran"
 IF_YES_NO "$HDF_FORTRAN"
+summary_file="#fortran_configure_summary"
+if test X$HDF_FORTRAN = Xyes -a -f $summary_file ; then
+    PRINT_F $summary_file
+    rm -f $summary_file
+    PRINT ""
+fi
 
+PRINT ""
 PRINT "Features:"
+PRINT "---------"
 
 PRINT_N "                        dmalloc"
 IF_YES_NO "$HAVE_DMALLOC"

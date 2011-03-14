@@ -1,15 +1,16 @@
 ##
-## Copyright by the Board of Trustees of the University of Illinois.
-## All rights reserved.
-##
-## This file is part of HDF5.  The full HDF5 copyright notice, including
-## terms governing use, modification, and redistribution, is contained in
-## the files COPYING and Copyright.html.  COPYING can be found at the root
-## of the source code distribution tree; Copyright.html can be found at the
-## root level of an installed copy of the electronic HDF5 document set and
-## is linked from the top-level documents page.  It can also be found at
-## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# Copyright by The HDF Group.
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 ##
 ## hdf5 Parallel Library Test Makefile(.in)
 ##
@@ -43,7 +44,7 @@ MOSTLYCLEAN=MPItest.h5 Para*.h5 *.clog
 DISTCLEAN=go Makefile testph5.sh
 
 ## Test source files
-TEST_PHDF5_SRC=testphdf5.c t_dset.c t_file.c t_mdset.c t_ph5basic.c t_coll_chunk.c t_span_tree.c
+TEST_PHDF5_SRC=testphdf5.c t_dset.c t_file.c t_mdset.c t_ph5basic.c t_coll_chunk.c t_span_tree.c t_chunk_alloc.c t_filter_read.c
 TEST_PHDF5_OBJ=$(TEST_PHDF5_SRC:.c=.lo)
 TEST_SRC=t_mpi.c $(TEST_PHDF5_SRC)
 TEST_OBJ=$(TEST_SRC:.c=.lo)

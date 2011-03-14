@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -32,7 +33,7 @@ extern const char *opt_arg;     /* flag argument (or value)                 */
 
 enum {
     no_arg = 0,         /* doesn't take an argument     */
-    require_arg,        /* requires an argument	        */
+    require_arg,        /* requires an argument         */
     optional_arg        /* argument is optional         */
 };
 
@@ -43,23 +44,23 @@ enum {
  * the option. The long options are specified in the following way:
  *
  * struct long_options foo[] = {
- * 	{ "filename", require_arg, 'f' },
- * 	{ "append", no_arg, 'a' },
- * 	{ "width", require_arg, 'w' },
- * 	{ NULL, 0, 0 }
+ *  { "filename", require_arg, 'f' },
+ *  { "append", no_arg, 'a' },
+ *  { "width", require_arg, 'w' },
+ *  { NULL, 0, 0 }
  * };
  *
  * Long named options can have arguments specified as either:
  *
- * 	``--param=arg'' or ``--param arg''
+ *  ``--param=arg'' or ``--param arg''
  *
  * Short named options can have arguments specified as either:
  *
- * 	``-w80'' or ``-w 80''
+ *  ``-w80'' or ``-w 80''
  *
  * and can have more than one short named option specified at one time:
  *
- * 	-aw80
+ *  -aw80
  *
  * in which case those options which expect an argument need to come at the
  * end.
@@ -115,4 +116,4 @@ extern herr_t init_objs(hid_t fid, find_objs_t *info, table_t **group_table,
     table_t **dset_table, table_t **type_table);
 extern obj_t   *search_obj(table_t *temp, unsigned long *objno);
 
-#endif	/* H5TOOLS_UTILS_H__ */
+#endif  /* H5TOOLS_UTILS_H__ */

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,16 +9,16 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <string>
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
 #else
 #include <iostream>
 #endif
+#include <string>
 
 #include "H5Include.h"
 #include "H5Exception.h"
@@ -30,9 +31,14 @@
 #include "H5CommonFG.h"
 #include "H5DataType.h"
 #include "H5DataSpace.h"
+#include "H5private.h"
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
+#ifndef H5_NO_STD
+    using std::cerr;
+    using std::endl;
+#endif  // H5_NO_STD
 #endif
 
 //--------------------------------------------------------------------------
@@ -80,19 +86,19 @@ void Attribute::write( const DataType& mem_type, const void *buf ) const
 //--------------------------------------------------------------------------
 // Function:	Attribute::write
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It writes a \a std::string to this attribute.
+///		It writes a \a H5std_string to this attribute.
 ///\param	mem_type  - IN: Attribute datatype (in memory)
 ///\param	strg      - IN: Data to be written
 ///\exception	H5::AttributeIException
 // Programmer	Binh-Minh Ribler - Apr, 2003
 //--------------------------------------------------------------------------
-void Attribute::write( const DataType& mem_type, const string& strg ) const
+void Attribute::write( const DataType& mem_type, const H5std_string& strg ) const
 {
    // Convert string to C-string
    const char* strg_C;
    strg_C = strg.c_str();  // strg_C refers to the contents of strg as a C-str
 
-   herr_t ret_value = H5Awrite( id, mem_type.getId(), strg_C );
+   herr_t ret_value = H5Awrite( id, mem_type.getId(), &strg_C );
    if( ret_value < 0 )
    {
       throw AttributeIException("Attribute::write", "H5Awrite failed");
@@ -119,23 +125,25 @@ void Attribute::read( const DataType& mem_type, void *buf ) const
 //--------------------------------------------------------------------------
 // Function:	Attribute::read
 ///\brief	This is an overloaded member function, provided for convenience.
-///		It reads a \a std::string from this attribute.
+///		It reads a \a H5std_string from this attribute.
 ///\param	mem_type  - IN: Attribute datatype (in memory)
 ///\param	strg      - IN: Buffer for read string
 ///\exception	H5::AttributeIException
 // Programmer	Binh-Minh Ribler - Apr, 2003
 //--------------------------------------------------------------------------
-void Attribute::read( const DataType& mem_type, string& strg ) const
+void Attribute::read( const DataType& mem_type, H5std_string& strg ) const
 {
-   size_t size = mem_type.getSize();
-   char* strg_C = new char[size+1];  // temporary C-string for C API
-   herr_t ret_value = H5Aread( id, mem_type.getId(), strg_C );
+   char* strg_C;  // temporary C-string for C API
+
+   // call C API to get the attribute string of chars
+   herr_t ret_value = H5Aread( id, mem_type.getId(), &strg_C);
+
    if( ret_value < 0 )
    {
       throw AttributeIException("Attribute::read", "H5Aread failed");
    }
-   strg = strg_C;
-   delete []strg_C;
+   strg = strg_C;       // get 'string' from the C char*
+   HDfree(strg_C);
 }
 
 //--------------------------------------------------------------------------
@@ -191,7 +199,7 @@ hid_t Attribute::p_get_type() const
 ///\exception	H5::AttributeIException
 // Programmer	Binh-Minh Ribler - Nov, 2001
 //--------------------------------------------------------------------------
-ssize_t Attribute::getName( size_t buf_size, string& attr_name ) const
+ssize_t Attribute::getName( size_t buf_size, H5std_string& attr_name ) const
 {
    char* name_C = new char[buf_size+1];  // temporary C-string for C API
 
@@ -219,9 +227,9 @@ ssize_t Attribute::getName( size_t buf_size, string& attr_name ) const
 ///\exception	H5::AttributeIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-string Attribute::getName( size_t buf_size ) const
+H5std_string Attribute::getName( size_t buf_size ) const
 {
-   string attr_name;
+   H5std_string attr_name;
    ssize_t name_size = getName( buf_size, attr_name );
    return( attr_name );
    // let caller catch exception if any
@@ -236,7 +244,7 @@ string Attribute::getName( size_t buf_size ) const
 ///\exception	H5::AttributeIException
 // Programmer	Binh-Minh Ribler - May, 2004
 //--------------------------------------------------------------------------
-string Attribute::getName() const
+H5std_string Attribute::getName() const
 {
    // Try with 256 characters for the name first, if the name's length
    // returned is more than that then, read the name again with the
@@ -244,7 +252,7 @@ string Attribute::getName() const
    char* name_C = new char[256];  // temporary C-string for C API
    ssize_t name_size = H5Aget_name(id, 255, name_C);
 
-   string attr_name;
+   H5std_string attr_name;
    if (name_size >= 256)
       name_size = getName(name_size, attr_name);
 
@@ -280,13 +288,16 @@ hsize_t Attribute::getStorageSize() const
 //--------------------------------------------------------------------------
 void Attribute::close()
 {
-   herr_t ret_value = H5Aclose(id);
-   if( ret_value < 0 )
-   {
-      throw AttributeIException("Attribute::close", "H5Aclose failed");
-   }
-   // reset the id because the attribute that it represents is now closed
-   id = 0;
+    if (p_valid_id(id))
+    {
+	herr_t ret_value = H5Aclose(id);
+	if( ret_value < 0 )
+	{
+	    throw AttributeIException("Attribute::close", "H5Aclose failed");
+	}
+	// reset the id because the attribute that it represents is now closed
+	id = 0;
+    }
 }
 
 //--------------------------------------------------------------------------
@@ -294,18 +305,19 @@ void Attribute::close()
 ///\brief	Properly terminates access to this attribute.
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
-//		Replaced resetIdComponent with decRefCount to use C library
-//		ID reference counting mechanism - BMR, Feb 20, 2005
+//		- Replaced resetIdComponent() with decRefCount() to use C
+//		library ID reference counting mechanism - BMR, Feb 20, 2005
+//		- Replaced decRefCount with close() to let the C library
+//		handle the reference counting - BMR, Jun 1, 2006
 //--------------------------------------------------------------------------
 Attribute::~Attribute()
 {
-   // The attribute id will be closed properly
-   try {
-      decRefCount();
-   }
-   catch (Exception close_error) {
-      cerr << "Attribute::~Attribute - " << close_error.getDetailMsg() << endl;
-   }
+    try {
+	close();
+    }
+    catch (Exception close_error) {
+	cerr << "Attribute::~Attribute - " << close_error.getDetailMsg() << endl;
+    }
 }
 
 #ifndef H5_NO_NAMESPACE

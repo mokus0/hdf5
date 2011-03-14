@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -24,6 +25,11 @@
 /* Private headers needed by this file */
 #include "H5FDprivate.h"	/* File drivers				*/
 #include "H5Oprivate.h"		/* Object headers		  	*/
+#include "H5Sprivate.h"		/* Dataspaces 				*/
+
+/**************************/
+/* Library Private Macros */
+/**************************/
 
 /*
  * Feature: Define H5D_DEBUG on the compiler command line if you want to
@@ -210,7 +216,13 @@ typedef struct H5D_dcpl_cache_t {
     H5D_fill_time_t fill_time;  /* Fill time (H5D_CRT_FILL_TIME_NAME) */
 } H5D_dcpl_cache_t;
 
-/* Library-private functions defined in H5D package */
+/*****************************/
+/* Library Private Variables */
+/*****************************/
+
+/******************************/
+/* Library Private Prototypes */
+/******************************/
 H5_DLL herr_t H5D_init(void);
 H5_DLL H5D_t *H5D_open(const H5G_entry_t *ent, hid_t dxpl_id);
 H5_DLL herr_t H5D_close(H5D_t *dataset);
@@ -228,6 +240,10 @@ H5_DLL herr_t H5D_flush(const H5F_t *f, hid_t dxpl_id, unsigned flags);
 H5_DLL herr_t H5D_get_dxpl_cache(hid_t dxpl_id, H5D_dxpl_cache_t **cache);
 H5_DLL herr_t H5D_get_dxpl_cache_real(hid_t dxpl_id, H5D_dxpl_cache_t *cache);
 
+/* Functions that operate on vlen data */
+H5_DLL herr_t H5D_vlen_reclaim(hid_t type_id, H5S_t *space, hid_t plist_id,
+    void *buf);
+
 /* Functions that operate on contiguous storage */
 H5_DLL herr_t H5D_contig_delete(H5F_t *f, hid_t dxpl_id,
     const H5O_layout_t *layout);
@@ -238,4 +254,5 @@ H5_DLL herr_t H5D_istore_delete(H5F_t *f, hid_t dxpl_id,
 H5_DLL herr_t H5D_istore_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
 				int indent, int fwidth, unsigned ndims);
 
-#endif
+#endif /* _H5Dprivate_H */
+

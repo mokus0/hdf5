@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Class AbstractDs is an abstract base class, from which Attribute and
@@ -24,6 +25,7 @@
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
+
 class ArrayType;
 class CompType;
 class EnumType;
@@ -37,23 +39,23 @@ class H5_DLLCPP AbstractDs : public H5Object {
 	// Note that this datatype is a generic one and can only be accessed
 	// via generic member functions, i.e., member functions belong
 	// to DataType.  To get specific datatype, i.e. EnumType, FloatType,
-	// etc..., use the specific functions, that follow, instead .
+	// etc..., use the specific functions, that follow, instead.
 	DataType getDataType() const;
 
-        // Gets a copy of the specific datatype of this abstract dataset
-        ArrayType getArrayType() const;
-        CompType getCompType() const;
-        EnumType getEnumType() const;
-        FloatType getFloatType() const;
-        IntType getIntType() const;
-        StrType getStrType() const;
-        VarLenType getVarLenType() const;
+	// Gets a copy of the specific datatype of this abstract dataset.
+	ArrayType getArrayType() const;
+	CompType getCompType() const;
+	EnumType getEnumType() const;
+	IntType getIntType() const;
+	FloatType getFloatType() const;
+	StrType getStrType() const;
+	VarLenType getVarLenType() const;
 
-	// Gets the dataspace of this abstract dataset - pure virtual
+	// Gets the dataspace of this abstract dataset - pure virtual.
 	virtual DataSpace getSpace() const = 0;
 
-        // Gets the class of the datatype that is used by this abstract
-	// dataset
+	// Gets the class of the datatype that is used by this abstract
+	// dataset.
 	H5T_class_t getTypeClass() const;
 
 	// Returns the amount of storage size required for this abstract
@@ -63,6 +65,7 @@ class H5_DLLCPP AbstractDs : public H5Object {
 	// Copy constructor
 	AbstractDs( const AbstractDs& original );
 
+	// Destructor
 	virtual ~AbstractDs();
 
    protected:

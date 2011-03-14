@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5DataType_H
@@ -28,19 +29,27 @@ class H5_DLLCPP DataType : public H5Object {
 	// Copy constructor: makes a copy of the original object
 	DataType( const DataType& original );
 
+	// Creates a datatype by way of dereference.
+	DataType(IdComponent& obj, void* ref);
+
 	// Closes this datatype.
 	virtual void close();
 
-	// Copies an existing datatype to this datatype object
-	void copy( const DataType& like_type );
+	// Copies an existing datatype to this datatype object.
+	void copy(const DataType& like_type);
+
+	// Copies the datatype of dset to this datatype object.
+	void copy(const DataSet& dset);
 
 	// Returns the datatype class identifier.
 	H5T_class_t getClass() const;
 
 	// Commits a transient datatype to a file; this datatype becomes
 	// a named datatype which can be accessed from the location.
-	void commit( CommonFG& loc, const char* name ) const;
-	void commit( CommonFG& loc, const string& name ) const;
+	void commit( H5File& loc, const char* name);
+	void commit( H5File& loc, const H5std_string& name);
+	void commit( H5Object& loc, const char* name);
+	void commit( H5Object& loc, const H5std_string& name);
 
 	// Determines whether this datatype is a named datatype or
 	// a transient datatype.
@@ -51,7 +60,7 @@ class H5_DLLCPP DataType : public H5Object {
 	H5T_conv_t find( const DataType& dest, H5T_cdata_t **pcdata ) const;
 
 	// Converts data from between specified datatypes.
-	void convert( const DataType& dest, size_t nelmts, void *buf, void *background, PropList& plist ) const;
+	void convert( const DataType& dest, size_t nelmts, void *buf, void *background, const PropList& plist=PropList::DEFAULT) const;
 
 	// Assignment operator
 	DataType& operator=( const DataType& rhs );
@@ -77,18 +86,18 @@ class H5_DLLCPP DataType : public H5Object {
 
 	// Registers a conversion function.
 	void registerFunc(H5T_pers_t pers, const char* name, const DataType& dest, H5T_conv_t func ) const;
-	void registerFunc(H5T_pers_t pers, const string& name, const DataType& dest, H5T_conv_t func ) const;
+	void registerFunc(H5T_pers_t pers, const H5std_string& name, const DataType& dest, H5T_conv_t func ) const;
 
 	// Removes a conversion function from all conversion paths.
 	void unregister( H5T_pers_t pers, const char* name, const DataType& dest, H5T_conv_t func ) const;
-	void unregister( H5T_pers_t pers, const string& name, const DataType& dest, H5T_conv_t func ) const;
+	void unregister( H5T_pers_t pers, const H5std_string& name, const DataType& dest, H5T_conv_t func ) const;
 
 	// Tags an opaque datatype.
 	void setTag( const char* tag ) const;
-	void setTag( const string& tag ) const;
+	void setTag( const H5std_string& tag ) const;
 
 	// Gets the tag associated with an opaque datatype.
-	string getTag() const;
+	H5std_string getTag() const;
 
 	// Checks whether this datatype contains (or is) a certain type class.
 	bool detectClass(H5T_class_t cls) const;
@@ -96,35 +105,33 @@ class H5_DLLCPP DataType : public H5Object {
 	// Checks whether this datatype is a variable-length string.
 	bool isVariableStr() const;
 
-	// Creates a reference to a named Hdf5 object in this object.
-	void* Reference(const char* name) const;
-	void* Reference(const string& name) const;
-
-	// Creates a reference to a named Hdf5 object or to a dataset region
+	// Creates a reference to a named HDF5 object or to a dataset region
 	// in this object.
-	void* Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type = H5R_DATASET_REGION) const;
+	void* Reference(const char* name, DataSpace& dataspace, H5R_type_t ref_type = H5R_DATASET_REGION) const; // will be obsolete
+
+	// Creates a reference to a named HDF5 object in this object.
+	void* Reference(const char* name) const; // will be obsolete
+	void* Reference(const H5std_string& name) const; // will be obsolete
 
 	// Retrieves the type of object that an object reference points to.
-	H5G_obj_t getObjType(void *ref, H5R_type_t ref_type) const;
+	H5G_obj_t getObjType(void *ref, H5R_type_t ref_type = H5R_OBJECT) const;
 
 	// Retrieves a dataspace with the region pointed to selected.
 	DataSpace getRegion(void *ref, H5R_type_t ref_type = H5R_DATASET_REGION) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("DataType"); }
+	virtual H5std_string fromClass () const { return("DataType"); }
 
 	// Creates a copy of an existing DataType using its id
-	DataType( const hid_t type_id, bool predtype = false );
+	DataType( const hid_t type_id );
 
 	// Default constructor
 	DataType();
 
 	// Destructor: properly terminates access to this datatype.
 	virtual ~DataType();
-
-   protected:
-	bool is_predtype;	// indicates a type is predefined so
-				// H5Tclose will not be called for it
+   private:
+	void p_commit(hid_t loc_id, const char* name);
 };
 #ifndef H5_NO_NAMESPACE
 }

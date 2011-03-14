@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*-------------------------------------------------------------------------
@@ -36,17 +37,17 @@
 
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_stab_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_stab_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p);
 static herr_t H5O_stab_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_stab_copy(const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_stab_size(const H5F_t *f, const void *_mesg);
 static herr_t H5O_stab_free(void *_mesg);
 static herr_t H5O_stab_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t adj_link);
 static herr_t H5O_stab_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg,
-			     FILE * stream, int indent, int fwidth);
+    FILE * stream, int indent, int fwidth);
 
-/* This message derives from H5O */
-const H5O_class_t H5O_STAB[1] = {{
+/* This message derives from H5O message class */
+const H5O_msg_class_t H5O_MSG_STAB[1] = {{
     H5O_STAB_ID,            	/*message id number             */
     "stab",                 	/*message name for debugging    */
     sizeof(H5O_stab_t),     	/*native message size           */
@@ -60,7 +61,7 @@ const H5O_class_t H5O_STAB[1] = {{
     NULL,			/* link method			*/
     NULL,		    	/*get share method		*/
     NULL, 			/*set share method		*/
-    H5O_stab_debug,         	/*debug the message             */
+    H5O_stab_debug         	/*debug the message             */
 }};
 
 /* Declare a free list to manage the H5O_stab_t struct */
@@ -86,7 +87,7 @@ H5FL_DEFINE_STATIC(H5O_stab_t);
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_stab_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
+H5O_stab_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
 {
     H5O_stab_t          *stab=NULL;
     void                *ret_value;     /* Return value */
@@ -96,7 +97,6 @@ H5O_stab_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t U
     /* check args */
     assert(f);
     assert(p);
-    assert(!sh);
 
     /* decode */
     if (NULL==(stab = H5FL_CALLOC(H5O_stab_t)))
@@ -172,21 +172,21 @@ H5O_stab_encode(H5F_t *f, uint8_t *p, const void *_mesg)
  *-------------------------------------------------------------------------
  */
 void *
-H5O_stab_fast(const H5G_cache_t *cache, const H5O_class_t *type, void *_mesg)
+H5O_stab_fast(const H5G_cache_t *cache, const H5O_msg_class_t *type, void *_mesg)
 {
     H5O_stab_t          *ret_value;     /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_stab_fast);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_stab_fast)
 
     /* check args */
     assert(cache);
     assert(type);
 
-    if (H5O_STAB == type) {
+    if (H5O_MSG_STAB == type) {
         if (_mesg) {
 	    ret_value = (H5O_stab_t *) _mesg;
         } else if (NULL==(ret_value = H5FL_MALLOC(H5O_stab_t))) {
-	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
 	}
         ret_value->btree_addr = cache->stab.btree_addr;
         ret_value->heap_addr = cache->stab.heap_addr;
@@ -195,7 +195,7 @@ H5O_stab_fast(const H5G_cache_t *cache, const H5O_class_t *type, void *_mesg)
         ret_value=NULL;
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(ret_value)
 }
 
 

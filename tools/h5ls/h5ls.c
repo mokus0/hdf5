@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -64,7 +65,7 @@ static struct dispatch_t {
     herr_t (*close)(hid_t obj);
     herr_t (*list1)(hid_t obj);
     herr_t (*list2)(hid_t obj, const char *name);
-} dispatch_g[H5G_NTYPES];
+} dispatch_g[H5G_NLIBTYPES];
 
 #define DISPATCH(TYPE,NAME,OPEN,CLOSE,LIST1,LIST2) {         \
     dispatch_g[TYPE].name = (NAME);           \
@@ -1226,7 +1227,7 @@ dump_dataset_values(hid_t dset)
 {
     hid_t  f_type = H5Dget_type(dset);
     size_t  size = H5Tget_size(f_type);
-    h5dump_t  info;
+    h5tool_format_t  info;
     char  string_prefix[64];
     static char         fmt_double[16], fmt_float[16];
 
@@ -1332,7 +1333,7 @@ list_attr (hid_t obj, const char *attr_name, void UNUSED *op_data)
     size_t need;
     hsize_t     temp_need;
     void *buf;
-    h5dump_t info;
+    h5tool_format_t info;
     H5S_class_t space_type;
 
     printf("    Attribute: ");
@@ -2214,7 +2215,7 @@ main (int argc, const char *argv[])
         file = -1;
 
         while (fname && *fname) {
-            file = h5tools_fopen(fname, preferred_driver, drivername, sizeof drivername, argc, argv);
+            file = h5tools_fopen(fname, preferred_driver, drivername, sizeof drivername);
 
             if (file>=0) {
                 if (verbose_g) {

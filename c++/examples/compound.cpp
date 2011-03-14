@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -18,24 +19,31 @@
  * and read back fields' subsets.
  */
 
-#include <string>
-
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>
 #else
 #include <iostream>
 #endif
+#include <string>
+
+#ifndef H5_NO_NAMESPACE
+#ifndef H5_NO_STD
+    using std::cout;
+    using std::endl;
+#endif  // H5_NO_STD
+#endif
+
 #include "H5Cpp.h"
 
 #ifndef H5_NO_NAMESPACE
 using namespace H5;
 #endif
 
-const string FILE_NAME( "SDScompound.h5" );
-const string DATASET_NAME( "ArrayOfStructures" );
-const string MEMBER1( "a_name" );
-const string MEMBER2( "b_name" );
-const string MEMBER3( "c_name" );
+const H5std_string FILE_NAME( "SDScompound.h5" );
+const H5std_string DATASET_NAME( "ArrayOfStructures" );
+const H5std_string MEMBER1( "a_name" );
+const H5std_string MEMBER2( "b_name" );
+const H5std_string MEMBER3( "c_name" );
 const int   LENGTH = 10;
 const int   RANK = 1;
 
@@ -116,7 +124,7 @@ int main(void)
       if( member1_class == H5T_FLOAT )
       {
 	 FloatType member2 = mtype1.getMemberFloatType( 2 );
-	 string norm_string;
+	 H5std_string norm_string;
 	 H5T_norm_t norm = member2.getNorm( norm_string );
 	 cout << "Normalization type is " << norm_string << endl;
       }

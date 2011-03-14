@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -609,11 +610,11 @@ H5FD_log_open(const char *name, unsigned flags, hid_t fapl_id,
     /* Check if we are doing any logging at all */
     if(file->fa.flags!=0) {
         file->iosize=fa->buf_size;
-        if(file->fa.flags&H5FD_LOG_NUM_READ) {
+        if(file->fa.flags&H5FD_LOG_FILE_READ) {
             file->nread=H5MM_calloc(file->iosize);
             assert(file->nread);
         } /* end if */
-        if(file->fa.flags&H5FD_LOG_NUM_WRITE) {
+        if(file->fa.flags&H5FD_LOG_FILE_WRITE) {
             file->nwrite=H5MM_calloc(file->iosize);
             assert(file->nwrite);
         } /* end if */
@@ -1210,8 +1211,10 @@ H5FD_log_write(H5FD_t *_file, H5FD_mem_t type, hid_t UNUSED dxpl_id, haddr_t add
     assert(buf);
 
     /* Verify that we are writing out the type of data we allocated in this location */
-    assert(type==H5FD_MEM_DEFAULT || type==(H5FD_mem_t)file->flavor[addr] || (H5FD_mem_t)file->flavor[addr]==H5FD_MEM_DEFAULT);
-    assert(type==H5FD_MEM_DEFAULT || type==(H5FD_mem_t)file->flavor[(addr+size)-1] || (H5FD_mem_t)file->flavor[(addr+size)-1]==H5FD_MEM_DEFAULT);
+    if(file->flavor) {
+        assert(type==H5FD_MEM_DEFAULT || type==(H5FD_mem_t)file->flavor[addr] || (H5FD_mem_t)file->flavor[addr]==H5FD_MEM_DEFAULT);
+        assert(type==H5FD_MEM_DEFAULT || type==(H5FD_mem_t)file->flavor[(addr+size)-1] || (H5FD_mem_t)file->flavor[(addr+size)-1]==H5FD_MEM_DEFAULT);
+    } /* end if */
 
     /* Check for overflow conditions */
     if (HADDR_UNDEF==addr)

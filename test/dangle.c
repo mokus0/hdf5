@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -117,7 +118,7 @@ test_dangle_dataset(H5F_close_degree_t degree)
     if(H5close()<0)
         TEST_ERROR;
 
-    if(h5_get_file_size(filename)==0)
+    if(h5_get_file_size(filename)<0)
         TEST_ERROR;
 
     /* Clean up temporary file */
@@ -210,7 +211,7 @@ test_dangle_group(H5F_close_degree_t degree)
     if(H5close()<0)
         TEST_ERROR;
 
-    if(h5_get_file_size(filename)==0)
+    if(h5_get_file_size(filename)<0)
         TEST_ERROR;
 
     /* Clean up temporary file */
@@ -307,7 +308,7 @@ test_dangle_datatype1(H5F_close_degree_t degree)
     if(H5close()<0)
         TEST_ERROR;
 
-    if(h5_get_file_size(filename)==0)
+    if(h5_get_file_size(filename)<0)
         TEST_ERROR;
 
     /* Clean up temporary file */
@@ -394,7 +395,7 @@ test_dangle_datatype2(H5F_close_degree_t degree)
     if(H5close()<0)
         TEST_ERROR;
 
-    if(h5_get_file_size(filename)==0)
+    if(h5_get_file_size(filename)<0)
         TEST_ERROR;
 
     /* Clean up temporary file */
@@ -502,7 +503,7 @@ test_dangle_attribute(H5F_close_degree_t degree)
     if(H5close()<0)
         TEST_ERROR;
 
-    if(h5_get_file_size(filename)==0)
+    if(h5_get_file_size(filename)<0)
         TEST_ERROR;
 
     /* Clean up temporary file */

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -122,9 +123,10 @@ H5TEST_DLL char *h5_fixname(const char *base_name, hid_t fapl, char *fullname,
 		 size_t size);
 H5TEST_DLL hid_t h5_fileaccess(void);
 H5TEST_DLL void h5_no_hwconv(void);
+H5TEST_DLL char *h5_rmprefix(const char *filename);
 H5TEST_DLL void h5_reset(void);
 H5TEST_DLL void h5_show_hostname(void);
-H5TEST_DLL off_t h5_get_file_size(const char *filename);
+H5TEST_DLL h5_stat_size_t h5_get_file_size(const char *filename);
 H5TEST_DLL int print_func(const char *format, ...);
 
 /* Routines for operating on the list of tests (for the "all in one" tests) */
@@ -142,6 +144,7 @@ H5TEST_DLL int  GetTestVerbosity(void);
 H5TEST_DLL int  SetTestVerbosity(int newval);
 H5TEST_DLL int  GetTestSummary(void);
 H5TEST_DLL int  GetTestCleanup(void);
+H5TEST_DLL int  SetTestNoCleanup(void);
 H5TEST_DLL void ParseTestVerbosity(char *argv);
 H5TEST_DLL int  GetTestNumErrs(void);
 H5TEST_DLL void  IncTestNumErrs(void);

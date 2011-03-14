@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -72,15 +73,15 @@ static hid_t create_compound_type(void)
 {
     hid_t ret_value=-1;
 
-    if((ret_value = H5Tcreate(H5T_COMPOUND, sizeof(comp_datatype)))<0)
+    if((ret_value = H5Tcreate(H5T_COMPOUND, sizeof(comp_datatype))) < 0)
         goto error;
-    if(H5Tinsert(ret_value, "a", HOFFSET(comp_datatype,a), H5T_NATIVE_FLOAT)<0)
+    if(H5Tinsert(ret_value, "a", HOFFSET(comp_datatype, a), H5T_NATIVE_FLOAT) < 0)
         goto error;
-    if(H5Tinsert(ret_value, "x", HOFFSET(comp_datatype,x), H5T_NATIVE_INT)<0)
+    if(H5Tinsert(ret_value, "x", HOFFSET(comp_datatype, x), H5T_NATIVE_INT) < 0)
         goto error;
-    if(H5Tinsert(ret_value, "y", HOFFSET(comp_datatype,y),
-        H5T_NATIVE_DOUBLE)<0) goto error;
-    if(H5Tinsert(ret_value, "z", HOFFSET(comp_datatype,z), H5T_NATIVE_CHAR)<0)
+    if(H5Tinsert(ret_value, "y", HOFFSET(comp_datatype, y), H5T_NATIVE_DOUBLE) < 0)
+        goto error;
+    if(H5Tinsert(ret_value, "z", HOFFSET(comp_datatype, z), H5T_NATIVE_CHAR) < 0)
 	goto error;
 
     return ret_value;
@@ -213,6 +214,100 @@ test_getset(void)
     } H5E_END_TRY;
     return 1;
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	test_getset_vl
+ *
+ * Purpose:	Tests the H5Pget_fill_value() and H5Pset_fill_value()
+ *		functions, using variable-length datatype.
+ *
+ * Return:	Success:	0
+ *		Failure:	number of errors
+ *
+ * Programmer:	Quincey Koziol
+ *              Thursday, May 31, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_getset_vl(hid_t fapl)
+{
+    hsize_t dims[1] = {2};
+    hid_t fileid = (-1), spaceid = (-1), typeid = (-1), datasetid = (-1), plistid = (-1);
+    char fill_value[] = "aaaa";
+    char orig_fill_value[] = "aaaa";
+    char *f1 = fill_value;
+    char *f2;
+    char filename[1024];
+
+    TESTING("property lists, with variable-length datatype");
+
+    /* Create string type. */
+    if((typeid =  H5Tcopy(H5T_C_S1)) < 0) TEST_ERROR
+    if(H5Tset_size(typeid, H5T_VARIABLE) < 0) TEST_ERROR
+
+    /* Set up dataset creation property list, with fill value */
+    if((plistid = H5Pcreate(H5P_DATASET_CREATE)) < 0) TEST_ERROR
+    if(H5Pset_fill_value(plistid, typeid, &f1) < 0) TEST_ERROR
+
+    /* Modify original fill value string */
+    fill_value[0] = 'b';
+
+    /* Retrieve fill value from property */
+    if(H5Pget_fill_value(plistid, typeid, &f2) < 0) TEST_ERROR
+
+    /* Verify that the fill value is the original value */
+    if(HDstrcmp(f2, orig_fill_value)) TEST_ERROR
+
+    /* Release the fill value retrieved */
+    HDfree(f2);
+
+    /* Open file. */
+    h5_fixname(FILENAME[0], fapl, filename, sizeof filename);
+    if((fileid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Write an dataset of this type. */
+    if((spaceid = H5Screate_simple(1, dims, NULL)) < 0) TEST_ERROR
+    if((datasetid = H5Dcreate(fileid, "Dataset", typeid, spaceid, plistid)) < 0) TEST_ERROR
+
+    /* Close IDs (except datatype) */
+    if(H5Dclose(datasetid) < 0) TEST_ERROR
+    if(H5Pclose(plistid) < 0) TEST_ERROR
+    if(H5Sclose(spaceid) < 0) TEST_ERROR
+    if(H5Fclose(fileid) < 0) TEST_ERROR
+
+
+    /* Re-open file, group & dataset */
+    if((fileid = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) TEST_ERROR
+    if((datasetid = H5Dopen(fileid, "Dataset")) < 0) TEST_ERROR
+
+    /* Get dataset's creation property list */
+    if((plistid = H5Dget_create_plist(datasetid)) < 0) TEST_ERROR
+
+    /* Query fill value */
+    if(H5Pget_fill_value(plistid, typeid, &f2) < 0) TEST_ERROR
+
+    /* Verify that the fill value is the original value */
+    if(HDstrcmp(f2, orig_fill_value)) TEST_ERROR
+
+    /* Release the fill value retrieved */
+    HDfree(f2);
+
+    /* Close IDs */
+    if(H5Dclose(datasetid) < 0) TEST_ERROR
+    if(H5Fclose(fileid) < 0) TEST_ERROR
+    if(H5Pclose(plistid) < 0) TEST_ERROR
+    if(H5Tclose(typeid) < 0) TEST_ERROR
+
+    PASSED();
+    return 0;
+
+ error:
+    H5E_BEGIN_TRY {
+    } H5E_END_TRY;
+    return 1;
+} /* end test_getset_vl() */
 
 
 /*-------------------------------------------------------------------------
@@ -635,11 +730,11 @@ test_rdwr_cases(hid_t file, hid_t dcpl, const char *dname, void *_fillval,
     /* Read some data and make sure it's the fill value */
     if ((mspace=H5Screate_simple(5, one, NULL))<0) goto error;
     for (i=0; i<1000; i++) {
-	for (j=0; j<5; j++) {
+	for (j=0; j<5; j++)
 	    hs_offset[j] = rand() % cur_size[j];
-	}
 	if (H5Sselect_hyperslab(fspace, H5S_SELECT_SET, hs_offset, NULL,
 				one, NULL)<0) goto error;
+
    	/* case for atomic datatype */
 	if (datatype==H5T_INTEGER) {
             if(H5Dread(dset1, H5T_NATIVE_INT, mspace, fspace, H5P_DEFAULT,
@@ -675,7 +770,7 @@ test_rdwr_cases(hid_t file, hid_t dcpl, const char *dname, void *_fillval,
     }
     if (H5Sclose(mspace)<0) goto error;
 
-    /* Write to all odd data locations */
+    /* Select all odd data locations in the file dataset */
     for (i=0, nelmts=1; i<5; i++) {
 	hs_size[i] = cur_size[i]/2;
 	hs_offset[i] = 0;
@@ -686,28 +781,83 @@ test_rdwr_cases(hid_t file, hid_t dcpl, const char *dname, void *_fillval,
     if (H5Sselect_hyperslab(fspace, H5S_SELECT_SET, hs_offset, hs_stride,
                             hs_size, NULL)<0) goto error;
 
+    /* Read non-contiguous selection from empty dataset */
+
     /* case for atomic datatype */
-    if(datatype==H5T_INTEGER) {
+    if(datatype == H5T_INTEGER) {
         /*check for overflow*/
-        assert((nelmts*sizeof(int))==(hsize_t)((size_t)(nelmts*sizeof(int))));
-        buf = malloc((size_t)(nelmts*sizeof(int)));
-        for (u=0; u<nelmts; u++) buf[u] = 9999;
-        if (H5Dwrite(dset1, H5T_NATIVE_INT, mspace, fspace, H5P_DEFAULT,
-	    buf)<0) goto error;
+        assert((nelmts * sizeof(int)) == (hsize_t)((size_t)(nelmts * sizeof(int))));
+        buf = malloc((size_t)(nelmts * sizeof(int)));
+
+        if(H5Dread(dset1, H5T_NATIVE_INT, mspace, fspace, H5P_DEFAULT, buf) < 0)
+            goto error;
+
+        /* Verify values, except if no fill value written */
+        if(fill_time != H5D_FILL_TIME_NEVER) {
+            for(u = 0; u < nelmts; u++) {
+                if(buf[u] != fillval) {
+                    H5_FAILED();
+                    puts("    Value read was not a fill value.");
+                    HDfprintf(stdout,"    Elmt={%Hu, %Hu, %Hu, %Hu, %Hu}, read: %u, "
+                           "Fill value: %u\n",
+                           hs_offset[0], hs_offset[1],
+                           hs_offset[2], hs_offset[3],
+                           hs_offset[4], buf[u], fillval);
+                    goto error;
+                } /* end if */
+            } /* end for */
+        } /* end if */
     }
     /* case for compound datatype */
-    else if(datatype==H5T_COMPOUND) {
-        assert((nelmts*sizeof(comp_datatype))==
-	    (hsize_t)((size_t)(nelmts*sizeof(comp_datatype))));
-	buf_c = (comp_datatype*)calloc((size_t)nelmts,sizeof(comp_datatype));
-        for (u=0; u<nelmts; u++) {
+    else if(datatype == H5T_COMPOUND) {
+        /*check for overflow*/
+        assert((nelmts * sizeof(comp_datatype))==
+	    (hsize_t)((size_t)(nelmts * sizeof(comp_datatype))));
+	buf_c = (comp_datatype *)malloc((size_t)nelmts * sizeof(comp_datatype));
+
+        if(H5Dread(dset2, ctype_id, mspace, fspace, H5P_DEFAULT, buf_c) < 0)
+            goto error;
+
+        /* Verify values, except if no fill value written */
+        if(fill_time != H5D_FILL_TIME_NEVER) {
+            for(u = 0; u < nelmts; u++) {
+                if(buf_c[u].a != fill_c.a || buf_c[u].x != fill_c.x ||
+                        buf_c[u].y != fill_c.y || buf_c[u].z != fill_c.z) {
+                    H5_FAILED();
+                    puts("    Value read was not a fill value.");
+                    HDfprintf(stdout,"    Elmt={%Hu, %Hu, %Hu, %Hu, %Hu}, read: %f, %d, %f, %c"
+                            "Fill value: %f, %d, %f, %c\n",
+                            hs_offset[0], hs_offset[1],
+                            hs_offset[2], hs_offset[3],
+                            hs_offset[4],
+                            buf_c[u].a, buf_c[u].x, buf_c[u].y, buf_c[u].z,
+                            fill_c.a, fill_c.x, fill_c.y, fill_c.z);
+                    goto error;
+                } /* end if */
+            } /* end for */
+        } /* end if */
+    }
+
+    /* Write to all odd data locations */
+
+    /* case for atomic datatype */
+    if(datatype == H5T_INTEGER) {
+        for(u = 0; u < nelmts; u++)
+            buf[u] = 9999;
+        if(H5Dwrite(dset1, H5T_NATIVE_INT, mspace, fspace, H5P_DEFAULT, buf) < 0)
+            goto error;
+    }
+    /* case for compound datatype */
+    else if(datatype == H5T_COMPOUND) {
+        memset(buf_c, 0, ((size_t)nelmts * sizeof(comp_datatype)));
+        for(u = 0; u < nelmts; u++) {
 	    buf_c[u].a = (float)1111.11;
  	    buf_c[u].x = 2222;
 	    buf_c[u].y = 3333.3333;
 	    buf_c[u].z = 'd';
 	}
-        if (H5Dwrite(dset2, ctype_id, mspace, fspace, H5P_DEFAULT,
-            buf_c)<0) goto error;
+        if(H5Dwrite(dset2, ctype_id, mspace, fspace, H5P_DEFAULT, buf_c) < 0)
+            goto error;
     }
 
     /* Check if space is allocated */
@@ -1432,6 +1582,7 @@ main(int argc, char *argv[])
     fapl = h5_fileaccess();
 
     nerrors += test_getset();
+    nerrors += test_getset_vl(fapl);
 
     /* Chunked storage layout tests */
     if (test_chunk) {

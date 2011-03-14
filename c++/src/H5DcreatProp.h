@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5DSCreatPropList_H
@@ -25,15 +26,18 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	// Default dataset creation property list.
 	static const DSetCreatPropList DEFAULT;
 
+	// Creates a dataset creation property list.
+	DSetCreatPropList();
+
 	// Queries whether all the filters set in this property list are
 	// available currently.
-	bool allFiltersAvail();
+	bool allFiltersAvail() const;
 
 	// Get space allocation time for this property.
-	H5D_alloc_time_t getAllocTime();
+	H5D_alloc_time_t getAllocTime() const;
 
 	// Set space allocation time for dataset during creation.
-	void setAllocTime(H5D_alloc_time_t alloc_time);
+	void setAllocTime(H5D_alloc_time_t alloc_time) const;
 
 	// Retrieves the size of the chunks used to store a chunked layout dataset.
 	int getChunk( int max_ndims, hsize_t* dim ) const;
@@ -48,10 +52,10 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	int getExternalCount() const;
 
 	// Gets fill value writing time.
-	H5D_fill_time_t getFillTime();
+	H5D_fill_time_t getFillTime() const;
 
 	// Sets fill value writing time for dataset.
-	void setFillTime(H5D_fill_time_t fill_time);
+	void setFillTime(H5D_fill_time_t fill_time) const;
 
 	// Retrieves a dataset fill value.
 	void getFillValue( const DataType& fvalue_type, void* value ) const;
@@ -77,7 +81,7 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	int getNfilters() const;
 
 	// Checks if fill value has been defined for this property.
-	H5D_fill_value_t isFillValueDefined();
+	H5D_fill_value_t isFillValueDefined() const;
 
 	// Modifies the specified filter.
 	void modifyFilter( H5Z_filter_t filter_id, unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[] ) const;
@@ -92,19 +96,19 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	void setExternal( const char* name, off_t offset, hsize_t size ) const;
 
 	// Adds a filter to the filter pipeline.
-	void setFilter( H5Z_filter_t filter, unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[] ) const;
+	void setFilter( H5Z_filter_t filter, unsigned int flags = 0, size_t cd_nelmts = 0, const unsigned int cd_values[] = NULL) const;
 
 	// Sets Fletcher32 checksum of EDC for this property list.
-	void setFletcher32();
+	void setFletcher32() const;
 
 	// Sets method of the shuffle filter.
-	void setShuffle();
+	void setShuffle() const;
+
+	// Sets SZIP compression method.
+	void setSzip(unsigned int options_mask, unsigned int pixels_per_block) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("DSetCreatPropList"); }
-
-	// Default constructor: creates a stub dataset creation property list.
-	DSetCreatPropList();
+	virtual H5std_string fromClass () const { return("DSetCreatPropList"); }
 
 	// Copy constructor: creates a copy of a DSetCreatPropList object.
 	DSetCreatPropList(const DSetCreatPropList& orig);

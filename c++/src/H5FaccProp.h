@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5FileAccPropList_H
@@ -24,6 +25,9 @@ namespace H5 {
 class H5_DLLCPP FileAccPropList : public PropList {
    public:
 	static const FileAccPropList DEFAULT;
+
+	// Creates a file access property list.
+	FileAccPropList();
 
 	// Modifies this property list to use the H5FD_STDIO driver
 	void setStdio() const;
@@ -61,7 +65,7 @@ class H5_DLLCPP FileAccPropList : public PropList {
 	void setSplit( FileAccPropList& meta_plist, FileAccPropList& raw_plist,
 	     const char* meta_ext = ".meta", const char* raw_ext = ".raw" ) const;
 	void setSplit( FileAccPropList& meta_plist, FileAccPropList& raw_plist,
-	     const string& meta_ext, const string& raw_ext ) const;
+	     const H5std_string& meta_ext, const H5std_string& raw_ext ) const;
 
 #ifdef H5_HAVE_STREAM // for Stream Virtual File Driver
 	// Modifies this file access property list to use the Stream driver.
@@ -86,7 +90,7 @@ class H5_DLLCPP FileAccPropList : public PropList {
 
 	// Modifies this file access property list to use the logging driver.
 	void setLog(const char *logfile, unsigned flags, size_t buf_size) const;
-	void setLog(const string& logfile, unsigned flags, size_t buf_size) const;
+	void setLog(const H5std_string& logfile, unsigned flags, size_t buf_size) const;
 
 	// Sets alignment properties of this file access property list
 	void setAlignment( hsize_t threshold = 1, hsize_t alignment = 1 ) const;
@@ -120,10 +124,7 @@ class H5_DLLCPP FileAccPropList : public PropList {
 	unsigned getGcReferences() const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("FileAccPropList"); }
-
-	// Creates a file access property list.
-	FileAccPropList();
+	virtual H5std_string fromClass () const { return("FileAccPropList"); }
 
 	// Copy constructor: creates a copy of a FileAccPropList object.
 	FileAccPropList( const FileAccPropList& original );

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -27,7 +28,7 @@
 #define FILENAME   "tattr.h5"
 #define ATTR_NAME_LEN   16
 #define ATTR_MAX_DIMS   7
-#define ATTR_TMP_NAME   "temp_name"
+#define ATTR_TMP_NAME   "a really long temp_name"
 
 /* 3-D dataset with fixed dimensions */
 #define SPACE1_NAME  "Space1"
@@ -135,9 +136,31 @@ test_attr_basic_write(void)
     sid2 = H5Screate_simple(ATTR1_RANK, dims2, NULL);
     CHECK(sid2, FAIL, "H5Screate_simple");
 
-    /* Try to create an attribute on the file (should fail) */
-    ret=H5Acreate(fid1,ATTR1_NAME,H5T_NATIVE_INT,sid2,H5P_DEFAULT);
-    VERIFY(ret, FAIL, "H5Acreate");
+
+    /* Try to create an attribute on the file (should create an attribute on root group) */
+    attr = H5Acreate(fid1, ATTR1_NAME, H5T_NATIVE_INT, sid2, H5P_DEFAULT);
+    CHECK(attr, FAIL, "H5Acreate");
+
+    /* Close attribute */
+    ret = H5Aclose(attr);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Open the root group */
+    group = H5Gopen(fid1, "/");
+    CHECK(group, FAIL, "H5Gopen");
+
+    /* Open attribute again */
+    attr = H5Aopen_name(group, ATTR1_NAME);
+    CHECK(attr, FAIL, "H5Aopen_name");
+
+    /* Close attribute */
+    ret = H5Aclose(attr);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close root group */
+    ret = H5Gclose(group);
+    CHECK(ret, FAIL, "H5Gclose");
+
 
     /* Create an attribute for the dataset */
     attr=H5Acreate(dataset,ATTR1_NAME,H5T_NATIVE_INT,sid2,H5P_DEFAULT);
@@ -249,10 +272,6 @@ test_attr_basic_write(void)
     ret=H5Aclose(attr2);
     CHECK(ret, FAIL, "H5Aclose");
 
-    /* change first attribute back to the original name */
-    ret=H5Arename(dataset, ATTR_TMP_NAME, ATTR1_NAME);
-    CHECK(ret, FAIL, "H5Arename");
-
     ret = H5Sclose(sid1);
     CHECK(ret, FAIL, "H5Sclose");
     ret = H5Sclose(sid2);
@@ -340,7 +359,7 @@ test_attr_basic_read(void)
     VERIFY(ret, 2, "H5Aget_num_attrs");
 
     /* Open an attribute for the dataset */
-    attr=H5Aopen_name(dataset,ATTR1_NAME);
+    attr = H5Aopen_name(dataset, ATTR_TMP_NAME);
     CHECK(attr, FAIL, "H5Aopen_name");
 
     /* Read attribute information */
@@ -1398,8 +1417,8 @@ test_attr_dtype_shared(void)
     int data=8;                 /* Data to write */
     int rdata=0;                /* Read read in */
     H5G_stat_t statbuf;         /* Object's information */
-    off_t empty_filesize;       /* Size of empty file */
-    off_t filesize;             /* Size of file after modifications */
+    h5_stat_size_t empty_filesize;       /* Size of empty file */
+    h5_stat_size_t filesize;             /* Size of file after modifications */
     herr_t  ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -1415,7 +1434,7 @@ test_attr_dtype_shared(void)
 
     /* Get size of file */
     empty_filesize=h5_get_file_size(FILENAME);
-    if(empty_filesize==0)
+    if(empty_filesize<0)
         TestErrPrintf("Line %d: file size wrong!\n",__LINE__);
 
     /* Re-open file */

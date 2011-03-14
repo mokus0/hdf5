@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,96 +9,34 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "h5diff.h"
 #include "H5private.h"
 
-
 /*-------------------------------------------------------------------------
- * Function: print_pos
+ * Function: print_dimensions
  *
- * Purpose: convert an array index position to matrix notation
- *
- * Return: pos matrix array
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: May 9, 2003
+ * Purpose: print dimensions 
  *
  *-------------------------------------------------------------------------
  */
-void print_pos( int        *ph,
-                int        per,
-                hsize_t    curr_pos,
-                hsize_t    *acc,
-                hsize_t    *pos,
-                int        rank,
-                const char *obj1,
-                const char *obj2 )
+void
+print_dimensions (int rank, hsize_t *dims)
 {
- int i;
+    int i;
 
- /* print header */
- if ( *ph==1 )
- {
-  *ph=0;
-  if (per)
-  {
-   printf("%-15s %-15s %-15s %-15s %-15s\n",
-    "position",
-    (obj1!=NULL) ? obj1 : " ",
-    (obj2!=NULL) ? obj2 : " ",
-    "difference",
-    "relative");
-   printf("------------------------------------------------------------------------\n");
-  }
-  else
-  {
-   printf("%-15s %-15s %-15s %-20s\n",
-    "position",
-    (obj1!=NULL) ? obj1 : " ",
-    (obj2!=NULL) ? obj2 : " ",
-    "difference");
-   printf("------------------------------------------------------------\n");
-  }
- }
-
- for ( i = 0; i < rank; i++)
- {
-  pos[i] = curr_pos/acc[i];
-  curr_pos -= acc[i]*pos[i];
- }
- assert( curr_pos == 0 );
-
- printf("[ " );
- for ( i = 0; i < rank; i++)
- {
-  HDfprintf(stdout,"%Hu ", pos[i]  );
- }
- printf("]" );
-}
-
-/*-------------------------------------------------------------------------
- * Function: print_dims
- *
- * Purpose: print dimensions
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: May 9, 2003
- *
- *-------------------------------------------------------------------------
- */
-void print_dims( int r, hsize_t *d )
-{
- int i;
- printf("[ " );
- for ( i=0; i<r; i++ )
-  printf("%d ",(int)d[i]  );
- printf("] " );
+    printf("[" );
+    for ( i = 0; i < rank-1; i++)
+    {
+        printf("%"H5_PRINTF_LL_WIDTH"u", (unsigned long_long)dims[i]);
+        printf("x");
+    }
+    printf("%"H5_PRINTF_LL_WIDTH"u", (unsigned long_long)dims[rank-1]);
+    printf("]" );
+    
 }
 
 

@@ -1,5 +1,6 @@
 #! /bin/sh
 #
+# Copyright by The HDF Group.
 # Copyright by the Board of Trustees of the University of Illinois.
 # All rights reserved.
 #
@@ -9,8 +10,8 @@
 # of the source code distribution tree; Copyright.html can be found at the
 # root level of an installed copy of the electronic HDF5 document set and
 # is linked from the top-level documents page.  It can also be found at
-# http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 #
 # Tests for the h5ls tool
 
@@ -148,6 +149,10 @@ TOOLTEST tempty.ls -w80 -d tempty.h5
 # test for all dataset types written to attributes
 # enable -S for avoiding printing NATIVE types
 TOOLTEST tattr2.ls -w80 -v -S tattr2.h5
+
+# tests for error handling.
+# test for non-existing file
+TOOLTEST nosuchfile.ls nosuchfile.h5
 
 if test $nerrors -eq 0 ; then
 	echo "All h5ls tests passed."

@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
@@ -190,7 +191,7 @@ H5R_create(void *_ref, H5G_entry_t *loc, const char *name, H5R_type_t ref_type, 
             } /* end if */
 
             /* Zero the heap ID out, may leak heap space if user is re-using reference and doesn't have garbage collection on */
-            HDmemset(ref,H5R_DSET_REG_REF_BUF_SIZE,0);
+            HDmemset(ref, 0, H5R_DSET_REG_REF_BUF_SIZE);
 
             /* Get the amount of space required to serialize the selection */
             if ((buf_size = H5S_SELECT_SERIAL_SIZE(space)) < 0)

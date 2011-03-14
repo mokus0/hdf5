@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:  Robb Matzke <matzke@llnl.gov>
@@ -21,16 +22,16 @@
 #define H5O_PACKAGE	/*suppress error about including H5Opkg	  */
 
 
-#include "H5private.h"
-#include "H5Dprivate.h"
-#include "H5Eprivate.h"
-#include "H5FLprivate.h"	/*Free Lists	  */
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Dprivate.h"		/* Dataset functions			*/
+#include "H5Eprivate.h"		/* Error handling		  	*/
+#include "H5FLprivate.h"	/* Free Lists                           */
 #include "H5MFprivate.h"	/* File space management		*/
-#include "H5MMprivate.h"
-#include "H5Opkg.h"             /* Object header functions                  */
+#include "H5MMprivate.h"	/* Memory management			*/
+#include "H5Opkg.h"             /* Object headers			*/
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_layout_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_layout_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p);
 static herr_t H5O_layout_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_layout_copy(const void *_mesg, void *_dest, unsigned update_flags);
 static size_t H5O_layout_size(const H5F_t *f, const void *_mesg);
@@ -40,8 +41,8 @@ static herr_t H5O_layout_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hboo
 static herr_t H5O_layout_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			       int indent, int fwidth);
 
-/* This message derives from H5O */
-const H5O_class_t H5O_LAYOUT[1] = {{
+/* This message derives from H5O message class */
+const H5O_msg_class_t H5O_MSG_LAYOUT[1] = {{
     H5O_LAYOUT_ID,          	/*message id number             */
     "layout",               	/*message name for debugging    */
     sizeof(H5O_layout_t),   	/*native message size           */
@@ -55,7 +56,7 @@ const H5O_class_t H5O_LAYOUT[1] = {{
     NULL,			/* link method			*/
     NULL,		    	/*get share method		*/
     NULL,			/*set share method		*/
-    H5O_layout_debug,       	/*debug the message             */
+    H5O_layout_debug       	/*debug the message             */
 }};
 
 /* For forward and backward compatibility.  Version is 1 when space is
@@ -93,7 +94,7 @@ H5FL_DEFINE(H5O_layout_t);
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
+H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
 {
     H5O_layout_t           *mesg = NULL;
     unsigned               u;
@@ -104,7 +105,6 @@ H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t
     /* check args */
     assert(f);
     assert(p);
-    assert (!sh);
 
     /* decode */
     if (NULL==(mesg = H5FL_CALLOC(H5O_layout_t)))
@@ -289,7 +289,7 @@ H5O_layout_encode(H5F_t *f, uint8_t *p, const void *_mesg)
         else if(mesg->type==H5D_CHUNKED)
             H5F_addr_encode(f, &p, mesg->u.chunk.addr);
 
-        /* dimension size */
+        /* Dimension sizes */
         if(mesg->type!=H5D_CHUNKED)
             for (u = 0; u < mesg->unused.ndims; u++)
                 UINT32ENCODE(p, mesg->unused.dim[u])
@@ -502,7 +502,7 @@ H5O_layout_meta_size(const H5F_t *f, const void *_mesg)
                 break;
 
             default:
-                HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, 0, "Invalid layout class");
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, 0, "Invalid layout class")
         } /* end switch */
     } /* end else */
 
@@ -728,3 +728,4 @@ H5O_layout_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE 
 
     FUNC_LEAVE_NOAPI(SUCCEED);
 }
+

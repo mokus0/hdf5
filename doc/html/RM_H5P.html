@@ -7,6 +7,7 @@ HDF5/H5P API Specification
 
 <!--
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+  * Copyright by The HDF Group.                                               *
   * Copyright by the Board of Trustees of the University of Illinois.         *
   * All rights reserved.                                                      *
   *                                                                           *
@@ -16,8 +17,8 @@ HDF5/H5P API Specification
   * of the source code distribution tree; Copyright.html can be found at the  *
   * root level of an installed copy of the electronic HDF5 document set and   *
   * is linked from the top-level documents page.  It can also be found at     *
-  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
-  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+  * access to either file, you may request a copy from help@hdfgroup.org.     *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  -->
 
@@ -28,13 +29,14 @@ HDF5/H5P API Specification
 <!-- HEADER RIGHT " " -->
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -58,7 +60,7 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
@@ -108,7 +110,6 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-CopyProp">H5Pcopy_prop</a> 
     <li><a href="#Property-Remove">H5Premove</a> 
     <li><a href="#Property-Unregister">H5Punregister</a> 
-    <li><a href="#Property-CloseList">H5Pclose_list</a> 
     <li><a href="#Property-CloseClass">H5Pclose_class</a> 
   </ul>
 </td>
@@ -159,6 +160,8 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-GetFaplGass">H5Pget_fapl_gass</a>
     <li><a href="#Property-SetFaplSrb">H5Pset_fapl_srb</a>
     <li><a href="#Property-GetFaplSrb">H5Pget_fapl_srb</a>
+    <li><a href="#Property-SetSmallData">H5Pset_small_data_block_size</a>
+    <li><a href="#Property-GetSmallData">H5Pget_small_data_block_size</a>
 <!-- FOR USE WITH PRINT VERSION ---------------------------------------->
     <!--
     <li><a href="#Property-xxx">xxx</a>
@@ -258,11 +261,6 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-GetDxplMpio">H5Pget_dxpl_mpio</a>&nbsp;&nbsp;&nbsp;||
     <li><a href="#Property-SetDxplMulti">H5Pset_dxpl_multi</a>
     <li><a href="#Property-GetDxplMulti">H5Pget_dxpl_multi</a>
-    <li><a href="#Property-SetMultiType">H5Pset_multi_type</a> 
-    <li><a href="#Property-GetMultiType">H5Pget_multi_type</a>
-        <br>&nbsp;
-    <li><a href="#Property-SetSmallData">H5Pset_small_data_block_size</a>
-    <li><a href="#Property-GetSmallData">H5Pget_small_data_block_size</a>
   </ul>
 </td>
 <td valign="top" width="3%">&nbsp;</td>
@@ -309,7 +307,6 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-CopyProp">H5Pcopy_prop</a> 
     <li><a href="#Property-Remove">H5Premove</a> 
     <li><a href="#Property-Unregister">H5Punregister</a> 
-    <li><a href="#Property-CloseList">H5Pclose_list</a> 
     <li><a href="#Property-CloseClass">H5Pclose_class</a> 
     </ul>
 
@@ -325,7 +322,7 @@ which require many different parameters to be easily manipulated.
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   available only in <br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  the parallel HDF5</i>
+  the parallel HDF5<br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   library.</i>
 
@@ -388,6 +385,8 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-GetFaplGass">H5Pget_fapl_gass</a>
     <li><a href="#Property-SetFaplSrb">H5Pset_fapl_srb</a>
     <li><a href="#Property-GetFaplSrb">H5Pget_fapl_srb</a>
+    <li><a href="#Property-SetSmallData">H5Pset_small_data_block_size</a>
+    <li><a href="#Property-GetSmallData">H5Pget_small_data_block_size</a>
     <!--
     <li><a href="#Property-xxx">xxx</a>
     <li><a href="#Property-xxx">xxx</a>&nbsp;&nbsp;&nbsp;||
@@ -454,11 +453,6 @@ which require many different parameters to be easily manipulated.
     <li><a href="#Property-GetDxplMpio">H5Pget_dxpl_mpio</a>&nbsp;&nbsp;&nbsp;||
     <li><a href="#Property-SetDxplMulti">H5Pset_dxpl_multi</a>
     <li><a href="#Property-GetDxplMulti">H5Pget_dxpl_multi</a>
-    <li><a href="#Property-SetMultiType">H5Pset_multi_type</a> 
-    <li><a href="#Property-GetMultiType">H5Pget_multi_type</a>
-        <br>&nbsp;
-    <li><a href="#Property-SetSmallData">H5Pset_small_data_block_size</a>
-    <li><a href="#Property-GetSmallData">H5Pget_small_data_block_size</a>
     </ul>
 
 </td></tr>
@@ -489,7 +483,6 @@ See further notes in the description of each function.
       <li><a href="#Property-AllFiltersAvail">H5Pall_filters_avail</a>
       <li><a href="#Property-Close">H5Pclose</a>
       <li><a href="#Property-CloseClass">H5Pclose_class</a>
-      <li><a href="#Property-CloseList">H5Pclose_list</a>
       <li><a href="#Property-Copy">H5Pcopy</a>
       <li><a href="#Property-CopyProp">H5Pcopy_prop</a>
       <li><a href="#Property-Create">H5Pcreate</a>
@@ -957,59 +950,6 @@ END SUBROUTINE h5pclose_class_f
         -->
 </dl>
 
-<!-- NEW PAGE -->
-<!-- HEADER RIGHT "H5Pclose_list" -->
-<hr>
-<dl>
-  <dt><strong>Name:</strong> <a name="Property-CloseList">H5Pclose_list</a>
-
-  <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Pclose_list</code>(
-                  <em>hid_t</em> <code>plist</code>
-	)
-
-  <dt><strong>Purpose:</strong>
-    <dd>Closes a property list.
-
-  <dt><strong>Description:</strong>
-    <dd><code>H5Pclose_list</code> closes a property list.  
-    
-    <p>
-    If a <code>close</code> callback exists for the property list class, 
-    it is called before the property list is destroyed.  
-    If <code>close</code> callbacks exist for any individual properties 
-    in the property list, they are called after the class 
-    <code>close</code> callback.
-
-  <dt><strong>Parameters:</strong>
-    <ul><table>
-    <tr>
-        <td><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code><td>
-        <td>IN: Property list to close</td></tr>
-    </table></ul>
-    
-  <dt><strong>Returns:</strong>
-    <dd>Success: a non-negative value
-    <dd>Failure: a negative value
-
-  <dt><strong>Fortran90 Interface:</strong> h5pclose_list_f
-    <dd>
-	<pre>
-SUBROUTINE h5pclose_list_f(plist, hdferr)
-  IMPLICIT NONE
-  INTEGER(HID_T), INTENT(IN) :: plist  ! Property list identifier to close
-  INTEGER, INTENT(OUT) :: hdferr       ! Error code
-                                       ! 0 on success and -1 on failure
-END SUBROUTINE h5pclose_list_f
-	</pre>		
-		
-		<!--<dt><strong>Non-C API(s):</strong>
-    	<dd>
-        
-        <img src="Graphics/Java.gif"> 
-        <img src="Graphics/C++.gif">
-        -->
-</dl>
 
 <!-- NEW PAGE -->
 <!-- HEADER RIGHT "H5Pcopy" -->
@@ -1614,7 +1554,7 @@ END SUBROUTINE h5pequal_f
 
   <dt><strong>Signature:</strong>
     <dd><em>htri_t</em> <code>H5Pexist</code>(
-                  <em>hid_t</em> <code>id</code>;
+                  <em>hid_t</em> <code>id</code>,
                   <em>const char *</em><code>name</code>
 	)
 
@@ -1892,14 +1832,14 @@ END SUBROUTINE h5pget_alignment_f
 	This property is set in the dataset creation property list 
 	<code>plist_id</code>.
         <p>
-	The timing setting is returned in <code>fill_time</code> as one of the 
+	The timing setting is returned in <code>alloc_time</code> as one of the 
 	following values:
 	<table border=0 >
            <tr valign="top"><td rowspan="4">&nbsp;&nbsp;&nbsp;&nbsp;</td><td>
 	     <code>H5D_ALLOC_TIME_DEFAULT</code>&nbsp;&nbsp; 
              </td><td>
 	     Uses the default allocation time, based on the dataset storage method.<br>
-	     See the <code>fill_time</code> description in 
+	     See the <code>alloc_time</code> description in 
 	     <a href="#Property-SetAllocTime">H5Pset_alloc_time</a> for 
 	     default allocation times for various storage methods.
 	   </td></tr><tr valign="top"><td>
@@ -2208,17 +2148,17 @@ END SUBROUTINE h5pget_cache_f
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>plist</code></td>
+            <td valign="top"><em>hid_t</em> <code>plist</code></td>
             <td valign="top">IN: Identifier of property list to query.</td></tr>
         <tr>
-		    <td valign="top"><em>int</em>&nbsp;<code>max_ndims&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>int</em>&nbsp;<code>max_ndims&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: Size of the <code>dims</code> array.</td></tr>
         <tr>
-		    <td valign="top"><em>hsize_t *</em> <code>dims</code></td>
+            <td valign="top"><em>hsize_t *</em> <code>dims</code></td>
             <td valign="top">OUT: Array to store the chunk dimensions.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
-    <dd>Returns chunk dimensionality successful;
+    <dd>Returns chunk dimensionality if successful;
         otherwise returns a negative value.
   <dt><strong>Fortran90 Interface:</strong> h5pget_chunk_f
     <dd>
@@ -2878,11 +2818,11 @@ END SUBROUTINE h5pget_external_count_f
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
+            <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
             <td valign="top">IN: File access property list identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>hsize_t&nbsp;*</em><code>offset&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">IN: Offset in bytes within the HDF5 file.</td></tr>
+            <td valign="top"><em>hsize_t&nbsp;*</em><code>offset&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">OUT: Offset in bytes within the HDF5 file.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
@@ -2895,7 +2835,7 @@ SUBROUTINE
 	</pre>		
 -->
 
-		<!--<dt><strong>Non-C API(s):</strong>
+        <!--<dt><strong>Non-C API(s):</strong>
     	<dd>
         
         <img src="Graphics/Java.gif"> 
@@ -2904,14 +2844,14 @@ SUBROUTINE
 <dt><strong>History:</strong>
     <ul><table width="90%">
         <tr>
-		  <td valign="top" align="left" width="10%">
-		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td valign="top" align="left">
-		    <strong>C</strong></td></tr>
+            <strong>C</strong></td></tr>
         <tr>
-		  <td valign="top">1.6.0</td>
+          <td valign="top">1.6.0</td>
           <td valign="top">
-		    Function introduced in this release.</td></tr>
+            Function introduced in this release.</td></tr>
     </table></ul>
 </dl>
 
@@ -3302,24 +3242,30 @@ END SUBROUTINE h5pget_fapl_mpiposix_f
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
-            <td valign="top">IN: File access property list identifier.</td></tr>
+            <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
+            <td valign="top">IN: File access property list 
+                identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>const&nbsp;H5FD_mem_t&nbsp;*</em><code>memb_map&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">OUT: Maps memory usage types to other memory usage types.</td></tr>
+            <td valign="top"><em>const&nbsp;H5FD_mem_t&nbsp;*</em><code>memb_map&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">OUT: Maps memory usage types to other 
+                memory usage types.</td></tr>
         <tr>
-		    <td valign="top"><em>const hid_t *</em><code>memb_fapl</code></td>
-            <td valign="top">OUT: Property list for each memory usage type.</td></tr>
+            <td valign="top"><em>const hid_t *</em><code>memb_fapl</code></td>
+            <td valign="top">OUT: Property list for each memory usage 
+                 type.</td></tr>
         <tr>
-		    <td valign="top"><em>const char **</em><code>memb_name</code></td>
-            <td valign="top">OUT: Name generator for names of member files.</td></tr>
+            <td valign="top"><em>const char **</em><code>memb_name</code></td>
+            <td valign="top">OUT: Name generator for names of member 
+                 files.</td></tr>
         <tr>
-		    <td valign="top"><em>const haddr_t *</em><code>memb_addr</code></td>
-            <td valign="top">OUT:</td></tr>
+            <td valign="top"><em>const haddr_t *</em><code>memb_addr</code></td>
+            <td valign="top">OUT: The offsets within the virtual address space, 
+                from 0 (zero) to <code>HADDR_MAX</code>, 
+                at which each type of data storage begins.</td></tr>
         <tr>
-		    <td valign="top"><em>hbool_t *</em><code>relax</code></td>
-            <td valign="top">OUT: Allows read-only access to incomplete file sets 
-                when <code>TRUE</code>.</td></tr>
+            <td valign="top"><em>hbool_t *</em><code>relax</code></td>
+            <td valign="top">OUT: Allows read-only access to incomplete 
+                file sets when <code>TRUE</code>.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful.
@@ -3486,21 +3432,25 @@ SUBROUTINE
   <dd>Returns the file close degree. 
   <dt><strong>Description:</strong> 
   <dd><code>H5Pget_fclose_degree</code> returns the current setting of the file 
-    close degree property <code>fc_degree</code> in the file access property list 
-    <code>fapl_id</code>.  
-    <p> The value of <code>fc_degree</code> determines how aggressively <code>H5Fclose</code> 
-      deals with objects within a file that remain open when <code>H5Fclose</code> 
-      is called to close that file.  <code>fc_degree</code> can have any one of 
-      four valid values as described above in <a href="#Property-SetFcloseDegree"><code>H5Pset_fclose_degree</code></a>. 
+    close degree property <code>fc_degree</code> in the file access property 
+    list <code>fapl_id</code>. 
+    <p>
+    The value of <code>fc_degree</code> determines how aggressively 
+    <code>H5Fclose</code> deals with objects within a file that remain 
+    open when <code>H5Fclose</code> is called to close that file. 
+    <code>fc_degree</code> can have any one of four valid values as 
+    described in 
+    <a href="#Property-SetFcloseDegree"><code>H5Pset_fclose_degree</code></a>. 
   <dt><strong>Parameters:</strong> 
     <ul><table>
       <tr>
-	      <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
+          <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
           <td valign="top">IN: File access property list identifier.</td></tr>
       <tr>
-	      <td valign="top"><em>H5F_close_degree_t&nbsp;*</em><code>fc_degree&nbsp;&nbsp;&nbsp;&nbsp;</code></td> 
-          <td valign="top">OUT: Pointer to a location to which to return the file close degree 
-            property, the value of <code>fc_degree</code>.</td></tr>
+          <td valign="top"><em>H5F_close_degree_t&nbsp;*</em><code>fc_degree&nbsp;&nbsp;&nbsp;&nbsp;</code></td> 
+          <td valign="top">OUT: Pointer to a location to which to return the 
+              file close degree property, the value of <code>fc_degree</code>.
+      </td></tr>
     </table></ul>
   <dt><strong>Returns:</strong> 
   <dd>Returns a non-negative value if successful. Otherwise returns a negative 
@@ -3522,7 +3472,7 @@ SUBROUTINE h5pget_fclose_degree_f(fapl_id, degree, hdferr)
 END SUBROUTINE h5pget_fclose_degree_f
 	</pre>		
 		
-		<!--<dt><strong>Non-C API(s):</strong>
+    	<!--<dt><strong>Non-C API(s):</strong>
     	<dd>
         
         <img src="Graphics/Java.gif"> 
@@ -3531,14 +3481,14 @@ END SUBROUTINE h5pget_fclose_degree_f
 <dt><strong>History:</strong>
     <ul><table width="90%">
         <tr>
-		  <td valign="top" align="left" width="10%">
-		    <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td valign="top" align="left" width="10%">
+            <strong>Release</strong>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td valign="top" align="left">
-		    <strong>C</strong></td></tr>
+            <strong>C</strong></td></tr>
         <tr>
-		  <td valign="top">1.6.0</td>
+          <td valign="top">1.6.0</td>
           <td valign="top">
-		    Function introduced in this release.</td></tr>
+            Function introduced in this release.</td></tr>
     </table></ul>
 </dl>
 
@@ -3715,7 +3665,7 @@ END SUBROUTINE h5pget_fill_value_f
   <dt><strong>Name:</strong> <a name="Property-GetFilter">H5Pget_filter</a>
   <dt><strong>Signature:</strong>
     <dd><em>H5Z_filter_t</em> <code>H5Pget_filter</code>(<em>hid_t</em> <code>plist</code>,
-        <em>int</em> <code>filter_number</code>,
+        <em>unsigned int</em> <code>filter_number</code>,
         <em>unsigned int *</em><code>flags</code>,
         <em>size_t *</em><code>cd_nelmts</code>,
         <em>unsigned int *</em><code>cd_values</code>,
@@ -4874,13 +4824,14 @@ END SUBROUTINE h5pget_small_data_block_size_f
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">IN: Property list to query.</td></tr>
         <tr>
-		    <td valign="top"><em>unsigned *</em> <code>ik</code></td>
-            <td valign="top">OUT: Pointer to location to return the symbol table's B-tree 1/2 rank.</td></tr>
+            <td valign="top"><em>unsigned *</em> <code>ik</code></td>
+            <td valign="top">OUT: Pointer to location to return the 
+                symbol table's B-tree 1/2 rank.</td></tr>
         <tr>
-		    <td valign="top"><em>unsigned *</em> <code>size</code></td>
+            <td valign="top"><em>unsigned *</em> <code>size</code></td>
             <td valign="top">OUT: Pointer to location to return the symbol table's leaf node 1/2 size.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
@@ -5492,11 +5443,7 @@ END SUBROUTINE h5pisa_class_f
     For each property in the object, <code>iter_func</code> and
     the additional information specified below are passed to the
     <code>H5P_iterate_t</code> operator function.  
-	
-	<b><i>(NOTE: <code>iter_func</code> was changed to 
-	<code>H5P_iterate_t</code> in the preceding sentence.
-	Is this correct?)</i></b>
-	
+
     <p>
     The iteration begins with the <code>idx</code>-th property in 
     the object; the next element to be processed by the operator 
@@ -5512,7 +5459,7 @@ END SUBROUTINE h5pisa_class_f
         <ul> <dl>
             <dt><em>typedef herr_t</em> (*<code>H5P_iterate_t</code>)(
                                   <em>hid_t</em> <code>id</code>, 
-                                  <em>const char *</em><code>>name</code>, 
+                                  <em>const char *</em><code>name</code>, 
                                   <em>void *</em><code>iter_data</code>
 	        )
         </dl> </ul>
@@ -6230,7 +6177,7 @@ END SUBROUTINE h5pset_alignment_f
 	This property is set in the dataset creation property list 
 	<code>plist_id</code>.
         <p>
-	Timing is specified in <code>fill_time</code> with one of the 
+	Timing is specified in <code>alloc_time</code> with one of the 
 	following values:
 	<table border=0 >
            <tr valign="top"><td rowspan="4">&nbsp;&nbsp;&nbsp;&nbsp;</td><td>
@@ -6631,7 +6578,8 @@ END SUBROUTINE h5pset_cache_f
     <ul><table>
         <tr>
           <td valign="top"><em>hid_t</em> <code>plist</code></td>
-          <td valign="top">IN: Identifier for property list to query.</td></tr>
+          <td valign="top">IN: Dataset creation property list
+              identifier.</td></tr>
         <tr>
           <td valign="top"><em>int</em> <code>ndims</code></td>
           <td valign="top">IN: The number of dimensions of each chunk.</td></tr>
@@ -6672,8 +6620,9 @@ END SUBROUTINE h5pset_chunk_f
 <dl>
   <dt><strong>Name:</strong> <a name="Property-SetDeflate">H5Pset_deflate</a>
   <dt><strong>Signature:</strong>
-    <dd><em>herr_t</em> <code>H5Pset_deflate</code>(<em>hid_t</em> <code>plist</code>,
-        <em>int</em> <code>level</code>
+    <dd><em>herr_t</em> <code>H5Pset_deflate</code>(
+        <em>hid_t</em> <code>plist</code>,
+        <em>uint</em> <code>level</code>
     )
   <dt><strong>Purpose:</strong>
     <dd>Sets compression method and compression level. 
@@ -6682,15 +6631,18 @@ END SUBROUTINE h5pset_chunk_f
         dataset creation property list to <code>H5D_COMPRESS_DEFLATE</code>
         and the compression level to <code>level</code>, which should 
         be a value from zero to nine, inclusive.  
+        <p>
         Lower compression levels are faster but result in less compression.  
+        <p>
         This is the same algorithm as used by the GNU gzip program.
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">IN: Identifier for the dataset creation property list.</td></tr>
+            <td valign="top"><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">IN: Identifier for the dataset creation 
+                property list.</td></tr>
         <tr>
-		    <td valign="top"><em>int</em> <code>level</code></td>
+            <td valign="top"><em>uint</em> <code>level</code></td>
             <td valign="top">IN: Compression level.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
@@ -9498,7 +9450,7 @@ END SUBROUTINE h5pset_meta_block_size_f
     <dd>Sets type of data property for <code>MULTI</code> driver.
   <dt><strong>Description:</strong>
     <dd><code>H5Pset_multi_type</code> sets the type of data property in the 
-        file access or data transfer property list <code>fapl_id</code>.
+        file access property list <code>fapl_id</code>.
 	This enables a user application to specify the type of data the
         application wishes to access so that the application 
 	can retrieve a file handle for low-level access to the particular member 
@@ -9548,10 +9500,10 @@ END SUBROUTINE h5pset_meta_block_size_f
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
-            <td valign="top">IN: File access property list or data transfer property list identifier.</td></tr>
+            <td valign="top"><em>hid_t</em> <code>fapl_id</code></td>
+            <td valign="top">IN: File access property list identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>H5FD_mem_t</em>&nbsp;<code>type&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top"><em>H5FD_mem_t</em>&nbsp;<code>type&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
             <td valign="top">OUT: Type of data.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
@@ -9985,13 +9937,14 @@ END SUBROUTINE h5pset_small_data_block_size_f
   <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
-		    <td valign="top"><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
-            <td valign="top">IN: Identifier for property list to query.</td></tr>
+            <td valign="top"><em>hid_t</em>&nbsp;<code>plist&nbsp;&nbsp;&nbsp;&nbsp;</code></td>
+            <td valign="top">IN: File creation property list 
+                identifier.</td></tr>
         <tr>
-		    <td valign="top"><em>unsigned</em> <code>ik</code></td>
+            <td valign="top"><em>unsigned</em> <code>ik</code></td>
             <td valign="top">IN: Symbol table tree rank.</td></tr>
         <tr>
-		    <td valign="top"><em>unsigned</em> <code>lk</code></td>
+            <td valign="top"><em>unsigned</em> <code>lk</code></td>
             <td valign="top">IN: Symbol table node size.</td></tr>
     </table></ul>
   <dt><strong>Returns:</strong>
@@ -10056,7 +10009,7 @@ END SUBROUTINE h5pset_sym_k_f
         Before proceeding, be aware that there are factors that affect
         your rights and ability to use SZIP compression.
         See the documents at
-	<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc_resource/SZIP/index.html" 
+	<a href="http://www.hdfgroup.org/doc_resource/SZIP/index.html" 
         target="External">SZIP Compression in HDF5</a>
 	for <em>important information regarding terms of use and 
 	the SZIP copyright notice</em>,
@@ -10785,13 +10738,14 @@ END SUBROUTINE h5punregister_f
 -->
 
 
-<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" --><hr>
+<!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+<hr>
 <center>
 <table border=0 width=98%>
 <tr><td valign=top align=left>
 <a href="index.html">HDF5 documents and links</a>&nbsp;<br>
 <a href="H5.intro.html">Introduction to HDF5</a>&nbsp;<br>
-<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/UG/index.html">HDF5 User Guide</a>&nbsp;<br>
+<a href="http://www.hdfgroup.org/HDF5/doc/UG/UG_frame.html">HDF5 User Guide</a>&nbsp;<br>
 <!--
 <a href="Glossary.html">Glossary</a><br>
 -->
@@ -10815,20 +10769,21 @@ And in this document, the
 <a href="PredefDTypes.html">Datatypes</a>&nbsp;&nbsp;
 </td></tr>
 <tr><td colspan="2" align="right">
-<i><small>(<a href="http://hdf.ncsa.uiuc.edu/HDF5/doc/PSandPDF/">PDF</a>
+<i><small>(<a href="http://www.hdfgroup.org/HDF5/doc/PSandPDF/">PDF</a>
 of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </td></tr>
 </table>
 </center>
 <hr>
-<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" --><address>
-<a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
+<!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
+<address>
+THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.5, November 2005
+Describes HDF5 Release 1.6.6, August 2007 
 </address>
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
-document.writeln("Last modified: 5 October 2005");
+document.writeln("Last modified: 12 October 2006");
 -->
 </SCRIPT>
  

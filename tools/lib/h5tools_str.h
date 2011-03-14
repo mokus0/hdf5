@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -20,9 +21,9 @@
 #define H5TOOLS_STR_H__
 
 typedef struct h5tools_str_t {
-    char	*s;		/*allocate string		*/
-    size_t	len;		/*length of actual value	*/
-    size_t	nalloc;		/*allocated size of string	*/
+    char    *s;     /*allocate string       */
+    size_t  len;        /*length of actual value    */
+    size_t  nalloc;     /*allocated size of string  */
 } h5tools_str_t;
 
 extern void     h5tools_str_close(h5tools_str_t *str);
@@ -31,12 +32,11 @@ extern char    *h5tools_str_append(h5tools_str_t *str, const char *fmt, ...);
 extern char    *h5tools_str_reset(h5tools_str_t *str);
 extern char    *h5tools_str_trunc(h5tools_str_t *str, size_t size);
 extern char    *h5tools_str_fmt(h5tools_str_t *str, size_t start, const char *fmt);
-extern char    *h5tools_str_prefix(h5tools_str_t *str, const h5dump_t *info,
+extern char    *h5tools_str_prefix(h5tools_str_t *str, const h5tool_format_t *info,
                                    hsize_t elmtno, int ndims, hsize_t min_idx[],
-                                   hsize_t max_idx[],h5tools_context_t *ctx);
-extern int      h5tools_str_dump_region(h5tools_str_t *, hid_t, const h5dump_t *);
-extern void     h5tools_print_char(h5tools_str_t *str, const h5dump_t *info, unsigned char ch);
-extern char    *h5tools_str_sprint(h5tools_str_t *str, const h5dump_t *info,
+                                   hsize_t max_idx[], h5tools_context_t *ctx);
+extern int      h5tools_str_dump_region(h5tools_str_t *, hid_t, const h5tool_format_t *);
+extern char    *h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info,
                                    hid_t container, hid_t type, void *vp,
                                    h5tools_context_t *ctx);
 

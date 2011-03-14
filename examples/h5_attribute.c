@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -52,7 +53,8 @@ main (void)
    hid_t   attr1, attr2, attr3; /* Attribute identifiers */
    hid_t   attr;
    hid_t   aid1, aid2, aid3;    /* Attribute dataspace identifiers */
-   hid_t   atype;               /* Attribute type */
+   hid_t   atype, atype_mem;    /* Attribute type */
+   H5T_class_t  type_class;
 
    hsize_t fdim[] = {SIZE};
    hsize_t adim[] = {ADIM1, ADIM2};  /* Dimensions of the first attribute  */
@@ -61,9 +63,9 @@ main (void)
 
    herr_t  ret;                /* Return value */
    unsigned i,j;                /* Counters */
-   int     idx;                /* Attribute index */
    char    string_out[80];     /* Buffer to read string attribute back */
    int     point_out;          /* Buffer to read scalar attribute back */
+   int     num_attr;           /* Number of attributes */
 
    /*
     * Data initialization.
@@ -132,7 +134,7 @@ main (void)
     */
    aid3  = H5Screate(H5S_SCALAR);
    atype = H5Tcopy(H5T_C_S1);
-           H5Tset_size(atype, 4);
+           H5Tset_size(atype, 5);
            H5Tset_strpad(atype,H5T_STR_NULLTERM);
    attr3 = H5Acreate(dataset, ANAMES, atype, aid3, H5P_DEFAULT);
 
@@ -142,12 +144,13 @@ main (void)
    ret = H5Awrite(attr3, atype, string);
 
    /*
-    * Close attribute and file dataspaces.
+    * Close attribute and file dataspaces, and datatype.
     */
    ret = H5Sclose(aid1);
    ret = H5Sclose(aid2);
    ret = H5Sclose(aid3);
    ret = H5Sclose(fid);
+   ret = H5Tclose(atype);
 
    /*
     * Close the attributes.
@@ -186,20 +189,27 @@ main (void)
    ret =  H5Aclose(attr);
 
    /*
-    * Attach to the string attribute using its index, then read and display the value.
+    * Find string attribute by iterating through all attributes
     */
-   attr  = H5Aopen_idx(dataset, 2);
-   atype = H5Tcopy(H5T_C_S1);
-           H5Tset_size(atype, 5);
-   ret   = H5Aread(attr, atype, string_out);
-   printf("The value of the attribute with index 2 is %s \n", string_out);
-   ret   = H5Aclose(attr);
-   ret   = H5Tclose(atype);
+   num_attr = H5Aget_num_attrs(dataset);
+   for(i=0; i < num_attr; i++) {
+      attr  = H5Aopen_idx(dataset, i);
+      atype = H5Aget_type(attr);
+      type_class = H5Tget_class(atype);
+      if (type_class == H5T_STRING) {
+           atype_mem = H5Tget_native_type(atype, H5T_DIR_ASCEND);
+           ret   = H5Aread(attr, atype_mem, string_out);
+           printf("Found string attribute; its index is %d , value =   %s \n", i, string_out);
+           ret   = H5Tclose(atype_mem);
+      } 
+       ret   = H5Aclose(attr);
+       ret   = H5Tclose(atype);
+    }
 
    /*
     * Get attribute info using iteration function.
     */
-   idx = H5Aiterate(dataset, NULL, attr_info, NULL);
+    ret = H5Aiterate(dataset, NULL, attr_info, NULL);
 
    /*
     * Close the dataset and the file.

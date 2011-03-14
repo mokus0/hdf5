@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Class VarLenType inherits from DataType and provides wrappers for
@@ -22,14 +23,15 @@
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
+
 class H5_DLLCPP VarLenType : public DataType {
    public:
-	// Returns this class name
-	virtual string fromClass () const { return ("VarLenType"); }
-
 	// Constructor that creates a variable-length datatype based
 	// on the specified base type.
 	VarLenType(const DataType* base_type);
+
+	// Returns this class name
+	virtual H5std_string fromClass () const { return("VarLenType"); }
 
 	// Copy constructor: makes copy of the original object.
 	VarLenType( const VarLenType& original );
@@ -43,7 +45,6 @@ class H5_DLLCPP VarLenType : public DataType {
    protected:
 	// Default constructor
 	VarLenType();
-
 };
 #ifndef H5_NO_NAMESPACE
 }

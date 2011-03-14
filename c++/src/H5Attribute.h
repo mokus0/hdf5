@@ -1,5 +1,6 @@
 // C++ informative line for the emacs editor: -*- C++ -*-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -9,8 +10,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef _H5Attribute_H
@@ -22,27 +23,30 @@ namespace H5 {
 
 class H5_DLLCPP Attribute : public AbstractDs {
    public:
+	// Closes this attribute.
+	virtual void close();
+
 	// Gets the name of this attribute.
-	ssize_t getName( size_t buf_size, string& attr_name ) const;
-	string getName( size_t buf_size ) const; // returns name, not its length
-	string getName() const; // returns name, no argument
+	ssize_t getName( size_t buf_size, H5std_string& attr_name ) const;
+	H5std_string getName( size_t buf_size ) const; // returns name, not its length
+	H5std_string getName() const; // returns name, no argument
 
 	// Gets a copy of the dataspace for this attribute.
 	virtual DataSpace getSpace() const;
 
 	// Returns the amount of storage size required for this attribute.
-	virtual hsize_t getStorageSize() const;
+	hsize_t getStorageSize() const;
 
 	// Reads data from this attribute.
 	void read( const DataType& mem_type, void *buf ) const;
-	void read( const DataType& mem_type, string& strg ) const;
+	void read( const DataType& mem_type, H5std_string& strg ) const;
 
 	// Writes data to this attribute.
 	void write(const DataType& mem_type, const void *buf ) const;
-	void write(const DataType& mem_type, const string& strg ) const;
+	void write(const DataType& mem_type, const H5std_string& strg ) const;
 
 	// Returns this class name
-	virtual string fromClass () const { return("Attribute"); }
+	virtual H5std_string fromClass () const { return("Attribute"); }
 
         // Creates a copy of an existing attribute using the attribute id
         Attribute( const hid_t attr_id );
@@ -52,9 +56,6 @@ class H5_DLLCPP Attribute : public AbstractDs {
 
 	// Default constructor
 	Attribute();
-
-	// Close this attribute.
-	virtual void close();
 
 	// Destructor: properly terminates access to this attribute.
 	virtual ~Attribute();
@@ -66,11 +67,11 @@ class H5_DLLCPP Attribute : public AbstractDs {
 	// sub-types
 	virtual hid_t p_get_type() const;
 
-	// do not inherit 'iterateAttrs' from H5Object
+	// do not inherit H5Object::iterateAttrs
 	int iterateAttrs() { return 0; }
 
-        // do not inherit 'rename' from H5Object
-        void rename() {}
+	// do not inherit H5Object::renameAttr
+	void renameAttr() {}
 };
 #ifndef H5_NO_NAMESPACE
 }

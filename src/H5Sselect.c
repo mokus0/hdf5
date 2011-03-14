@@ -1,4 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
  *                                                                           *
@@ -8,8 +9,8 @@
  * of the source code distribution tree; Copyright.html can be found at the  *
  * root level of an installed copy of the electronic HDF5 document set and   *
  * is linked from the top-level documents page.  It can also be found at     *
- * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
- * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
+ * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
+ * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* Programmer:  Quincey Koziol <koziol@ncsa.uiuc.ued>
@@ -22,6 +23,7 @@
 
 
 #include "H5private.h"		/* Generic Functions			*/
+#include "H5Dprivate.h"		/* Datasets		  		*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5FLprivate.h"	/* Free Lists                           */
 #include "H5Iprivate.h"		/* IDs			  		*/
@@ -355,6 +357,8 @@ H5S_get_select_npoints(const H5S_t *space)
  COMMENTS, BUGS, ASSUMPTIONS
  EXAMPLES
  REVISION LOG
+    Christian Chilan 01/05/2007
+    Changed the error return value from 0 to FAIL.
 --------------------------------------------------------------------------*/
 htri_t
 H5Sselect_valid(hid_t spaceid)
@@ -362,12 +366,12 @@ H5Sselect_valid(hid_t spaceid)
     H5S_t	*space = NULL;      /* Dataspace to modify selection of */
     htri_t ret_value;     /* return value */
 
-    FUNC_ENTER_API(H5Sselect_valid, 0);
+    FUNC_ENTER_API(H5Sselect_valid, FAIL);
     H5TRACE1("t","i",spaceid);
 
     /* Check args */
     if (NULL == (space=H5I_object_verify(spaceid, H5I_DATASPACE)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, 0, "not a dataspace");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace");
 
     ret_value = H5S_SELECT_VALID(space);
 
@@ -1430,12 +1434,12 @@ done:
  REVISION LOG
 --------------------------------------------------------------------------*/
 herr_t
-H5S_select_fill(void *_fill, size_t fill_size, const H5S_t *space, void *_buf)
+H5S_select_fill(const void *_fill, size_t fill_size, const H5S_t *space, void *_buf)
 {
     H5S_sel_iter_t iter;        /* Selection iteration info */
     hbool_t iter_init=0;        /* Selection iteration info has been initialized */
     uint8_t *buf;               /* Current location in buffer */
-    void *fill=_fill;           /* Alias for fill-value buffer */
+    const void *fill = _fill;   /* Alias for fill-value buffer */
     hssize_t nelmts;            /* Number of elements in selection */
     hsize_t off[H5D_XFER_HYPER_VECTOR_SIZE_DEF];          /* Array to store sequence offsets */
     size_t len[H5D_XFER_HYPER_VECTOR_SIZE_DEF];           /* Array to store sequence lengths */
@@ -1499,7 +1503,7 @@ done:
 
     /* Release fill value, if allocated */
     if(_fill==NULL && fill)
-        H5FL_BLK_FREE(type_elem,fill);
+        H5FL_BLK_FREE(type_elem, (void *)fill); /* casting away const OK - QAK */
 
     FUNC_LEAVE_NOAPI(ret_value);
 }   /* H5S_select_fill() */

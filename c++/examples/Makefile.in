@@ -1,17 +1,18 @@
 ## HDF5-C++ examples/Makefile(.in)
 ##
 ##
-## Copyright by the Board of Trustees of the University of Illinois.
-## All rights reserved.
-##
-## This file is part of HDF5.  The full HDF5 copyright notice, including
-## terms governing use, modification, and redistribution, is contained in
-## the files COPYING and Copyright.html.  COPYING can be found at the root
-## of the source code distribution tree; Copyright.html can be found at the
-## root level of an installed copy of the electronic HDF5 document set and
-## is linked from the top-level documents page.  It can also be found at
-## http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
-## access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+# Copyright by The HDF Group.
+# Copyright by the Board of Trustees of the University of Illinois.
+# All rights reserved.
+#
+# This file is part of HDF5.  The full HDF5 copyright notice, including
+# terms governing use, modification, and redistribution, is contained in
+# the files COPYING and Copyright.html.  COPYING can be found at the root
+# of the source code distribution tree; Copyright.html can be found at the
+# root level of an installed copy of the electronic HDF5 document set and
+# is linked from the top-level documents page.  It can also be found at
+# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
+# access to either file, you may request a copy from help@hdfgroup.org.
 ##
 ##
 ##
@@ -33,7 +34,7 @@ hdf5_builddir=$(top_builddir)/src
 ## created by replacing the `.cpp' with a `.lo'. This list is necessary
 ## for building automatic dependencies.
 TEST_SRC=create.cpp readdata.cpp writedata.cpp compound.cpp extend_ds.cpp \
-	 chunks.cpp h5group.cpp
+	 chunks.cpp h5group.cpp strtype.cpp
 TEST_OBJ=$(TEST_SRC:.cpp=.lo)
 
 EXAMPLE_PROGS=$(TEST_SRC)
@@ -41,15 +42,16 @@ EXAMPLE_PROGS=$(TEST_SRC)
 ## These are the programs that `make all' or `make tests' will build and which
 ## `make check' will run. List them in the order they should be run.
 TEST_PROGS=$(TEST_SRC:.cpp=)
-
-##TEST_SCRIPTS=$(srcdir)/testexamples.sh
+TEST_SCRIPTS=testh5c++.sh
 
 ## These are the files that `make clean' (and derivatives) will remove from
 ## this directory.
 CLEAN=*.h5
+DISTCLEAN=testh5c++.sh
 
-## How to build the programs... they all depend on the Fortran & C hdf5 libraries
-$(TEST_PROGS): $(LIB) $(LIBHDF5)
+## How to build the programs... they depend only on the installed library
+## and h5c++.
+$(TEST_PROGS):
 
 compound: $(srcdir)/compound.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $(srcdir)/compound.cpp
@@ -68,6 +70,9 @@ chunks: $(srcdir)/chunks.cpp
 
 extend_ds: $(srcdir)/extend_ds.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $(srcdir)/extend_ds.cpp
+
+strtype: $(srcdir)/strtype.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $(srcdir)/strtype.cpp
 
 writedata: $(srcdir)/writedata.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $(srcdir)/writedata.cpp

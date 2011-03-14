@@ -21,6 +21,7 @@ srcdir=@srcdir@
 hdf5_srcdir=$(top_srcdir)/src 
 hdf5_builddir=$(top_builddir)/src
 CPPFLAGS=-I. -I$(hdf5_builddir) -I$(hdf5_srcdir) @CPPFLAGS@
+FSEARCH_DIRS =@F9XMODFLAG@../src @FSEARCH_DIRS@
 
 ## Add include directory to the C preprocessor flags and the h5test and hdf5
 ## libraries to the library list.
@@ -44,19 +45,19 @@ FORTLIBTEST_CSRC = t.c
 FORTLIBTEST_OBJ=$(FORTLIBTEST_FSRC:.f90=.lo) $(FORTLIBTEST_CSRC:.c=.lo)
 
 TEST_OBJ=$(FORTLIBTEST_OBJ) $(TEST_PROGS_SRC:.f90=.lo)
-
+PUB_LIB=
 ## Temporary files
 MOSTLYCLEAN=*.h5 *.tmp
 
 $(TEST_PROGS): $(LIB) $(FLIB) 
 
 fortranlib_test: $(FORTLIBTEST_OBJ)
-	@$(LT_LINK_FEXE) $(FFLAGS) -o $@ $(FORTLIBTEST_OBJ)  $(LIB) $(TCLIB) $(FLIB) $(LIBS) $(HDF5LIB)
+	@$(LT_LINK_FEXE) $(FFLAGS) -o $@ $(FORTLIBTEST_OBJ) $(LIB) $(TCLIB) $(FLIB) $(LIBS) $(HDF5LIB)
 
 fflush1: fflush1.lo 
-	@$(LT_LINK_FEXE) $(FFLAGS) -o $@ fflush1.lo   $(LIB) $(TCLIB) $(FLIB) $(LIBS) $(HDF5LIB)
+	@$(LT_LINK_FEXE) $(FFLAGS) -o $@ fflush1.lo $(LIB) $(TCLIB) $(FLIB) $(LIBS) $(HDF5LIB)
 
 fflush2: fflush2.lo 
-	@$(LT_LINK_FEXE) $(FFLAGS) -o $@ fflush2.lo   $(LIB) $(TCLIB) $(FLIB) $(LIBS) $(HDF5LIB)
+	@$(LT_LINK_FEXE) $(FFLAGS) -o $@ fflush2.lo $(LIB) $(TCLIB) $(FLIB) $(LIBS) $(HDF5LIB)
 
 @CONCLUDE@

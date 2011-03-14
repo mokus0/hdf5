@@ -52,15 +52,15 @@ int do_copy_refobjs(hid_t fidin,
                     trav_table_t *travt,
                     pack_opt_t *options) /* repack options */
 {
- hid_t     grp_in;            /* read group ID */ 
- hid_t     grp_out;           /* write group ID */ 
- hid_t     dset_in;           /* read dataset ID */ 
- hid_t     dset_out;          /* write dataset ID */ 
- hid_t     type_in;           /* named type ID */ 
- hid_t     dcpl_id;           /* dataset creation property list ID */ 
- hid_t     space_id;          /* space ID */ 
- hid_t     ftype_id;          /* file data type ID */ 
- hid_t     mtype_id;          /* memory data type ID */
+ hid_t     grp_in=(-1);            /* read group ID */ 
+ hid_t     grp_out=(-1);           /* write group ID */ 
+ hid_t     dset_in=(-1);           /* read dataset ID */ 
+ hid_t     dset_out=(-1);          /* write dataset ID */ 
+ hid_t     type_in=(-1);           /* named type ID */ 
+ hid_t     dcpl_id=(-1);           /* dataset creation property list ID */ 
+ hid_t     space_id=(-1);          /* space ID */ 
+ hid_t     ftype_id=(-1);          /* file data type ID */ 
+ hid_t     mtype_id=(-1);          /* memory data type ID */
  size_t    msize;             /* memory size of memory type */
  hsize_t   nelmts;            /* number of elements in dataset */
  int       rank;              /* rank of dataset */
@@ -122,8 +122,10 @@ int do_copy_refobjs(hid_t fidin,
    nelmts=1;
    for (j=0; j<rank; j++) 
     nelmts*=dims[j];
-   if ((mtype_id=H5Tget_native_type(ftype_id,H5T_DIR_DEFAULT))<0)
+   
+   if ((mtype_id=h5tools_get_native_type(ftype_id))<0)
     goto error;
+
    if ((msize=H5Tget_size(mtype_id))==0)
     goto error;
 
@@ -515,8 +517,10 @@ static int copy_refs_attr(hid_t loc_in,
   nelmts=1;
   for (j=0; j<rank; j++) 
    nelmts*=dims[j];
-  if ((mtype_id=H5Tget_native_type(ftype_id,H5T_DIR_DEFAULT))<0)
+
+  if ((mtype_id=h5tools_get_native_type(ftype_id))<0)
    goto error;
+
   if ((msize=H5Tget_size(mtype_id))==0)
    goto error;
 
@@ -748,7 +752,13 @@ static const char* MapIdToName(hid_t refobj_id,
 {
  hid_t id;
  hid_t fid;
+ H5G_stat_t refstat;    /* Stat for the refobj id */
+ H5G_stat_t objstat;    /* Stat for objects in the file */
  int   i;
+
+ /* obtain information to identify the referenced object uniquely */
+ if(H5Gget_objinfo(refobj_id, ".", 0, &refstat) <0)
+  return NULL;
 
  /* obtains the file ID given an object ID.  This ID must be closed */
  if ((fid = H5Iget_file_id(refobj_id))<0)
@@ -773,9 +783,12 @@ static const char* MapIdToName(hid_t refobj_id,
    
    if ((id = H5Dopen(fid,travt->objs[i].name))<0)
     return NULL;
+   if(H5Gget_objinfo(id, ".", 0, &objstat) <0)
+    return NULL;
    if (H5Dclose(id)<0)
     return NULL;
-   if (id==refobj_id)
+   if (refstat.fileno[0]==objstat.fileno[0] && refstat.fileno[1]==objstat.fileno[1]
+        && refstat.objno[0]==objstat.objno[0] && refstat.objno[1]==objstat.objno[1])
    {
     H5Fclose(fid);
     return travt->objs[i].name;

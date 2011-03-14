@@ -12,8 +12,6 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: t_file.c,v 1.11.2.2 2004/04/02 00:00:10 acheng Exp $ */
-
 /*
  * Parallel tests for file operations
  */
@@ -43,9 +41,9 @@ test_split_comm_access(void)
     hid_t acc_tpl;		/* File access properties */
     hbool_t use_gpfs = FALSE;   /* Use GPFS hints */
     herr_t ret;			/* generic return value */
-    char *filename;
+    const char *filename;
 
-    filename = (char *) GetTestParameters();
+    filename = GetTestParameters();
     if (VERBOSE_MED)
 	printf("Split Communicator access test on file %s\n",
 	    filename);
@@ -84,9 +82,9 @@ test_split_comm_access(void)
 	ret=H5Fclose(fid);
 	VRFY((ret >= 0), "");
 
-	/* detele the test file */
+	/* delete the test file */
 	if (sub_mpi_rank == 0){
-	    mrc = MPI_File_delete(filename, info);
+	    mrc = MPI_File_delete((char *)filename, info);
 	    /*VRFY((mrc==MPI_SUCCESS), ""); */
 	}
     }

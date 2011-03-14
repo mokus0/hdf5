@@ -37,12 +37,11 @@
 #include "H5Opkg.h"             /* Object header functions                 */
 
 #ifdef H5O_ENABLE_BOGUS
-#define PABLO_MASK      H5O_bogus_mask
 
 /* PRIVATE PROTOTYPES */
 static void *H5O_bogus_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
 static herr_t H5O_bogus_encode(H5F_t *f, uint8_t *p, const void *_mesg);
-static size_t H5O_bogus_size(H5F_t *f, const void *_mesg);
+static size_t H5O_bogus_size(const H5F_t *f, const void *_mesg);
 static herr_t H5O_bogus_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			     int indent, int fwidth);
 
@@ -63,10 +62,6 @@ const H5O_class_t H5O_BOGUS[1] = {{
     NULL,			/*set share method		*/
     H5O_bogus_debug,         	/*debug the message             */
 }};
-
-/* Interface initialization */
-static int interface_initialize_g = 0;
-#define INTERFACE_INIT  NULL
 
 
 /*-------------------------------------------------------------------------
@@ -94,7 +89,7 @@ H5O_bogus_decode(H5F_t UNUSED *f, hid_t dxpl_id, const uint8_t *p,
     H5O_bogus_t *mesg=NULL;
     void *ret_value;            /* Return value */
 
-    FUNC_ENTER(H5O_bogus_decode, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_bogus_decode);
 
     /* check args */
     assert(f);
@@ -119,7 +114,7 @@ done:
     if(ret_value==NULL && mesg!=NULL)
         H5MM_xfree(mesg);
 
-    FUNC_LEAVE(ret_value);
+    FUNC_LEAVE_NOAPI(ret_value);
 } /* end H5O_bogus_decode() */
 
 
@@ -141,7 +136,7 @@ done:
 static herr_t
 H5O_bogus_encode(H5F_t UNUSED *f, uint8_t *p, const void UNUSED *mesg)
 {
-    FUNC_ENTER(H5O_bogus_encode, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_bogus_encode);
 
     /* check args */
     assert(f);
@@ -151,7 +146,7 @@ H5O_bogus_encode(H5F_t UNUSED *f, uint8_t *p, const void UNUSED *mesg)
     /* encode */
     UINT32ENCODE(p, H5O_BOGUS_VALUE);
 
-    FUNC_LEAVE(SUCCEED);
+    FUNC_LEAVE_NOAPI(SUCCEED);
 } /* end H5O_bogus_encode() */
 
 
@@ -176,14 +171,14 @@ H5O_bogus_encode(H5F_t UNUSED *f, uint8_t *p, const void UNUSED *mesg)
  *-------------------------------------------------------------------------
  */
 static size_t
-H5O_bogus_size(H5F_t UNUSED *f, const void UNUSED *mesg)
+H5O_bogus_size(const H5F_t UNUSED *f, const void UNUSED *mesg)
 {
-    FUNC_ENTER(H5O_bogus_size, 0);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_bogus_size);
 
     /* check args */
     assert(f);
 
-    FUNC_LEAVE(4);
+    FUNC_LEAVE_NOAPI(4);
 } /* end H5O_bogus_size() */
 
 
@@ -208,7 +203,7 @@ H5O_bogus_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE *
 {
     const H5O_bogus_t	*mesg = (const H5O_bogus_t *)_mesg;
 
-    FUNC_ENTER(H5O_name_debug, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_name_debug);
 
     /* check args */
     assert(f);
@@ -220,7 +215,7 @@ H5O_bogus_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE *
     fprintf(stream, "%*s%-*s `%u'\n", indent, "", fwidth,
             "Bogus Value:", mesg->u);
 
-    FUNC_LEAVE(SUCCEED);
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }
 #endif /* H5O_ENABLE_BOGUS */
 

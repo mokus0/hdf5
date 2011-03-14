@@ -6,11 +6,11 @@
 
 # Use Intel C & Fortran compiler by default.
 if test "X-" =  "X-$CC"; then
-    CC=ecc
-    CC_BASENAME=ecc
+    CC=icc
+    CC_BASENAME=icc
 fi
 if test "X-" =  "X-$F9X"; then
-    F9X=efc
+    F9X=ifort
 fi
 
 #----------------------------------------------------------------------------
@@ -19,16 +19,8 @@ fi
 # `--enable-debug' switch of configure.
 
 case $CC_BASENAME in
-    ecc)
-	# CFLAGS must be set else configure set it to -g
-	CFLAGS="$CFLAGS"
-	DEBUG_CFLAGS="-g"
-	DEBUG_CPPFLAGS=
-	# ecc has -O2 as default
-	PROD_CFLAGS=""
-	PROD_CPPFLAGS=
-	PROFILE_CFLAGS=""	# ecc has no profile option
-	PROFILE_CPPFLAGS=
+    ecc|icc)
+	. $srcdir/config/intel-flags
 	;;
 
     gcc)
@@ -61,11 +53,12 @@ R_LARGE=18
 R_INTEGER=9
 
 case $F9X in
-    *efc)
+    *efc|*ifort)
 	# this is for efc v7.  Older efc do not work with these.
 	# -Vaxlib is for non-standard fortran calls like exit().
 	MORE_FFLAGS='-fpp -DDEC$=DEC_ -DMS$=MS_ -Vaxlib'
 	FFLAGS="$FFLAGS $MORE_FFLAGS"
+	HADDR_T='SELECTED_INT_KIND(R_LARGE)'
 	HSIZE_T='SELECTED_INT_KIND(R_LARGE)'
 	HSSIZE_T='SELECTED_INT_KIND(R_LARGE)'
 	HID_T='SELECTED_INT_KIND(R_INTEGER)'
@@ -74,6 +67,7 @@ case $F9X in
 	f9x_flags_set=yes
 	;;
     *)
+	HADDR_T='SELECTED_INT_KIND(R_LARGE)'
 	HSIZE_T='SELECTED_INT_KIND(R_LARGE)'
 	HSSIZE_T='SELECTED_INT_KIND(R_LARGE)'
 	HID_T='SELECTED_INT_KIND(R_INTEGER)'

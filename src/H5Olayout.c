@@ -20,6 +20,7 @@
 
 #define H5O_PACKAGE	/*suppress error about including H5Opkg	  */
 
+
 #include "H5private.h"
 #include "H5Dprivate.h"
 #include "H5Eprivate.h"
@@ -31,8 +32,8 @@
 /* PRIVATE PROTOTYPES */
 static void *H5O_layout_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
 static herr_t H5O_layout_encode(H5F_t *f, uint8_t *p, const void *_mesg);
-static void *H5O_layout_copy(const void *_mesg, void *_dest);
-static size_t H5O_layout_size(H5F_t *f, const void *_mesg);
+static void *H5O_layout_copy(const void *_mesg, void *_dest, unsigned update_flags);
+static size_t H5O_layout_size(const H5F_t *f, const void *_mesg);
 static herr_t H5O_layout_reset (void *_mesg);
 static herr_t H5O_layout_free (void *_mesg);
 static herr_t H5O_layout_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg);
@@ -63,11 +64,6 @@ const H5O_class_t H5O_LAYOUT[1] = {{
 #define H5O_LAYOUT_VERSION_1	1
 #define H5O_LAYOUT_VERSION_2	2
 #define H5O_LAYOUT_VERSION_3	3
-
-/* Interface initialization */
-#define PABLO_MASK      H5O_layout_mask
-static int interface_initialize_g = 0;
-#define INTERFACE_INIT  NULL
 
 /* Declare a free list to manage the H5O_layout_t struct */
 H5FL_DEFINE(H5O_layout_t);
@@ -103,7 +99,7 @@ H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t
     unsigned               u;
     void                   *ret_value;          /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_decode, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_decode);
 
     /* check args */
     assert(f);
@@ -257,7 +253,7 @@ H5O_layout_encode(H5F_t *f, uint8_t *p, const void *_mesg)
     unsigned               u;
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_encode, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_encode);
 
     /* check args */
     assert(f);
@@ -372,13 +368,13 @@ done:
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_layout_copy(const void *_mesg, void *_dest)
+H5O_layout_copy(const void *_mesg, void *_dest, unsigned UNUSED update_flags)
 {
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     H5O_layout_t           *dest = (H5O_layout_t *) _dest;
     void                   *ret_value;          /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_copy, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_copy);
 
     /* check args */
     assert(mesg);
@@ -425,13 +421,13 @@ done:
  *-------------------------------------------------------------------------
  */
 size_t
-H5O_layout_meta_size(H5F_t *f, const void *_mesg)
+H5O_layout_meta_size(const H5F_t *f, const void *_mesg)
 {
     /* Casting away const OK - QAK */
     H5O_layout_t      *mesg = (H5O_layout_t *) _mesg;
     size_t                  ret_value;
      
-    FUNC_ENTER_NOAPI(H5O_layout_meta_size, 0);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_meta_size);
                                 
     /* check args */
     assert(f);
@@ -534,12 +530,12 @@ done:
  *-------------------------------------------------------------------------
  */
 static size_t
-H5O_layout_size(H5F_t *f, const void *_mesg)
+H5O_layout_size(const H5F_t *f, const void *_mesg)
 {
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     size_t                  ret_value;
 
-    FUNC_ENTER_NOAPI(H5O_layout_size, 0);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_size);
 
     /* check args */
     assert(f);
@@ -548,7 +544,7 @@ H5O_layout_size(H5F_t *f, const void *_mesg)
     ret_value = H5O_layout_meta_size(f, mesg);
     if(mesg->type==H5D_COMPACT)
         ret_value += mesg->u.compact.size;/* data for compact dataset             */
-done:
+
     FUNC_LEAVE_NOAPI(ret_value);
 }
 
@@ -572,9 +568,8 @@ static herr_t
 H5O_layout_reset (void *_mesg)
 {
     H5O_layout_t     *mesg = (H5O_layout_t *) _mesg;
-    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_reset, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_reset);
 
     if(mesg) {
         /* Free the compact storage buffer */
@@ -586,8 +581,7 @@ H5O_layout_reset (void *_mesg)
         mesg->version=0;
     } /* end if */
 
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }
 
 
@@ -609,9 +603,8 @@ static herr_t
 H5O_layout_free (void *_mesg)
 {
     H5O_layout_t     *mesg = (H5O_layout_t *) _mesg;
-    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_free, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_free);
 
     assert (mesg);
 
@@ -621,8 +614,7 @@ H5O_layout_free (void *_mesg)
 
     H5FL_FREE(H5O_layout_t,mesg);
 
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }
 
 
@@ -646,7 +638,7 @@ H5O_layout_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg)
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_delete, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_delete);
 
     /* check args */
     assert(f);
@@ -699,9 +691,8 @@ H5O_layout_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE 
 {
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     unsigned                    u;
-    herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_layout_debug, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_debug);
 
     /* check args */
     assert(f);
@@ -735,6 +726,5 @@ H5O_layout_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE 
                   "Data Size:", mesg->u.compact.size);
     } /* end else */
 
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(SUCCEED);
 }

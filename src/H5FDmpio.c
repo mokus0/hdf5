@@ -20,9 +20,9 @@
  *
  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5FD_mpio_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5FD_mpio_init_interface
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5ACprivate.h"	/* Metadata cache			*/
@@ -148,10 +148,6 @@ static int H5FD_mpio_Debug[256] =
           0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
           0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 #endif
-
-/* Interface initialization */
-#define INTERFACE_INIT	H5FD_mpio_init_interface
-static int interface_initialize_g = 0;
 
 
 /*--------------------------------------------------------------------------

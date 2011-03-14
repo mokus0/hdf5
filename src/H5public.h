@@ -12,9 +12,6 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5public.h,v 1.341.2.62 2004/09/15 17:25:03 epourmal Exp $ */
-
-
 /*
  * This file contains public declarations for the HDF5 module.
  */
@@ -77,10 +74,10 @@ extern "C" {
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	6	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	3	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	4	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.6.3"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.6.4"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -165,35 +162,51 @@ typedef ssize_t			hssize_t;
 #if H5_SIZEOF_INT64_T>=8
     typedef uint64_t                haddr_t;
 #   define HADDR_UNDEF              ((haddr_t)(int64_t)(-1))
+#   define H5_SIZEOF_HADDR_T        H5_SIZEOF_INT64_T
 #   ifdef H5_HAVE_PARALLEL
 #       define HADDR_AS_MPI_TYPE    MPI_LONG_LONG_INT
 #   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF_INT>=8
     typedef unsigned                haddr_t;
 #   define HADDR_UNDEF              ((haddr_t)(-1))
+#   define H5_SIZEOF_HADDR_T        H5_SIZEOF_INT
 #   ifdef H5_HAVE_PARALLEL
 #       define HADDR_AS_MPI_TYPE    MPI_UNSIGNED
 #   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF_LONG>=8
     typedef unsigned long           haddr_t;
 #   define HADDR_UNDEF              ((haddr_t)(long)(-1))
+#   define H5_SIZEOF_HADDR_T        H5_SIZEOF_LONG
 #   ifdef H5_HAVE_PARALLEL
 #       define HADDR_AS_MPI_TYPE    MPI_UNSIGNED_LONG
 #   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF_LONG_LONG>=8
     typedef unsigned long long      haddr_t;
 #   define HADDR_UNDEF              ((haddr_t)(long long)(-1))
+#   define H5_SIZEOF_HADDR_T        H5_SIZEOF_LONG_LONG
 #   ifdef H5_HAVE_PARALLEL
 #       define HADDR_AS_MPI_TYPE    MPI_LONG_LONG_INT
 #   endif  /* H5_HAVE_PARALLEL */
 #elif H5_SIZEOF___INT64>=8
     typedef unsigned __int64        haddr_t;
 #   define HADDR_UNDEF              ((haddr_t)(__int64)(-1))
+#   define H5_SIZEOF_HADDR_T        H5_SIZEOF___INT64
 #   ifdef H5_HAVE_PARALLEL
 #       define HADDR_AS_MPI_TYPE    MPI_LONG_LONG_INT
 #   endif  /* H5_HAVE_PARALLEL */
 #else
 #   error "nothing appropriate for haddr_t"
+#endif
+#if H5_SIZEOF_HADDR_T ==H5_SIZEOF_INT
+#   define H5_PRINTF_HADDR_FMT  "%u"
+#elif H5_SIZEOF_HADDR_T ==H5_SIZEOF_LONG
+#   define H5_PRINTF_HADDR_FMT  "%lu"
+#elif H5_SIZEOF_HADDR_T ==H5_SIZEOF_LONG_LONG
+#   define H5_PRINTF_HADDR_FMT  "%"H5_PRINTF_LL_WIDTH"u"
+#elif H5_SIZEOF_HADDR_T ==H5_SIZEOF___INT64 
+#   define H5_PRINTF_HADDR_FMT  "%"H5_PRINTF_LL_WIDTH"u"
+#else
+#   error "nothing appropriate for H5_PRINTF_HADDR_FMT"
 #endif
 #define HADDR_MAX		(HADDR_UNDEF-1)
 

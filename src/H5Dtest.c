@@ -21,18 +21,11 @@
 #define H5D_PACKAGE		/*suppress error about including H5Dpkg	  */
 #define H5D_TESTING		/*suppress warning about H5D testing funcs*/
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK      H5Dtest_mask
 
 #include "H5private.h"		/* Generic Functions			  */
 #include "H5Dpkg.h"		/* Datasets 				*/
 #include "H5Eprivate.h"		/* Error handling		  */
 #include "H5Iprivate.h"		/* ID Functions		  */
-
-/* Interface initialization */
-#define INTERFACE_INIT  NULL
-static int             interface_initialize_g = 0;
 
 
 /*--------------------------------------------------------------------------
@@ -67,7 +60,7 @@ H5D_layout_version_test(hid_t did, unsigned *version)
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataset")
 
     if(version)
-        *version=dset->layout.version;
+        *version=dset->shared->layout.version;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -106,8 +99,8 @@ H5D_layout_contig_size_test(hid_t did, hsize_t *size)
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataset")
 
     if(size) {
-        assert(dset->layout.type==H5D_CONTIGUOUS);
-        *size=dset->layout.u.contig.size;
+        assert(dset->shared->layout.type==H5D_CONTIGUOUS);
+        *size=dset->shared->layout.u.contig.size;
     } /* end if */
 
 done:

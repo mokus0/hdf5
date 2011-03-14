@@ -19,17 +19,10 @@
  *
  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5RC_mask
 
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5FLprivate.h"	/* Free lists                           */
 #include "H5RCprivate.h"        /* Reference-counted buffers            */
-
-/* Interface initialization */
-static int		interface_initialize_g = 0;
-#define INTERFACE_INIT	NULL
 
 /* Private typedefs & structs */
 

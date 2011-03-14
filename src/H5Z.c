@@ -14,9 +14,9 @@
 
 #define H5Z_PACKAGE		/*suppress error about including H5Zpkg	  */
 
-/* Pablo mask */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5Z_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5Z_init_interface
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Dprivate.h"		/* Dataset functions			*/
@@ -28,10 +28,9 @@
 #include "H5Sprivate.h"		/* Dataspace functions			*/
 #include "H5Zpkg.h"		/* Data filters				*/
 
-/* Interface initialization */
-#define INTERFACE_INIT H5Z_init_interface
-static int interface_initialize_g = 0;
-static herr_t H5Z_init_interface (void);
+#ifdef H5_HAVE_SZLIB_H
+#   include "szlib.h"
+#endif
 
 /* Local typedefs */
 #ifdef H5Z_DEBUG
@@ -130,7 +129,7 @@ H5Z_term_interface (void)
     char	comment[16], bandwidth[32];
 #endif
 
-    if (interface_initialize_g) {
+    if (H5_interface_initialize_g) {
 #ifdef H5Z_DEBUG
 	if (H5DEBUG(Z)) {
 	    for (i=0; i<H5Z_table_used_g; i++) {
@@ -185,7 +184,7 @@ H5Z_term_interface (void)
 	H5Z_stat_table_g = H5MM_xfree(H5Z_stat_table_g);
 #endif /* H5Z_DEBUG */
 	H5Z_table_used_g = H5Z_table_alloc_g = 0;
-	interface_initialize_g = 0;
+	H5_interface_initialize_g = 0;
     }
     return 0;
 }
@@ -575,11 +574,6 @@ H5Z_prelude_callback(hid_t dcpl_id, hid_t type_id, H5Z_prelude_type_t prelude_ty
                                 /* Check if there is a "can apply" callback */
                                 if(fclass->can_apply) {
                                     herr_t status;
-#ifndef H5_SZIP_CAN_ENCODE
-                                    /* If this is the Szip filter, make sure it can encode */
-                                    if (dcpl_pline.filter[u].id == H5Z_FILTER_SZIP)
-                                        HGOTO_ERROR(H5E_PLINE, H5E_NOENCODER, FAIL, "Filter present but encoding is disabled");
-#endif
 
                                     /* Make callback to filter's "can apply" function */
                                     status=(fclass->can_apply)(dcpl_id, type_id, space_id);
@@ -660,7 +654,7 @@ herr_t
 H5Z_can_apply (hid_t dcpl_id, hid_t type_id)
 {
     herr_t ret_value=SUCCEED;   /* Return value */
-    
+
     FUNC_ENTER_NOAPI(H5Z_can_apply,FAIL)
 
     assert (H5I_GENPROP_LST==H5I_get_type(dcpl_id));
@@ -668,7 +662,7 @@ H5Z_can_apply (hid_t dcpl_id, hid_t type_id)
 
     /* Make "can apply" callbacks for filters in pipeline */
     if(H5Z_prelude_callback(dcpl_id, type_id, H5Z_PRELUDE_CAN_APPLY)<0)
-        HGOTO_ERROR(H5E_PLINE, H5E_CANAPPLY, FAIL, "filter parameters not appropriate")
+        HGOTO_ERROR(H5E_PLINE, H5E_CANAPPLY, FAIL, "unable to apply filter")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1244,9 +1238,10 @@ herr_t H5Zget_filter_info(H5Z_filter_t filter, unsigned int *filter_config_flags
         if (filter == H5Z_FILTER_SZIP)
         {
             *filter_config_flags = 0;
-#ifdef H5_SZIP_CAN_ENCODE
-            *filter_config_flags |= H5Z_FILTER_CONFIG_ENCODE_ENABLED;
-#endif
+#ifdef H5_HAVE_FILTER_SZIP
+            if(SZ_encoder_enabled()>0)
+                *filter_config_flags |= H5Z_FILTER_CONFIG_ENCODE_ENABLED;
+#endif /* H5_HAVE_FILTER_SZIP */
             *filter_config_flags |= H5Z_FILTER_CONFIG_DECODE_ENABLED;
         }
         else

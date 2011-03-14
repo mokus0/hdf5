@@ -16,9 +16,6 @@
 #define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
 #define H5S_PACKAGE	        /*suppress error about including H5Spkg	  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK      H5O_attr_mask
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Apkg.h"		/* Attributes				*/
@@ -32,9 +29,10 @@
 /* PRIVATE PROTOTYPES */
 static herr_t H5O_attr_encode (H5F_t *f, uint8_t *p, const void *mesg);
 static void *H5O_attr_decode (H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
-static void *H5O_attr_copy (const void *_mesg, void *_dest);
-static size_t H5O_attr_size (H5F_t *f, const void *_mesg);
+static void *H5O_attr_copy (const void *_mesg, void *_dest, unsigned update_flags);
+static size_t H5O_attr_size (const H5F_t *f, const void *_mesg);
 static herr_t H5O_attr_reset (void *_mesg);
+static herr_t H5O_attr_free (void *mesg);
 static herr_t H5O_attr_delete (H5F_t *f, hid_t dxpl_id, const void *_mesg);
 static herr_t H5O_attr_link(H5F_t *f, hid_t dxpl_id, const void *_mesg);
 static herr_t H5O_attr_debug (H5F_t *f, hid_t dxpl_id, const void *_mesg,
@@ -50,7 +48,7 @@ const H5O_class_t H5O_ATTR[1] = {{
     H5O_attr_copy,		/* copy the native value        */
     H5O_attr_size,		/* size of raw message          */
     H5O_attr_reset,		/* reset method                 */
-    NULL,		        /* free method			*/
+    H5O_attr_free,	        /* free method			*/
     H5O_attr_delete,		/* file delete method		*/
     H5O_attr_link,		/* link method			*/
     NULL,			/* get share method		*/
@@ -67,9 +65,11 @@ const H5O_class_t H5O_ATTR[1] = {{
 /* Flags for attribute flag encoding */
 #define H5O_ATTR_FLAG_TYPE_SHARED       0x01
 
-/* Interface initialization */
-static int		interface_initialize_g = 0;
-#define INTERFACE_INIT  NULL
+/* Declare extern the free list for H5A_t's */
+H5FL_EXTERN(H5A_t);
+
+/* Declare extern the free list for attribute data buffers */
+H5FL_BLK_EXTERN(attr_buf);
 
 /* Declare external the free list for H5S_t's */
 H5FL_EXTERN(H5S_t);
@@ -116,13 +116,13 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
     unsigned            flags=0;        /* Attribute flags */
     H5A_t		*ret_value;     /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_decode, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_attr_decode);
 
     /* check args */
     assert(f);
     assert(p);
 
-    if (NULL==(attr = H5MM_calloc(sizeof(H5A_t))))
+    if (NULL==(attr = H5FL_CALLOC(H5A_t)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* Version number */
@@ -145,9 +145,8 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
     UINT16DECODE(p, attr->ds_size);
     
     /* Decode and store the name */
-    if (NULL==(attr->name=H5MM_malloc(name_len)))
+    if (NULL==(attr->name=H5MM_strdup((const char *)p)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    HDmemcpy(attr->name,p,name_len);
     if(version < H5O_ATTR_VERSION_NEW)
         p += H5O_ALIGN(name_len);    /* advance the memory pointer */
     else
@@ -204,7 +203,7 @@ H5O_attr_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *
 
     /* Go get the data */
     if(attr->data_size) {
-        if (NULL==(attr->data = H5MM_malloc(attr->data_size)))
+        if (NULL==(attr->data = H5FL_BLK_MALLOC(attr_buf, attr->data_size)))
             HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
         HDmemcpy(attr->data,p,attr->data_size);
     }
@@ -257,7 +256,7 @@ H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
     hbool_t     type_shared;    /* Flag to indicate that a shared datatype is used for this attribute */
     herr_t      ret_value=SUCCEED;      /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_encode, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_attr_encode);
 
     /* check args */
     assert(f);
@@ -344,7 +343,10 @@ H5O_attr_encode(H5F_t *f, uint8_t *p, const void *mesg)
         p += attr->ds_size;
     
     /* Store attribute data */
-    HDmemcpy(p,attr->data,attr->data_size);
+    if(attr->data)
+        HDmemcpy(p,attr->data,attr->data_size);
+    else
+        HDmemset(p,0,attr->data_size);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -366,30 +368,20 @@ done:
         This function copies a native (memory) attribute message,
     allocating the destination structure if necessary.
 --------------------------------------------------------------------------*/
-static void            *
-H5O_attr_copy(const void *_src, void *_dst)
+static void *
+H5O_attr_copy(const void *_src, void *_dst, unsigned update_flags)
 {
     const H5A_t            *src = (const H5A_t *) _src;
-    H5A_t                  *dst = NULL;
     void                   *ret_value;  /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_copy, NULL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_attr_copy);
 
     /* check args */
     assert(src);
 
     /* copy */
-    if (NULL == (dst = H5A_copy(src)))
+    if (NULL == (ret_value = H5A_copy(_dst,src,update_flags)))
         HGOTO_ERROR(H5E_ATTR, H5E_CANTINIT, NULL, "can't copy attribute");
-    /* was result already allocated? */
-    if (_dst) {
-        *((H5A_t *) _dst) = *dst;
-        H5MM_xfree(dst);
-        dst = (H5A_t *) _dst;
-    }
-
-    /* Set return value */
-    ret_value=dst;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -417,7 +409,7 @@ done:
  *	Added padding between message parts for alignment.
 --------------------------------------------------------------------------*/
 static size_t
-H5O_attr_size(H5F_t UNUSED *f, const void *_mesg)
+H5O_attr_size(const H5F_t UNUSED *f, const void *_mesg)
 {
     const H5A_t         *attr = (const H5A_t *)_mesg;
     size_t		name_len;
@@ -425,7 +417,7 @@ H5O_attr_size(H5F_t UNUSED *f, const void *_mesg)
     hbool_t             type_shared;    /* Flag to indicate that a shared datatype is used for this attribute */
     size_t		ret_value = 0;
 
-    FUNC_ENTER_NOAPI(H5O_attr_size, 0);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_attr_size);
 
     assert(attr);
 
@@ -464,7 +456,6 @@ H5O_attr_size(H5F_t UNUSED *f, const void *_mesg)
                     attr->ds_size +		/*data space		*/
                     attr->data_size;		/*the data itself	*/
 
-done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
 
@@ -488,22 +479,42 @@ static herr_t
 H5O_attr_reset(void *_mesg)
 {
     H5A_t                  *attr = (H5A_t *) _mesg;
-    H5A_t                  *tmp = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_reset, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_attr_reset);
 
-    if (attr) {
-        if (NULL==(tmp = H5MM_malloc(sizeof(H5A_t))))
-	    HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
-        HDmemcpy(tmp,attr,sizeof(H5A_t));
-        H5A_close(tmp);
-        HDmemset(attr, 0, sizeof(H5A_t));
-    }
+    if (attr)
+        H5A_free(attr);
 
-done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5O_attr_free
+ *
+ * Purpose:	Free's the message
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Thursday, November 18, 2004
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5O_attr_free (void *mesg)
+{
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_attr_free);
+
+    assert (mesg);
+
+    H5FL_FREE(H5A_t,mesg);
+
+    FUNC_LEAVE_NOAPI(SUCCEED);
+} /* end H5O_attr_free() */
 
 
 /*-------------------------------------------------------------------------
@@ -526,7 +537,7 @@ H5O_attr_delete(H5F_t UNUSED *f, hid_t dxpl_id, const void *_mesg)
     const H5A_t            *attr = (const H5A_t *) _mesg;
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_delete, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_attr_delete);
 
     /* check args */
     assert(f);
@@ -565,7 +576,7 @@ H5O_attr_link(H5F_t UNUSED *f, hid_t dxpl_id, const void *_mesg)
     const H5A_t            *attr = (const H5A_t *) _mesg;
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_link, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_attr_link);
 
     /* check args */
     assert(f);
@@ -611,7 +622,7 @@ H5O_attr_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream, int in
     herr_t      (*debug)(H5F_t*, hid_t, const void*, FILE*, int, int)=NULL;
     herr_t ret_value=SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5O_attr_debug, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_attr_debug);
 
     /* check args */
     assert(f);

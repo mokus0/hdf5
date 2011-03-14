@@ -82,7 +82,7 @@
      !data buffers 
      !         
      INTEGER, DIMENSION(NX,NY) :: data_in, data_out
-     INTEGER(HSIZE_T), DIMENSION(7) :: data_dims
+     INTEGER(HSIZE_T), DIMENSION(2) :: data_dims
      data_dims(1) = NX
      data_dims(2) = NY
 
@@ -143,9 +143,8 @@
      CALL H5fflush_f(file_id, H5F_SCOPE_GLOBAL_F, error)
           CALL check("h5fflush_f",error,total_error)
 
-     ! if errors detected, exit with non-zero code. This is not truly fortran
-     ! standard but likely supported by most fortran compilers.
-!     IF (total_error .ne. 0) CALL exit (total_error)
+     ! if errors detected, exit with non-zero code.
+     IF (total_error .ne. 0) CALL h5_exit_f (1)
 
 
      001 STOP

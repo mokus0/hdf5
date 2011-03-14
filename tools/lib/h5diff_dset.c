@@ -266,9 +266,11 @@ hsize_t diff_datasetid( hid_t dset1_id,
  * memory type and sizes
  *-------------------------------------------------------------------------
  */
+ if ((m_type1=h5tools_get_native_type(f_type1))<0)
+    goto error;
 
- m_type1 = H5Tget_native_type( f_type1 , H5T_DIR_DEFAULT);
- m_type2 = H5Tget_native_type( f_type2 , H5T_DIR_DEFAULT);
+ if ((m_type2=h5tools_get_native_type(f_type2))<0)
+    goto error;
 
  m_size1 = H5Tget_size( m_type1 );
  m_size2 = H5Tget_size( m_type2 );
@@ -304,13 +306,19 @@ hsize_t diff_datasetid( hid_t dset1_id,
   if ( m_size1 < m_size2 )
   {
    H5Tclose(m_type1);
-   m_type1 = H5Tget_native_type( f_type2 , H5T_DIR_DEFAULT);
+
+   if ((m_type1=h5tools_get_native_type(f_type2))<0)
+        goto error;
+
    m_size1 = H5Tget_size( m_type1 );
   }
   else
   {
    H5Tclose(m_type2);
-   m_type2 = H5Tget_native_type( f_type1 , H5T_DIR_DEFAULT);
+
+   if ((m_type2=h5tools_get_native_type(f_type1))<0)
+        goto error;
+
    m_size2 = H5Tget_size( m_type2 );
   }
 #if defined (H5DIFF_DEBUG)

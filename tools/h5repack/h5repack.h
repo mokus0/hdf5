@@ -21,7 +21,6 @@
 #include "h5diff.h"
 #include "h5tools.h"
 
-
 #define H5FOPENERROR "unable to open file"
 
 #define PFORMAT  "%-7s %-7s %-7s\n" /*chunk info, compression info, name*/
@@ -180,17 +179,12 @@ int print_filters(hid_t dcpl_id);
  *-------------------------------------------------------------------------
  */
 
-int filter_this(const char* name,
-                pack_opt_t *options,
-                pack_info_t *pack); /* info about object to filter */
-
 int apply_filters(const char* name,    /* object name from traverse list */
                   int rank,            /* rank of dataset */
                   hsize_t *dims,       /* dimensions of dataset */
                   hid_t dcpl_id,       /* dataset creation property list */
                   hid_t type_id,       /* datatype */
-                  pack_opt_t *options, /* repack options */
-                  pack_info_t *obj);   /* info about object to filter */
+                  pack_opt_t *options); /* repack options */
 
 int has_filter(hid_t dcpl_id,
                H5Z_filter_t filtnin);
@@ -257,6 +251,7 @@ int         parse_number(char *str);
  * tests
  *-------------------------------------------------------------------------
  */
+
 #define FNAME0     "test0.h5"
 #define FNAME0OUT  "test0.out.h5"
 #define FNAME1     "test1.h5"

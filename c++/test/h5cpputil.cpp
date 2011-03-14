@@ -27,12 +27,14 @@
 #endif
 #include <string>
 
-#ifndef H5_NO_STD
-using namespace std;
+#include "h5test.h"
+#include "H5Exception.h"
+#include "h5cpputil.h"
+
+#ifndef H5_NO_NAMESPACE
+using namespace H5;
 #endif
 
-#include "h5test.h"
-#include "h5cpputil.h"
 
 /*-------------------------------------------------------------------------
  * Function:	test_report
@@ -71,4 +73,48 @@ int test_report( int nerrors, const string& testname )
       return 0;
    }
 }
+
+/*-------------------------------------------------------------------------
+ * Function:	issue_fail_msg
+ *
+ * Purpose:	Displays that a function has failed with its location.
+ *
+ * Return:	None
+ *
+ * Programmer:	Binh-Minh Ribler (copied and modified macro CHECK from C)
+ *		Monday, December 20, 2004
+ *
+ *-------------------------------------------------------------------------
+ */
+void issue_fail_msg(const char* where, int line, const char* file_name, 
+		    const char* message)
+{
+    if (GetTestVerbosity()>=VERBO_HI)
+    {
+        cerr << "--> From " << where << " at line " << line
+             << " in " << file_name << " - " << message << endl << endl;
+    }
+}
+
+//--------------------------------------------------------------------------
+// Function:    InvalidActionException default constructor
+//--------------------------------------------------------------------------
+InvalidActionException::InvalidActionException():Exception(){}
+
+//--------------------------------------------------------------------------
+// Function:    InvalidActionException overloaded constructor
+//
+// Purpose:	Creates an InvalidActionException with the name of the function,
+//              which the failure should have occurred but didn't, and a 
+//		message explaining why it should fail.
+// Parameters
+//		func_name - IN: Name of the function where failure should occur
+//		message   - IN: Message 
+//--------------------------------------------------------------------------
+InvalidActionException::InvalidActionException(const string func_name, const string message) : Exception(func_name, message) {}
+
+//--------------------------------------------------------------------------
+// Function:    InvalidActionException destructor
+//--------------------------------------------------------------------------
+InvalidActionException::~InvalidActionException() {}
 

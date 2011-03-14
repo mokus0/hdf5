@@ -38,20 +38,17 @@ void *old_client_data;			/* previous error handler arg.*/
 
 /* other option flags */
 
-/* FILENAME and filenames must have the same number of names */
-const char *FILENAME[11]={
-	    "ParaEg1",
-	    "ParaEg2",
-	    "ParaEg3",
-	    "ParaMdset",
-            "ParaMgroup",
-            "ParaCompact",
-            "ParaIndividual",
-            "ParaBig",
-            "ParaFill",
-	    "ParaCC",
+/* FILENAME and filenames must have the same number of names.
+ * Use PARATESTFILE in general and use a separated filename only if the file
+ * created in one test is accessed by a different test.
+ * filenames[0] is reserved as the file name for PARATESTFILE.
+ */
+#define NFILENAME 2
+#define PARATESTFILE filenames[0]
+const char *FILENAME[NFILENAME]={
+	    "ParaTest",
 	    NULL};
-char	filenames[11][PATH_MAX];
+char	filenames[NFILENAME][PATH_MAX];
 hid_t	fapl;				/* file access property list */
 
 #ifdef USE_PAUSE
@@ -338,6 +335,7 @@ int main(int argc, char **argv)
     int mpi_size, mpi_rank;				/* mpi variables */
     H5Ptest_param_t ndsets_params, ngroups_params;
     H5Ptest_param_t collngroups_params;
+    H5Ptest_param_t io_mode_confusion_params;
 
     /* Un-buffer the stdout and stderr */
     setbuf(stderr, NULL);
@@ -364,44 +362,51 @@ int main(int argc, char **argv)
     AddTest("posixdup", test_fapl_mpiposix_dup, NULL, 
 	    "fapl_mpiposix duplicate", NULL);
 
-    ndsets_params.name = filenames[3];
+    AddTest("split", test_split_comm_access, NULL, 
+	    "dataset using split communicators", PARATESTFILE);
+
+    AddTest("idsetw", dataset_writeInd, NULL, 
+	    "dataset independent write", PARATESTFILE);
+    AddTest("idsetr", dataset_readInd, NULL, 
+	    "dataset independent read", PARATESTFILE);
+
+    AddTest("cdsetw", dataset_writeAll, NULL, 
+	    "dataset collective write", PARATESTFILE);
+    AddTest("cdsetr", dataset_readAll, NULL, 
+	    "dataset collective read", PARATESTFILE);
+
+    AddTest("eidsetw", extend_writeInd, NULL, 
+	    "extendible dataset independent write", PARATESTFILE);
+    AddTest("eidsetr", extend_readInd, NULL, 
+	    "extendible dataset independent read", PARATESTFILE);
+    AddTest("ecdsetw", extend_writeAll, NULL, 
+	    "extendible dataset collective write", PARATESTFILE);
+    AddTest("ecdsetr", extend_readAll, NULL, 
+	    "extendible dataset collective read", PARATESTFILE);
+    AddTest("eidsetw2", extend_writeInd2, NULL, 
+	    "extendible dataset independent write #2", PARATESTFILE);
+
+#ifdef H5_HAVE_FILTER_DEFLATE
+    AddTest("cmpdsetr", compress_readAll, NULL, 
+	    "compressed dataset collective read", PARATESTFILE);
+#endif /* H5_HAVE_FILTER_DEFLATE */
+
+    ndsets_params.name = PARATESTFILE;
     ndsets_params.count = ndatasets;
     AddTest("ndsetw", multiple_dset_write, NULL, 
 	    "multiple datasets write", &ndsets_params);
 
-    ngroups_params.name = filenames[4];
+    ngroups_params.name = PARATESTFILE;
     ngroups_params.count = ngroups;
     AddTest("ngrpw", multiple_group_write, NULL, 
 	    "multiple groups write", &ngroups_params);
     AddTest("ngrpr", multiple_group_read, NULL, 
 	    "multiple groups read", &ngroups_params);
 
-    AddTest("split", test_split_comm_access, NULL, 
-	    "dataset using split communicators", filenames[0]);
-    AddTest("idsetw", dataset_writeInd, NULL, 
-	    "dataset independent write", filenames[0]);
-    AddTest("cdsetw", dataset_writeAll, NULL, 
-	    "dataset collective write", filenames[1]);
-    AddTest("eidsetw", extend_writeInd, NULL, 
-	    "extendible dataset independent write", filenames[2]);
-    AddTest("eidsetw2", extend_writeInd2, NULL, 
-	    "extendible dataset independent write #2", filenames[2]);
-    AddTest("ecdsetw", extend_writeAll, NULL, 
-	    "extendible dataset collective write", filenames[2]);
-
-    AddTest("idsetr", dataset_readInd, NULL, 
-	    "dataset independent read", filenames[0]);
-    AddTest("cdsetr", dataset_readAll, NULL, 
-	    "dataset collective read", filenames[1]);
-    AddTest("eidsetr", extend_readInd, NULL, 
-	    "extendible dataset independent read", filenames[2]);
-    AddTest("ecdsetr", extend_readAll, NULL, 
-	    "extendible dataset collective read", filenames[2]);
-
     AddTest("compact", compact_dataset, NULL, 
-	    "compact dataset test", filenames[5]);
+	    "compact dataset test", PARATESTFILE);
 
-    collngroups_params.name = filenames[6];
+    collngroups_params.name = PARATESTFILE;
     collngroups_params.count = ngroups;
     AddTest("cngrpw", collective_group_write, NULL, 
 	    "collective group and dataset write", &collngroups_params);
@@ -410,9 +415,9 @@ int main(int argc, char **argv)
 
     /* By default, do not run big dataset. */
     AddTest("-bigdset", big_dataset, NULL, 
-	    "big dataset test", filenames[7]);
+	    "big dataset test", PARATESTFILE);
     AddTest("fill", dataset_fillvalue, NULL, 
-	    "dataset fill value", filenames[8]);
+	    "dataset fill value", PARATESTFILE);
 
     if(mpi_size > 64) {
      if(MAINPROCESS) {
@@ -425,14 +430,39 @@ int main(int argc, char **argv)
     }
     else {
       AddTest("cchunk1", coll_chunk1,NULL,
-	      "simple collective chunk io",filenames[9]);
+	      "simple collective chunk io",PARATESTFILE);
       AddTest("cchunk2", coll_chunk2,NULL,
-	      "noncontiguous collective chunk io",filenames[9]);
+	      "noncontiguous collective chunk io",PARATESTFILE);
       AddTest("cchunk3", coll_chunk3,NULL,
-	      "multi-chunk collective chunk io",filenames[9]);
+	      "multi-chunk collective chunk io",PARATESTFILE);
       AddTest("cchunk4", coll_chunk4,NULL,
-	      "collective to independent chunk io",filenames[9]);
+	      "collective to independent chunk io",PARATESTFILE);
     }
+
+#ifdef KYANG 
+    AddTest("ccontw",coll_irregular_cont_write,NULL,
+            "collective irregular contiguous write",PARATESTFILE);
+    AddTest("ccontr",coll_irregular_cont_read,NULL,
+            "collective irregular contiguous read",PARATESTFILE);
+
+    AddTest("cschunkw",coll_irregular_simple_chunk_write,NULL,
+            "collective irregular simple chunk write",PARATESTFILE);
+    AddTest("cschunkr",coll_irregular_simple_chunk_read,NULL,
+            "collective irregular simple chunk read",PARATESTFILE);
+
+    AddTest("ccchunkw",coll_irregular_complex_chunk_write,NULL,
+            "collective irregular complex chunk write",PARATESTFILE);
+
+    AddTest("ccchunkr",coll_irregular_complex_chunk_read,NULL,
+            "collective irregular complex chunk read",PARATESTFILE);
+#endif
+
+    io_mode_confusion_params.name  = PARATESTFILE;
+    io_mode_confusion_params.count = 0; /* value not used */
+
+    AddTest("I/Omodeconf", io_mode_confusion, NULL, 
+	    "I/O mode confusion test -- hangs quickly on failure", 
+            &io_mode_confusion_params);
 
     /* Display testing information */
     TestInfo(argv[0]);
@@ -444,14 +474,6 @@ int main(int argc, char **argv)
     /* Parse command line arguments */
     TestParseCmdLine(argc, argv);
 
-    /*
-    if (parse_options(argc, argv) != 0){
-	if (MAINPROCESS)
-	    usage();
-	goto finish;
-    }
-    */
-
     if (facc_type == FACC_MPIPOSIX && MAINPROCESS){
 	printf("===================================\n"
 	       "   Using MPIPOSIX driver\n"
@@ -461,7 +483,6 @@ int main(int argc, char **argv)
     /* Perform requested testing */
     PerformTests();
 
-finish:
     /* make sure all processes are finished before final report, cleanup
      * and exit.
      */

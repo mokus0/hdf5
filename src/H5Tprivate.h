@@ -61,11 +61,11 @@ typedef struct {
 H5_DLL herr_t H5TN_init_interface(void);
 H5_DLL herr_t H5T_init(void);
 H5_DLL htri_t H5T_isa(H5G_entry_t *ent, hid_t dxpl_id);
-H5_DLL H5T_t *H5T_open_oid(H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL H5T_t *H5T_open(H5G_entry_t *ent, hid_t dxpl_id);
 H5_DLL H5T_t *H5T_copy(const H5T_t *old_dt, H5T_copy_t method);
 H5_DLL herr_t H5T_lock(H5T_t *dt, hbool_t immutable);
 H5_DLL herr_t H5T_close(H5T_t *dt);
-H5_DLL H5T_class_t H5T_get_class(const H5T_t *dt);
+H5_DLL H5T_class_t H5T_get_class(const H5T_t *dt, htri_t internal);
 H5_DLL htri_t H5T_detect_class (const H5T_t *dt, H5T_class_t cls);
 H5_DLL size_t H5T_get_size(const H5T_t *dt);
 H5_DLL int    H5T_cmp(const H5T_t *dt1, const H5T_t *dt2);
@@ -81,11 +81,11 @@ H5_DLL H5T_bkg_t H5T_path_bkg(const H5T_path_t *p);
 H5_DLL herr_t H5T_convert(H5T_path_t *tpath, hid_t src_id, hid_t dst_id,
 			   size_t nelmts, size_t buf_stride, size_t bkg_stride,
                            void *buf, void *bkg, hid_t dset_xfer_plist);
-H5_DLL herr_t H5T_vlen_reclaim(void *elem, hid_t type_id, hsize_t ndim, hssize_t *point, void *_op_data);
+H5_DLL herr_t H5T_vlen_reclaim(void *elem, hid_t type_id, unsigned ndim, const hsize_t *point, void *_op_data);
 H5_DLL herr_t H5T_vlen_get_alloc_info(hid_t dxpl_id, H5T_vlen_alloc_info_t **vl_alloc_info);
 H5_DLL htri_t H5T_vlen_mark(H5T_t *dt, H5F_t *f, H5T_vlen_loc_t loc);
 H5_DLL htri_t H5T_is_sensible(const H5T_t *dt);
-H5_DLL htri_t H5T_committed(H5T_t *type);
+H5_DLL htri_t H5T_committed(const H5T_t *type);
 H5_DLL int H5T_link(const H5T_t *type, int adjust, hid_t dxpl_id);
 
 /* Reference specific functions */

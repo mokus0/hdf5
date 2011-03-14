@@ -32,19 +32,12 @@
  */
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK      H5MF_mask
 
 #include "H5private.h"
 #include "H5Eprivate.h"
 #include "H5Fpkg.h"
 #include "H5FDprivate.h"
 #include "H5MFprivate.h"
-
-/* Is the interface initialized? */
-static int             interface_initialize_g = 0;
-#define INTERFACE_INIT  NULL
 
 
 /*-------------------------------------------------------------------------
@@ -127,7 +120,7 @@ H5MF_xfree(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size)
 {
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOAPI(H5MF_xfree, FAIL);
+    FUNC_ENTER_NOAPI_NOFUNC(H5MF_xfree);
 
     /* check arguments */
     assert(f);
@@ -281,9 +274,7 @@ done:
 herr_t
 H5MF_free_reserved(H5F_t *f, hsize_t size)
 {
-    herr_t ret_value = SUCCEED;
-
-    FUNC_ENTER_NOAPI(H5MF_free_reserved,FAIL)
+    FUNC_ENTER_NOAPI_NOFUNC(H5MF_free_reserved)
 
     /* Check arguments */
     assert(f);
@@ -295,8 +286,7 @@ H5MF_free_reserved(H5F_t *f, hsize_t size)
 
     f->shared->lf->reserved_alloc -= size;
 
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
+    FUNC_LEAVE_NOAPI(SUCCEED)
 }
 
 /*-------------------------------------------------------------------------
@@ -323,7 +313,7 @@ H5MF_alloc_overflow(H5F_t *f, hsize_t size)
     size_t c;                   /* Local index variable */
     hbool_t ret_value;           /* Return value */
 
-    FUNC_ENTER_NOAPI(H5MF_alloc_overflow,FALSE)
+    FUNC_ENTER_NOAPI_NOFUNC(H5MF_alloc_overflow)
 
     /* Start with the current end of the file's address. */
     space_needed = (hsize_t)H5F_get_eoa(f);
@@ -361,7 +351,6 @@ H5MF_alloc_overflow(H5F_t *f, hsize_t size)
     else
         ret_value=FALSE;
 
-done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
 

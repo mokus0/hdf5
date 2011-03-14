@@ -65,6 +65,8 @@ const char *FILENAME[] = {
     "dtypes3",
     "dtypes4",
     "dtypes5",
+    "dtypes6",
+    "dtypes7",
     NULL
 };
 
@@ -120,11 +122,10 @@ static int num_opaque_conversions_g = 0;
 #define aligned_free(M)		HDfree((char*)(M)-ALIGNMENT)
 
 void some_dummy_func(float x);
+static int my_isnan(flt_t type, void *val);
 static int opaque_check(int tag_it);
-void *test_vltypes_alloc_custom(size_t size, void *info);
-void test_vltypes_free_custom(void *mem, void *info);
-static herr_t
-convert_opaque(hid_t UNUSED st, hid_t UNUSED dt, H5T_cdata_t *cdata,
+static herr_t convert_opaque(hid_t UNUSED st, hid_t UNUSED dt,
+               H5T_cdata_t *cdata,
 	       size_t UNUSED nelmts, size_t UNUSED buf_stride,
                size_t UNUSED bkg_stride, void UNUSED *_buf,
 	       void UNUSED *bkg, hid_t UNUSED dset_xfer_plid);
@@ -331,22 +332,80 @@ reset_hdf5(void)
 static int
 test_classes(void)
 {
+    struct complex {    /* Struct with complex fields */
+        hvl_t vl_c;
+        hvl_t vl_s;
+    };
+    hid_t cmpd_id;      /* Compound datatype */
+    hid_t vlc_id;       /* VL type of char   */
+    hid_t vls_id;       /* VL string         */
+    hid_t memb_id;      /* Compound member datatype */
+    H5T_class_t         memb_cls;
     H5T_class_t		tcls;
-    
+    int                 nmembs, i;
+
     TESTING("H5Tget_class()");
 
-    if ((tcls=H5Tget_class(H5T_NATIVE_INT))<0) goto error;
-    if (H5T_INTEGER!=tcls) {
-	H5_FAILED();
-        HDputs("    Invalid type class for H5T_NATIVE_INT");
-        goto error;
+    /*-------------------------------------------------------------
+     *  Check class of some atomic types. 
+     *-----------------------------------------------------------*/
+    if ((tcls=H5Tget_class(H5T_NATIVE_INT))<0) TEST_ERROR
+    if (H5T_INTEGER!=tcls) TEST_ERROR
+    
+    if ((tcls=H5Tget_class(H5T_NATIVE_DOUBLE))<0) TEST_ERROR
+    if (H5T_FLOAT!=tcls) TEST_ERROR
+
+    /* Create a VL datatype of char.  It should be a VL, not a string class. */
+    if((vlc_id=H5Tvlen_create(H5T_NATIVE_CHAR))<0) TEST_ERROR
+
+    /* Make certain that the correct classes can be detected */
+    if ((tcls=H5Tget_class(vlc_id))<0) TEST_ERROR
+    if (H5T_VLEN!=tcls) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if (H5T_STRING==tcls) TEST_ERROR
+
+    /* Create a VL string.  It should be a string, not a VL class. */
+    if((vls_id=H5Tcopy(H5T_C_S1))<0) TEST_ERROR
+    if(H5Tset_size(vls_id, H5T_VARIABLE)<0) TEST_ERROR;
+
+    /* Make certain that the correct classes can be detected */
+    if ((tcls=H5Tget_class(vls_id))<0) TEST_ERROR
+    if (H5T_STRING!=tcls) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if (H5T_VLEN==tcls) TEST_ERROR
+
+    /*-------------------------------------------------------------
+     *  Check class for member types of compound type. 
+     *-----------------------------------------------------------*/
+    /* Create a compound datatype and insert some complex types */
+    if ((cmpd_id = H5Tcreate(H5T_COMPOUND, sizeof(struct complex)))<0) TEST_ERROR
+    if (H5Tinsert(cmpd_id, "vl_c", HOFFSET(struct complex, vl_c), vlc_id)<0) TEST_ERROR
+    if (H5Tinsert(cmpd_id, "vl_s", HOFFSET(struct complex, vl_s), vls_id)<0) TEST_ERROR
+
+    nmembs = H5Tget_nmembers(cmpd_id);
+  
+    for (i=0;i<nmembs;i++) 
+    {
+        /* Get member type ID */
+        if((memb_id = H5Tget_member_type(cmpd_id, i))<0) TEST_ERROR
+
+        /* Get member type class */
+        if((memb_cls = H5Tget_member_class (cmpd_id, i))<0) TEST_ERROR
+
+        /* Verify member class */
+        if(H5Tdetect_class (memb_id, memb_cls)<0) TEST_ERROR
+
+        /* Close member type ID */
+        if(H5Tclose(memb_id)<0) TEST_ERROR
     }
-    if ((tcls=H5Tget_class(H5T_NATIVE_DOUBLE))<0) goto error;
-    if (H5T_FLOAT!=tcls) {
-	H5_FAILED();
-	HDputs("    Invalid type class for H5T_NATIVE_DOUBLE");
-        goto error;
-    }
+
+    /* Close datatypes */
+    if(H5Tclose(cmpd_id)<0) TEST_ERROR
+    if(H5Tclose(vlc_id)<0) TEST_ERROR
+    if(H5Tclose(vls_id)<0) TEST_ERROR
+
     PASSED();
     return 0;
 
@@ -436,13 +495,18 @@ test_detect(void)
     };
     hid_t atom_cmpd_id; /* Atomic Compound datatype */
     hid_t atom_arr_id;  /* Atomic Array datatype */
-    hid_t atom_vl_id;   /* Atomic VL datatype */
+    hid_t atom_vlf_id;  /* Atomic VL datatype of float */
+    hid_t atom_vlc_id;  /* Atomic VL datatype of char */
+    hid_t atom_vls_id;       /* Atomic VL string datatype */
     hid_t cplx_cmpd_id; /* Complex Compound datatype */
     int rank=2;         /* Rank for array datatype */
     hsize_t dims[2]={3,3};      /* Dimensions for array datatype */
 
     TESTING("H5Tdetect_class()");
 
+    /*--------------------------------------------------------------------------------
+     *  Test class of some atomic types.
+     *------------------------------------------------------------------------------*/
     /* Native integers should be in the integer class */
     if(H5Tdetect_class(H5T_NATIVE_INT,H5T_INTEGER)!=TRUE) TEST_ERROR
 
@@ -451,7 +515,10 @@ test_detect(void)
     if(H5Tdetect_class(H5T_NATIVE_INT,H5T_ARRAY)!=FALSE) TEST_ERROR
     if(H5Tdetect_class(H5T_NATIVE_INT,H5T_ENUM)!=FALSE) TEST_ERROR
 
-    /* Create a compound datatype and insert some atomic types */
+    /*--------------------------------------------------------------------------------
+     *  Test class of a compound type with some atomic types as fields.
+     *------------------------------------------------------------------------------*/
+    /* Create a compound datatype and insert some atomic types */ 
     if ((atom_cmpd_id = H5Tcreate(H5T_COMPOUND, sizeof(struct atomic)))<0) TEST_ERROR
     if (H5Tinsert(atom_cmpd_id, "i", HOFFSET(struct atomic, i), H5T_NATIVE_INT)<0) TEST_ERROR
     if (H5Tinsert(atom_cmpd_id, "f", HOFFSET(struct atomic, f), H5T_NATIVE_FLOAT)<0) TEST_ERROR
@@ -467,6 +534,9 @@ test_detect(void)
     /* Make certain that an incorrect class is not detected */
     if(H5Tdetect_class(atom_cmpd_id,H5T_VLEN)!=FALSE) TEST_ERROR
 
+    /*--------------------------------------------------------------------------------
+     *  Test class of some complex types.
+     *------------------------------------------------------------------------------*/
     /* Create an array datatype with an atomic base type */
     if((atom_arr_id=H5Tarray_create(H5T_STD_REF_OBJ, rank, dims, NULL))<0) TEST_ERROR
 
@@ -479,22 +549,46 @@ test_detect(void)
     if(H5Tdetect_class(atom_arr_id,H5T_FLOAT)!=FALSE) TEST_ERROR
     if(H5Tdetect_class(atom_arr_id,H5T_INTEGER)!=FALSE) TEST_ERROR
 
-    /* Create a VL datatype with an atomic base type */
-    if((atom_vl_id=H5Tvlen_create(H5T_NATIVE_FLOAT))<0) TEST_ERROR
+    /* Create a VL datatype with an atomic base type of float*/
+    if((atom_vlf_id=H5Tvlen_create(H5T_NATIVE_FLOAT))<0) TEST_ERROR
 
     /* Make certain that the correct classes can be detected */
-    if(H5Tdetect_class(atom_vl_id,H5T_VLEN)!=TRUE) TEST_ERROR
-    if(H5Tdetect_class(atom_vl_id,H5T_FLOAT)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_vlf_id,H5T_VLEN)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_vlf_id,H5T_FLOAT)!=TRUE) TEST_ERROR
 
     /* Make certain that an incorrect class is not detected */
-    if(H5Tdetect_class(atom_vl_id,H5T_COMPOUND)!=FALSE) TEST_ERROR
-    if(H5Tdetect_class(atom_vl_id,H5T_INTEGER)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(atom_vlf_id,H5T_COMPOUND)!=FALSE) TEST_ERROR
+    if(H5Tdetect_class(atom_vlf_id,H5T_INTEGER)!=FALSE) TEST_ERROR
 
-    /* Create a compound datatype and insert some atomic types */
+    /* Create a VL datatype with an atomic base type of char.  It should be a VL
+     * but not a string class. */
+    if((atom_vlc_id=H5Tvlen_create(H5T_NATIVE_CHAR))<0) TEST_ERROR
+
+    /* Make certain that the correct classes can be detected */
+    if(H5Tdetect_class(atom_vlc_id,H5T_VLEN)!=TRUE) TEST_ERROR
+    if(H5Tdetect_class(atom_vlc_id,H5T_INTEGER)!=TRUE) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if(H5Tdetect_class(atom_vlc_id,H5T_STRING)!=FALSE) TEST_ERROR
+
+    /* Create a VL string.  It should be a string, not a VL class. */
+    if((atom_vls_id=H5Tcopy(H5T_C_S1))<0) TEST_ERROR
+    if(H5Tset_size(atom_vls_id, H5T_VARIABLE)<0) TEST_ERROR;
+
+    /* Make certain that the correct classes can be detected */
+    if(H5Tdetect_class(atom_vls_id,H5T_STRING)!=TRUE) TEST_ERROR
+
+    /* Make certain that an incorrect class is not detected */
+    if(H5Tdetect_class(atom_vls_id,H5T_VLEN)!=FALSE) TEST_ERROR
+
+    /*--------------------------------------------------------------------------------
+     *  Test class of a compound type with some complex types as fields.
+     *------------------------------------------------------------------------------*/
+    /* Create a compound datatype and insert some complex types */
     if ((cplx_cmpd_id = H5Tcreate(H5T_COMPOUND, sizeof(struct complex)))<0) TEST_ERROR
     if (H5Tinsert(cplx_cmpd_id, "arr_r", HOFFSET(struct complex, arr_r), atom_arr_id)<0) TEST_ERROR
     if (H5Tinsert(cplx_cmpd_id, "i", HOFFSET(struct complex, i), H5T_NATIVE_INT)<0) TEST_ERROR
-    if (H5Tinsert(cplx_cmpd_id, "vl_f", HOFFSET(struct complex, vl_f), atom_vl_id)<0) TEST_ERROR
+    if (H5Tinsert(cplx_cmpd_id, "vl_f", HOFFSET(struct complex, vl_f), atom_vlf_id)<0) TEST_ERROR
     if (H5Tinsert(cplx_cmpd_id, "c", HOFFSET(struct complex, c), H5T_NATIVE_CHAR)<0) TEST_ERROR
     if (H5Tinsert(cplx_cmpd_id, "s", HOFFSET(struct complex, s), H5T_NATIVE_SHORT)<0) TEST_ERROR
 
@@ -514,8 +608,14 @@ test_detect(void)
     /* Close complex compound datatype */
     if(H5Tclose(cplx_cmpd_id)<0) TEST_ERROR
 
-    /* Close atomic VL datatype */
-    if(H5Tclose(atom_vl_id)<0) TEST_ERROR
+    /* Close atomic VL datatype of float */
+    if(H5Tclose(atom_vlf_id)<0) TEST_ERROR
+
+    /* Close atomic VL datatype of char */
+    if(H5Tclose(atom_vlc_id)<0) TEST_ERROR
+        
+    /* Close atomic VL string datatype  */
+    if(H5Tclose(atom_vls_id)<0) TEST_ERROR
 
     /* Close atomic array datatype */
     if(H5Tclose(atom_arr_id)<0) TEST_ERROR
@@ -1456,9 +1556,9 @@ static int
 test_compound_9(void)
 {
     typedef struct cmpd_struct {
-       int          i1;
-       char*        str;
-       int          i2;
+       int    i1;
+       char*  str;
+       int    i2;
     } cmpd_struct;
 
     cmpd_struct wdata = {11, "variable-length string", 22};
@@ -1561,7 +1661,7 @@ test_compound_9(void)
         goto error;
     } /* end if */
 
-    if(rdata.i1!=wdata.i1 || rdata.i2!=wdata.i2 || strcmp(rdata.str, wdata.str)) {
+    if(rdata.i1!=wdata.i1 || rdata.i2!=wdata.i2 || HDstrcmp(rdata.str, wdata.str)) {
         H5_FAILED(); AT();
         printf("incorrect read data\n");
         goto error;
@@ -2034,6 +2134,89 @@ test_compound_11(void)
 
 
 /*-------------------------------------------------------------------------
+ * Function:    test_compound_12
+ *
+ * Purpose:     Tests size adjustment of compound data types.  Start with 
+ *              no member and 0 size, increase the size as inserting 
+ *              members.
+ *
+ * Return:      Success:        0
+ *
+ *              Failure:        number of errors
+ *
+ * Programmer:  Raymond Lu
+ *              Wednesday, September 29, 2004
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_compound_12(void)
+{
+    hid_t                   complex_id;
+    size_t                  size = 0;
+    size_t                  offset, new_size, tmp_size;
+    herr_t ret;
+
+    TESTING("adjust size of compound data types");
+
+    /* Create a compound type of minimal size */
+    if ((complex_id = H5Tcreate(H5T_COMPOUND, 1))<0) goto error;
+    
+    /* Verify the size */
+    if((new_size=H5Tget_size(complex_id))==0) goto error; 
+    if(new_size!=1) goto error;
+
+    /* Add a couple fields and adjust the size */
+    offset = size;
+    if((tmp_size=H5Tget_size(H5T_NATIVE_DOUBLE))==0) goto error; 
+    size+=tmp_size;
+    if (H5Tset_size(complex_id, size)<0) goto error;
+    if (H5Tinsert(complex_id, "real", offset,
+		  H5T_NATIVE_DOUBLE)<0) goto error;
+
+    offset = size;
+    if((tmp_size=H5Tget_size(H5T_NATIVE_DOUBLE))==0) goto error; 
+    size+=tmp_size;
+    if (H5Tset_size(complex_id, size)<0) goto error;
+    if (H5Tinsert(complex_id, "imaginary", offset,
+		  H5T_NATIVE_DOUBLE)<0) goto error;
+
+    /* Increase and decrease the size. */
+    if((tmp_size=H5Tget_size(H5T_NATIVE_DOUBLE))==0) goto error; 
+    size+=tmp_size;
+    if (H5Tset_size(complex_id, size)<0) goto error;
+   
+    if((tmp_size=H5Tget_size(H5T_NATIVE_DOUBLE))==0) goto error; 
+    size-=tmp_size;
+    if (H5Tset_size(complex_id, size)<0) goto error;
+
+    /* Verify the size */
+    if((new_size=H5Tget_size(complex_id))==0) goto error; 
+    if(new_size!=size) goto error;
+
+    /* Tries to cut last member.  Supposed to fail. */
+    size--;
+    H5E_BEGIN_TRY {
+        ret = H5Tset_size(complex_id, size);
+    } H5E_END_TRY;  
+    if(ret>=0) {
+        H5_FAILED();
+        puts("  Tries to cut off the last member. Should have failed.");
+        goto error;
+    }
+
+    if (H5Tclose (complex_id)<0) goto error;
+    PASSED();
+    return 0;
+
+  error:
+    return 1;
+}
+
+
+/*-------------------------------------------------------------------------
  * Function:    test_query
  *
  * Purpose:     Tests query functions of compound and enumeration types.
@@ -2046,7 +2229,10 @@ test_compound_11(void)
  *              Thursday, April 4, 2002
  *  
  * Modifications:
- *
+ *              Raymond Lu
+ *              Wednesday, Febuary 9, 2005
+ *              Added test for H5Tenum_valueof, H5Tenum_nameof, and
+ *              H5Tget_member_value.
  *-------------------------------------------------------------------------
  */
 static int 
@@ -2062,6 +2248,7 @@ test_query(void)
     char        filename[1024];
     char        compnd_type[]="Compound_type", enum_type[]="Enum_type";
     short       enum_val;
+    char        enum_name[16];
 
     TESTING("query functions of compound and enumeration types");
 
@@ -2103,27 +2290,27 @@ test_query(void)
         printf("Can't create enumerate type\n");
         goto error;
     } /* end if */
-    if(H5Tenum_insert(tid2, "RED", (enum_val=0,&enum_val))<0) {
+    if(H5Tenum_insert(tid2, "RED", (enum_val=10,&enum_val))<0) {
         H5_FAILED();
         printf("Can't insert field into enumeration type\n");
         goto error;
     } /* end if */
-    if(H5Tenum_insert(tid2, "GREEN", (enum_val=1,&enum_val))<0) {
+    if(H5Tenum_insert(tid2, "GREEN", (enum_val=11,&enum_val))<0) {
         H5_FAILED();
         printf("Can't insert field into enumeration type\n");
         goto error;
     } /* end if */
-    if(H5Tenum_insert(tid2, "BLUE", (enum_val=2,&enum_val))<0) {
+    if(H5Tenum_insert(tid2, "BLUE", (enum_val=12,&enum_val))<0) {
         H5_FAILED();
         printf("Can't insert field into enumeration type\n");
         goto error;
     } /* end if */
-    if(H5Tenum_insert(tid2, "ORANGE", (enum_val=3,&enum_val))<0) {
+    if(H5Tenum_insert(tid2, "ORANGE", (enum_val=13,&enum_val))<0) {
         H5_FAILED();
         printf("Can't insert field into enumeration type\n");
         goto error;
     } /* end if */
-    if(H5Tenum_insert(tid2, "YELLOW", (enum_val=4,&enum_val))<0) {
+    if(H5Tenum_insert(tid2, "YELLOW", (enum_val=14,&enum_val))<0) {
         H5_FAILED();
         printf("Can't insert field into enumeration type\n");
         goto error;
@@ -2201,7 +2388,7 @@ test_query(void)
         goto error;
     } /* end if */
 
-    /* Query member number and member index by name, for enumeration type */
+    /* Query member number and member index by member name, for enumeration type */
     if(H5Tget_nmembers(tid2)!=5) {
         H5_FAILED();
         printf("Can't get member number\n");
@@ -2210,6 +2397,43 @@ test_query(void)
     if(H5Tget_member_index(tid2, "ORANGE")!=3) {
         H5_FAILED();
         printf("Can't get correct index number\n");
+        goto error;
+    } /* end if */
+
+    /* Query member value by member name, for enumeration type */
+    if(H5Tenum_valueof (tid2, "ORANGE", &enum_val)<0) {
+        H5_FAILED();
+        printf("Can't get value for enumerate member\n");
+        goto error;
+    } /* end if */
+    if(enum_val!=13) {
+        H5_FAILED();
+        printf("Incorrect value for enum member\n");
+        goto error;
+    } /* end if */
+       
+    /* Query member value by member index, for enumeration type */
+    if(H5Tget_member_value (tid2, 2, &enum_val)<0) {
+        H5_FAILED();
+        printf("Can't get value for enum member\n");
+        goto error;
+    } /* end if */
+    if(enum_val!=12) {
+        H5_FAILED();
+        printf("Incorrect value for enum member\n");
+        goto error;
+    } /* end if */
+      
+    /* Query member name by member value, for enumeration type */
+    enum_val = 14;
+    if(H5Tenum_nameof(tid2, &enum_val, enum_name, 16)<0) {
+        H5_FAILED();
+        printf("Can't get name for enum member\n");
+        goto error;
+    } /* end if */
+    if(strcmp("YELLOW", enum_name)) {
+        H5_FAILED();
+        printf("Incorrect name for enum member\n");
         goto error;
     } /* end if */
 
@@ -2241,6 +2465,680 @@ test_query(void)
         H5Fclose (file);
     } H5E_END_TRY;
     return 1;
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:    test_derived_flt
+ *
+ * Purpose:     Tests user-define and query functions of floating-point types.
+ *
+ * Return:      Success:        0
+ *      
+ *              Failure:        number of errors
+ *
+ * Programmer:  Raymond Lu
+ *              Thursday, Jan 6, 2005
+ *  
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int 
+test_derived_flt(void)
+{
+    hid_t       file=-1, tid1=-1, tid2=-1;
+    hid_t       dxpl_id=-1;
+    char        filename[1024];
+    size_t      precision, spos, epos, esize, mpos, msize, size, ebias;
+    int         offset;
+    size_t      src_size, dst_size;
+    unsigned char        *buf=NULL, *saved_buf=NULL;
+    int         *aligned=NULL;
+    int		endian;			/*endianess	        */
+    size_t      nelmts = NTESTELEM;
+    unsigned int        fails_this_test = 0;
+    const size_t	max_fails=40;	/*max number of failures*/
+    char	str[256];		/*message string	*/
+    unsigned int         i, j;
+
+    TESTING("user-define and query functions of floating-point types");
+
+    /* Create File */
+    h5_fixname(FILENAME[5], H5P_DEFAULT, filename, sizeof filename);
+    if((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT))<0) {
+        H5_FAILED();
+        printf("Can't create file\n");
+        goto error; 
+    }
+
+    if((dxpl_id = H5Pcreate(H5P_DATASET_XFER))<0) {
+        H5_FAILED();
+        printf("Can't create data transfer property list\n");
+        goto error; 
+    }
+
+    if((tid1 = H5Tcopy(H5T_IEEE_F64LE))<0) {
+        H5_FAILED();
+        printf("Can't copy data type\n");
+        goto error; 
+    }
+
+    if((tid2 = H5Tcopy(H5T_IEEE_F32LE))<0) {
+        H5_FAILED();
+        printf("Can't copy data type\n");
+        goto error; 
+    }
+
+    /*------------------------------------------------------------------------
+     *                   1st floating-point type
+     * size=7 byte, precision=42 bits, offset=3 bits, mantissa size=31 bits, 
+     * mantissa position=3, exponent size=10 bits, exponent position=34, 
+     * exponent bias=511.  It can be illustrated in little-endian order as 
+     *
+     *          6       5       4       3       2       1       0
+     *    ???????? ???SEEEE EEEEEEMM MMMMMMMM MMMMMMMM MMMMMMMM MMMMM???
+     *
+     * To create a new floating-point type, the following properties must be 
+     * set in the order of 
+     *   set fields -> set offset -> set precision -> set size. 
+     * All these properties must be set before the type can function. Other 
+     * properties can be set anytime.  Derived type size cannot be expanded 
+     * bigger than original size but can be decreased.  There should be no 
+     * holes among the significant bits.  Exponent bias usually is set 
+     * 2^(n-1)-1, where n is the exponent size.
+     *-----------------------------------------------------------------------*/ 
+    if(H5Tset_fields(tid1, 44, 34, 10, 3, 31)<0) {
+        H5_FAILED();
+        printf("Can't set fields\n");
+        goto error;
+    }   
+    if(H5Tset_offset(tid1, 3)<0) {
+        H5_FAILED();
+        printf("Can't set offset\n");
+        goto error;
+    }
+    if(H5Tset_precision(tid1, 42)<0) {
+        H5_FAILED();
+        printf("Can't set precision\n");
+        goto error;
+    }
+    if(H5Tset_size(tid1, 7)<0) {
+        H5_FAILED();
+        printf("Can't set size\n");
+        goto error;
+    }
+    if(H5Tset_ebias(tid1, 511)<0) {
+        H5_FAILED();
+        printf("Can't set exponent bias\n");
+        goto error;
+    }
+    if(H5Tset_pad(tid1, H5T_PAD_ZERO, H5T_PAD_ZERO)<0) {
+        H5_FAILED();
+        printf("Can't set padding\n");
+        goto error;
+    }
+
+    if(H5Tcommit(file, "new float type 1", tid1)<0) {
+        H5_FAILED();
+        printf("Can't set inpad\n");
+        goto error;
+    }
+    if(H5Tclose(tid1)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if((tid1 = H5Topen(file, "new float type 1"))<0) {
+        H5_FAILED();
+        printf("Can't open datatype\n");
+        goto error;
+    }
+    if(H5Tget_fields(tid1, &spos, &epos, &esize, &mpos, &msize)<0) {
+        H5_FAILED();
+        printf("Can't get fields\n");
+        goto error;
+    }
+    if(spos!=44 || epos!=34 || esize!=10 || mpos!=3 || msize!=31) {
+        H5_FAILED();
+        printf("Wrong field values\n");
+        goto error;
+    }
+
+    if((precision = H5Tget_precision(tid1))!=42) {
+        H5_FAILED();
+        printf("Can't get precision or wrong precision\n");
+        goto error; 
+    }
+    if((offset = H5Tget_offset(tid1))!=3) {
+        H5_FAILED();
+        printf("Can't get offset or wrong offset\n");
+        goto error; 
+    }
+    if((size = H5Tget_size(tid1))!=7) {
+        H5_FAILED();
+        printf("Can't get size or wrong size\n");
+        goto error;
+    }
+    if((ebias = H5Tget_ebias(tid1))!=511) {
+        H5_FAILED();
+        printf("Can't get exponent bias or wrong bias\n");
+        goto error; 
+    }
+
+    /*--------------------------------------------------------------------------
+     *                   2nd floating-point type
+     * size=3 byte, precision=24 bits, offset=0 bits, mantissa size=16 bits, 
+     * mantissa position=0, exponent size=7 bits, exponent position=16, exponent 
+     * bias=63. It can be illustrated in little-endian order as
+     * 
+     *          2       1       0
+     *    SEEEEEEE MMMMMMMM MMMMMMMM
+     *--------------------------------------------------------------------------*/
+    if(H5Tset_fields(tid2, 23, 16, 7, 0, 16)<0) {
+        H5_FAILED();
+        printf("Can't set fields\n");
+        goto error;
+    }   
+    if(H5Tset_offset(tid2, 0)<0) {
+        H5_FAILED();
+        printf("Can't set offset\n");
+        goto error;
+    }
+    if(H5Tset_precision(tid2, 24)<0) {
+        H5_FAILED();
+        printf("Can't set precision\n");
+        goto error;
+    }
+    if(H5Tset_size(tid2, 3)<0) {
+        H5_FAILED();
+        printf("Can't set size\n");
+        goto error;
+    }
+    if(H5Tset_ebias(tid2, 63)<0) {
+        H5_FAILED();
+        printf("Can't set size\n");
+        goto error;
+    }
+    if(H5Tset_pad(tid2, H5T_PAD_ZERO, H5T_PAD_ZERO)<0) {
+        H5_FAILED();
+        printf("Can't set padding\n");
+        goto error;
+    }
+
+    if(H5Tcommit(file, "new float type 2", tid2)<0) {
+        H5_FAILED();
+        printf("Can't set inpad\n");
+        goto error;
+    }
+    if(H5Tclose(tid2)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if((tid2 = H5Topen(file, "new float type 2"))<0) {
+        H5_FAILED();
+        printf("Can't open datatype\n");
+        goto error;
+    }
+    if(H5Tget_fields(tid2, &spos, &epos, &esize, &mpos, &msize)<0) {
+        H5_FAILED();
+        printf("Can't get fields\n");
+        goto error;
+    }
+    if(spos!=23 || epos!=16 || esize!=7 || mpos!=0 || msize!=16) {
+        H5_FAILED();
+        printf("Wrong field values\n");
+        goto error;
+    }
+
+    if((precision = H5Tget_precision(tid2))!=24) {
+        H5_FAILED();
+        printf("Can't get precision or wrong precision\n");
+        goto error; 
+    }
+    if((offset = H5Tget_offset(tid2))!=0) {
+        H5_FAILED();
+        printf("Can't get offset or wrong offset\n");
+        goto error; 
+    }
+    if((size = H5Tget_size(tid2))!=3) {
+        H5_FAILED();
+        printf("Can't get size or wrong size\n");
+        goto error;
+    }
+    if((ebias = H5Tget_ebias(tid2))!=63) {
+        H5_FAILED();
+        printf("Can't get exponent bias or wrong bias\n");
+        goto error; 
+    }
+
+    /* Convert data from the 2nd to the 1st derived floating-point type.
+     * Then convert data from the 1st type back to the 2nd type.
+     * Compare the final data with the original data.
+     */
+    src_size = H5Tget_size(tid2);
+    dst_size = H5Tget_size(tid1);
+    endian = H5Tget_order(tid2);
+    buf = (unsigned char*)malloc(nelmts*(MAX(src_size, dst_size)));
+    saved_buf = (unsigned char*)malloc(nelmts*src_size);
+
+    for(i=0; i<nelmts*src_size; i++)
+        buf[i] = saved_buf[i] = HDrand();
+
+    /* Convert data from the 2nd to the 1st derived floating-point type.
+     * The mantissa and exponent of the 2nd type are big enough to retain 
+     * the precision and exponent power. */
+    if(H5Tconvert(tid2, tid1, nelmts, buf, NULL, dxpl_id)<0) { 
+        H5_FAILED();
+        printf("Can't convert data\n");
+        goto error; 
+    }
+    /* Convert data from the 1st back to the 2nd derived floating-point type. */
+    if(H5Tconvert(tid1, tid2, nelmts, buf, NULL, dxpl_id)<0) { 
+        H5_FAILED();
+        printf("Can't convert data\n");
+        goto error; 
+    }
+
+    /* Are the values still the same?*/
+    for(i=0; i<nelmts; i++) {
+        for(j=0; j<src_size; j++)
+            if(buf[i*src_size+j]!=saved_buf[i*src_size+j])
+               break;
+        if(j==src_size)
+           continue; /*no error*/ 
+
+        /* If original value is NaN(exponent bits are all ones, 11..11), 
+         * the library simply sets all mantissa bits to ones.  So don't 
+         * compare values in this case.
+         */
+        if((buf[i*src_size+2]==0x7f && saved_buf[i*src_size+2]==0x7f) ||
+            (buf[i*src_size+2]==0xff && saved_buf[i*src_size+2]==0xff))
+            continue;
+
+        /* Print errors */
+        if (0==fails_this_test++) {
+	    sprintf(str, "\nTesting random sw derived floating-point -> derived floating-point conversions");
+	    printf("%-70s", str);
+	    HDfflush(stdout);
+            H5_FAILED();
+        }
+        printf("    test %u elmt %u: \n", 1, (unsigned)i);
+
+        printf("        src = ");
+        for (j=0; j<src_size; j++)
+            printf(" %02x", saved_buf[i*src_size+ENDIAN(src_size, j)]);
+        printf("\n");
+
+        printf("        dst = ");
+        for (j=0; j<src_size; j++)
+            printf(" %02x", buf[i*src_size+ENDIAN(src_size, j)]);
+        printf("\n");
+
+        if (fails_this_test>=max_fails) {
+            HDputs("    maximum failures reached, aborting test...");
+            goto error;
+        }
+    }
+
+    if (buf) free(buf);
+    if (saved_buf) free(saved_buf);
+
+    if(H5Tclose(tid1)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if(H5Tclose(tid2)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if(H5Pclose(dxpl_id)<0) {
+        H5_FAILED();
+        printf("Can't close property list\n");
+        goto error;
+    }
+
+    if(H5Fclose(file)<0) {
+        H5_FAILED();
+        printf("Can't close file\n");
+        goto error;
+    } /* end if */
+
+    PASSED();
+    reset_hdf5();	/*print statistics*/
+    
+    return 0;
+
+ error:
+    if (buf) free(buf);
+    if (saved_buf) free(saved_buf);
+    if (aligned) free(aligned);
+    HDfflush(stdout);
+    H5E_BEGIN_TRY {
+        H5Tclose (tid1);
+        H5Tclose (tid2);
+        H5Pclose (dxpl_id);
+        H5Fclose (file);
+    } H5E_END_TRY;
+    reset_hdf5(); /*print statistics*/
+    return MAX((int)fails_this_test, 1);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:    test_derived_integer
+ *
+ * Purpose:     Tests user-define and query functions of integer types.
+ *
+ * Return:      Success:        0
+ *      
+ *              Failure:        number of errors
+ *
+ * Programmer:  Raymond Lu
+ *              Saturday, Jan 29, 2005
+ *  
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int 
+test_derived_integer(void)
+{
+    hid_t       file=-1, tid1=-1, tid2=-1;
+    hid_t       dxpl_id=-1;
+    char        filename[1024];
+    size_t      precision, spos, epos, esize, mpos, msize, size, ebias;
+    int         offset;
+    H5T_order_t order;
+    H5T_sign_t  sign;
+    size_t      src_size, dst_size;
+    unsigned char        *buf=NULL, *saved_buf=NULL;
+    int         *aligned=NULL;
+    int		endian;			/*endianess	        */
+    size_t      nelmts = NTESTELEM;
+    unsigned int        fails_this_test = 0;
+    const size_t	max_fails=40;	/*max number of failures*/
+    char	str[256];		/*message string	*/
+    unsigned int         i, j;
+
+    TESTING("user-define and query functions of integer types");
+
+    /* Create File */
+    h5_fixname(FILENAME[6], H5P_DEFAULT, filename, sizeof filename);
+    if((file=H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT))<0) {
+        H5_FAILED();
+        printf("Can't create file\n");
+        goto error; 
+    }
+
+    if((dxpl_id = H5Pcreate(H5P_DATASET_XFER))<0) {
+        H5_FAILED();
+        printf("Can't create data transfer property list\n");
+        goto error; 
+    }
+
+    if((tid1 = H5Tcopy(H5T_STD_I32LE))<0) {
+        H5_FAILED();
+        printf("Can't copy data type\n");
+        goto error; 
+    }
+
+    if((tid2 = H5Tcopy(H5T_STD_U64LE))<0) {
+        H5_FAILED();
+        printf("Can't copy data type\n");
+        goto error; 
+    }
+    
+    /*--------------------------------------------------------------------------
+     *                   1st integer type
+     * size=3 byte, precision=24 bits, offset=0 bits, order=big endian.
+     * It can be illustrated in big-endian order as
+     * 
+     *          0       1       2
+     *    SIIIIIII IIIIIIII IIIIIIII
+     *
+     * There's no specific order for these functions to define the attributes 
+     * of a new integer type, H5Tset_precision, H5Tset_offset, H5Tset_size, 
+     * H5Tset_order, H5Tset_pad, H5Tset_sign.
+     *--------------------------------------------------------------------------*/
+    if(H5Tset_offset(tid1,0)<0) {
+        H5_FAILED();
+        printf("Can't set offset\n");
+        goto error; 
+    }
+
+    if(H5Tset_size(tid1, 3)<0) {
+        H5_FAILED();
+        printf("Can't set size\n");
+        goto error;
+    }
+
+    if(H5Tset_precision(tid1,24)<0) {
+        H5_FAILED();
+        printf("Can't set precision\n");
+        goto error; 
+    }
+
+    if(H5Tset_order(tid1, H5T_ORDER_BE)<0) {
+        H5_FAILED();
+        printf("Can't set order\n");
+        goto error; 
+    }
+
+    if(H5Tcommit(file, "new integer type 1", tid1)<0) {
+        H5_FAILED();
+        printf("Can't commit data type\n");
+        goto error;
+    }
+    
+    if(H5Tclose(tid1)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if((tid1 = H5Topen(file, "new integer type 1"))<0) {
+        H5_FAILED();
+        printf("Can't open datatype\n");
+        goto error;
+    }
+
+    if((precision = H5Tget_precision(tid1))!=24) {
+        H5_FAILED();
+        printf("Can't get precision or wrong precision\n");
+        goto error; 
+    }
+    if((offset = H5Tget_offset(tid1))!=0) {
+        H5_FAILED();
+        printf("Can't get offset or wrong offset\n");
+        goto error; 
+    }
+    if((size = H5Tget_size(tid1))!=3) {
+        H5_FAILED();
+        printf("Can't get size or wrong size\n");
+        goto error;
+    }
+    if((order = H5Tget_order(tid1))!=H5T_ORDER_BE) {
+        H5_FAILED();
+        printf("Can't get order or wrong order\n");
+        goto error;
+    }
+
+    /*--------------------------------------------------------------------------
+     *                   2nd integer type
+     * size=8 byte, precision=48 bits, offset=10 bits, order=little endian.
+     * It can be illustrated in little-endian order as
+     * 
+     *          7       6       5       4       3       2       1       0       
+     *   ??????SI IIIIIIII IIIIIIII IIIIIIII IIIIIIII IIIIIIII IIIIII?? ????????
+     *--------------------------------------------------------------------------*/
+    if(H5Tset_precision(tid2,48)<0) {
+        H5_FAILED();
+        printf("Can't set precision\n");
+        goto error; 
+    }
+
+    if(H5Tset_offset(tid2,10)<0) {
+        H5_FAILED();
+        printf("Can't set offset\n");
+        goto error; 
+    }
+    
+    if(H5Tset_sign(tid2,H5T_SGN_2)<0) {
+        H5_FAILED();
+        printf("Can't set offset\n");
+        goto error; 
+    }
+    
+    if(H5Tcommit(file, "new integer type 2", tid2)<0) {
+        H5_FAILED();
+        printf("Can't commit data type\n");
+        goto error;
+    }
+    
+    if(H5Tclose(tid2)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if((tid2 = H5Topen(file, "new integer type 2"))<0) {
+        H5_FAILED();
+        printf("Can't open datatype\n");
+        goto error;
+    }
+  
+    if((precision = H5Tget_precision(tid2))!=48) {
+        H5_FAILED();
+        printf("Can't get precision or wrong precision\n");
+        goto error; 
+    }
+    if((offset = H5Tget_offset(tid2))!=10) {
+        H5_FAILED();
+        printf("Can't get offset or wrong offset\n");
+        goto error; 
+    }
+    if((size = H5Tget_size(tid2))!=8) {
+        H5_FAILED();
+        printf("Can't get size or wrong size\n");
+        goto error;
+    }
+    if((sign = H5Tget_sign(tid2))!=H5T_SGN_2) {
+        H5_FAILED();
+        printf("Can't get sign or wrong sign\n");
+        goto error;
+    }
+
+    /* Convert data from the 1st to the 2nd derived integer type.
+     * Then convert data from the 2nd type back to the 1st type.
+     * Compare the final data with the original data.
+     */
+    src_size = H5Tget_size(tid1);
+    dst_size = H5Tget_size(tid2);
+    endian = H5Tget_order(tid1);
+    buf = (unsigned char*)malloc(nelmts*(MAX(src_size, dst_size)));
+    saved_buf = (unsigned char*)malloc(nelmts*src_size);
+
+    for(i=0; i<nelmts*src_size; i++)
+        buf[i] = saved_buf[i] = HDrand();
+
+    /* Convert data from the 1st to the 2nd derived integer type.
+     * The precision of the 2nd type are big enough to retain 
+     * the 1st type's precision. */
+    if(H5Tconvert(tid1, tid2, nelmts, buf, NULL, dxpl_id)<0) { 
+        H5_FAILED();
+        printf("Can't convert data\n");
+        goto error; 
+    }
+    /* Convert data from the 2nd back to the 1st derived integer type. */
+    if(H5Tconvert(tid2, tid1, nelmts, buf, NULL, dxpl_id)<0) { 
+        H5_FAILED();
+        printf("Can't convert data\n");
+        goto error; 
+    }
+
+    /* Are the values still the same?*/
+    for(i=0; i<nelmts; i++) {
+        for(j=0; j<src_size; j++)
+            if(buf[i*src_size+j]!=saved_buf[i*src_size+j])
+               break;
+        if(j==src_size)
+           continue; /*no error*/ 
+
+        /* Print errors */
+        if (0==fails_this_test++) {
+	    sprintf(str, "\nTesting random sw derived integer -> derived integer conversions");
+	    printf("%-70s", str);
+	    HDfflush(stdout);
+            H5_FAILED();
+        }
+        printf("    test %u elmt %u: \n", 1, (unsigned)i);
+
+        printf("        src = ");
+        for (j=0; j<src_size; j++)
+            printf(" %02x", saved_buf[i*src_size+ENDIAN(src_size, j)]);
+        printf("\n");
+
+        printf("        dst = ");
+        for (j=0; j<src_size; j++)
+            printf(" %02x", buf[i*src_size+ENDIAN(src_size, j)]);
+        printf("\n");
+
+        if (fails_this_test>=max_fails) {
+            HDputs("    maximum failures reached, aborting test...");
+            goto error;
+        }
+    }
+
+    if(H5Tclose(tid1)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if(H5Tclose(tid2)<0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    }
+
+    if(H5Pclose(dxpl_id)<0) {
+        H5_FAILED();
+        printf("Can't close property list\n");
+        goto error;
+    }
+
+    if(H5Fclose(file)<0) {
+        H5_FAILED();
+        printf("Can't close file\n");
+        goto error;
+    } /* end if */
+
+    PASSED();
+    reset_hdf5();	/*print statistics*/
+    
+    return 0;
+
+ error:
+    if (buf) free(buf);
+    if (saved_buf) free(saved_buf);
+    if (aligned) free(aligned);
+    HDfflush(stdout);
+    H5E_BEGIN_TRY {
+        H5Tclose (tid1);
+        H5Tclose (tid2);
+        H5Pclose (dxpl_id);
+        H5Fclose (file);
+    } H5E_END_TRY;
+    reset_hdf5(); /*print statistics*/
+    return MAX((int)fails_this_test, 1);
 }
 
 
@@ -2393,7 +3291,7 @@ test_named (hid_t fapl)
     hid_t		file=-1, type=-1, space=-1, dset=-1, t2=-1, attr1=-1;
     herr_t		status;
     static hsize_t	ds_size[2] = {10, 20};
-    hsize_t		i;
+    hsize_t		i,j;
     unsigned 		attr_data[10][20];
     char		filename[1024];
     
@@ -2449,7 +3347,9 @@ test_named (hid_t fapl)
     /* It should be possible to define an attribute for the named type */
     if ((attr1=H5Acreate (type, "attr1", H5T_NATIVE_UCHAR, space,
 			  H5P_DEFAULT))<0) goto error;
-    for (i=0; i<ds_size[0]*ds_size[1]; i++) attr_data[0][i] = (int)i;/*tricky*/
+    for (i=0; i<ds_size[0]; i++)
+        for (j=0; j<ds_size[1]; j++)
+            attr_data[i][j] = (int)(i*ds_size[1]+j);
     if (H5Awrite(attr1, H5T_NATIVE_UINT, attr_data)<0) goto error;
     if (H5Aclose (attr1)<0) goto error;
 
@@ -3461,6 +4361,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     unsigned char	dst_bits[32];		/*dest value in LE order*/
     size_t		src_nbits;		/*source length in bits	*/
     size_t		dst_nbits;		/*dst length in bits	*/
+    H5T_sign_t          src_sign;               /*source sign type      */
+    H5T_sign_t          dst_sign;               /*dst sign type         */
     void		*aligned=NULL;		/*aligned temp buffer	*/
     signed char		hw_char;
     unsigned char	hw_uchar;
@@ -3562,6 +4464,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     dst_size = H5Tget_size(dst);
     src_nbits = H5Tget_precision(src); /* not 8*src_size, esp on J90 - QAK */
     dst_nbits = H5Tget_precision(dst); /* not 8*dst_size, esp on J90 - QAK */
+    src_sign = H5Tget_sign(src);
+    dst_sign = H5Tget_sign(dst);
     buf = aligned_malloc(nelmts*MAX(src_size, dst_size));
     saved = aligned_malloc(nelmts*MAX(src_size, dst_size));
     aligned = HDmalloc(sizeof(long_long));
@@ -3601,10 +4505,10 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		switch (src_type) {
 		case INT_CHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
-		    hw_char = (char)(*((signed char*)aligned));
+		    hw_char = (char)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
 		    hw_char = (char)(*((unsigned char*)aligned));
 		    break;
 		case INT_SHORT:
@@ -3646,8 +4550,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_uchar;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_uchar = (unsigned char)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_uchar = (unsigned char)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
@@ -3692,8 +4596,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_short;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_short = (short)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_short = (short)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
@@ -3738,11 +4642,11 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_ushort;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_ushort = (unsigned short)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_ushort = (unsigned short)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(unsigned char));
+		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
 		    hw_ushort = (unsigned short)(*((unsigned char*)aligned));
 		    break;
 		case INT_SHORT:
@@ -3784,8 +4688,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_int;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_int = (int)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_int = (int)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
@@ -3830,8 +4734,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_uint;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_uint = (unsigned int)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_uint = (unsigned int)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
@@ -3876,8 +4780,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_long;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_long = (long int)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_long = (long int)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
@@ -3922,8 +4826,8 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_ulong;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_ulong = (unsigned long)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_ulong = (unsigned long)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
 		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
@@ -3968,11 +4872,11 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		hw = (unsigned char*)&hw_llong;
 		switch (src_type) {
 		case INT_CHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		    hw_llong = (long_long)(*((signed char*)aligned));
+		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+		    hw_llong = (long_long)(*((char*)aligned));
 		    break;
 		case INT_UCHAR:
-		    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(unsigned char));
+		    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
 		    hw_llong = (long_long)(*((unsigned char*)aligned));
 		    break;
 		case INT_SHORT:
@@ -4058,14 +4962,15 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 		}
 	    }
 
-        /* Make certain that there isn't some weird number of destination bits */
-        assert(dst_nbits%8==0);
+            /* Make certain that there isn't some weird number of destination bits */
+            assert(dst_nbits%8==0);
 
-	    /* Are the two results the same */
-        for (k=(dst_size-(dst_nbits/8)); k<dst_size; k++) {
-            if (buf[j*dst_size+k]!=hw[k]) break;
-	    }
-	    if (k==dst_size) continue; /*no error*/
+            /* Are the two results the same? */
+            for (k=(dst_size-(dst_nbits/8)); k<dst_size; k++)
+                if (buf[j*dst_size+k]!=hw[k])
+                    break;
+	    if (k==dst_size)
+                continue; /*no error*/
 
 	    /*
 	     * Convert the source and destination values to little endian
@@ -4073,273 +4978,249 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
 	     * certain things.  These routines have already been tested by
 	     * the `bittests' program.
 	     */
-	    for (k=0; k<src_size; k++) {
-		src_bits[src_size-(k+1)] = saved[j*src_size+
-						 ENDIAN(src_size, k)];
-	    }
+	    for (k=0; k<src_size; k++)
+		src_bits[src_size-(k+1)] = saved[j*src_size+ENDIAN(src_size, k)];
 	    
-	    for (k=0; k<dst_size; k++) {
-		dst_bits[dst_size-(k+1)] = buf[j*dst_size+
-					       ENDIAN(dst_size, k)];
-	    }
-
+	    for (k=0; k<dst_size; k++)
+		dst_bits[dst_size-(k+1)] = buf[j*dst_size+ENDIAN(dst_size, k)];
 
 	    /*
 	     * Hardware usually doesn't handle overflows too gracefully. The
 	     * hardware conversion result during overflows is usually garbage
 	     * so we must handle those cases differetly when checking results.
 	     */
-	    if (H5T_SGN_2==H5Tget_sign(src) && H5T_SGN_2==H5Tget_sign(dst)) {
-            if (src_nbits>dst_nbits) {
-                if(0==H5T_bit_get_d(src_bits, src_nbits-1, 1) &&
-                    H5T_bit_find(src_bits, dst_nbits-1, (src_nbits-dst_nbits),
-                        H5T_BIT_MSB, 1)>=0) {
+	    if (H5T_SGN_2==src_sign && H5T_SGN_2==dst_sign) {
+                if (src_nbits>dst_nbits) {
+                    if(0==H5T_bit_get_d(src_bits, src_nbits-1, 1) &&
+                            H5T_bit_find(src_bits, dst_nbits-1, (src_nbits-dst_nbits),
+                                H5T_BIT_MSB, 1)>=0) {
+                        /*
+                         * Source is positive and the magnitude is too large for
+                         * the destination.  The destination should be set to the
+                         * maximum possible value: 0x7f...f
+                         */
+                        if (0==H5T_bit_get_d(dst_bits, dst_nbits-1, 1) &&
+                                H5T_bit_find(dst_bits, 0, dst_nbits-1, H5T_BIT_LSB, 0)<0)
+                            continue; /*no error*/
+                    } else if (1==H5T_bit_get_d(src_bits, src_nbits-1, 1) &&
+                           H5T_bit_find(src_bits, 0, src_nbits-1, H5T_BIT_MSB,
+                                0)+1>=(ssize_t)dst_nbits) {
+                        /*
+                         * Source is negative but the magnitude is too large for
+                         * the destination. The destination should be set to the
+                         * smallest possible value: 0x80...0
+                         */
+                        if (1==H5T_bit_get_d(dst_bits, dst_nbits-1, 1) &&
+                                H5T_bit_find(dst_bits, 0, dst_nbits-1, H5T_BIT_LSB, 1)<0)
+                            continue; /*no error*/
+                    }
+                } else if(src_nbits<dst_nbits) {
+                    /* Source is smaller than the destination */
+                    if(0==H5T_bit_get_d(src_bits, src_nbits-1, 1)) {
+                        /*
+                         * Source is positive, so the excess bits in the
+                         * destination should be set to 0's.
+                         */
+                        if (0==H5T_bit_get_d(dst_bits, src_nbits-1, 1) &&
+                                H5T_bit_find(dst_bits, src_nbits, dst_nbits-src_nbits, H5T_BIT_LSB, 1)<0)
+                            continue; /*no error*/
+                    } else {
+                        /*
+                         * Source is negative, so the excess bits in the
+                         * destination should be set to 1's.
+                         */
+                        if (1==H5T_bit_get_d(dst_bits, src_nbits-1, 1) &&
+                                H5T_bit_find(dst_bits, src_nbits, dst_nbits-src_nbits, H5T_BIT_LSB, 0)<0)
+                            continue; /*no error*/
+                    }
+                }
+	    } else if (H5T_SGN_2==src_sign && H5T_SGN_NONE==dst_sign) {
+                if (H5T_bit_get_d(src_bits, src_nbits-1, 1)) {
                     /*
-                     * Source is positive and the magnitude is too large for
-                     * the destination.  The destination should be set to the
-                     * maximum possible value: 0x7f...f
+                     * The source is negative so the result should be zero.
+                     * The source is negative if the most significant bit is
+                     * set.  The destination is zero if all bits are zero.
+                     */
+                    if (H5T_bit_find(dst_bits, 0, dst_nbits, H5T_BIT_LSB, 1)<0)
+                        continue; /*no error*/
+                } else if (src_nbits>dst_nbits &&
+                       H5T_bit_find(src_bits, dst_nbits-1,
+                            src_nbits-dst_nbits, H5T_BIT_LSB, 1)>=0) {
+                    /*
+                     * The source is a value with a magnitude too large for
+                     * the destination.  The destination should be the
+                     * largest possible value: 0xff...f
+                     */
+                    if (H5T_bit_find(dst_bits, 0, dst_nbits, H5T_BIT_LSB, 0)<0)
+                        continue; /*no error*/
+                }
+	    } else if (H5T_SGN_NONE==src_sign && H5T_SGN_2==dst_sign) {
+                if (src_nbits>=dst_nbits &&
+                        H5T_bit_find(src_bits, dst_nbits-1, (src_nbits-dst_nbits)+1,
+                            H5T_BIT_LSB, 1)>=0) {
+                    /*
+                     * The source value has a magnitude that is larger than
+                     * the destination can handle.  The destination should be
+                     * set to the largest possible positive value: 0x7f...f
                      */
                     if (0==H5T_bit_get_d(dst_bits, dst_nbits-1, 1) &&
-                            H5T_bit_find(dst_bits, 0, dst_nbits-1,
-                                 H5T_BIT_LSB, 0)<0) {
+                            H5T_bit_find(dst_bits, 0, dst_nbits-1, H5T_BIT_LSB, 0)<0)
                         continue; /*no error*/
-                    }
-                } else if (1==H5T_bit_get_d(src_bits, src_nbits-1, 1) &&
-                   H5T_bit_find(src_bits, 0, src_nbits-1, H5T_BIT_MSB,
-                        0)+1>=(ssize_t)dst_nbits) {
-                    /*
-                     * Source is negative but the magnitude is too large for
-                     * the destination. The destination should be set to the
-                     * smallest possible value: 0x80...0
-                     */
-                    if (1==H5T_bit_get_d(dst_bits, dst_nbits-1, 1) &&
-                            H5T_bit_find(dst_bits, 0, dst_nbits-1,
-                                 H5T_BIT_LSB, 1)<0) {
-                        continue; /*no error*/
-                    }
                 }
-            } else if(src_nbits<dst_nbits) {
-                /* Source is smaller than the destination */
-                if(0==H5T_bit_get_d(src_bits, src_nbits-1, 1)) {
-                    /*
-                     * Source is positive, so the excess bits in the
-                     * destination should be set to 0's.
-                     */
-                    if (0==H5T_bit_get_d(dst_bits, src_nbits-1, 1) &&
-                            H5T_bit_find(dst_bits, src_nbits, dst_nbits-src_nbits,
-                                 H5T_BIT_LSB, 1)<0) {
-                        continue; /*no error*/
-                    }
-                } else {
-                    /*
-                     * Source is negative, so the excess bits in the
-                     * destination should be set to 1's.
-                     */
-                    if (1==H5T_bit_get_d(dst_bits, src_nbits-1, 1) &&
-                            H5T_bit_find(dst_bits, src_nbits, dst_nbits-src_nbits,
-                                 H5T_BIT_LSB, 0)<0) {
-                        continue; /*no error*/
-                    }
-                }
-            }
-	    } else if (H5T_SGN_2==H5Tget_sign(src) && H5T_SGN_NONE==H5Tget_sign(dst)) {
-            if (H5T_bit_get_d(src_bits, src_nbits-1, 1)) {
-                /*
-                 * The source is negative so the result should be zero.
-                 * The source is negative if the most significant bit is
-                 * set.  The destination is zero if all bits are zero.
-                 */
-                if (H5T_bit_find(dst_bits, 0, dst_nbits, H5T_BIT_LSB, 1)<0)
-                    continue; /*no error*/
-            } else if (src_nbits>dst_nbits &&
-                   H5T_bit_find(src_bits, dst_nbits-1,
-                        src_nbits-dst_nbits, H5T_BIT_LSB,
-                        1)>=0) {
-                /*
-                 * The source is a value with a magnitude too large for
-                 * the destination.  The destination should be the
-                 * largest possible value: 0xff...f
-                 */
-                if (H5T_bit_find(dst_bits, 0, dst_nbits, H5T_BIT_LSB, 0)<0) {
-                    continue; /*no error*/
-                }
-            }
-            
-	    } else if (H5T_SGN_NONE==H5Tget_sign(src) && H5T_SGN_2==H5Tget_sign(dst)) {
-            if (src_nbits>=dst_nbits &&
-                    H5T_bit_find(src_bits, dst_nbits-1, (src_nbits-dst_nbits)+1,
-                        H5T_BIT_LSB, 1)>=0) {
-                /*
-                 * The source value has a magnitude that is larger than
-                 * the destination can handle.  The destination should be
-                 * set to the largest possible positive value: 0x7f...f
-                 */
-                if (0==H5T_bit_get_d(dst_bits, dst_nbits-1, 1) &&
-                        H5T_bit_find(dst_bits, 0, dst_nbits-1, H5T_BIT_LSB, 0)<0) {
-                    continue; /*no error*/
-                }
-            }
-            
 	    } else {
-            if (src_nbits>dst_nbits &&
-                H5T_bit_find(src_bits, dst_nbits, src_nbits-dst_nbits,
-                     H5T_BIT_LSB, 1)>=0) {
-                /*
-                 * The unsigned source has a value which is too large for
-                 * the unsigned destination.  The destination should be
-                 * set to the largest possible value: 0xff...f
-                 */
-                if (H5T_bit_find(dst_bits, 0, dst_nbits, H5T_BIT_LSB, 0)<0) {
-                    continue; /*no error*/
+                if (src_nbits>dst_nbits &&
+                        H5T_bit_find(src_bits, dst_nbits, src_nbits-dst_nbits,
+                             H5T_BIT_LSB, 1)>=0) {
+                    /*
+                     * The unsigned source has a value which is too large for
+                     * the unsigned destination.  The destination should be
+                     * set to the largest possible value: 0xff...f
+                     */
+                    if (H5T_bit_find(dst_bits, 0, dst_nbits, H5T_BIT_LSB, 0)<0)
+                        continue; /*no error*/
                 }
-            }
 	    }
 
 	    /* Print errors */
-	    if (0==fails_this_test++) H5_FAILED();
+	    if (0==fails_this_test++)
+                H5_FAILED();
 	    printf("    test %u elmt %u\n", (unsigned)i+1, (unsigned)j);
 
 	    printf("        src = ");
-	    for (k=0; k<src_size; k++) {
+	    for (k=0; k<src_size; k++)
 		printf(" %02x", saved[j*src_size+ENDIAN(src_size, k)]);
-	    }
-	    printf("%*s", (int)(3*MAX(0, (ssize_t)dst_size-(ssize_t)src_size)),
-		   "");
+	    printf("%*s", (int)(3*MAX(0, (ssize_t)dst_size-(ssize_t)src_size)), "");
 	    switch (src_type) {
-	    case INT_CHAR:
-		HDmemcpy(aligned, saved+j*sizeof(signed char), sizeof(signed char));
-		printf(" %29d\n", *((signed char*)aligned));
-		break;
-	    case INT_UCHAR:
-		HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
-		printf(" %29u\n", *((unsigned char*)aligned));
-		break;
-	    case INT_SHORT:
-		HDmemcpy(aligned, saved+j*sizeof(short), sizeof(short));
-		printf(" %29hd\n", *((short*)aligned));
-		break;
-	    case INT_USHORT:
-		HDmemcpy(aligned, saved+j*sizeof(unsigned short), sizeof(unsigned short));
-		printf(" %29hu\n", *((unsigned short*)aligned));
-		break;
-	    case INT_INT:
-		HDmemcpy(aligned, saved+j*sizeof(int), sizeof(int));
-		printf(" %29d\n", *((int*)aligned));
-		break;
-	    case INT_UINT:
-		HDmemcpy(aligned, saved+j*sizeof(unsigned), sizeof(unsigned));
-		printf(" %29u\n", *((unsigned*)aligned));
-		break;
-	    case INT_LONG:
-		HDmemcpy(aligned, saved+j*sizeof(long), sizeof(long));
-		printf(" %29ld\n", *((long*)aligned));
-		break;
-	    case INT_ULONG:
-		HDmemcpy(aligned, saved+j*sizeof(unsigned long), sizeof(unsigned long));
-		printf(" %29lu\n", *((unsigned long*)aligned));
-		break;
-	    case INT_LLONG:
-		HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
-		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
-		break;
-	    case INT_ULLONG:
-		HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
-		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
-		break;
-	    case INT_OTHER:
-		break;
+                case INT_CHAR:
+                    HDmemcpy(aligned, saved+j*sizeof(char), sizeof(char));
+                    printf(" %29d\n", (int)*((char*)aligned));
+                    break;
+                case INT_UCHAR:
+                    HDmemcpy(aligned, saved+j*sizeof(unsigned char), sizeof(unsigned char));
+                    printf(" %29u\n", (unsigned)*((unsigned char*)aligned));
+                    break;
+                case INT_SHORT:
+                    HDmemcpy(aligned, saved+j*sizeof(short), sizeof(short));
+                    printf(" %29hd\n", *((short*)aligned));
+                    break;
+                case INT_USHORT:
+                    HDmemcpy(aligned, saved+j*sizeof(unsigned short), sizeof(unsigned short));
+                    printf(" %29hu\n", *((unsigned short*)aligned));
+                    break;
+                case INT_INT:
+                    HDmemcpy(aligned, saved+j*sizeof(int), sizeof(int));
+                    printf(" %29d\n", *((int*)aligned));
+                    break;
+                case INT_UINT:
+                    HDmemcpy(aligned, saved+j*sizeof(unsigned), sizeof(unsigned));
+                    printf(" %29u\n", *((unsigned*)aligned));
+                    break;
+                case INT_LONG:
+                    HDmemcpy(aligned, saved+j*sizeof(long), sizeof(long));
+                    printf(" %29ld\n", *((long*)aligned));
+                    break;
+                case INT_ULONG:
+                    HDmemcpy(aligned, saved+j*sizeof(unsigned long), sizeof(unsigned long));
+                    printf(" %29lu\n", *((unsigned long*)aligned));
+                    break;
+                case INT_LLONG:
+                    HDmemcpy(aligned, saved+j*sizeof(long_long), sizeof(long_long));
+                    HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+                    break;
+                case INT_ULLONG:
+                    HDmemcpy(aligned, saved+j*sizeof(unsigned long_long), sizeof(unsigned long_long));
+                    HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
+                    break;
+                case INT_OTHER:
+                    break;
 	    }
 	    
 	    printf("        dst = ");
-	    for (k=0; k<dst_size; k++) {
+	    for (k=0; k<dst_size; k++)
 		printf(" %02x", buf[j*dst_size+ENDIAN(dst_size, k)]);
-	    }
-	    printf("%*s", (int)(3*MAX(0, (ssize_t)src_size-(ssize_t)dst_size)),
-		   "");
+	    printf("%*s", (int)(3*MAX(0, (ssize_t)src_size-(ssize_t)dst_size)), "");
 	    switch (dst_type) {
-	    case INT_CHAR:
-		HDmemcpy(aligned, buf+j*sizeof(signed char), sizeof(signed char));
-		printf(" %29d\n", *((signed char*)aligned));
-		break;
-	    case INT_UCHAR:
-		HDmemcpy(aligned, buf+j*sizeof(unsigned char), sizeof(unsigned char));
-		printf(" %29u\n", *((unsigned char*)aligned));
-		break;
-	    case INT_SHORT:
-		HDmemcpy(aligned, buf+j*sizeof(short), sizeof(short));
-		printf(" %29d\n", *((short*)aligned));
-		break;
-	    case INT_USHORT:
-		HDmemcpy(aligned, buf+j*sizeof(unsigned short), sizeof(unsigned short));
-		printf(" %29u\n", *((unsigned short*)aligned));
-		break;
-	    case INT_INT:
-		HDmemcpy(aligned, buf+j*sizeof(int), sizeof(int));
-		printf(" %29d\n", *((int*)aligned));
-		break;
-	    case INT_UINT:
-		HDmemcpy(aligned, buf+j*sizeof(unsigned), sizeof(unsigned));
-		printf(" %29u\n", *((unsigned*)aligned));
-		break;
-	    case INT_LONG:
-		HDmemcpy(aligned, buf+j*sizeof(long), sizeof(long));
-		printf(" %29ld\n", *((long*)aligned));
-		break;
-	    case INT_ULONG:
-		HDmemcpy(aligned, buf+j*sizeof(unsigned long), sizeof(unsigned long));
-		printf(" %29lu\n", *((unsigned long*)aligned));
-		break;
-	    case INT_LLONG:
-		HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(long_long));
-		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
-		break;
-	    case INT_ULLONG:
-		HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(unsigned long_long));
-		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
-		break;
-	    case INT_OTHER:
-		break;
+                case INT_CHAR:
+                    HDmemcpy(aligned, buf+j*sizeof(char), sizeof(char));
+                    printf(" %29d\n", (int)*((char*)aligned));
+                    break;
+                case INT_UCHAR:
+                    HDmemcpy(aligned, buf+j*sizeof(unsigned char), sizeof(unsigned char));
+                    printf(" %29u\n", (unsigned)*((unsigned char*)aligned));
+                    break;
+                case INT_SHORT:
+                    HDmemcpy(aligned, buf+j*sizeof(short), sizeof(short));
+                    printf(" %29hd\n", *((short*)aligned));
+                    break;
+                case INT_USHORT:
+                    HDmemcpy(aligned, buf+j*sizeof(unsigned short), sizeof(unsigned short));
+                    printf(" %29hu\n", *((unsigned short*)aligned));
+                    break;
+                case INT_INT:
+                    HDmemcpy(aligned, buf+j*sizeof(int), sizeof(int));
+                    printf(" %29d\n", *((int*)aligned));
+                    break;
+                case INT_UINT:
+                    HDmemcpy(aligned, buf+j*sizeof(unsigned), sizeof(unsigned));
+                    printf(" %29u\n", *((unsigned*)aligned));
+                    break;
+                case INT_LONG:
+                    HDmemcpy(aligned, buf+j*sizeof(long), sizeof(long));
+                    printf(" %29ld\n", *((long*)aligned));
+                    break;
+                case INT_ULONG:
+                    HDmemcpy(aligned, buf+j*sizeof(unsigned long), sizeof(unsigned long));
+                    printf(" %29lu\n", *((unsigned long*)aligned));
+                    break;
+                case INT_LLONG:
+                    HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(long_long));
+                    HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)aligned));
+                    break;
+                case INT_ULLONG:
+                    HDmemcpy(aligned, buf+j*sizeof(long_long), sizeof(unsigned long_long));
+                    HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)aligned));
+                    break;
+                case INT_OTHER:
+                    break;
 	    }
 	    
 	    printf("        ans = ");
-	    for (k=0; k<dst_size; k++) {
+	    for (k=0; k<dst_size; k++)
 		printf(" %02x", hw[ENDIAN(dst_size, k)]);
-	    }
-	    printf("%*s", (int)(3*MAX(0, (ssize_t)src_size-(ssize_t)dst_size)),
-		   "");
+	    printf("%*s", (int)(3*MAX(0, (ssize_t)src_size-(ssize_t)dst_size)), "");
 	    switch (dst_type) {
-	    case INT_CHAR:
-		printf(" %29d\n", *((signed char*)hw));
-		break;
-	    case INT_UCHAR:
-		printf(" %29u\n", *((unsigned char*)hw));
-		break;
-	    case INT_SHORT:
-		printf(" %29d\n", *((short*)hw));
-		break;
-	    case INT_USHORT:
-		printf(" %29u\n", *((unsigned short*)hw));
-		break;
-	    case INT_INT:
-		printf(" %29d\n", *((int*)hw));
-		break;
-	    case INT_UINT:
-		printf(" %29u\n", *((unsigned*)hw));
-		break;
-	    case INT_LONG:
-		printf(" %29ld\n", *((long*)hw));
-		break;
-	    case INT_ULONG:
-		printf(" %29lu\n", *((unsigned long*)hw));
-		break;
-	    case INT_LLONG:
-		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)hw));
-		break;
-	    case INT_ULLONG:
-		HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)hw));
-		break;
-	    case INT_OTHER:
-		break;
+                case INT_CHAR:
+                    printf(" %29d\n", (int)*((char*)hw));
+                    break;
+                case INT_UCHAR:
+                    printf(" %29u\n", (unsigned)*((unsigned char*)hw));
+                    break;
+                case INT_SHORT:
+                    printf(" %29hd\n", *((short*)hw));
+                    break;
+                case INT_USHORT:
+                    printf(" %29hu\n", *((unsigned short*)hw));
+                    break;
+                case INT_INT:
+                    printf(" %29d\n", *((int*)hw));
+                    break;
+                case INT_UINT:
+                    printf(" %29u\n", *((unsigned*)hw));
+                    break;
+                case INT_LONG:
+                    printf(" %29ld\n", *((long*)hw));
+                    break;
+                case INT_ULONG:
+                    printf(" %29lu\n", *((unsigned long*)hw));
+                    break;
+                case INT_LLONG:
+                    HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"d\n", *((long_long*)hw));
+                    break;
+                case INT_ULLONG:
+                    HDfprintf(stdout," %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long_long*)hw));
+                    break;
+                case INT_OTHER:
+                    break;
 	    }
 
 	    if (++fails_all_tests>=max_fails) {
@@ -4356,7 +5237,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     }
 #endif
 
- done:
+done:
     if (buf) aligned_free(buf);
     if (saved) aligned_free(saved);
     if (aligned) HDfree(aligned);
@@ -4364,7 +5245,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
     reset_hdf5();	/*print statistics*/
     return (int)fails_all_tests;
 
- error:
+error:
     if (buf) aligned_free(buf);
     if (saved) aligned_free(saved);
     if (aligned) HDfree(aligned);
@@ -4583,9 +5464,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
      * The remainder of this function is executed only by the child if
      * HANDLE_SIGFPE is defined.
      */
-#ifndef __WATCOMC__
-    signal(SIGFPE,fpe_handler);
-#endif
+    HDsignal(SIGFPE,fpe_handler);
 
     /* What are the names of the source and destination types */
     if (H5Tequal(src, H5T_NATIVE_FLOAT)) {
@@ -4632,21 +5511,21 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 	goto error;
     }
     
-    /* Allocate buffers */
-    endian = H5Tget_order(H5T_NATIVE_FLOAT);
+    /* Get "interesting" values */
     src_size = H5Tget_size(src);
     dst_size = H5Tget_size(dst);
-    buf   = aligned_malloc(nelmts*MAX(src_size, dst_size));
-    saved = aligned_malloc(nelmts*MAX(src_size, dst_size));
-    aligned = malloc(16); /*should be big enough for any type*/
-#ifdef SHOW_OVERFLOWS
-    noverflows_g = 0;
-#endif
-
-    /* Get "interesting" values */
     dst_ebias=H5Tget_ebias(dst);
     H5Tget_fields(src,NULL,&src_epos,&src_esize,NULL,NULL);
     H5Tget_fields(dst,NULL,&dst_epos,&dst_esize,NULL,&dst_msize);
+
+    /* Allocate buffers */
+    endian = H5Tget_order(H5T_NATIVE_FLOAT);
+    buf   = aligned_malloc(nelmts*MAX(src_size, dst_size));
+    saved = aligned_malloc(nelmts*MAX(src_size, dst_size));
+    aligned = HDmalloc(32); /*should be big enough for any type*/
+#ifdef SHOW_OVERFLOWS
+    noverflows_g = 0;
+#endif
 
     for (i=0; i<ntests; i++) {
 
@@ -4847,7 +5726,7 @@ test_conv_flt_1 (const char *name, hid_t src, hid_t dst)
 		/* Special check for denormalized values */
 		if(check_expo[0]<(-(int)dst_ebias) || check_expo[1]<(-(int)dst_ebias)) {
 		    int expo_diff=check_expo[0]-check_expo[1];
-		    int valid_bits=((int)(dst_ebias+dst_msize)+MIN(check_expo[0],check_expo[1]))-1;
+		    int valid_bits=(int)((dst_ebias+dst_msize)+MIN(check_expo[0],check_expo[1]))-1;
 		    double epsilon=1.0;
 
 		    /* Re-scale the mantissas based on any exponent difference */
@@ -5216,11 +6095,20 @@ main(void)
     nerrors += test_compound_9();
     nerrors += test_compound_10();
     nerrors += test_compound_11();
+    nerrors += test_compound_12();
     nerrors += test_conv_int ();
     nerrors += test_conv_enum_1();
     nerrors += test_conv_enum_2();
     nerrors += test_conv_bitfield();
     nerrors += test_opaque();
+
+    /* Test user-define, query functions and software conversion 
+     * for user-defined floating-point types */
+    nerrors += test_derived_flt();
+
+    /* Test user-define, query functions and software conversion 
+     * for user-defined integer types */
+    nerrors += test_derived_integer();
 
     /* Does floating point overflow generate a SIGFPE? */
     generates_sigfpe();

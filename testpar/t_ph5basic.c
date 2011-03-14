@@ -11,7 +11,6 @@
  * http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-/* $Id: t_ph5basic.c,v 1.7.2.1 2004/01/23 00:10:37 acheng Exp $ */
 
 /*
  * Test parallel HDF5 basic components

@@ -29,45 +29,46 @@
 
 #include "testhdf5.h"
 #include "H5Cpp.h"
+#include "h5cpputil.h"
 
 #ifndef H5_NO_NAMESPACE
 using namespace H5;
 #endif  /* !H5_NO_NAMESPACE */
 
-const char*    TESTFILE = "th5s.h5";
-const char*    DATAFILE = "th5s1.h5";
+const string    TESTFILE("th5s.h5");
+const string    DATAFILE("th5s1.h5");
 
 /* 3-D dataset with fixed dimensions */
-#define SPACE1_NAME  "Space1"
-#define SPACE1_RANK	3
-#define SPACE1_DIM1	3
-#define SPACE1_DIM2	15
-#define SPACE1_DIM3	13
+const string SPACE1_NAME("Space1");
+const int SPACE1_RANK = 3;
+const int SPACE1_DIM1 = 3;
+const int SPACE1_DIM2 = 15;
+const int SPACE1_DIM3 = 13;
 
 /* 4-D dataset with one unlimited dimension */
-#define SPACE2_NAME  "Space2"
-#define SPACE2_RANK	4
-#define SPACE2_DIM1	0
-#define SPACE2_DIM2	15
-#define SPACE2_DIM3	13
-#define SPACE2_DIM4	23
-#define SPACE2_MAX1	H5S_UNLIMITED
-#define SPACE2_MAX2	15
-#define SPACE2_MAX3	13
-#define SPACE2_MAX4	23
+const string SPACE2_NAME("Space2");
+const int SPACE2_RANK = 4;
+const int SPACE2_DIM1 = 0;
+const int SPACE2_DIM2 = 15;
+const int SPACE2_DIM3 = 13;
+const int SPACE2_DIM4 = 23;
+const hsize_t SPACE2_MAX1 = H5S_UNLIMITED;
+const hsize_t SPACE2_MAX2 = 15;
+const hsize_t SPACE2_MAX3 = 13;
+const hsize_t SPACE2_MAX4 = 23;
 
 /* Scalar dataset with simple datatype */
-#define SPACE3_NAME  "Scalar1"
-#define SPACE3_RANK	0
+const string SPACE3_NAME("Scalar1");
+const int SPACE3_RANK = 0;
 unsigned space3_data=65;
 
 /* Scalar dataset with compound datatype */
-#define SPACE4_NAME  "Scalar2"
-#define SPACE4_RANK	0
-#define SPACE4_FIELDNAME1	"c1"
-#define SPACE4_FIELDNAME2	"u"
-#define SPACE4_FIELDNAME3	"f"
-#define SPACE4_FIELDNAME4	"c2"
+const string SPACE4_NAME("Scalar2");
+const int SPACE4_RANK = 0;
+const string SPACE4_FIELDNAME1("c1");
+const string SPACE4_FIELDNAME2("u");
+const string SPACE4_FIELDNAME3("f");
+const string SPACE4_FIELDNAME4("c2");
 size_t space4_field1_off=0;
 size_t space4_field2_off=0;
 size_t space4_field3_off=0;
@@ -91,6 +92,12 @@ struct space4_struct {
  *              Mar 2001
  *
  * Modifications:
+ *      January, 2005: C tests' macro VERIFY casts values to 'long' for all
+ *		       cases.  Since there are no operator<< for 'long long'
+ *		       or int64 in VS C++ ostream, I casted the hssize_t values
+ *		       passed to verify_val to 'long' as well.  If problems
+ *		       arises later, this will have to be specificly handled
+ *		       with a special routine.
  *-------------------------------------------------------------------------
  */
 static void 
@@ -117,20 +124,20 @@ test_h5s_basic(void)
 	// Get simple extent npoints of the dataspace sid1 and verify it
 	hssize_t	n;	 	/* Number of dataspace elements */
 	n = sid1.getSimpleExtentNpoints();
-	VERIFY(n, SPACE1_DIM1 * SPACE1_DIM2 * SPACE1_DIM3,
-	   "H5Sget_simple_extent_npoints");
+	verify_val((long)n, (long)(SPACE1_DIM1 * SPACE1_DIM2 * SPACE1_DIM3),
+	   "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	// Get the logical rank of dataspace sid1 and verify it
 	int	rank;		/* Logical rank of dataspace	*/
 	rank = sid1.getSimpleExtentNdims();
-	VERIFY(rank, SPACE1_RANK, "H5Sget_simple_extent_ndims");
+	verify_val(rank, SPACE1_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	// Retrieves dimension size of dataspace sid1 and verify it
 	int ndims;		/* Number of dimensions		*/
 	hsize_t	tdims[4];	/* Dimension array to test with */
 	ndims = sid1.getSimpleExtentDims( tdims );
-	VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(unsigned)), 0,
-	   "H5Sget_simple_extent_dims");
+	verify_val(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(unsigned)), 0,
+	   "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
 
 	// Create simple dataspace sid2
 	hsize_t	max2[] = {SPACE2_MAX1, SPACE2_MAX2, SPACE2_MAX3, SPACE2_MAX4};
@@ -138,55 +145,46 @@ test_h5s_basic(void)
 
 	// Get simple extent npoints of dataspace sid2 and verify it
 	n = sid2.getSimpleExtentNpoints();
-	VERIFY(n, SPACE2_DIM1 * SPACE2_DIM2 * SPACE2_DIM3 * SPACE2_DIM4,
-	   "H5Sget_simple_extent_npoints");
+	verify_val((long)n, (long)(SPACE2_DIM1 * SPACE2_DIM2 * SPACE2_DIM3 * SPACE2_DIM4),
+	   "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	// Get the logical rank of dataspace sid2 and verify it
 	rank = sid2.getSimpleExtentNdims();
-	VERIFY(rank, SPACE2_RANK, "H5Sget_simple_extent_ndims");
+	verify_val(rank, SPACE2_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	// Retrieves dimension size and max size of dataspace sid2 and 
 	// verify them
 	ndims = sid2.getSimpleExtentDims( tdims, tmax );
-	VERIFY(HDmemcmp(tdims, dims2, SPACE2_RANK * sizeof(unsigned)), 0,
-	   "H5Sget_simple_extent_dims");
-	VERIFY(HDmemcmp(tmax, max2, SPACE2_RANK * sizeof(unsigned)), 0,
-	   "H5Sget_simple_extent_dims");
-    }	// end of first try block
-    catch( DataSpaceIException error ) 
-    {
-        CHECK(FAIL, FAIL, error.getCFuncName()); 
-    }
+	verify_val(HDmemcmp(tdims, dims2, SPACE2_RANK * sizeof(unsigned)), 0,
+	   "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
+	verify_val(HDmemcmp(tmax, max2, SPACE2_RANK * sizeof(unsigned)), 0,
+	   "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
 
-    /*
-    * Check to be sure we can't create a simple data space that has too many
-    * dimensions.
-    */
-    try { 
-	DataSpace manydims_ds(H5S_MAX_RANK+1, dims3, NULL);
+	// Check to be sure we can't create a simple data space that has too
+	// many dimensions.
+	try { 
+	    DataSpace manydims_ds(H5S_MAX_RANK+1, dims3, NULL);
 
-	// Should FAIL but didn't - BMR (Note 1): a new macro that skips 
-	// the comparison b/w the 1st & 2nd args would be more appropriate, 
-	// but VERIFY will still do - Mar 12, 01
-	VERIFY(manydims_ds.getId(), FAIL, "DataSpace constructor");
-    }
-    catch( DataSpaceIException error ) {} // do nothing, FAIL expected
+	    // Should FAIL but didn't, so throw an invalid action exception
+	    throw InvalidActionException("DataSpace constructor", "Library allowed overwrite of existing dataset");
+	}
+	catch( DataSpaceIException E ) // Simple data space with too many dims
+	{} // do nothing, exception expected
 
-    /*
-     * Try reading a file that has been prepared that has a dataset with a
-     * higher dimensionality than what the library can handle.
-     *
-     * If this test fails and the H5S_MAX_RANK variable has changed, follow
-     * the instructions in space_overflow.c for regenating the th5s.h5 file.
-     */
-    char testfile[512]="";
-    char *srcdir = getenv("srcdir");
-    if (srcdir && ((strlen(srcdir) + strlen(TESTFILE) + 1) < sizeof(testfile))){
-	strcpy(testfile, srcdir);
-	strcat(testfile, "/");
-    }
-    strcat(testfile, TESTFILE);
-    try {  // try block for testing higher dimensionality
+       /*
+	* Try reading a file that has been prepared that has a dataset with a
+	* higher dimensionality than what the library can handle.
+	*
+	* If this test fails and the H5S_MAX_RANK variable has changed, follow
+	* the instructions in space_overflow.c for regenating the th5s.h5 file.
+	*/
+	char testfile[512]="";
+	char *srcdir = getenv("srcdir");
+	if (srcdir && ((strlen(srcdir) + strlen(TESTFILE.c_str()) + 1) < sizeof(testfile))){
+	    strcpy(testfile, srcdir);
+	    strcat(testfile, "/");
+	}
+	strcat(testfile, TESTFILE.c_str());
 
 	// Create file
 	H5File fid1(testfile, H5F_ACC_RDONLY);
@@ -195,39 +193,48 @@ test_h5s_basic(void)
 	// what the library can handle and this operation should fail.
 	try {
 	    DataSet dset1 = fid1.openDataSet( "dset" ); 
-	    VERIFY( dset1.getId(), FAIL, "H5File::openDataSet");
-	}
-	catch( FileIException error ) { } // do nothing, FAIL expected
-    }	// end of try block for testing higher dimensionality
 
-    // catch exception thrown by H5File constructor
-    catch( FileIException error ) {
-    	CHECK_I(FAIL, error.getCFuncName());
-	cerr << "***cannot open the pre-created H5S_MAX_RANK test file" <<
-	    testfile << endl;
-    }
+	    // Should FAIL but didn't, so throw an invalid action exception
+	    throw InvalidActionException("H5File::openDataSet", "Opening a dataset with higher dimensionality than what the library can handle");
+	}
+	catch( FileIException E ) // catching higher dimensionality dataset
+	{} // do nothing, exception expected
 
     // CHECK_I(ret, "H5Fclose");  // leave this here, later, fake a failure
 		// in the p_close see how this will handle it. - BMR
 
-    /* Verify that incorrect dimensions don't work */
-    dims1[0] = 0;
-    try {
-	DataSpace wrongdim_ds (SPACE1_RANK, dims1); 
-	VERIFY(wrongdim_ds.getId(), FAIL, "DataSpace constructor");
-    }
-    catch( DataSpaceIException error ) {} // do nothing; FAIL expected 
+    // Verify that incorrect dimensions don't work
+	dims1[0] = 0;
+	try {
+	    DataSpace wrongdim_ds (SPACE1_RANK, dims1); 
 
-    // Create a simple dataspace
-    DataSpace sid3 (H5S_SIMPLE);
+	    // Should FAIL but didn't, so throw an invalid action exception
+	    throw InvalidActionException("DataSpace constructor", "Attempted to use incorrect dimensions");
+	}
+	catch( DataSpaceIException E ) // catching use of incorrect dimensions
+	{} // do nothing, exception expected
 
-    // Attempts to use incorrect dimensions, should fail
-    try { sid3.setExtentSimple( SPACE1_RANK, dims1 ); }
-    catch( DataSpaceIException error )
+	// Another incorrect dimension case
+	DataSpace sid3 (H5S_SIMPLE);
+	try {
+	    sid3.setExtentSimple( SPACE1_RANK, dims1 );
+
+	    // Should FAIL but didn't, so throw an invalid action exception
+	    throw InvalidActionException("DataSpace::setExtentSimple", "Attempted to use incorrect dimensions");
+	}
+	catch (DataSpaceIException E) // catching use of incorrect dimensions
+	{} // do nothing, exception expected
+    }	// end of outer try block
+
+    catch (InvalidActionException E)
     {
-	// ret value is already < 0 for an exception to be thrown;
-	// also see Note 1 above
-	VERIFY(FAIL, FAIL, error.getCFuncName()); 
+        cerr << " FAILED" << endl;
+        cerr << "    <<<  " << E.getDetailMsg() << "  >>>" << endl << endl;
+    }
+    // catch all other exceptions
+    catch (Exception E) 
+    {
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }				/* test_h5s_basic() */
 
@@ -243,6 +250,12 @@ test_h5s_basic(void)
  *              Mar 2001
  *
  * Modifications:
+ *      January, 2005: C tests' macro VERIFY casts values to 'long' for all
+ *		       cases.  Since there are no operator<< for 'long long'
+ *		       or int64 in VS C++ ostream, I casted the hssize_t values
+ *		       passed to verify_val to 'long' as well.  If problems
+ *		       arises later, this will have to be specificly handled
+ *		       with a special routine.
  *-------------------------------------------------------------------------
  */
 static void 
@@ -263,22 +276,22 @@ test_h5s_scalar_write(void)
 	//n = H5Sget_simple_extent_npoints(sid1);
 	hssize_t	n;	 	/* Number of dataspace elements */
 	n = sid1.getSimpleExtentNpoints();
-	VERIFY(n, 1, "DataSpace::getSimpleExtentNpoints");
+	verify_val((long)n, 1, "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	int	rank;		/* Logical rank of dataspace	*/
 	rank = sid1.getSimpleExtentNdims();
-	VERIFY(rank, SPACE3_RANK, "DataSpace::getSimpleExtentNdims");
+	verify_val(rank, SPACE3_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	// Retrieves dimension size of dataspace sid1 and verify it
 	int ndims;		/* Number of dimensions		*/
 	hsize_t	tdims[4];	/* Dimension array to test with */
 	ndims = sid1.getSimpleExtentDims( tdims );
-	VERIFY(ndims, 0, "DataSpace::getSimpleExtentDims");
+	verify_val(ndims, 0, "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
 
 	/* Verify extent type */
 	H5S_class_t ext_type;   /* Extent type */
 	ext_type = sid1.getSimpleExtentType();
-	VERIFY(ext_type, H5S_SCALAR, "DataSpace::getSimpleExtentType");
+	verify_val(ext_type, H5S_SCALAR, "DataSpace::getSimpleExtentType", __LINE__, __FILE__);
 
 	/* Create a dataset */
 	DataSet dataset = fid1.createDataSet("Dataset1", PredType::NATIVE_UINT,sid1);
@@ -287,7 +300,7 @@ test_h5s_scalar_write(void)
     } // end of try block
     catch (Exception error)
     {
-	CHECK(FAIL, FAIL, error.getCFuncName());
+	issue_fail_msg(error.getCFuncName(), __LINE__, __FILE__);
     }
 }				/* test_h5s_scalar_write() */
 
@@ -303,6 +316,12 @@ test_h5s_scalar_write(void)
  *              Mar 2001
  *
  * Modifications:
+ *      January, 2005: C tests' macro VERIFY casts values to 'long' for all
+ *		       cases.  Since there are no operator<< for 'long long'
+ *		       or int64 in VS C++ ostream, I casted the hssize_t values
+ *		       passed to verify_val to 'long' as well.  If problems
+ *		       arises later, this will have to be specificly handled
+ *		       with a special routine.
  *-------------------------------------------------------------------------
  */
 static void 
@@ -325,23 +344,23 @@ test_h5s_scalar_read(void)
 
 	// Get the number of dataspace elements
 	hssize_t n = sid1.getSimpleExtentNpoints();
-	VERIFY(n, 1, "H5Sget_simple_extent_npoints");
+	verify_val((long)n, 1, "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	// Get the logical rank of the dataspace
 	int ndims = sid1.getSimpleExtentNdims();
-	VERIFY(ndims, SPACE3_RANK, "H5Sget_simple_extent_ndims");
+	verify_val(ndims, SPACE3_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	ndims = sid1.getSimpleExtentDims(tdims);
-	VERIFY(ndims, 0, "H5Sget_simple_extent_dims");
+	verify_val(ndims, 0, "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
 
 	unsigned      	rdata;      	/* Scalar data read in 		*/
 	dataset.read(&rdata, PredType::NATIVE_UINT);
-	VERIFY(rdata, space3_data, "H5Dread");
+	verify_val(rdata, space3_data, "DataSet::read", __LINE__, __FILE__);
     }   // end of try block
     catch (Exception error)
     {
 	// all the exceptions caused by negative returned values by C APIs
-	CHECK(FAIL, FAIL, error.getCFuncName());
+	issue_fail_msg(error.getCFuncName(), __LINE__, __FILE__);
     }
     
 }				/* test_h5s_scalar_read() */
@@ -359,6 +378,12 @@ test_h5s_scalar_read(void)
  *              Mar 2001
  *
  * Modifications:
+ *      January, 2005: C tests' macro VERIFY casts values to 'long' for all
+ *		       cases.  Since there are no operator<< for 'long long'
+ *		       or int64 in VS C++ ostream, I casted the hssize_t values
+ *		       passed to verify_val to 'long' as well.  If problems
+ *		       arises later, this will have to be specificly handled
+ *		       with a special routine.
  *-------------------------------------------------------------------------
  */
 static void 
@@ -393,15 +418,15 @@ test_h5s_compound_scalar_write(void)
 
 	// Get the number of dataspace elements
 	hssize_t n = sid1.getSimpleExtentNpoints();
-	VERIFY(n, 1, "H5Sget_simple_extent_npoints");
+	verify_val((long)n, 1, "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	// Get the logical rank of the dataspace
 	int ndims = sid1.getSimpleExtentNdims();
-	VERIFY(ndims, SPACE3_RANK, "H5Sget_simple_extent_ndims");
+	verify_val(ndims, SPACE3_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	hsize_t		tdims[4];	/* Dimension array to test with */
 	ndims = sid1.getSimpleExtentDims(tdims);
-	VERIFY(ndims, 0, "H5Sget_simple_extent_dims");
+	verify_val(ndims, 0, "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
 
 	/* Create a dataset */
 	DataSet dataset = fid1.createDataSet("Dataset1", tid1, sid1);
@@ -411,7 +436,7 @@ test_h5s_compound_scalar_write(void)
     catch (Exception error)
     {
 	// all the exceptions caused by negative returned values by C APIs
-	CHECK(FAIL, FAIL, error.getCFuncName());
+	issue_fail_msg(error.getCFuncName(), __LINE__, __FILE__);
     }
 
 }				/* test_h5s_compound_scalar_write() */
@@ -429,6 +454,12 @@ test_h5s_compound_scalar_write(void)
  *              Mar 2001
  *
  * Modifications:
+ *      January, 2005: C tests' macro VERIFY casts values to 'long' for all
+ *		       cases.  Since there are no operator<< for 'long long'
+ *		       or int64 in VS C++ ostream, I casted the hssize_t values
+ *		       passed to verify_val to 'long' as well.  If problems
+ *		       arises later, this will have to be specificly handled
+ *		       with a special routine.
  *-------------------------------------------------------------------------
  */
 static void 
@@ -450,14 +481,14 @@ test_h5s_compound_scalar_read(void)
 
 	// Get the number of dataspace elements
 	hssize_t n = sid1.getSimpleExtentNpoints();
-	VERIFY(n, 1, "H5Sget_simple_extent_npoints");
+	verify_val((long)n, 1, "DataSpace::getSimpleExtentNpoints", __LINE__, __FILE__);
 
 	// Get the logical rank of the dataspace
 	int ndims = sid1.getSimpleExtentNdims();
-	VERIFY(ndims, SPACE3_RANK, "H5Sget_simple_extent_ndims");
+	verify_val(ndims, SPACE3_RANK, "DataSpace::getSimpleExtentNdims", __LINE__, __FILE__);
 
 	ndims = sid1.getSimpleExtentDims(tdims);
-	VERIFY(ndims, 0, "H5Sget_simple_extent_dims");
+	verify_val(ndims, 0, "DataSpace::getSimpleExtentDims", __LINE__, __FILE__);
 
 	// Get the datatype of this dataset.
 	CompType type(dataset);
@@ -481,7 +512,7 @@ test_h5s_compound_scalar_read(void)
     catch (Exception error)
     {
 	// all the exceptions caused by negative returned values by C APIs
-	CHECK(FAIL, FAIL, error.getCFuncName());
+	issue_fail_msg(error.getCFuncName(), __LINE__, __FILE__);
     }
 }				/* test_h5s_compound_scalar_read() */
 
@@ -507,7 +538,7 @@ test_h5s(void)
 
     test_h5s_basic();		/* Test basic H5S code */
     test_h5s_scalar_write();	/* Test scalar H5S writing code */
-    test_h5s_scalar_read();		/* Test scalar H5S reading code */
+    test_h5s_scalar_read();	/* Test scalar H5S reading code */
     test_h5s_compound_scalar_write();	/* Test compound datatype scalar H5S writing code */
     test_h5s_compound_scalar_read();	/* Test compound datatype scalar H5S reading code */
 } /* test_h5s() */
@@ -530,6 +561,6 @@ test_h5s(void)
 void
 cleanup_h5s(void)
 {
-    remove(DATAFILE);
+    remove(DATAFILE.c_str());
 }
 

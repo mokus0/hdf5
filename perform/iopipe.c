@@ -147,15 +147,11 @@ static void
 synchronize (void)
 {
 #ifdef H5_HAVE_SYSTEM
-#ifdef WIN32
-#ifdef __WATCOMC__
-	flushall();
-#else /* __WATCOMC__ */
+#if defined(WIN32) && ! defined(__CYGWIN__)
 	_flushall();
-#endif /* __WATCOMC__ */
 #else
-    system ("sync");
-    system ("df >/dev/null");
+    HDsystem ("sync");
+    HDsystem ("df >/dev/null");
 #endif
 #if 0
     /*
@@ -203,7 +199,7 @@ main (void)
     int			i, fd;
     hssize_t		n;
     off_t		offset;
-    hssize_t		start[2];
+    hsize_t		start[2];
     hsize_t		count[2];
 
 

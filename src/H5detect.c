@@ -83,9 +83,9 @@ typedef struct malign_t {
 } malign_t;
 
 /* global variables types detection code */
-static detected_t	d[MAXDETECT];
-static malign_t        m[MAXDETECT];
-static volatile int	nd = 0, na = 0;
+static detected_t	d_g[MAXDETECT];
+static malign_t        m_g[MAXDETECT];
+static volatile int	nd_g = 0, na_g = 0;
    
 static void print_results(int nd, detected_t *d, int na, malign_t *m);
 static void iprint(detected_t *);
@@ -195,17 +195,31 @@ precision (detected_t *d)
  */
 #define DETECT_I(TYPE,VAR,INFO) {					      \
    TYPE _v;								      \
+   int _int_v;                                                                \
    int _i, _j;								      \
    unsigned char *_x;							      \
+                                                                              \
    memset (&INFO, 0, sizeof(INFO));					      \
    INFO.varname = #VAR;							      \
    INFO.size = sizeof(TYPE);						      \
-   for (_i=sizeof(TYPE),_v=0; _i>0; --_i) _v = (_v<<8) + _i;		      \
-   for (_i=0,_x=(unsigned char *)&_v; _i<(signed)sizeof(TYPE); _i++) {	      \
-      _j = (*_x++)-1;							      \
-      assert (_j<(signed)sizeof(TYPE));					      \
-      INFO.perm[_i] = _j;						      \
-   }									      \
+                                                                              \
+   if(sizeof(TYPE)!=1) {                                                      \
+       for (_i=sizeof(TYPE),_v=0; _i>0; --_i) _v = (_v<<8) + _i;	      \
+       for (_i=0,_x=(unsigned char *)&_v; _i<(signed)sizeof(TYPE); _i++) {    \
+          _j = (*_x++)-1;						      \
+          assert (_j<(signed)sizeof(TYPE));				      \
+          INFO.perm[_i] = _j;						      \
+       }								      \
+   } else { /*Not able to detect order if type size is 1 byte. Use native int \
+             *instead. No effect on data, just make it look correct. */       \
+       for (_i=sizeof(int),_int_v=0; _i>0; --_i) _int_v = (_int_v<<8) + _i;   \
+       for (_i=0,_x=(unsigned char *)&_int_v; _i<(signed)sizeof(int); _i++) { \
+          _j = (*_x++)-1;						      \
+          assert (_j<(signed)sizeof(int));				      \
+          INFO.perm[_i] = _j;						      \
+       }								      \
+   }                                                                          \
+                                                                              \
    INFO.sign = ('U'!=*(#VAR));						      \
    precision (&(INFO));							      \
    ALIGNMENT(TYPE, INFO);						      \
@@ -493,39 +507,24 @@ sigbus_handler(int UNUSED signo)
 static void
 print_results(int nd, detected_t *d, int na, malign_t *misc_align)
 {
-
+    int         byte_order=0;
     int		i, j;
 
     /* Include files */
     printf("\
 #define H5T_PACKAGE /*suppress error about including H5Tpkg.h*/\n\
-#define PABLO_MASK	H5Tinit_mask\n\
 \n\
 #include \"H5private.h\"\n\
 #include \"H5Iprivate.h\"\n\
 #include \"H5Eprivate.h\"\n\
 #include \"H5FLprivate.h\"\n\
-#include \"H5MMprivate.h\"\n\
 #include \"H5Tpkg.h\"\n\
 \n\
-static int interface_initialize_g = 0;\n\
-#define INTERFACE_INIT NULL\n\
-\n\
-/* Declare external the free list for H5T_t's */\n\
+/* Declare external the free lists for H5T_t's and H5T_shared_t's */\n\
 H5FL_EXTERN(H5T_t);\n\
+H5FL_EXTERN(H5T_shared_t);\n\
 \n\
 \n");
-
-    /* The interface termination function */
-    printf("\n\
-int\n\
-H5TN_term_interface(void)\n\
-{\n\
-    interface_initialize_g = 0;\n\
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5TN_term_interface);\n\
-    \n\
-    FUNC_LEAVE_NOAPI(0);\n\
-}\n");
 
     /* The interface initialization function */
     printf("\n\
@@ -538,7 +537,19 @@ H5TN_init_interface(void)\n\
     FUNC_ENTER_NOAPI(H5TN_init_interface, FAIL);\n");
 
     for (i = 0; i < nd; i++) {
-
+        /* The native endianess of this machine */
+        /* The INFO.perm now contains `-1' for bytes that aren't used and
+         * are always zero.  This happens on the Cray for `short' where
+         * sizeof(short) is 8, but only the low-order 4 bytes are ever used.
+         */
+        for(j=0; j<32; j++) {
+            /*Find the 1st containing valid data*/
+            if(d[i].perm[j]>-1) {
+                byte_order=d[i].perm[j];
+                break;
+            }
+        }
+                
 	/* Print a comment to describe this section of definitions. */
 	printf("\n   /*\n");
 	iprint(d+i);
@@ -548,37 +559,43 @@ H5TN_init_interface(void)\n\
 	printf("\
     if (NULL==(dt = H5FL_CALLOC (H5T_t)))\n\
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL,\"memory allocation failed\");\n\
-    dt->state = H5T_STATE_IMMUTABLE;\n\
+    if (NULL==(dt->shared = H5FL_CALLOC(H5T_shared_t)))\n\
+    { \
+        H5FL_FREE(H5T_t, dt);\
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, \"memory allocation failed\");\n\
+    } \
+    dt->shared->state = H5T_STATE_IMMUTABLE;\n\
     dt->ent.header = HADDR_UNDEF;\n\
-    dt->type = H5T_%s;\n\
-    dt->size = %d;\n\
-    dt->u.atomic.order = H5T_ORDER_%s;\n\
-    dt->u.atomic.offset = %d;\n\
-    dt->u.atomic.prec = %d;\n\
-    dt->u.atomic.lsb_pad = H5T_PAD_ZERO;\n\
-    dt->u.atomic.msb_pad = H5T_PAD_ZERO;\n",
+    dt->shared->type = H5T_%s;\n\
+    dt->shared->size = %d;\n\
+    dt->shared->u.atomic.order = H5T_ORDER_%s;\n\
+    dt->shared->u.atomic.offset = %d;\n\
+    dt->shared->u.atomic.prec = %d;\n\
+    dt->shared->u.atomic.lsb_pad = H5T_PAD_ZERO;\n\
+    dt->shared->u.atomic.msb_pad = H5T_PAD_ZERO;\n",
 	       d[i].msize ? "FLOAT" : "INTEGER",/*class			*/
 	       d[i].size,			/*size			*/
-	       d[i].perm[0] ? "BE" : "LE",	/*byte order		*/
+	       byte_order ? "BE" : "LE",	/*byte order		*/
 	       d[i].offset,			/*offset		*/
 	       d[i].precision);			/*precision		*/
+    assert((d[i].perm[0]>0)==(byte_order>0));   /* Double-check that byte-order doesn't change */
 
 	if (0 == d[i].msize) {
 	    /* The part unique to fixed point types */
 	    printf("\
-    dt->u.atomic.u.i.sign = H5T_SGN_%s;\n",
+    dt->shared->u.atomic.u.i.sign = H5T_SGN_%s;\n",
 		   d[i].sign ? "2" : "NONE");
 	} else {
 	    /* The part unique to floating point types */
 	    printf("\
-    dt->u.atomic.u.f.sign = %d;\n\
-    dt->u.atomic.u.f.epos = %d;\n\
-    dt->u.atomic.u.f.esize = %d;\n\
-    dt->u.atomic.u.f.ebias = 0x%08lx;\n\
-    dt->u.atomic.u.f.mpos = %d;\n\
-    dt->u.atomic.u.f.msize = %d;\n\
-    dt->u.atomic.u.f.norm = H5T_NORM_%s;\n\
-    dt->u.atomic.u.f.pad = H5T_PAD_ZERO;\n",
+    dt->shared->u.atomic.u.f.sign = %d;\n\
+    dt->shared->u.atomic.u.f.epos = %d;\n\
+    dt->shared->u.atomic.u.f.esize = %d;\n\
+    dt->shared->u.atomic.u.f.ebias = 0x%08lx;\n\
+    dt->shared->u.atomic.u.f.mpos = %d;\n\
+    dt->shared->u.atomic.u.f.msize = %d;\n\
+    dt->shared->u.atomic.u.f.norm = H5T_NORM_%s;\n\
+    dt->shared->u.atomic.u.f.pad = H5T_PAD_ZERO;\n",
 		   d[i].sign,	/*sign location */
 		   d[i].epos,	/*exponent loc	*/
 		   d[i].esize,	/*exponent size */
@@ -605,6 +622,11 @@ H5TN_init_interface(void)\n\
                     d[i].varname, (unsigned long)(d[i].comp_align));
         }
     }
+
+    printf("\n\
+    /* Set the native order for this machine */\n\
+    H5T_native_order_g = H5T_ORDER_%s;\n",
+	       byte_order ? "BE" : "LE");	/*byte order		*/
 
     /* Structure alignment for pointers, hvl_t, hobj_ref_t, hdset_reg_ref_t */
     printf("\n    /* Structure alignment for pointers, hvl_t, hobj_ref_t, hdset_reg_ref_t */\n");
@@ -1110,14 +1132,14 @@ bit.\n";
 static void
 detect_C89_integers(void)
 {
-    DETECT_I(signed char,	  SCHAR,        d[nd]); nd++;
-    DETECT_I(unsigned char,	  UCHAR,        d[nd]); nd++;
-    DETECT_I(short,		  SHORT,        d[nd]); nd++; 
-    DETECT_I(unsigned short,	  USHORT,       d[nd]); nd++;
-    DETECT_I(int,		  INT,	        d[nd]); nd++;
-    DETECT_I(unsigned int,	  UINT,	        d[nd]); nd++;
-    DETECT_I(long,		  LONG,	        d[nd]); nd++;
-    DETECT_I(unsigned long,	  ULONG,        d[nd]); nd++;
+    DETECT_I(signed char,	  SCHAR,        d_g[nd_g]); nd_g++;
+    DETECT_I(unsigned char,	  UCHAR,        d_g[nd_g]); nd_g++;
+    DETECT_I(short,		  SHORT,        d_g[nd_g]); nd_g++; 
+    DETECT_I(unsigned short,	  USHORT,       d_g[nd_g]); nd_g++;
+    DETECT_I(int,		  INT,	        d_g[nd_g]); nd_g++;
+    DETECT_I(unsigned int,	  UINT,	        d_g[nd_g]); nd_g++;
+    DETECT_I(long,		  LONG,	        d_g[nd_g]); nd_g++;
+    DETECT_I(unsigned long,	  ULONG,        d_g[nd_g]); nd_g++;
 }
 
 
@@ -1138,8 +1160,8 @@ detect_C89_integers(void)
 static void
 detect_C89_floats(void)
 {
-    DETECT_F(float,		  FLOAT,        d[nd]); nd++;
-    DETECT_F(double,		  DOUBLE,       d[nd]); nd++;
+    DETECT_F(float,		  FLOAT,        d_g[nd_g]); nd_g++;
+    DETECT_F(double,		  DOUBLE,       d_g[nd_g]); nd_g++;
 }
 
 
@@ -1161,22 +1183,22 @@ static void
 detect_C99_integers8(void)
 {
 #if H5_SIZEOF_INT8_T>0
-    DETECT_I(int8_t, 		  INT8,         d[nd]); nd++;
+    DETECT_I(int8_t, 		  INT8,         d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT8_T>0
-    DETECT_I(uint8_t, 		  UINT8,        d[nd]); nd++;
+    DETECT_I(uint8_t, 		  UINT8,        d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_LEAST8_T>0
-    DETECT_I(int_least8_t, 	  INT_LEAST8,   d[nd]); nd++;
+    DETECT_I(int_least8_t, 	  INT_LEAST8,   d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_LEAST8_T>0
-    DETECT_I(uint_least8_t, 	  UINT_LEAST8,  d[nd]); nd++;
+    DETECT_I(uint_least8_t, 	  UINT_LEAST8,  d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_FAST8_T>0
-    DETECT_I(int_fast8_t, 	  INT_FAST8,    d[nd]); nd++;
+    DETECT_I(int_fast8_t, 	  INT_FAST8,    d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_FAST8_T>0
-    DETECT_I(uint_fast8_t, 	  UINT_FAST8,   d[nd]); nd++;
+    DETECT_I(uint_fast8_t, 	  UINT_FAST8,   d_g[nd_g]); nd_g++;
 #endif
 }
 
@@ -1199,22 +1221,22 @@ static void
 detect_C99_integers16(void)
 {
 #if H5_SIZEOF_INT16_T>0
-    DETECT_I(int16_t, 		  INT16,        d[nd]); nd++;
+    DETECT_I(int16_t, 		  INT16,        d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT16_T>0
-    DETECT_I(uint16_t, 		  UINT16,       d[nd]); nd++;
+    DETECT_I(uint16_t, 		  UINT16,       d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_LEAST16_T>0
-    DETECT_I(int_least16_t, 	  INT_LEAST16,  d[nd]); nd++;
+    DETECT_I(int_least16_t, 	  INT_LEAST16,  d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_LEAST16_T>0
-    DETECT_I(uint_least16_t, 	  UINT_LEAST16, d[nd]); nd++;
+    DETECT_I(uint_least16_t, 	  UINT_LEAST16, d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_FAST16_T>0
-    DETECT_I(int_fast16_t, 	  INT_FAST16,   d[nd]); nd++;
+    DETECT_I(int_fast16_t, 	  INT_FAST16,   d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_FAST16_T>0
-    DETECT_I(uint_fast16_t, 	  UINT_FAST16,  d[nd]); nd++;
+    DETECT_I(uint_fast16_t, 	  UINT_FAST16,  d_g[nd_g]); nd_g++;
 #endif
 }
 
@@ -1237,22 +1259,22 @@ static void
 detect_C99_integers32(void)
 {
 #if H5_SIZEOF_INT32_T>0
-    DETECT_I(int32_t, 		  INT32,        d[nd]); nd++;
+    DETECT_I(int32_t, 		  INT32,        d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT32_T>0
-    DETECT_I(uint32_t, 		  UINT32,       d[nd]); nd++;
+    DETECT_I(uint32_t, 		  UINT32,       d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_LEAST32_T>0
-    DETECT_I(int_least32_t, 	  INT_LEAST32,  d[nd]); nd++;
+    DETECT_I(int_least32_t, 	  INT_LEAST32,  d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_LEAST32_T>0
-    DETECT_I(uint_least32_t, 	  UINT_LEAST32, d[nd]); nd++;
+    DETECT_I(uint_least32_t, 	  UINT_LEAST32, d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_FAST32_T>0
-    DETECT_I(int_fast32_t, 	  INT_FAST32,   d[nd]); nd++;
+    DETECT_I(int_fast32_t, 	  INT_FAST32,   d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_FAST32_T>0
-    DETECT_I(uint_fast32_t, 	  UINT_FAST32,  d[nd]); nd++;
+    DETECT_I(uint_fast32_t, 	  UINT_FAST32,  d_g[nd_g]); nd_g++;
 #endif
 }
 
@@ -1275,35 +1297,35 @@ static void
 detect_C99_integers64(void)
 {
 #if H5_SIZEOF_INT64_T>0
-    DETECT_I(int64_t, 		  INT64,        d[nd]); nd++;
+    DETECT_I(int64_t, 		  INT64,        d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT64_T>0
-    DETECT_I(uint64_t, 		  UINT64,       d[nd]); nd++;
+    DETECT_I(uint64_t, 		  UINT64,       d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_LEAST64_T>0
-    DETECT_I(int_least64_t, 	  INT_LEAST64,  d[nd]); nd++;
+    DETECT_I(int_least64_t, 	  INT_LEAST64,  d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_LEAST64_T>0
-    DETECT_I(uint_least64_t, 	  UINT_LEAST64, d[nd]); nd++;
+    DETECT_I(uint_least64_t, 	  UINT_LEAST64, d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_INT_FAST64_T>0
-    DETECT_I(int_fast64_t, 	  INT_FAST64,   d[nd]); nd++;
+    DETECT_I(int_fast64_t, 	  INT_FAST64,   d_g[nd_g]); nd_g++;
 #endif
 #if H5_SIZEOF_UINT_FAST64_T>0
-    DETECT_I(uint_fast64_t, 	  UINT_FAST64,  d[nd]); nd++;
+    DETECT_I(uint_fast64_t, 	  UINT_FAST64,  d_g[nd_g]); nd_g++;
 #endif
     
 #if H5_SIZEOF_LONG_LONG>0
-    DETECT_I(long_long,		  LLONG,        d[nd]); nd++;
-    DETECT_I(unsigned long_long,  ULLONG,       d[nd]); nd++;
+    DETECT_I(long_long,		  LLONG,        d_g[nd_g]); nd_g++;
+    DETECT_I(unsigned long_long,  ULLONG,       d_g[nd_g]); nd_g++;
 #else
     /*
      * This architecture doesn't support an integer type larger than `long'
      * so we'll just make H5T_NATIVE_LLONG the same as H5T_NATIVE_LONG since
      * `long long' is probably equivalent to `long' here anyway.
      */
-    DETECT_I(long,		  LLONG,        d[nd]); nd++;
-    DETECT_I(unsigned long,	  ULLONG,       d[nd]); nd++;
+    DETECT_I(long,		  LLONG,        d_g[nd_g]); nd_g++;
+    DETECT_I(unsigned long,	  ULLONG,       d_g[nd_g]); nd_g++;
 #endif
 }
 
@@ -1358,9 +1380,9 @@ detect_C99_floats(void)
      * some systems and `long double' is probably the same as `double' here
      * anyway.
      */
-    DETECT_F(double,		  LDOUBLE,      d[nd]); nd++;
+    DETECT_F(double,		  LDOUBLE,      d_g[nd_g]); nd_g++;
 #else
-    DETECT_F(long double,	  LDOUBLE,      d[nd]); nd++;
+    DETECT_F(long double,	  LDOUBLE,      d_g[nd_g]); nd_g++;
 #endif
 }
 
@@ -1383,10 +1405,10 @@ static void
 detect_alignments(void)
 {
     /* Detect structure alignment for pointers, hvl_t, hobj_ref_t, hdset_reg_ref_t */
-    DETECT_M(void *,              POINTER,      m[na]); na++;
-    DETECT_M(hvl_t,               HVL,          m[na]); na++;
-    DETECT_M(hobj_ref_t,          HOBJREF,      m[na]); na++;
-    DETECT_M(hdset_reg_ref_t,     HDSETREGREF,  m[na]); na++;
+    DETECT_M(void *,              POINTER,      m_g[na_g]); na_g++;
+    DETECT_M(hvl_t,               HVL,          m_g[na_g]); na_g++;
+    DETECT_M(hobj_ref_t,          HOBJREF,      m_g[na_g]); na_g++;
+    DETECT_M(hdset_reg_ref_t,     HDSETREGREF,  m_g[na_g]); na_g++;
 }
 
 
@@ -1449,7 +1471,7 @@ main(void)
     /* Detect structure alignment */
     detect_alignments();
     
-    print_results (nd, d, na, m);
+    print_results (nd_g, d_g, na_g, m_g);
     
     return 0;
 }

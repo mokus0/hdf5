@@ -638,7 +638,7 @@ static void make_dset_reg_ref(hid_t loc_id)
  hid_t           sid2;  /* Dataspace ID #2  */
  hsize_t         dims1[] = {SPACE1_DIM1};
  hsize_t         dims2[] = {SPACE2_DIM1, SPACE2_DIM2};
- hssize_t        start[SPACE2_RANK];     /* Starting location of hyperslab */
+ hsize_t         start[SPACE2_RANK];     /* Starting location of hyperslab */
  hsize_t         stride[SPACE2_RANK];    /* Stride of hyperslab */
  hsize_t         count[SPACE2_RANK];     /* Element count of hyperslab */
  hsize_t         block[SPACE2_RANK];     /* Block size of hyperslab */
@@ -655,7 +655,7 @@ static void make_dset_reg_ref(hid_t loc_id)
  sid2 = H5Screate_simple(SPACE2_RANK, dims2, NULL);
  
  /* Create a dataset */
- dset2=H5Dcreate(loc_id,"dsetreg",H5T_STD_U8LE,sid2,H5P_DEFAULT);
+ dset2=H5Dcreate(loc_id,"dsetreg",H5T_NATIVE_UCHAR,sid2,H5P_DEFAULT);
  
  for(i=0; i<SPACE2_DIM1*SPACE2_DIM2; i++)
   dwbuf[i]=i*3; 

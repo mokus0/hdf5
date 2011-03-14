@@ -15,7 +15,7 @@ dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.82.2.63 2004/09/15 17:24:57 epourmal Exp $)
+AC_REVISION($Id: configure.in,v 1.82.2.84 2005/03/03 13:37:35 epourmal Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +24,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5 Fortran], [1.6.3], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5 Fortran], [1.6.4], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/HDF5.f90])
 AC_CONFIG_HEADER([src/H5config_fortran.h])
 
@@ -56,6 +56,7 @@ dnl HDF5 integer variables for the H5fortran_types.f90 file.
 dnl
 AC_SUBST(R_LARGE)
 AC_SUBST(R_INTEGER)
+AC_SUBST(HADDR_T)
 AC_SUBST(HSIZE_T)
 AC_SUBST(HSSIZE_T)
 AC_SUBST(HID_T)
@@ -292,21 +293,36 @@ case "X-$enable_production" in
       CFLAGS=$CFLAGS_temp
     fi
 
+    dnl Remove the "-g" flag from FFLAGS if it's in there.
+    dnl
+    FFLAGS_temp=""
+    if test -n "$FFLAGS"; then
+      for d in $FFLAGS ; do
+        if test "X$d" != "X-g"; then
+          FFLAGS_temp="$FFLAGS_temp $d"
+        fi
+      done
+      FFLAGS=$FFLAGS_temp
+    fi
+
     CONFIG_MODE=production
     CFLAGS="$CFLAGS $PROD_CFLAGS"
     CPPFLAGS="$CPPFLAGS $PROD_CPPFLAGS"
+    FFLAGS="$FFLAGS $PROD_FFLAGS"
     ;;
   X-no)
     AC_MSG_RESULT("development")
     CONFIG_MODE=development
     CFLAGS="$CFLAGS $DEBUG_CFLAGS"
     CPPFLAGS="$CPPFLAGS $DEBUG_CPPFLAGS"
+    FFLAGS="$FFLAGS $DEBUG_FFLAGS"
     ;;
   X-pg|X-profile)
     AC_MSG_RESULT("profile")
     CONFIG_MODE=profile
-    CFLAGS="$CXXFLAGS $PROFILE_CFLAGS"
+    CFLAGS="$CFLAGS $PROFILE_CFLAGS"
     CPPFLAGS="$CPPFLAGS $PROFILE_CPPFLAGS"
+    FFLAGS="$FFLAGS $PROFILE_FFLAGS"
     ;;
   *)
     AC_MSG_RESULT("user-defined")
@@ -808,18 +824,22 @@ case "X-$enable_parallel" in
 
     dnl Try link a simple MPI program.  If fail, try again with -lmpi.
     AC_TRY_FLINK(mpif.h, [
+        integer:: ierr
         call mpi_file_open( ierr )],,
         AC_CHECK_FLIB(mpi, [
           include 'mpif.h'
+          integer:: ierr
           call mpi_file_open( ierr )],, PARALLEL=no))
 
     dnl Then try link a simple MPI-IO program.  If fail, try again with
     dnl -lmpio.
     if test "X$PARALLEL" = "Xyes"; then
       AC_TRY_FLINK(mpif.h, [
+          integer:: ierr
           call mpi_file_open( ierr )],,
           AC_CHECK_FLIB(mpio, [
             include 'mpif.h'
+            integer:: ierr
             call mpi_file_open( ierr )],, PARALLEL=no))
     fi
 
@@ -856,6 +876,7 @@ if test -n "$PARALLEL"; then
   dnl Check that we can link a simple MPI and MPI-IO application
   AC_MSG_CHECKING(whether a simple MPI-IO program can be linked)
   AC_TRY_FLINK(mpif.h,[
+      integer:: ierr
       call mpi_file_open( ierr )],
             AC_MSG_RESULT(yes),
             AC_MSG_RESULT(no)
@@ -1245,17 +1266,17 @@ fi
 
 PRINT_PLAIN() {
   echo $ECHO_N "$1$ECHO_C"
-  echo $ECHO_N "$1$ECHO_C" 1>>src/libhdf5.settings
+  echo $ECHO_N "$1$ECHO_C" 1>>src/libhdf5_fortran.settings
 }
 
 PRINT_N() {
   echo $ECHO_N "$1:  $ECHO_C"
-  echo $ECHO_N "$1:  $ECHO_C" 1>>src/libhdf5.settings
+  echo $ECHO_N "$1:  $ECHO_C" 1>>src/libhdf5_fortran.settings
 }
 
 PRINT() {
   echo "$1"
-  echo "$1" 1>>src/libhdf5.settings
+  echo "$1" 1>>src/libhdf5_fortran.settings
 }
 
 dnl ----------------------------------------------------------------------

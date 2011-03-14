@@ -287,8 +287,9 @@
      total_error = total_error + z_total_error 
 
      CALL szip_test(szip_flag, cleanup, sz_total_error)
-     IF (.NOT. szip_flag) error_string = skip
      IF (sz_total_error == 0) error_string = success
+     ! Reset the flag is compression was not available 
+     IF (.NOT. szip_flag) error_string = skip
      IF (sz_total_error .gt. 0) error_string = failure
      write(*, fmt = '(18a)', advance = 'no') ' SZIP filter test'     
      write(*, fmt = '(53x,a)', advance = 'no')  ' '
@@ -336,9 +337,8 @@
 
      CALL h5close_f(error)
 
-     ! if errors detected, exit with non-zero code. This is not truly fortran
-     ! standard but likely supported by most fortran compilers.
-!     IF (total_error .ne. 0) CALL exit (total_error)
+     ! if errors detected, exit with non-zero code.
+     IF (total_error .ne. 0) CALL h5_exit_f (1)
 
     END PROGRAM fortranlibtest
 

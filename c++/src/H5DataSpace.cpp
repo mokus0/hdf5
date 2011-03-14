@@ -20,10 +20,8 @@
 #endif
 
 #include "H5Include.h"
-#include "H5RefCounter.h"
 #include "H5Exception.h"
 #include "H5IdComponent.h"
-#include "H5Idtemplates.h"
 #include "H5DataSpace.h"
 
 #ifndef H5_NO_NAMESPACE
@@ -95,22 +93,25 @@ DataSpace::DataSpace( const DataSpace& original ) : IdComponent( original ) {}
 ///\param	like_space  - IN: Dataspace to be copied
 ///\exception	H5::DataSpaceIException
 // Programmer	Binh-Minh Ribler - 2000
+// Modification
+//              Replaced resetIdComponent with decRefCount to use new ID
+//              reference counting mechanisms by QAK, Feb 20, 2005
 //--------------------------------------------------------------------------
 void DataSpace::copy( const DataSpace& like_space )
 {
-   // reset the identifier of this object - send 'this' in so that
-   // H5Sclose can be called appropriately
-   try {
-      resetIdComponent( this ); }
-   catch (Exception close_error) { // thrown by p_close
-      throw DataSpaceIException("DataSpace::copy", close_error.getDetailMsg());
-   }
+   // If this object has a valid id, appropriately decrement reference
+   // counter and close the id.
+   if( id != H5S_ALL ) {
+      try {
+         decRefCount();
+      }
+      catch (Exception close_error) {
+         throw DataSpaceIException("DataSpace::copy", close_error.getDetailMsg());
+      }
+   }  // if
 
-   // call C routine to copy the dataspace 
+   // call C routine to copy the dataspace
    id = H5Scopy( like_space.getId() );
-
-   // new ref counter for this id
-   ref_count = new RefCounter;
 
    if( id <= 0 )
       throw DataSpaceIException("DataSpace::copy", "H5Scopy failed");
@@ -419,7 +420,7 @@ void DataSpace::getSelectElemPointlist ( hsize_t startpoint, hsize_t numpoints, 
 /// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectBounds
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void DataSpace::getSelectBounds ( hssize_t* start, hssize_t* end ) const
+void DataSpace::getSelectBounds ( hsize_t* start, hsize_t* end ) const
 {
    herr_t ret_value = H5Sget_select_bounds( id, start, end );
    if( ret_value < 0 )
@@ -445,7 +446,7 @@ void DataSpace::getSelectBounds ( hssize_t* start, hssize_t* end ) const
 /// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectElements
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void DataSpace::selectElements ( H5S_seloper_t op, const size_t num_elements, const hssize_t *coord[ ] ) const
+void DataSpace::selectElements ( H5S_seloper_t op, const size_t num_elements, const hsize_t *coord[ ] ) const
 {
    herr_t ret_value;
    ret_value = H5Sselect_elements( id, op, num_elements, coord );
@@ -525,7 +526,7 @@ bool DataSpace::selectValid () const
 /// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectHyperslab
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-void DataSpace::selectHyperslab( H5S_seloper_t op, const hsize_t *count, const hssize_t *start, const hsize_t *stride, const hsize_t *block ) const
+void DataSpace::selectHyperslab( H5S_seloper_t op, const hsize_t *count, const hsize_t *start, const hsize_t *stride, const hsize_t *block ) const
 {
    herr_t ret_value;
    ret_value = H5Sselect_hyperslab( id, op, start, stride, count, block );
@@ -564,15 +565,22 @@ void DataSpace::p_close() const
 // Function:	DataSpace destructor
 ///\brief	Properly terminates access to this dataspace.
 // Programmer	Binh-Minh Ribler - 2000
+// Modification
+//              Replaced resetIdComponent with decRefCount to use new ID
+//              reference counting mechanisms by QAK, Feb 20, 2005
 //--------------------------------------------------------------------------
 DataSpace::~DataSpace()
 {  
-   // The dataspace id will be closed properly
-    try {
-        resetIdComponent( this ); }
-    catch (Exception close_error) { // thrown by p_close
-        cerr << "DataSpace::~DataSpace - " << close_error.getDetailMsg() << endl;
-    }
+   // If this object has a valid id, appropriately decrement reference
+   // counter and close the id.
+   if( id != H5S_ALL ) {
+      try {
+         decRefCount();
+      }
+      catch (Exception close_error) {
+         throw DataSpaceIException("DataSpace::copy", close_error.getDetailMsg());
+      }
+   }  // if
 }  
 
 #ifndef H5_NO_NAMESPACE

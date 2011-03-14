@@ -13,16 +13,15 @@
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
     MODULE H5GLOBAL
-         USE H5FORTRAN_TYPES
+      USE H5FORTRAN_TYPES
 !
 ! Definitions for reference datatypes.
 ! If you change the value of these parameters, do not forget to change corresponding
 ! values in the H5f90.h file. 
-        INTEGER, PARAMETER :: REF_OBJ_BUF_LEN = 2 
         INTEGER, PARAMETER :: REF_REG_BUF_LEN = 3 
 
         TYPE hobj_ref_t_f
-             INTEGER ref(REF_OBJ_BUF_LEN)  
+             INTEGER(HADDR_T) ref
         END TYPE 
 
         TYPE hdset_reg_ref_t_f
@@ -372,7 +371,7 @@
       EQUIVALENCE(H5E_flags(24), H5E_TBBT_F)
 
 !
-! H5E flags declaration
+! H5I flags declaration
 !
       INTEGER, PARAMETER :: H5I_FLAGS_LEN = 7
       INTEGER H5I_flags(H5I_FLAGS_LEN)
@@ -572,7 +571,7 @@
 !
 ! H5Z flags declaration
 !
-      INTEGER, PARAMETER :: H5Z_FLAGS_LEN = 14 
+      INTEGER, PARAMETER :: H5Z_FLAGS_LEN = 14
       INTEGER H5Z_flags(H5Z_FLAGS_LEN)
 !DEC$if defined(BUILD_HDF5_DLL)
 !DEC$ ATTRIBUTES DLLEXPORT :: /H5Z_FLAGS/

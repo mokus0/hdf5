@@ -14,6 +14,7 @@
 
 #define H5P_PACKAGE		/*suppress error about including H5Ppkg	  */
 
+
 /* Private header files */
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Dprivate.h"		/* Datasets				*/
@@ -23,16 +24,78 @@
 #include "H5Ppkg.h"		/* Property lists		  	*/
 #include "H5Zprivate.h"		/* Data filters				*/
 
-/* Pablo mask */
-#define PABLO_MASK	H5Pdcpl_mask
-
-/* Interface initialization */
-#define INTERFACE_INIT  NULL
-static int             interface_initialize_g = 0;
+#ifdef H5_HAVE_FILTER_SZIP
+#ifdef H5_HAVE_SZLIB_H
+#   include "szlib.h"
+#endif /* H5_HAVE_SZLIB_H */
+#endif /* H5_HAVE_FILTER_SZIP */
 
 /* Local datatypes */
 
 /* Static function prototypes */
+static herr_t H5P_set_layout(H5P_genplist_t *plist, H5D_layout_t layout);
+
+
+/*-------------------------------------------------------------------------
+ * Function:  H5P_set_layout
+ *
+ * Purpose:   Sets the layout of raw data in the file.
+ *
+ * Return:    Non-negative on success/Negative on failure
+ *
+ * Programmer:        Quincey Koziol
+ *            Tuesday, November 23, 2004
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5P_set_layout(H5P_genplist_t *plist, H5D_layout_t layout)
+{
+    unsigned alloc_time_state;  /* State of allocation time property */
+    herr_t ret_value=SUCCEED;   /* return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5P_set_layout);
+
+    /* Get the allocation time state */
+    if(H5P_get(plist, H5D_CRT_ALLOC_TIME_STATE_NAME, &alloc_time_state) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set space allocation time");
+
+    /* If we still have the "default" allocation time, change it according to the new layout */
+    if(alloc_time_state) {
+        H5D_alloc_time_t alloc_time;    /* Space allocation time */
+
+        /* Set the default based on layout */
+        switch(layout) {
+            case H5D_COMPACT:
+                alloc_time=H5D_ALLOC_TIME_EARLY;
+                break;
+
+            case H5D_CONTIGUOUS:
+                alloc_time=H5D_ALLOC_TIME_LATE;
+                break;
+
+            case H5D_CHUNKED:
+                alloc_time=H5D_ALLOC_TIME_INCR;
+                break;
+
+            default:
+                HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unknown layou t type")
+        } /* end switch */
+
+        /* Set new allocation time */
+        if(H5P_set(plist, H5D_CRT_ALLOC_TIME_NAME, &alloc_time) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set space allocat ion time");
+    } /* end if */
+
+    /* Set layout value */
+    if(H5P_set(plist, H5D_CRT_LAYOUT_NAME, &layout) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINIT, FAIL, "can't set layout");
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+} /* end H5P_set_layout() */
 
 
 /*-------------------------------------------------------------------------
@@ -72,7 +135,7 @@ H5Pset_layout(hid_t plist_id, H5D_layout_t layout)
         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
     /* Set value */
-    if(H5P_set(plist, H5D_CRT_LAYOUT_NAME, &layout) < 0)
+    if(H5P_set_layout (plist, layout) < 0)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTINIT, FAIL, "can't set layout");
 
 done:
@@ -152,7 +215,6 @@ H5Pset_chunk(hid_t plist_id, int ndims, const hsize_t dim[/*ndims*/])
 {
     int			    i;
     size_t real_dims[H5O_LAYOUT_NDIMS]; /* Full-sized array to hold chunk dims */
-    H5D_layout_t           layout;
     H5P_genplist_t *plist;      /* Property list pointer */
     herr_t ret_value=SUCCEED;   /* return value */
 
@@ -181,13 +243,12 @@ H5Pset_chunk(hid_t plist_id, int ndims, const hsize_t dim[/*ndims*/])
         real_dims[i]=(size_t)dim[i]; /* Store user's chunk dimensions */
     } /* end for */
 
-    layout = H5D_CHUNKED;
-    if(H5P_set(plist, H5D_CRT_LAYOUT_NAME, &layout) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTINIT, FAIL, "can't set layout");
+    if(H5P_set_layout (plist, H5D_CHUNKED) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set layout");
     if(H5P_set(plist, H5D_CRT_CHUNK_DIM_NAME, &ndims) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTINIT, FAIL, "can't set chunk dimensionanlity");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set chunk dimensionanlity");
     if(H5P_set(plist, H5D_CRT_CHUNK_SIZE_NAME, real_dims) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTINIT, FAIL, "can't set chunk size");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set chunk size");
 
 done:
     FUNC_LEAVE_API(ret_value);
@@ -433,7 +494,7 @@ done:
  *-------------------------------------------------------------------------
  */
 herr_t
-H5Pget_external(hid_t plist_id, int idx, size_t name_size, char *name/*out*/,
+H5Pget_external(hid_t plist_id, unsigned idx, size_t name_size, char *name/*out*/,
 		 off_t *offset/*out*/, hsize_t *size/*out*/)
 {
     H5O_efl_t           efl;
@@ -441,7 +502,7 @@ H5Pget_external(hid_t plist_id, int idx, size_t name_size, char *name/*out*/,
     herr_t ret_value=SUCCEED;   /* return value */
 
     FUNC_ENTER_API(H5Pget_external, FAIL);
-    H5TRACE6("e","iIszxxx",plist_id,idx,name_size,name,offset,size);
+    H5TRACE6("e","iIuzxxx",plist_id,idx,name_size,name,offset,size);
     
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_DATASET_CREATE)))
@@ -451,7 +512,7 @@ H5Pget_external(hid_t plist_id, int idx, size_t name_size, char *name/*out*/,
     if(H5P_get(plist, H5D_CRT_EXT_FILE_LIST_NAME, &efl) < 0)
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get external file list");
     
-    if (idx<0 || (size_t)idx>=efl.nused)
+    if (idx>=efl.nused)
         HGOTO_ERROR (H5E_ARGS, H5E_BADRANGE, FAIL, "external file index is out of range");
 
     /* Return values */
@@ -489,6 +550,8 @@ done:
  *		failed; the filter will not participate in the pipeline
  *		during an H5Dread() of the chunk.  If this bit is clear and
  *		the filter fails then the entire I/O operation fails.
+ *      If this bit is set but encoding is disabled for a filter,
+ *      attempting to write will generate an error.
  *
  * Note:	This function currently supports only the permanent filter
  *		pipeline.  That is, PLIST_ID must be a dataset creation
@@ -565,6 +628,8 @@ done:
  *		failed; the filter will not participate in the pipeline
  *		during an H5Dread() of the chunk.  If this bit is clear and
  *		the filter fails then the entire I/O operation fails.
+ *      If this bit is set but encoding is disabled for a filter,
+ *      attempting to write will generate an error.
  *
  * Note:	This function currently supports only the permanent filter
  *		pipeline.  That is, PLIST_ID must be a dataset creation
@@ -705,7 +770,7 @@ done:
  *-------------------------------------------------------------------------
  */
 H5Z_filter_t
-H5Pget_filter(hid_t plist_id, int idx, unsigned int *flags/*out*/,
+H5Pget_filter(hid_t plist_id, unsigned idx, unsigned int *flags/*out*/,
 	       size_t *cd_nelmts/*in_out*/, unsigned cd_values[]/*out*/,
 	       size_t namelen, char name[]/*out*/)
 {
@@ -716,9 +781,9 @@ H5Pget_filter(hid_t plist_id, int idx, unsigned int *flags/*out*/,
     H5Z_filter_t ret_value;     /* return value */
     
     FUNC_ENTER_API(H5Pget_filter, H5Z_FILTER_ERROR);
-    H5TRACE7("Zf","iIsx*zxzx",plist_id,idx,flags,cd_nelmts,cd_values,namelen,
+    H5TRACE7("Zf","iIux*zxzx",plist_id,idx,flags,cd_nelmts,cd_values,namelen,
              name);
-    
+
     /* Check args */
     if (cd_nelmts || cd_values) {
         if (cd_nelmts && *cd_nelmts>256)
@@ -749,7 +814,7 @@ H5Pget_filter(hid_t plist_id, int idx, unsigned int *flags/*out*/,
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, H5Z_FILTER_ERROR, "can't get pipeline");
 
     /* Check more args */
-    if (idx<0 || (size_t)idx>=pline.nused)
+    if (idx>=pline.nused)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, H5Z_FILTER_ERROR, "filter number is invalid");
 
     /* Set pointer to particular filter to query */
@@ -881,7 +946,7 @@ H5Pget_filter_by_id(hid_t plist_id, H5Z_filter_t id, unsigned int *flags/*out*/,
         else
             name[0] = '\0';
     }
-    
+
 done:
     FUNC_LEAVE_API(ret_value);
 } /* end H5Pget_filter_by_id() */
@@ -1019,11 +1084,13 @@ H5Pset_szip(hid_t plist_id, unsigned options_mask, unsigned pixels_per_block)
     
     FUNC_ENTER_API(H5Pset_szip, FAIL);
     H5TRACE3("e","iIuIu",plist_id,options_mask,pixels_per_block);
-    
+
     /* Check arguments */
-#if !defined( H5_SZIP_CAN_ENCODE) && defined(H5_HAVE_FILTER_SZIP)
-    HGOTO_ERROR (H5E_PLINE, H5E_NOENCODER, FAIL, "Szip filter present but encoding disabled");
-#endif
+#ifdef H5_HAVE_FILTER_SZIP
+    if(SZ_encoder_enabled()<=0)
+        HGOTO_ERROR(H5E_PLINE, H5E_NOENCODER, FAIL, "Filter present but encoding is disabled.");
+#endif /* H5_HAVE_FILTER_SZIP */
+
     if ((pixels_per_block%2)==1)
         HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "pixels_per_block is not even");
     if (pixels_per_block>H5_SZIP_MAX_PIXELS_PER_BLOCK)
@@ -1372,45 +1439,6 @@ done:
 
 
 /*-------------------------------------------------------------------------
- * Function:    H5P_fill_value_defined
- *
- * Purpose:	Check if fill value is defined.  Internal version of function
- * 
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer:  Raymond Lu
- *              Wednesday, January 16, 2002
- *
- * Modifications:
- *              
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5P_fill_value_defined(H5P_genplist_t *plist, H5D_fill_value_t *status)
-{
-    herr_t		ret_value = SUCCEED;
-    H5O_fill_t		fill;
-
-    FUNC_ENTER_NOAPI(H5P_fill_value_defined, FAIL);
-
-    assert(plist);
-    assert(status);
-
-    /* Get the fill value struct */
-    if(H5P_get(plist, H5D_CRT_FILL_VALUE_NAME, &fill) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get fill value"); 
-
-    /* Get the fill-value status */
-    if(H5P_is_fill_value_defined(&fill, status) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't check fill value status"); 
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
-} /* end H5P_fill_value_defined() */
-
-
-/*-------------------------------------------------------------------------
  * Function:    H5Pfill_value_defined
  *
  * Purpose:	Check if fill value is defined.
@@ -1429,6 +1457,7 @@ herr_t
 H5Pfill_value_defined(hid_t plist_id, H5D_fill_value_t *status)
 {
     H5P_genplist_t 	*plist;
+    H5O_fill_t		fill;
     herr_t		ret_value = SUCCEED;
 
     FUNC_ENTER_API(H5Pfill_value_defined, FAIL);
@@ -1440,9 +1469,13 @@ H5Pfill_value_defined(hid_t plist_id, H5D_fill_value_t *status)
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_DATASET_CREATE)))
         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
-    /* Call the internal function */
-    if(H5P_fill_value_defined(plist, status) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get fill value info"); 
+    /* Get the fill value struct */
+    if(H5P_get(plist, H5D_CRT_FILL_VALUE_NAME, &fill) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get fill value"); 
+
+    /* Get the fill-value status */
+    if(H5P_is_fill_value_defined(&fill, status) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "can't check fill value status"); 
 
 done:
     FUNC_LEAVE_API(ret_value);
@@ -1470,6 +1503,7 @@ herr_t
 H5Pset_alloc_time(hid_t plist_id, H5D_alloc_time_t alloc_time)
 {
     H5P_genplist_t *plist; 	/* Property list pointer */
+    unsigned alloc_time_state;  /* State of allocation time property */
     herr_t ret_value = SUCCEED; /* return value 	 */
 
     FUNC_ENTER_API(H5Pset_alloc_time, FAIL);
@@ -1479,9 +1513,44 @@ H5Pset_alloc_time(hid_t plist_id, H5D_alloc_time_t alloc_time)
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_DATASET_CREATE)))
 	HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
 
+    /* Check for resetting to default for layout type */
+    if(alloc_time==H5D_ALLOC_TIME_DEFAULT) {
+        H5D_layout_t layout;            /* Type of storage layout */
+        
+        /* Retrieve the storage layout */
+        if(H5P_get(plist, H5D_CRT_LAYOUT_NAME, &layout) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get layout");
+
+        /* Set the default based on layout */
+        switch(layout) {
+            case H5D_COMPACT:
+                alloc_time=H5D_ALLOC_TIME_EARLY;
+                break;
+
+            case H5D_CONTIGUOUS:
+                alloc_time=H5D_ALLOC_TIME_LATE;
+                break;
+
+            case H5D_CHUNKED:
+                alloc_time=H5D_ALLOC_TIME_INCR;
+                break;
+
+            default:
+                HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unknown layout type")
+        } /* end switch */
+
+        /* Reset the "state" of the allocation time property back to the "default" */
+        alloc_time_state=1;
+    } /* end if */
+    else
+        /* Set the "state" of the allocation time property to indicate the user modified it */
+        alloc_time_state=0;
+
     /* Set values */
     if(H5P_set(plist, H5D_CRT_ALLOC_TIME_NAME, &alloc_time) < 0)
 	HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set space allocation time");
+    if(H5P_set(plist, H5D_CRT_ALLOC_TIME_STATE_NAME, &alloc_time_state) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set space allocation time");
 
 done:
     FUNC_LEAVE_API(ret_value);  
@@ -1653,4 +1722,3 @@ H5Premove_filter(hid_t plist_id, H5Z_filter_t filter)
 done:
     FUNC_LEAVE_API(ret_value);
 }
-

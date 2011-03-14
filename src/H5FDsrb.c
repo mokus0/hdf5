@@ -19,9 +19,9 @@
  * Purpose:    SRB I/O driver.
  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK      H5FD_srb_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5FD_srb_init_interface
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
@@ -156,10 +156,6 @@ static const H5FD_class_t H5FD_srb_g = {
     NULL,                                       /*unlock                */
     H5FD_FLMAP_SINGLE 				/*fl_map		*/
 };
-
-/* Interface initialization */
-#define INTERFACE_INIT  H5FD_srb_init_interface
-static int interface_initialize_g = 0;
 
 
 /*--------------------------------------------------------------------------

@@ -1,0 +1,14 @@
+## This file is machine generated on GNU systems.
+## Only temporary changes may be made here.
+
+test_lite.lo: \
+   $(srcdir)/test_lite.c \
+   $(top_srcdir)/hl/src/H5LT.h
+test_image.lo: \
+   $(srcdir)/test_image.c \
+   $(top_srcdir)/hl/src/H5IM.h \
+   $(top_srcdir)/hl/src/H5LT.h
+test_table.lo: \
+   $(srcdir)/test_table.c \
+   $(top_srcdir)/hl/src/H5TA.h \
+   $(top_srcdir)/hl/src/H5LT.h

@@ -19,20 +19,16 @@
 
 #define H5T_PACKAGE		/*suppress error about including H5Tpkg	  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5Tcommit_mask
-
-#include "H5private.h"		/*generic functions			  */
-#include "H5Eprivate.h"		/*error handling			  */
-#include "H5Iprivate.h"		/*ID functions		   		  */
-#include "H5Tpkg.h"		/*data-type functions			  */
-
 /* Interface initialization */
-static int interface_initialize_g = 0;
-#define INTERFACE_INIT H5T_init_commit_interface
-static herr_t H5T_init_commit_interface(void);
+#define H5_INTERFACE_INIT_FUNC	H5T_init_commit_interface
 
+
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Eprivate.h"		/* Error handling			*/
+#include "H5FOprivate.h"	/* File objects				*/
+#include "H5Iprivate.h"		/* IDs					*/
+#include "H5Oprivate.h"		/* Object headers			*/
+#include "H5Tpkg.h"		/* Datatypes				*/
 
 /* Static local functions */
 static herr_t H5T_commit(H5G_entry_t *loc, const char *name, H5T_t *type, hid_t dxpl_id);
@@ -54,16 +50,16 @@ DESCRIPTION
 static herr_t
 H5T_init_commit_interface(void)
 {
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5T_init_commit_interface);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5T_init_commit_interface)
 
-    FUNC_LEAVE_NOAPI(H5T_init());
+    FUNC_LEAVE_NOAPI(H5T_init())
 } /* H5T_init_commit_interface() */
 
 
 /*-------------------------------------------------------------------------
  * Function:	H5Tcommit
  *
- * Purpose:	Save a transient data type to a file and turn the type handle
+ * Purpose:	Save a transient datatype to a file and turn the type handle
  *		into a named, immutable type.
  *
  * Return:	Non-negative on success/Negative on failure
@@ -82,23 +78,23 @@ H5Tcommit(hid_t loc_id, const char *name, hid_t type_id)
     H5T_t	*type = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER_API(H5Tcommit, FAIL);
+    FUNC_ENTER_API(H5Tcommit, FAIL)
     H5TRACE3("e","isi",loc_id,name,type_id);
 
     /* Check arguments */
     if (NULL==(loc=H5G_loc (loc_id)))
-	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
+	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location")
     if (!name || !*name)
-	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "no name");
+	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "no name")
     if (NULL==(type=H5I_object_verify(type_id, H5I_DATATYPE)))
-	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
+	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a datatype")
 
     /* Commit the type */
     if (H5T_commit (loc, name, type, H5AC_dxpl_id)<0)
-	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to commit data type");
+	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to commit datatype")
 
 done:
-    FUNC_LEAVE_API(ret_value);
+    FUNC_LEAVE_API(ret_value)
 }
 
 
@@ -123,29 +119,29 @@ H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type, hid_t dxpl_id)
     H5F_t	*file = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
     
-    FUNC_ENTER_NOAPI_NOINIT(H5T_commit);
+    FUNC_ENTER_NOAPI_NOINIT(H5T_commit)
 
-    assert (loc);
-    assert (name && *name);
-    assert (type);
+    HDassert (loc);
+    HDassert (name && *name);
+    HDassert (type);
 
     /*
      * Check arguments.  We cannot commit an immutable type because H5Tclose()
      * normally fails on such types (try H5Tclose(H5T_NATIVE_INT)) but closing
      * a named type should always succeed.
      */
-    if (H5T_STATE_NAMED==type->state || H5T_STATE_OPEN==type->state)
-	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "data type is already committed");
-    if (H5T_STATE_IMMUTABLE==type->state)
-	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "data type is immutable");
+    if (H5T_STATE_NAMED==type->shared->state || H5T_STATE_OPEN==type->shared->state)
+	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "datatype is already committed")
+    if (H5T_STATE_IMMUTABLE==type->shared->state)
+	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "datatype is immutable")
 
     /* Find the insertion file */
     if (NULL==(file=H5G_insertion_file(loc, name, dxpl_id)))
-	HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to find insertion point");
+	HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to find insertion point")
 
     /* Check for a "sensible" datatype to store on disk */
-    if(H5T_is_sensible(type)!=TRUE)
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "datatype is not sensible");
+    if(H5T_is_sensible(type)<=0)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "datatype is not sensible")
 
     /* Mark datatype as being on disk now */
     if (H5T_vlen_mark(type, file, H5T_VLEN_DISK)<0)
@@ -156,12 +152,17 @@ H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type, hid_t dxpl_id)
      * type message and then give the object header a name.
      */
     if (H5O_create (file, dxpl_id, 64, &(type->ent))<0)
-	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to create data type object header");
-    if (H5O_modify (&(type->ent), H5O_DTYPE_ID, 0, H5O_FLAG_CONSTANT, 1, type, dxpl_id)<0)
-	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to update type header message");
+	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to create datatype object header")
+    if (H5O_modify (&(type->ent), H5O_DTYPE_ID, 0, H5O_FLAG_CONSTANT, H5O_UPDATE_TIME, type, dxpl_id)<0)
+	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to update type header message")
     if (H5G_insert (loc, name, &(type->ent), dxpl_id)<0)
-	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to name data type");
-    type->state = H5T_STATE_OPEN;
+	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to name datatype")
+    type->shared->state = H5T_STATE_OPEN;
+    type->shared->fo_count=1;
+
+    /* Add datatype to the list of open objects in the file */
+    if(H5FO_insert(type->ent.file, type->ent.header, type->shared)<0)
+        HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINSERT, FAIL, "can't insert datatype into list of open objects")
 
     /* Mark datatype as being on memory now because this datatype may be still used in 
      * memory after committed to disk.  So we need to change its size back. */
@@ -170,22 +171,23 @@ H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type, hid_t dxpl_id)
 
 done:
     if (ret_value<0) {
-	if ((type->state==H5T_STATE_TRANSIENT || type->state==H5T_STATE_RDONLY) && H5F_addr_defined(type->ent.header)) {
+	if ((type->shared->state==H5T_STATE_TRANSIENT || type->shared->state==H5T_STATE_RDONLY) && H5F_addr_defined(type->ent.header)) {
 	    if(H5O_close(&(type->ent))<0)
-                HDONE_ERROR(H5E_DATATYPE, H5E_CLOSEERROR, FAIL, "unable to release object header");
+                HDONE_ERROR(H5E_DATATYPE, H5E_CLOSEERROR, FAIL, "unable to release object header")
             if(H5O_delete(file, dxpl_id,type->ent.header)<0)
-                HDONE_ERROR(H5E_DATATYPE, H5E_CANTDELETE, FAIL, "unable to delete object header");
+                HDONE_ERROR(H5E_DATATYPE, H5E_CANTDELETE, FAIL, "unable to delete object header")
 	    type->ent.header = HADDR_UNDEF;
 	}
     }
-    FUNC_LEAVE_NOAPI(ret_value);
+
+    FUNC_LEAVE_NOAPI(ret_value)
 }
 
 
 /*-------------------------------------------------------------------------
  * Function:	H5Tcommitted
  *
- * Purpose:	Determines if a data type is committed or not.
+ * Purpose:	Determines if a datatype is committed or not.
  *
  * Return:	Success:	TRUE if committed, FALSE otherwise.
  *
@@ -204,25 +206,25 @@ H5Tcommitted(hid_t type_id)
     H5T_t	*type = NULL;
     htri_t      ret_value;       /* Return value */
     
-    FUNC_ENTER_API(H5Tcommitted, FAIL);
+    FUNC_ENTER_API(H5Tcommitted, FAIL)
     H5TRACE1("t","i",type_id);
 
     /* Check arguments */
     if (NULL==(type=H5I_object_verify(type_id,H5I_DATATYPE)))
-	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
+	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a datatype")
 
     /* Set return value */
     ret_value= H5T_committed(type);
 
 done:
-    FUNC_LEAVE_API(ret_value);
+    FUNC_LEAVE_API(ret_value)
 }
 
 
 /*-------------------------------------------------------------------------
  * Function:	H5T_committed
  *
- * Purpose:	Determines if a data type is committed or not.
+ * Purpose:	Determines if a datatype is committed or not.
  *
  * Return:	Success:	TRUE if committed, FALSE otherwise.
  *
@@ -234,14 +236,14 @@ done:
  *-------------------------------------------------------------------------
  */
 htri_t
-H5T_committed(H5T_t *type)
+H5T_committed(const H5T_t *type)
 {
     /* Use no-init for efficiency */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5T_committed);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5T_committed)
 
     assert (type);
 
-    FUNC_LEAVE_NOAPI(H5T_STATE_OPEN==type->state || H5T_STATE_NAMED==type->state);
+    FUNC_LEAVE_NOAPI(H5T_STATE_OPEN==type->shared->state || H5T_STATE_NAMED==type->shared->state)
 } /* end H5T_committed() */
 
 
@@ -268,15 +270,15 @@ H5T_link(const H5T_t *type, int adjust, hid_t dxpl_id)
     int ret_value;      /* Return value */
 
     /* Use no-init for efficiency */
-    FUNC_ENTER_NOAPI(H5T_link,FAIL);
+    FUNC_ENTER_NOAPI(H5T_link,FAIL)
 
     assert (type);
 
     /* Adjust the link count on the named datatype */
     if((ret_value=H5O_link(&(type->ent),adjust,dxpl_id))<0)
-        HGOTO_ERROR (H5E_DATATYPE, H5E_LINK, FAIL, "unable to adjust named datatype link count");
+        HGOTO_ERROR (H5E_DATATYPE, H5E_LINK, FAIL, "unable to adjust named datatype link count")
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5T_link() */
 

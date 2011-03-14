@@ -21,9 +21,9 @@
  *		access to small, temporary hdf5 files.
  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5FD_core_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5FD_core_init_interface
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
@@ -33,12 +33,6 @@
 #include "H5Iprivate.h"		/* IDs			  		*/
 #include "H5MMprivate.h"	/* Memory management			*/
 #include "H5Pprivate.h"		/* Property lists			*/
-
-#undef MAX
-#define MAX(X,Y)	((X)>(Y)?(X):(Y))
-
-#undef MIN
-#define MIN(X,Y)	((X)<(Y)?(X):(Y))
 
 /* The driver identification number, initialized at runtime */
 static hid_t H5FD_CORE_g = 0;
@@ -83,9 +77,8 @@ typedef struct H5FD_core_fapl_t {
  *			which can be addressed entirely in memory.
  */
 #define MAXADDR 		((haddr_t)((~(size_t)0)-1))
-#define ADDR_OVERFLOW(A)	(HADDR_UNDEF==(A) ||			      \
-				 ((A) & ~(haddr_t)MAXADDR))
-#define SIZE_OVERFLOW(Z)	((Z) & ~(hsize_t)MAXADDR)
+#define ADDR_OVERFLOW(A)	(HADDR_UNDEF==(A) || (A) > (haddr_t)MAXADDR)
+#define SIZE_OVERFLOW(Z)	((Z) > (hsize_t)MAXADDR)
 #define REGION_OVERFLOW(A,Z)	(ADDR_OVERFLOW(A) || SIZE_OVERFLOW(Z) ||      \
                                  HADDR_UNDEF==(A)+(Z) ||		      \
 				 (size_t)((A)+(Z))<(size_t)(A))
@@ -137,10 +130,6 @@ static const H5FD_class_t H5FD_core_g = {
     NULL,                                       /*unlock                */
     H5FD_FLMAP_SINGLE 				/*fl_map		*/
 };
-
-/* Interface initialization */
-#define INTERFACE_INIT	H5FD_core_init_interface
-static int interface_initialize_g = 0;
 
 
 /*--------------------------------------------------------------------------

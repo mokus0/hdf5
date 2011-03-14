@@ -159,16 +159,6 @@
 #endif
 
 /*
- * Pablo support files.
- */
-#ifdef H5_HAVE_PABLO
-#   define IOTRACE
-#   define HDFIOTRACE
-#   include "HDFIOTrace.h"
-#   include "ProcIDs.h"
-#endif
-
-/*
  * MPE Instrumentation support
  * Do not #if the following header file because it contains
  * the needed null definitions for the H5-MPE macros when MPE
@@ -289,7 +279,7 @@
 #   define FALSE 0
 #endif
 #ifndef TRUE
-#   define TRUE (!FALSE)
+#   define TRUE 1
 #endif
 
 /*
@@ -618,15 +608,18 @@ H5_DLL int HDfprintf (FILE *stream, const char *fmt, ...);
 /* definitions related to the file stat utilities */
 #ifdef WIN32
      #ifdef __MWERKS__
-     #define HDfstat(F,B)            fstat(F,B)
+     #define HDfstat(F,B)               fstat(F,B)
      typedef struct stat		h5_stat_t;
+     typedef off_t                      h5_stat_size_t;
      #else /*MSVC*/
      #define HDfstat(F,B)		_fstati64(F,B)
      typedef struct _stati64		h5_stat_t;
+     typedef __int64                    h5_stat_size_t;
      #endif
 #else
 #define HDfstat(F,B)            fstat(F,B)
 typedef struct stat		h5_stat_t;
+typedef off_t                   h5_stat_size_t;
 #endif
 
 #define HDftell(F)		ftell(F)
@@ -768,11 +761,7 @@ typedef struct stat		h5_stat_t;
 #define HDsinh(X)		sinh(X)
 #define HDsleep(N)		sleep(N)
 #ifdef H5_HAVE_SNPRINTF
-#ifdef __WATCOMC__
-#   define HDsnprintf		_snprintf /*varargs*/
-#else /* __WATCOMC__ */
 #   define HDsnprintf		snprintf /*varargs*/
-#endif /* __WATCOMC__ */
 #endif
 /* sprintf() variable arguments */
 #define HDsqrt(X)		sqrt(X)
@@ -840,7 +829,11 @@ H5_DLL int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDumask(N)		umask(N)
 #define HDuname(S)		uname(S)
 #define HDungetc(C,F)		ungetc(C,F)
+#ifdef WIN32
+#define HDunlink(S)             _unlink(S)
+#else
 #define HDunlink(S)		unlink(S)
+#endif
 #define HDutime(S,T)		utime(S,T)
 #define HDva_arg(A,T)		va_arg(A,T)
 #define HDva_end(A)		va_end(A)
@@ -1118,17 +1111,31 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
     assert(func_name)
 #endif /* H5_HAVE_FUNCTION */
 
+/* Macros for defining interface initialization routines */
+#ifdef H5_INTERFACE_INIT_FUNC
+static int		H5_interface_initialize_g = 0;
+static herr_t		H5_INTERFACE_INIT_FUNC(void);
+#define H5_INTERFACE_INIT(err)						      \
+   /* Initialize this interface or bust */				      \
+   if (!H5_interface_initialize_g) {					      \
+      H5_interface_initialize_g = 1;					      \
+      if (H5_INTERFACE_INIT_FUNC()<0) {					      \
+         H5_interface_initialize_g = 0;				              \
+         HGOTO_ERROR (H5E_FUNC, H5E_CANTINIT, err,		              \
+            "interface initialization failed")		                      \
+      }								              \
+   }
+#else /* H5_INTERFACE_INIT_FUNC */
+#define H5_INTERFACE_INIT(err)
+#endif /* H5_INTERFACE_INIT_FUNC */
+
+
 #define FUNC_ENTER_COMMON_NOFUNC(func_name,asrt)                              \
-   PABLO_SAVE (ID_ ## func_name)  					      \
-									      \
    /* Check API status */               				      \
    assert(asrt);				                              \
 									      \
    /* Check function name */               				      \
-   H5_CHECK_FUNCNAME(func_name);					      \
-									      \
-   /* Start tracing */                  				      \
-   PABLO_TRACE_ON (PABLO_MASK, pablo_func_id)
+   H5_CHECK_FUNCNAME(func_name);
 
 #define FUNC_ENTER_COMMON(func_name,asrt)                                     \
     static const char FUNC[]=#func_name;                                      \
@@ -1158,7 +1165,7 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
     FUNC_ENTER_API_VARS(func_name)                                            \
     FUNC_ENTER_COMMON(func_name,H5_IS_API(#func_name));                       \
     FUNC_ENTER_API_THREADSAFE;                                                \
-    FUNC_ENTER_API_COMMON(func_name,INTERFACE_INIT,err);                      \
+    FUNC_ENTER_API_COMMON(func_name,err);		                      \
     /* Clear thread error stack entering public functions */		      \
     H5E_clear();						              \
     {
@@ -1171,7 +1178,7 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
     FUNC_ENTER_API_VARS(func_name)                                            \
     FUNC_ENTER_COMMON(func_name,H5_IS_API(#func_name));                       \
     FUNC_ENTER_API_THREADSAFE;                                                \
-    FUNC_ENTER_API_COMMON(func_name,INTERFACE_INIT,err);                      \
+    FUNC_ENTER_API_COMMON(func_name,err);		                      \
     {
 
 /*
@@ -1191,7 +1198,13 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
 /* Use this macro for all "normal" non-API functions */
 #define FUNC_ENTER_NOAPI(func_name,err) {                                     \
     FUNC_ENTER_COMMON(func_name,!H5_IS_API(#func_name));                      \
-    FUNC_ENTER_NOAPI_INIT(func_name,INTERFACE_INIT,err)                       \
+    FUNC_ENTER_NOAPI_INIT(func_name,err)		                      \
+    {
+
+/* Use this macro for all non-API functions which don't issue errors */
+#define FUNC_ENTER_NOAPI_NOFUNC(func_name) {                                  \
+    FUNC_ENTER_COMMON_NOFUNC(func_name,!H5_IS_API(#func_name));               \
+    FUNC_ENTER_NOAPI_INIT(func_name,err)		                      \
     {
 
 /*
@@ -1228,12 +1241,16 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
  * Use this macro for non-API functions which fall into these categories:
  *      - functions which shouldn't push their name on the function stack
  *              (so far, just the H5FS routines themselves)
+ * 
+ * This macro is used for functions which fit the above categories _and_
+ * also don't use the 'FUNC' variable (i.e. don't push errors on the error stack)
+ * 
  */
-#define FUNC_ENTER_NOAPI_NOFS(func_name) {                                    \
-    FUNC_ENTER_COMMON(func_name,!H5_IS_API(#func_name));                      \
+#define FUNC_ENTER_NOAPI_NOFUNC_NOFS(func_name) {                             \
+    FUNC_ENTER_COMMON_NOFUNC(func_name,!H5_IS_API(#func_name));               \
     {
 
-#define FUNC_ENTER_API_COMMON(func_name,interface_init_func,err)       	      \
+#define FUNC_ENTER_API_COMMON(func_name,err)			       	      \
    /* Initialize the library */           				      \
    if (!(H5_INIT_GLOBAL)) {                                                   \
        H5_INIT_GLOBAL = TRUE;                                                 \
@@ -1242,33 +1259,17 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
             "library initialization failed")		                      \
    }								              \
                                                                               \
-   /* Initialize this interface or bust */				      \
-   if (!interface_initialize_g) {					      \
-      interface_initialize_g = 1;					      \
-      if (interface_init_func &&					      \
-              ((herr_t(*)(void))interface_init_func)()<0) {		      \
-         interface_initialize_g = 0;				              \
-         HGOTO_ERROR (H5E_FUNC, H5E_CANTINIT, err,		              \
-            "interface initialization failed");		                      \
-      }								              \
-   }                                                                          \
+   /* Initialize the interface, if appropriate */		              \
+   H5_INTERFACE_INIT(err)						      \
                                                                               \
    /* Push the name of this function on the function stack */                 \
    H5_PUSH_FUNC(func_name);                                                   \
                                                                               \
    BEGIN_MPE_LOG(func_name)
 
-#define FUNC_ENTER_NOAPI_INIT(func_name,interface_init_func,err)       	      \
-   /* Initialize this interface or bust */				      \
-   if (!interface_initialize_g) {					      \
-      interface_initialize_g = 1;					      \
-      if (interface_init_func &&					      \
-              ((herr_t(*)(void))interface_init_func)()<0) {		      \
-         interface_initialize_g = 0;				              \
-         HGOTO_ERROR (H5E_FUNC, H5E_CANTINIT, err,		              \
-            "interface initialization failed");		                      \
-      }								              \
-   }                                                                          \
+#define FUNC_ENTER_NOAPI_INIT(func_name,err)			       	      \
+   /* Initialize the interface, if appropriate */		              \
+   H5_INTERFACE_INIT(err)						      \
                                                                               \
    /* Push the name of this function on the function stack */                 \
    H5_PUSH_FUNC(func_name);
@@ -1285,12 +1286,12 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
  *	The pablo mask comes from the constant PABLO_MASK defined on a
  *	per-file basis.	 The pablo_func_id comes from an auto variable
  *	defined by FUNC_ENTER.
+ *      PABLO was removed on January 20, 2005 EIP
  *
  *-------------------------------------------------------------------------
  */
 #define FUNC_LEAVE_API(ret_value)                                             \
         FINISH_MPE_LOG;                                                       \
-        PABLO_TRACE_OFF (PABLO_MASK, pablo_func_id);			      \
         H5TRACE_RETURN(ret_value);					      \
         H5_POP_FUNC;                                                          \
         FUNC_LEAVE_API_THREADSAFE                                             \
@@ -1299,14 +1300,12 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
 }} /*end scope from beginning of FUNC_ENTER*/
 
 #define FUNC_LEAVE_NOAPI(ret_value)                                           \
-        PABLO_TRACE_OFF (PABLO_MASK, pablo_func_id);			      \
         H5_POP_FUNC;                                                          \
         return (ret_value);						      \
     } /*end scope from end of FUNC_ENTER*/                                    \
 } /*end scope from beginning of FUNC_ENTER*/
 
 #define FUNC_LEAVE_NOAPI_VOID                                                 \
-        PABLO_TRACE_OFF (PABLO_MASK, pablo_func_id);			      \
         H5_POP_FUNC;                                                          \
         return;						                      \
     } /*end scope from end of FUNC_ENTER*/                                    \
@@ -1318,24 +1317,10 @@ extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
  *              (so far, just the H5FS routines themselves)
  */
 #define FUNC_LEAVE_NOAPI_NOFS(ret_value)                                      \
-        PABLO_TRACE_OFF (PABLO_MASK, pablo_func_id);			      \
         return (ret_value);						      \
     } /*end scope from end of FUNC_ENTER*/                                    \
 } /*end scope from beginning of FUNC_ENTER*/
 
-/*
- * The FUNC_ENTER() and FUNC_LEAVE() macros make calls to Pablo functions
- * through one of these two sets of macros.
- */
-#ifdef H5_HAVE_PABLO
-#  define PABLO_SAVE(func_id)	const int pablo_func_id = func_id;
-#  define PABLO_TRACE_ON(m, f)	TRACE_ON(m,f)
-#  define PABLO_TRACE_OFF(m, f) TRACE_OFF(m,f)
-#else
-#  define PABLO_SAVE(func_id)	/*void */
-#  define PABLO_TRACE_ON(m, f)	/*void */
-#  define PABLO_TRACE_OFF(m, f) /*void */
-#endif
 
 /* Macro for "glueing" together items, for re-scanning macros */
 #define H5_GLUE(x,y)       x##y
@@ -1355,7 +1340,6 @@ H5_DLL int H5I_term_interface(void);
 H5_DLL int H5P_term_interface(void);
 H5_DLL int H5R_term_interface(void);
 H5_DLL int H5S_term_interface(void);
-H5_DLL int H5TN_term_interface(void);
 H5_DLL int H5T_term_interface(void);
 H5_DLL int H5Z_term_interface(void);
 

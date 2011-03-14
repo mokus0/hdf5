@@ -30,7 +30,7 @@
  *
  *-------------------------------------------------------------------------
  */
-static void print_obj(hid_t dcpl, char *name)
+static void print_obj(hid_t dcpl_id, char *name)
 {
  char         str[255]; 
 #if defined (PRINT_DEBUG )
@@ -47,13 +47,13 @@ static void print_obj(hid_t dcpl, char *name)
  strcpy(str,"\0");
 
  /* get information about input filters */
- if ((nfilters = H5Pget_nfilters(dcpl))<0) 
+ if ((nfilters = H5Pget_nfilters(dcpl_id))<0) 
   return;
 
  for ( i=0; i<nfilters; i++)
  {
   cd_nelmts = NELMTS(cd_values);
-  filtn = H5Pget_filter(dcpl, 
+  filtn = H5Pget_filter(dcpl_id, 
    (unsigned)i, 
    &filt_flags, 
    &cd_nelmts,
@@ -128,7 +128,7 @@ int copy_objects(const char* fnamein,
                  pack_opt_t *options)
 {
  hid_t         fidin; 
- hid_t         fidout; 
+ hid_t         fidout=(-1); 
  trav_table_t  *travt=NULL;
 
 /*-------------------------------------------------------------------------
@@ -201,9 +201,6 @@ out:
  return -1;
 }
 
-
-
-
 /*-------------------------------------------------------------------------
  * Function: do_copy_objects
  *
@@ -214,6 +211,8 @@ out:
  * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
  *
  * Date: October, 23, 2003
+	*   Modified: December, 03, 2004 - added a check for H5Dcreate; if the dataset
+	*    cannot be created with the requested filter, use the input one
  *
  *-------------------------------------------------------------------------
  */
@@ -223,16 +222,17 @@ int do_copy_objects(hid_t fidin,
                     trav_table_t *travt,
                     pack_opt_t *options) /* repack options */
 {
- hid_t     grp_in;       /* group ID */ 
- hid_t     grp_out;      /* group ID */ 
- hid_t     dset_in;      /* read dataset ID */ 
- hid_t     dset_out;     /* write dataset ID */ 
- hid_t     type_in;      /* named type ID */ 
- hid_t     type_out;     /* named type ID */ 
- hid_t     dcpl_id;      /* dataset creation property list ID */ 
- hid_t     space_id;     /* space ID */ 
- hid_t     ftype_id;     /* file data type ID */ 
- hid_t     mtype_id;     /* memory data type ID */
+ hid_t     grp_in=(-1);       /* group ID */ 
+ hid_t     grp_out=(-1);      /* group ID */ 
+ hid_t     dset_in=(-1);      /* read dataset ID */ 
+ hid_t     dset_out=(-1);     /* write dataset ID */ 
+ hid_t     type_in=(-1);      /* named type ID */ 
+ hid_t     type_out=(-1);     /* named type ID */ 
+ hid_t     dcpl_id=(-1);      /* dataset creation property list ID */ 
+ hid_t     dcpl_out=(-1);     /* dataset creation property list ID */ 
+ hid_t     space_id=(-1);     /* space ID */ 
+ hid_t     ftype_id=(-1);     /* file data type ID */ 
+ hid_t     mtype_id=(-1);     /* memory data type ID */
  size_t    msize;        /* memory size of memory type */
  void      *buf=NULL;    /* data buffer */
  hsize_t   nelmts;       /* number of elements in dataset */
@@ -240,11 +240,7 @@ int do_copy_objects(hid_t fidin,
  hsize_t   dims[H5S_MAX_RANK];/* dimensions of dataset */
  hsize_t   dsize_in;     /* input dataset size before filter */
  int       next;         /* external files */
-#ifdef LATER
- hsize_t   dsize_out;    /* output dataset size after filter */
-#endif /* LATER */
  int       i, j;
- int       wrote=0;
 
 /*-------------------------------------------------------------------------
  * copy the suppplied object list
@@ -291,6 +287,7 @@ int do_copy_objects(hid_t fidin,
  *-------------------------------------------------------------------------
  */
   case H5G_DATASET:
+
    if ((dset_in=H5Dopen(fidin,travt->objs[i].name))<0) 
     goto error;
    if ((space_id=H5Dget_space(dset_in))<0) 
@@ -299,6 +296,8 @@ int do_copy_objects(hid_t fidin,
     goto error;
    if ((dcpl_id=H5Dget_create_plist(dset_in))<0) 
     goto error;
+			if ((dcpl_out = H5Pcopy (dcpl_id))<0) 
+				goto error;
    if ( (rank=H5Sget_simple_extent_ndims(space_id))<0)
     goto error;
    HDmemset(dims, 0, sizeof dims);
@@ -307,8 +306,13 @@ int do_copy_objects(hid_t fidin,
    nelmts=1;
    for (j=0; j<rank; j++) 
     nelmts*=dims[j];
-   if ((mtype_id=H5Tget_native_type(ftype_id,H5T_DIR_DEFAULT))<0)
+			
+			if (options->verbose)
+				print_obj(dcpl_id,travt->objs[i].name );
+   
+   if ((mtype_id=h5tools_get_native_type(ftype_id))<0)
     goto error;
+
    if ((msize=H5Tget_size(mtype_id))==0)
     goto error;
 
@@ -341,9 +345,6 @@ int do_copy_objects(hid_t fidin,
  */
    if ( (H5T_REFERENCE!=H5Tget_class(mtype_id)))
    {
-    /* the information about the object to be filtered/"layouted" */
-    pack_info_t obj;
-    init_packobject(&obj);
    
     /* get the storage size of the input dataset */
     dsize_in=H5Dget_storage_size(dset_in);
@@ -361,37 +362,44 @@ int do_copy_objects(hid_t fidin,
      }
      if (H5Dread(dset_in,mtype_id,H5S_ALL,H5S_ALL,H5P_DEFAULT,buf)<0)
       goto error;
-     
-     /*-------------------------------------------------------------------------
-      * apply the layout; check first if the object is to be modified.
-      *-------------------------------------------------------------------------
-      */
-     if (layout_this(dcpl_id,travt->objs[i].name,options,&obj))
-     {
-      obj.chunk.rank=rank;
-      if (apply_layout(dcpl_id,&obj)<0)
-       goto error;
-     }
-
+    
     /*-------------------------------------------------------------------------
-     * apply the filter; check if the object is to be filtered.
+     * apply the filter
      *-------------------------------------------------------------------------
      */
-     if (apply_filters(travt->objs[i].name,rank,dims,dcpl_id,mtype_id,options,&obj)<0)
+     if (apply_filters(travt->objs[i].name,rank,dims,dcpl_out,mtype_id,options)<0)
       goto error;
 
     }/*nelmts*/
     
     /*-------------------------------------------------------------------------
-     * create/write dataset/close
+     * create;
+					* disable error checking in case the dataset cannot be created with the
+					* modified dcpl; in that case use the original instead
      *-------------------------------------------------------------------------
      */
-    if ((dset_out=H5Dcreate(fidout,travt->objs[i].name,mtype_id,space_id,dcpl_id))<0) 
-     goto error;
+
+				H5E_BEGIN_TRY {
+					 dset_out=H5Dcreate(fidout,travt->objs[i].name,mtype_id,space_id,dcpl_out);
+				} H5E_END_TRY;
+
+				if (dset_out==FAIL)
+				{
+     if ((dset_out=H5Dcreate(fidout,travt->objs[i].name,mtype_id,space_id,dcpl_id))<0) 
+						goto error;
+					
+					if (options->verbose)
+						printf("Warning: Could not apply the filter to <%s>\n", travt->objs[i].name);
+				}
+
+				/*-------------------------------------------------------------------------
+     * write dataset
+     *-------------------------------------------------------------------------
+     */
+
     if (dsize_in && nelmts) {
      if (H5Dwrite(dset_out,mtype_id,H5S_ALL,H5S_ALL,H5P_DEFAULT,buf)<0)
       goto error;
-     wrote=1;
     }
     /*-------------------------------------------------------------------------
      * copy attrs
@@ -400,26 +408,12 @@ int do_copy_objects(hid_t fidin,
     if (copy_attr(dset_in,dset_out,options)<0) 
      goto error;
 
-#ifdef LATER
-    /*-------------------------------------------------------------------------
-     * store the storage sizes
-     *-------------------------------------------------------------------------
-     */
-    
-    dsize_out=H5Dget_storage_size(dset_out);
-#endif /* LATER */
-
     /*close */
     if (H5Dclose(dset_out)<0) 
      goto error;
     
     if (buf)
      free(buf);
-
-    if (options->verbose && wrote)
-     print_obj(dcpl_id,travt->objs[i].name );
-
-
     
    }/*H5T_STD_REF_OBJ*/
    }/*can_read*/
@@ -434,6 +428,8 @@ int do_copy_objects(hid_t fidin,
    if (H5Tclose(mtype_id)<0) 
     goto error;
    if (H5Pclose(dcpl_id)<0) 
+    goto error;
+			if (H5Pclose(dcpl_out)<0) 
     goto error;
    if (H5Sclose(space_id)<0) 
     goto error;
@@ -632,8 +628,10 @@ int copy_attr(hid_t loc_in,
   nelmts=1;
   for (j=0; j<rank; j++) 
    nelmts*=dims[j];
-  if ((mtype_id=H5Tget_native_type(ftype_id,H5T_DIR_DEFAULT))<0)
+  
+  if ((mtype_id=h5tools_get_native_type(ftype_id))<0)
    goto error;
+
   if ((msize=H5Tget_size(mtype_id))==0)
    goto error;
 

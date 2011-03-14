@@ -24,9 +24,9 @@
  *		application to the same file).
  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5FD_sec2_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5FD_sec2_init_interface
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
@@ -37,11 +37,6 @@
 #include "H5Iprivate.h"		/* IDs			  		*/
 #include "H5MMprivate.h"	/* Memory management			*/
 #include "H5Pprivate.h"		/* Property lists			*/
-
-#ifdef MAX
-#undef MAX
-#define MAX(X,Y)	((X)>(Y)?(X):(Y))
-#endif /* MAX */
 
 /* The driver identification number, initialized at runtime */
 static hid_t H5FD_SEC2_g = 0;
@@ -191,10 +186,6 @@ static const H5FD_class_t H5FD_sec2_g = {
     NULL,                                       /*unlock                */
     H5FD_FLMAP_SINGLE 				/*fl_map		*/
 };
-
-/* Interface initialization */
-#define INTERFACE_INIT	H5FD_sec2_init_interface
-static int interface_initialize_g = 0;
 
 /* Declare a free list to manage the H5FD_sec2_t struct */
 H5FL_DEFINE_STATIC(H5FD_sec2_t);
@@ -381,7 +372,7 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
         HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "unable to allocate file struct")
 
     file->fd = fd;
-    H5_ASSIGN_OVERFLOW(file->eof,sb.st_size,off_t,haddr_t);
+    H5_ASSIGN_OVERFLOW(file->eof,sb.st_size,h5_stat_size_t,haddr_t);
     file->pos = HADDR_UNDEF;
     file->op = OP_UNKNOWN;
 #ifdef WIN32

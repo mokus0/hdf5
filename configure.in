@@ -15,7 +15,7 @@ dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.267.2.79 2004/09/15 17:24:38 epourmal Exp $)
+AC_REVISION($Id: configure.in,v 1.267.2.103 2005/03/03 13:37:20 epourmal Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +24,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.6.3], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5], [1.6.4], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -46,6 +46,12 @@ AC_OUTPUT_COMMANDS([
 
 AC_CANONICAL_HOST
 AC_SUBST([CPPFLAGS])
+
+dnl Different compilers may need default libraries. They are specified in
+dnl the config/* files, so we put this statement here so that it'll be
+dnl set by the code which follows...
+dnl
+AC_SUBST(DEFAULT_LIBS) DEFAULT_LIBS=""
 
 dnl ----------------------------------------------------------------------
 dnl Set prefix default (install directory) to a directory in the build area.
@@ -171,7 +177,7 @@ case $HSIZET in
     AC_MSG_RESULT([large])
     HSIZET=large
     AC_DEFINE([HAVE_LARGE_HSIZET], [1],
-              [Define if it's safe to use \`long long' for hsize_t and hssize_t])
+              [Define if it's safe to use `long long' for hsize_t and hssize_t])
     ;;
 esac
 
@@ -705,7 +711,7 @@ AC_TRY_COMPILE([
   ],
   [dev_t d1, d2; if(d1==d2) return 0;],
   AC_DEFINE([DEV_T_IS_SCALAR], [1],
-            [Define if \`dev_t' is a scalar])
+            [Define if `dev_t' is a scalar])
   AC_MSG_RESULT(yes),
   AC_MSG_RESULT(no)
 )
@@ -894,7 +900,6 @@ dnl command-line switch. The value is an include path and/or a library path.
 dnl If the library path is specified then it must be preceded by a comma.
 dnl
 AC_SUBST(USE_FILTER_SZIP) USE_FILTER_SZIP="no"
-AC_SUBST(USE_FILTER_SZIP_ENCODER) USE_FILTER_SZIP_ENCODER="no"
 AC_ARG_WITH([szlib],
             [AC_HELP_STRING([--with-szlib=DIR],
                             [Use szlib library for external szlib I/O
@@ -987,10 +992,7 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
         ], [hdf5_cv_szlib_can_encode=yes], [hdf5_cv_szlib_can_encode=no],)])
 
     if test ${hdf5_cv_szlib_can_encode} = "yes"; then
-        AC_DEFINE([SZIP_CAN_ENCODE], [1],
-                  [Define if szip encoder is present])
         AC_MSG_RESULT([yes])
-        USE_FILTER_SZIP_ENCODER="yes"
     else
         AC_MSG_RESULT([no])
     fi
@@ -1000,91 +1002,13 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
         EXTERNAL_FILTERS="${EXTERNAL_FILTERS},"
     fi
     EXTERNAL_FILTERS="${EXTERNAL_FILTERS}szip"
+    if test ${hdf5_cv_szlib_can_encode} = "yes"; then
+        EXTERNAL_FILTERS="${EXTERNAL_FILTERS}(encoder)"
+    else
+        EXTERNAL_FILTERS="${EXTERNAL_FILTERS}(no encoder)"
+    fi
 fi
 
-dnl ----------------------------------------------------------------------
-dnl Pablo Configuration
-dnl
-AC_SUBST(PABLO) PABLO=""
-AC_SUBST(HAVE_PABLO) HAVE_PABLO="no"
-AC_ARG_WITH([pablo],
-            [AC_HELP_STRING([--with-pablo=DIR],
-                            [Use the Pablo library [default=no]])],,
-            withval=no)
-
-AC_MSG_CHECKING([for Pablo])
-
-case "$withval" in
-  yes)
-    AC_MSG_RESULT(yes)
-    HAVE_PABLO="yes"
-    PABLO="pablo"
-    ;;
-  no)
-    AC_MSG_RESULT(suppressed)
-    ;;
-  *)
-    case "$withval" in
-      *,*)
-        pablo_inc="`echo $withval | cut -f1 -d,`"
-        pablo_lib="`echo $withval | cut -f2 -d, -s`"
-        ;;
-      *)
-        if test -n "$withval"; then
-          pablo_inc="$withval/include"
-          pablo_lib="$withval/lib"
-        fi
-        ;;
-    esac
-
-    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
-    dnl can mess some compilers up.
-    if test "X$pablo_inc" = "X/usr/include"; then
-      pablo_inc=""
-    fi
-    if test "X$pablo_lib" = "X/usr/lib"; then
-      pablo_lib=""
-    fi
-
-    saved_CPPFLAGS="$CPPFLAGS"
-    saved_LDFLAGS="$LDFLAGS"
-    if test -n "$pablo_inc"; then
-      CPPFLAGS="$CPPFLAGS -I$pablo_inc"
-    fi
-
-    if test -n "$pablo_lib"; then
-      LDFLAGS="$LDFLAGS -L$pablo_lib"
-    fi
-
-    failed="no"
-    if test -f "$pablo_inc/PabloTrace.h"; then
-      :
-    else
-      failed="yes"
-    fi
-
-    if test -f "$pablo_lib/libPabloTraceExt.a"; then
-      :
-    else
-      failed="yes"
-    fi
-
-    if test "$failed" = "yes"; then
-      dnl Reset flags if failed
-      CPPFLAGS="$saved_CPPFLAGS"
-      LDFLAGS="$saved_LDFLAGS"
-    else
-      HAVE_PABLO="yes"
-      PABLO="pablo"
-    fi
-
-    if test "$HAVE_PABLO" = "yes"; then
-      AC_MSG_RESULT(yes)
-    else
-      AC_MSG_RESULT(no)
-    fi
-    ;;
-esac
 
 dnl ----------------------------------------------------------------------
 dnl Is SSL library present? It is needed by GLOBUS-GASS and Grid Storage
@@ -1140,13 +1064,11 @@ case "$withval" in
     AC_CHECK_LIB(globus_gass_transfer,main,,unset GASS TESTGASS)
     AC_CHECK_LIB(globus_gass_file,globus_gass_open,,unset GASS TESTGASS)
     ;;
-
   no)
     AC_MSG_CHECKING([for GASS])
     AC_MSG_RESULT([suppressed])
     unset GASS TESTGASS
     ;;
-
   *)
     case "$withval" in
       *,*)
@@ -1441,7 +1363,7 @@ if test "$STREAM_VFD" = "yes"; then
 #endif
   ],
     [socklen_t foo; return 0;],
-    AC_DEFINE([HAVE_SOCKLEN_T], 1, [Define if \`socklen_t' is defined])
+    AC_DEFINE([HAVE_SOCKLEN_T], 1, [Define if `socklen_t' is defined])
     AC_MSG_RESULT([yes]),
     AC_MSG_RESULT([no])
   )
@@ -1460,7 +1382,7 @@ AC_TRY_COMPILE([
 #include <sys/time.h>
 #include <time.h>], [struct tm tm; tm.tm_gmtoff=0;],
 AC_DEFINE([HAVE_TM_GMTOFF], [1],
-          [Define if \`tm_gmtoff' is a member of \`struct tm'])
+          [Define if `tm_gmtoff' is a member of `struct tm'])
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
 
@@ -1470,7 +1392,7 @@ AC_TRY_COMPILE([
 #include <sys/time.h>
 #include <time.h>], [struct tm tm; tm.__tm_gmtoff=0;],
 AC_DEFINE([HAVE___TM_GMTOFF], [1],
-          [Define if \`__tm_gmtoff' is a member of \`struct tm'])
+          [Define if `__tm_gmtoff' is a member of `struct tm'])
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
 
@@ -1480,7 +1402,7 @@ AC_TRY_LINK([
 #include <sys/time.h>
 #include <time.h>], [timezone=0;],
 AC_DEFINE([HAVE_TIMEZONE], [1],
-          [Define if \`timezone' is a global variable])
+          [Define if `timezone' is a global variable])
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
 
@@ -1492,7 +1414,7 @@ AC_TRY_COMPILE([
 #include <sys/time.h>
 #include <time.h>], [struct timezone tz; tz.tz_minuteswest=0;],
 AC_DEFINE([HAVE_STRUCT_TIMEZONE], [1],
-          [Define if \`struct timezone' is defined])
+          [Define if `struct timezone' is defined])
 have_struct_tz="yes"
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
@@ -1534,7 +1456,7 @@ AC_MSG_CHECKING([for st_blocks in struct stat])
 AC_TRY_COMPILE([
 #include <sys/stat.h>],[struct stat sb; sb.st_blocks=0;],
 AC_DEFINE([HAVE_STAT_ST_BLOCKS], [1],
-          [Define if \`struct stat' has the \`st_blocks' field])
+          [Define if `struct stat' has the `st_blocks' field])
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
 
@@ -1547,14 +1469,14 @@ AC_CHECK_FUNCS(_scrsize ioctl)
 AC_MSG_CHECKING([for struct videoconfig])
 AC_TRY_COMPILE(,[struct videoconfig w; w.numtextcols=0;],
 AC_DEFINE([HAVE_STRUCT_VIDEOCONFIG], [1],
-          [Define if \`struct videoconfig' is defined])
+          [Define if `struct videoconfig' is defined])
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
 
 AC_MSG_CHECKING([for struct text_info])
 AC_TRY_COMPILE(, [struct text_info w; w.screenwidth=0;],
 AC_DEFINE([HAVE_STRUCT_TEXT_INFO], [1],
-          [Define if \`struct text_info' is defined])
+          [Define if `struct text_info' is defined])
 AC_MSG_RESULT([yes]),
 AC_MSG_RESULT([no]))
 
@@ -1613,7 +1535,7 @@ AC_CACHE_VAL([hdf5_cv_printf_ll],
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH`echo $LDFLAGS | sed -e 's/-L/:/g' -e 's/ //g'`"
 export LD_LIBRARY_PATH
 
-for hdf5_cv_printf_ll in l L ll q unknown; do
+for hdf5_cv_printf_ll in l ll L q unknown; do
    AC_TRY_RUN([
 #include <stdio.h>
 #include <stdlib.h>
@@ -1631,7 +1553,7 @@ done)dnl
 
 AC_MSG_RESULT([%${hdf5_cv_printf_ll}d and %${hdf5_cv_printf_ll}u])
 AC_DEFINE_UNQUOTED([PRINTF_LL_WIDTH], ["$hdf5_cv_printf_ll"], 
-                   [Width for printf() for type \`long long' or \`__int64', use \`ll'])
+                   [Width for printf() for type `long long' or `__int64', use `ll'])
 
 dnl ----------------------------------------------------------------------
 dnl Check if pthread_attr_setscope(&attribute, PTHREAD_SCOPE_SYSTEM)
@@ -1785,6 +1707,7 @@ if test "X-$TRACE" = X- ; then
     TRACE=yes
   fi
 fi
+
 case "X-$TRACE" in
   X-yes)
     AC_MSG_RESULT([yes])
@@ -2012,16 +1935,12 @@ case "X-$enable_parallel" in
 esac
 
 dnl ----------------------------------------------------------------------
-dnl Should the 'testpar' directory participate in the build?
-dnl
-if test -n "$PARALLEL"; then
-  TESTPARALLEL=testpar
-fi
-
-dnl ----------------------------------------------------------------------
 dnl Print some other parallel information and do some sanity checks.
 dnl
 if test -n "$PARALLEL"; then
+  dnl The 'testpar' directory should participate in the build
+  TESTPARALLEL=testpar
+
   dnl We are building a parallel library
   AC_DEFINE([HAVE_PARALLEL], [1], [Define if we have parallel support])
 
@@ -2136,7 +2055,7 @@ if test -n "$PARALLEL"; then
   
   if test ${hdf5_cv_mpi_file_set_size_big} = "yes"; then
     AC_DEFINE([MPI_FILE_SET_SIZE_BIG], [1],
-              [Define if your system's \`MPI_File_set_size' function works for files over 2GB.])
+              [Define if your system's `MPI_File_set_size' function works for files over 2GB.])
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no])
@@ -2267,11 +2186,13 @@ if (grep '^build_libtool_libs=yes' libtool >/dev/null); then
 else
   enable_shared=no
 fi
+
 if (grep '^build_old_libs=yes' libtool >/dev/null); then
   enable_static=yes
 else
   enable_static=no
 fi
+
 if test "X$enable_static" = "Xyes" && test "X$enable_shared" = "Xyes"; then
   STATIC_SHARED="static, shared"
 elif test "X$enable_static" = "Xyes"; then
@@ -2358,6 +2279,25 @@ if test -n "$CPPFLAGS"; then
 fi
 
 dnl ----------------------------------------------------------------------
+dnl Check if they would like the High Level library  compiled
+dnl
+
+AC_SUBST(HL) HL=""
+AC_MSG_CHECKING([if high level library is enabled])
+AC_ARG_ENABLE([hl],
+     [AC_HELP_STRING([--enable-hl],
+                     [Enable the high level library [default=yes]])],
+     [HDF5_HL=$enableval],
+     [HDF5_HL=yes])
+
+if test "X$HDF5_HL" = "Xyes"; then
+ echo "yes"
+ HL="hl"
+else
+ echo "no"
+fi
+
+dnl ----------------------------------------------------------------------
 dnl Build the Makefiles.  Almost every Makefile.in will begin with the line
 dnl `@COMMENCE@' and end with the line `@CONCLUDE@'.  These lines insert
 dnl various files from the config directory into the Makefile.
@@ -2401,16 +2341,13 @@ if test -n "$TESTPARALLEL"; then
   PARALLEL_MAKE="$TESTPARALLEL/Makefile $TESTPARALLEL/testph5.sh"
 fi
 
-PABLO_MAKE=""
 
-AC_SUBST([PARALLEL_PABLO]) PARALLEL_PABLO=""
-
-if test "X$HAVE_PABLO" = "Xyes"; then
-  PABLO_MAKE="pablo/Makefile"
-
-  if test -n "$TESTPARALLEL"; then
-    PARALLEL_PABLO="yes"
-  fi
+# conditionally generate the high level makefiles
+# to do : fortran with hl
+if test "X$HDF5_HL" = "Xyes"; then
+ HL_FILES="hl/Makefile
+	   hl/src/Makefile
+           hl/test/Makefile"
 fi
 
 AC_CONFIG_FILES([src/libhdf5.settings
@@ -2423,7 +2360,6 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  config/conclude
                  Makefile
                  src/Makefile
-                 $PABLO_MAKE
                  test/Makefile
                  $PARALLEL_MAKE
                  perform/Makefile
@@ -2432,6 +2368,8 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/h5dump/testh5dump.sh
                  tools/h5import/Makefile
                  tools/h5diff/Makefile
+                 tools/h5jam/Makefile
+                 tools/h5jam/testh5jam.sh
                  tools/h5repack/Makefile
                  tools/h5repack/h5repack.sh
                  tools/h5ls/Makefile
@@ -2455,7 +2393,8 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  doc/html/cpplus/Makefile
                  doc/html/cpplus_RM/Makefile
                  doc/html/cpplus_RM/header_files/Makefile
-                 doc/html/fortran/Makefile])
+                 doc/html/fortran/Makefile
+		 $HL_FILES])
 
 AC_OUTPUT
 no_create=$saved_no_create
@@ -2630,8 +2569,6 @@ IF_ENABLED_DISABLED "$LINUX_LFS"
 PRINT_N "                            MPE"
 IF_YES_NO "$MPE"
 
-PRINT_N "                          Pablo"
-IF_YES_NO "$HAVE_PABLO"
 
 PRINT_N "                  Parallel HDF5"
 if test "$PARALLEL" != "no"; then
@@ -2648,3 +2585,7 @@ IF_ENABLED_DISABLED "$STREAM_VFD"
 
 PRINT_N "                   Threadsafety"
 IF_ENABLED_DISABLED "$THREADSAFE"
+
+PRINT_N "             High Level library"
+IF_ENABLED_DISABLED "$HDF5_HL"
+

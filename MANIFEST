@@ -19,6 +19,7 @@
 ./bin/buildhdf5
 ./bin/checkapi				_DO_NOT_DISTRIBUTE_
 ./bin/checkposix			_DO_NOT_DISTRIBUTE_
+./bin/chkconfigure                      _DO_NOT_DISTRIBUTE_
 ./bin/chkcopyright			_DO_NOT_DISTRIBUTE_
 ./bin/chkmanifest
 ./bin/config.guess
@@ -26,6 +27,7 @@
 ./bin/config_para_ibm_sp.sh 
 ./bin/debug-ohdr			_DO_NOT_DISTRIBUTE_
 ./bin/dependencies
+./bin/deploy
 ./bin/distdep
 ./bin/errors			        _DO_NOT_DISTRIBUTE_
 ./bin/h5vers
@@ -34,10 +36,12 @@
 ./bin/locate_sw
 ./bin/ltmain.sh
 ./bin/mkdirs
+./bin/reconfigure			_DO_NOT_DISTRIBUTE_
 ./bin/release
 ./bin/runtest				_DO_NOT_DISTRIBUTE_
 ./bin/snapshot
 ./bin/snapshot_version			_DO_NOT_DISTRIBUTE_
+./bin/timekeeper			_DO_NOT_DISTRIBUTE_
 ./bin/trace
 
 ./config/BlankForm
@@ -57,7 +61,9 @@
 ./config/hpux11.00
 ./config/hpux9.03
 ./config/i386-pc-cygwin32
+./config/i686-pc-cygwin
 ./config/ia64-linux-gnu
+./config/intel-flags
 ./config/intel-osf1
 ./config/irix5.x
 ./config/irix6.x
@@ -65,6 +71,7 @@
 ./config/linux-gnuaout
 ./config/linux-gnulibc1
 ./config/linux-gnulibc2
+./config/pgi-flags
 ./config/powerpc-apple
 ./config/powerpc-ibm-aix4.x
 ./config/powerpc-ibm-aix5.x
@@ -403,9 +410,6 @@
 ./doc/html/Tutor/examples/java/runHyperSlab.sh
 ./doc/html/Tutor/examples/java/runHyperSlab.sh.in
 
-./doc/html/cpplus/CppInterfaces.html
-./doc/html/cpplus/CppUserNotes.doc
-./doc/html/cpplus/CppUserNotes.pdf
 ./doc/html/cpplus/Dependencies
 ./doc/html/cpplus/Makefile.in
 
@@ -636,7 +640,6 @@
 ./doc/html/cpplus_RM/header_files/Dependencies
 ./doc/html/cpplus_RM/header_files/Makefile.in
 ./doc/html/cpplus_RM/header_files/filelist.xml
-./doc/html/cpplus_RM/header_files/filelist.xml
 ./doc/html/cpplus_RM/header_files/image001.jpg
 ./doc/html/cpplus_RM/header_files/image002.jpg
 
@@ -777,6 +780,8 @@
 ./fortran/config/hpux9.03
 ./fortran/config/i386-pc-cygwin32
 ./fortran/config/ia64-linux-gnu
+./fortran/config/intel-fflags
+./fortran/config/intel-flags
 ./fortran/config/intel-osf1
 ./fortran/config/irix5.x
 ./fortran/config/irix6.x
@@ -784,6 +789,8 @@
 ./fortran/config/linux-gnuaout
 ./fortran/config/linux-gnulibc1
 ./fortran/config/linux-gnulibc2
+./fortran/config/pgi-fflags
+./fortran/config/pgi-flags
 ./fortran/config/powerpc-apple
 ./fortran/config/powerpc-ibm-aix4.x
 ./fortran/config/powerpc-ibm-aix5.x
@@ -830,8 +837,6 @@
 ./fortran/src/H5Fff.f90
 ./fortran/src/H5Gf.c
 ./fortran/src/H5Gff.f90
-./fortran/src/H5Git.c
-./fortran/src/H5Git.h
 ./fortran/src/H5If.c
 ./fortran/src/H5Iff.f90
 ./fortran/src/H5Pf.c
@@ -981,7 +986,6 @@
 ./c++/src/H5Group.h
 ./c++/src/H5IdComponent.cpp
 ./c++/src/H5IdComponent.h
-./c++/src/H5Idtemplates.h
 ./c++/src/H5Include.h
 ./c++/src/H5IntType.cpp
 ./c++/src/H5IntType.h
@@ -993,8 +997,6 @@
 ./c++/src/H5PredType.h
 ./c++/src/H5PropList.cpp
 ./c++/src/H5PropList.h
-./c++/src/H5RefCounter.cpp
-./c++/src/H5RefCounter.h
 ./c++/src/H5StrType.cpp
 ./c++/src/H5StrType.h
 ./c++/src/H5VarLenType.cpp
@@ -1022,21 +1024,6 @@
 # End C++ interface
 #
 #------------------------------------------------------------------------------
-
-./pablo/HDFIOTrace.h
-./pablo/HDFTrace.h
-./pablo/HDFmpioProtos.h
-./pablo/HDFrecord_RT.h
-./pablo/Makefile.in
-./pablo/PabloHDF.c
-./pablo/PabloHDF_MPIO.c
-./pablo/PabloHDF_RT.c
-./pablo/PabloHDF_SDDF.c
-./pablo/PabloHDFff.f
-./pablo/ProcIDs.h
-./pablo/PabloSedscr
-./pablo/ProcTrace.h
-./pablo/READ_ME
 
 ./perform/Dependencies
 ./perform/Makefile.in
@@ -1067,6 +1054,9 @@
 ./release_docs/RELEASE.txt
 
 ./src/.indent.pro			_DO_NOT_DISTRIBUTE_
+./src/hdf5.lnt				_DO_NOT_DISTRIBUTE_
+./src/hdf5-lin.lnt			_DO_NOT_DISTRIBUTE_
+./src/hdf5-win.lnt			_DO_NOT_DISTRIBUTE_
 ./src/Dependencies
 ./src/H5.c
 ./src/H5api_adpt.h
@@ -1081,21 +1071,26 @@
 ./src/H5Bpkg.h
 ./src/H5Bprivate.h
 ./src/H5Bpublic.h
+./src/H5C.c
+./src/H5Cprivate.h
+./src/H5Cpublic.h
 ./src/H5D.c
 ./src/H5Dcontig.c
 ./src/H5Dcompact.c
+./src/H5Defl.c
 ./src/H5Dio.c
 ./src/H5Distore.c
 ./src/H5Dmpio.c
 ./src/H5Dprivate.h
 ./src/H5Dpublic.h
 ./src/H5Dpkg.h
-./src/H5Dseq.c
+./src/H5Dselect.c
 ./src/H5Dtest.c
 ./src/H5E.c
 ./src/H5Eprivate.h
 ./src/H5Epublic.h
 ./src/H5F.c
+./src/H5Fdbg.c
 ./src/H5Fpkg.h
 ./src/H5Fprivate.h
 ./src/H5Fpublic.h
@@ -1140,9 +1135,13 @@
 ./src/H5Gpublic.h
 ./src/H5Gstab.c
 ./src/H5HG.c
+./src/H5HGdbg.c
+./src/H5HGpkg.h
 ./src/H5HGprivate.h
 ./src/H5HGpublic.h
 ./src/H5HL.c
+./src/H5HLdbg.c
+./src/H5HLpkg.h
 ./src/H5HLprivate.h
 ./src/H5HLpublic.h
 ./src/H5HP.c
@@ -1202,6 +1201,8 @@
 ./src/H5Spublic.h
 ./src/H5Sselect.c
 ./src/H5Stest.c
+./src/H5SL.c
+./src/H5SLprivate.h
 ./src/H5ST.c
 ./src/H5STprivate.h
 ./src/H5T.c
@@ -1226,8 +1227,6 @@
 ./src/H5Tpublic.h
 ./src/H5Tstrpad.c
 ./src/H5Tvlen.c
-./src/H5TB.c
-./src/H5TBprivate.h
 ./src/H5TS.c
 ./src/H5TSprivate.h
 ./src/H5V.c
@@ -1252,6 +1251,7 @@
 ./test/Makefile.in
 ./test/big.c
 ./test/bittests.c
+./test/cache.c
 ./test/cmpd_dset.c
 ./test/dangle.c
 ./test/deflate.h5
@@ -1324,7 +1324,7 @@
 ./test/trefer.c
 ./test/trefstr.c
 ./test/tselect.c
-./test/ttbbt.c
+./test/tskiplist.c
 ./test/ttst.c
 ./test/ttsafe.c
 ./test/ttsafe.h
@@ -1347,6 +1347,7 @@
 ./testpar/t_mpi.c
 ./testpar/t_ph5basic.c
 ./testpar/t_coll_chunk.c
+./testpar/t_span_tree.c
 ./testpar/testphdf5.c
 ./testpar/testphdf5.h
 ./testpar/testph5.sh.in
@@ -1431,7 +1432,6 @@
 ./tools/h5repack/h5repack.h
 ./tools/h5repack/h5repack_copy.c
 ./tools/h5repack/h5repack_filters.c
-./tools/h5repack/h5repack_layout.c
 ./tools/h5repack/h5repack_list.c
 ./tools/h5repack/h5repack_main.c
 ./tools/h5repack/h5repack_opttable.c
@@ -1443,6 +1443,7 @@
 ./tools/h5repack/testh5repack_main.c
 ./tools/h5repack/testh5repack_make.c
 ./tools/h5repack/testh5repack_util.c
+./tools/h5repack/testh5repack_detect_szip.c
 
 ./tools/h5ls/Dependencies
 ./tools/h5ls/Makefile.in
@@ -1469,6 +1470,7 @@
 ./tools/lib/h5tools_utils.h
 ./tools/lib/h5tools_ref.c
 ./tools/lib/h5tools_ref.h
+./tools/lib/h5tools_type.c
 ./tools/lib/talign.c
 
 ./tools/misc/Dependencies
@@ -1599,6 +1601,7 @@
 ./tools/testfiles/tvlstr.ddl
 ./tools/testfiles/tattr2.h5
 ./tools/testfiles/tall-2A.ddl
+./tools/testfiles/tall-2B.ddl
 ./tools/testfiles/tcontents.ddl
 ./tools/testfiles/tfilters.h5
 ./tools/testfiles/tchunked.ddl
@@ -1796,6 +1799,45 @@
 ./tools/testfiles/test4.h5
 ./tools/testfiles/test5.h5
 ./tools/testfiles/h5repack_info.txt
+
+# jam utility and tests
+./tools/h5jam/Dependencies
+./tools/h5jam/h5jam.c
+./tools/h5jam/h5unjam.c
+./tools/h5jam/Makefile.in
+./tools/h5jam/h5jamgentest.c
+./tools/h5jam/testh5jam.sh.in
+./tools/h5jam/tellub.c
+./tools/h5jam/getub.c
+
+# test files for jam
+./tools/testfiles/twithub.h5
+./tools/testfiles/twithub513.h5
+./tools/testfiles/u10.txt
+./tools/testfiles/u511.txt
+./tools/testfiles/u512.txt
+./tools/testfiles/u513.txt
+
+# high level libraries
+./hl/Makefile.in
+./hl/src/Dependencies
+./hl/src/Makefile.in
+./hl/src/H5IM.c
+./hl/src/H5IM.h
+./hl/src/H5LT.c
+./hl/src/H5LT.h
+./hl/src/H5TA.c
+./hl/src/H5TA.h
+./hl/test/Dependencies
+./hl/test/Makefile.in
+./hl/test/test_image.c
+./hl/test/test_lite.c
+./hl/test/test_table.c
+./hl/test/test_table_le.hdf5
+./hl/test/test_table_be.hdf5
+./hl/test/test_table_cray.hdf5
+
+
 
 # windows
 ./windows/all.zip

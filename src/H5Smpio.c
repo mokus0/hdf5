@@ -23,9 +23,6 @@
 
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5S_mpio_mask
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Dprivate.h"		/* Datasets				*/
@@ -38,10 +35,6 @@
 #include "H5Spkg.h"		/* Dataspaces 				*/
 
 #ifdef H5_HAVE_PARALLEL
-
-/* Interface initialization */
-#define INTERFACE_INIT  NULL
-static int             interface_initialize_g = 0;
 
 static herr_t
 H5S_mpio_all_type( const H5S_t *space, size_t elmt_size,
@@ -64,6 +57,18 @@ H5S_mpio_hyper_type( const H5S_t *space, size_t elmt_size,
 		     size_t *count,
 		     hsize_t *extra_offset,
 		     hbool_t *is_derived_type );
+
+static herr_t
+H5S_mpio_span_hyper_type( const H5S_t *space, size_t elmt_size,
+			  /* out: */
+			  MPI_Datatype *new_type,
+			  size_t *count,
+			  hsize_t *extra_offset,
+			  hbool_t *is_derived_type );
+
+static herr_t obtain_datatype(const hsize_t size[], 
+                              H5S_hyper_span_t* span,MPI_Datatype *span_type,
+                              size_t elmt_size,int dimindex);
 
 
 /*-------------------------------------------------------------------------
@@ -195,7 +200,6 @@ H5S_mpio_none_type( const H5S_t UNUSED *space, size_t UNUSED elmt_size,
  *
  *-------------------------------------------------------------------------
  */
-#ifndef AKC_OLD
 static herr_t
 H5S_mpio_hyper_type( const H5S_t *space, size_t elmt_size,
 		     /* out: */
@@ -457,305 +461,6 @@ done:
 #endif
     FUNC_LEAVE_NOAPI(ret_value);
 }
-#else
-/* keep this old code for now. */
-static herr_t
-H5S_mpio_hyper_type( const H5S_t *space, size_t elmt_size,
-		     /* out: */
-		     MPI_Datatype *new_type,
-		     size_t *count,
-		     hsize_t *extra_offset,
-		     hbool_t *is_derived_type )
-{
-    H5S_sel_iter_t sel_iter;    /* Selection iteration info */
-    hbool_t sel_iter_init=0;    /* Selection iteration info has been initialized */
-
-    struct dim {	/* less hassle than malloc/free & ilk */
-        hssize_t start;
-        hsize_t strid;
-        hsize_t block;
-        hsize_t xtent;
-        hsize_t count;
-    } d[H5S_MAX_RANK];
-
-    int			i;
-    int			offset[H5S_MAX_RANK];
-    int			max_xtent[H5S_MAX_RANK];
-    H5S_hyper_dim_t	*diminfo;		/* [rank] */
-    int		rank;
-    int			block_length[2];
-    MPI_Datatype	inner_type, outer_type, old_type[2];
-    MPI_Aint            extent_len, displacement[2];
-    int                 mpi_code;               /* MPI return code */
-    herr_t		ret_value = SUCCEED;
-
-    FUNC_ENTER_NOAPI_NOINIT(H5S_mpio_hyper_type);
-
-    /* Check args */
-    assert (space);
-    assert(sizeof(MPI_Aint) >= sizeof(elmt_size));
-    if (0==elmt_size)
-        goto empty;
-
-    /* Initialize selection iterator */
-    if (H5S_select_iter_init(&sel_iter, space, elmt_size)<0)
-        HGOTO_ERROR (H5E_DATASPACE, H5E_CANTINIT, FAIL, "unable to initialize selection iterator");
-    sel_iter_init=1;	/* Selection iteration info has been initialized */
-
-    /* Abbreviate args */
-    diminfo=sel_iter.u.hyp.diminfo;
-    assert (diminfo);
-
-    /* make a local copy of the dimension info so we can operate with them */
-
-    /* Check if this is a "flattened" regular hyperslab selection */
-    if(sel_iter.u.hyp.iter_rank!=0 && sel_iter.u.hyp.iter_rank<space->extent.rank) {
-        /* Flattened selection */
-        rank=sel_iter.u.hyp.iter_rank;
-        assert (rank >= 0 && rank<=H5S_MAX_RANK);	/* within array bounds */
-        if (0==rank)
-            goto empty;
-
-#ifdef H5Smpi_DEBUG
-            HDfprintf(stderr, "%s: Flattened selection\n",FUNC);
-#endif
-        for ( i=0; i<rank; ++i) {
-            d[i].start = diminfo[i].start+sel_iter.u.hyp.sel_off[i];
-            d[i].strid = diminfo[i].stride;
-            d[i].block = diminfo[i].block;
-            d[i].count = diminfo[i].count;
-            d[i].xtent = sel_iter.u.hyp.size[i];
-#ifdef H5Smpi_DEBUG
-            HDfprintf(stderr, "%s: start=%Hd  stride=%Hu  count=%Hu  block=%Hu  xtent=%Hu",
-                FUNC, d[i].start, d[i].strid, d[i].count, d[i].block, d[i].xtent );
-            if (i==0)
-                HDfprintf(stderr, "  rank=%d\n", rank );
-            else
-                HDfprintf(stderr, "\n" );
-#endif
-            if (0==d[i].block)
-                goto empty;
-            if (0==d[i].count)
-                goto empty;
-            if (0==d[i].xtent)
-                goto empty;
-        }
-    } /* end if */
-    else {
-        /* Non-flattened selection */
-        rank = space->extent.rank;
-        assert (rank >= 0 && rank<=H5S_MAX_RANK);	/* within array bounds */
-        if (0==rank)
-            goto empty;
-
-#ifdef H5Smpi_DEBUG
-            HDfprintf(stderr, "%s: Non-flattened selection\n",FUNC);
-#endif
-        for ( i=0; i<rank; ++i) {
-            d[i].start = diminfo[i].start+space->select.offset[i];
-            d[i].strid = diminfo[i].stride;
-            d[i].block = diminfo[i].block;
-            d[i].count = diminfo[i].count;
-            d[i].xtent = space->extent.size[i];
-#ifdef H5Smpi_DEBUG
-            HDfprintf(stderr, "%s: start=%Hd  stride=%Hu  count=%Hu  block=%Hu  xtent=%Hu",
-                FUNC, d[i].start, d[i].strid, d[i].count, d[i].block, d[i].xtent );
-            if (i==0)
-                HDfprintf(stderr, "  rank=%d\n", rank );
-            else
-                HDfprintf(stderr, "\n" );
-#endif
-            if (0==d[i].block)
-                goto empty;
-            if (0==d[i].count)
-                goto empty;
-            if (0==d[i].xtent)
-                goto empty;
-        }
-    } /* end else */
-    
-/**********************************************************************
-    Compute array "offset[rank]" which gives the offsets for a multi-
-    dimensional array with dimensions "d[i].xtent" (i=0,1,...,rank-1). 
-**********************************************************************/
-    offset[rank-1] = 1;
-    max_xtent[rank-1] = d[rank-1].xtent;
-#ifdef H5Smpi_DEBUG
-    i=rank-1;
-    HDfprintf(stderr, " offset[%2d]=%d; max_xtent[%2d]=%d\n",
-                          i, offset[i], i, max_xtent[i]);
-#endif
-    for (i=rank-2; i>=0; --i) {
-        offset[i] = offset[i+1]*d[i+1].xtent;
-        max_xtent[i] = max_xtent[i+1]*d[i].xtent;
-#ifdef H5Smpi_DEBUG
-        HDfprintf(stderr, " offset[%2d]=%d; max_xtent[%2d]=%d\n",
-                          i, offset[i], i, max_xtent[i]);
-#endif
-    }
-
-    /*  Create a type covering the selected hyperslab.
-     *  Multidimensional dataspaces are stored in row-major order.
-     *  The type is built from the inside out, going from the
-     *  fastest-changing (i.e., inner) dimension * to the slowest (outer). */
-
-/*******************************************************
-*  Construct contig type for inner contig dims:
-*******************************************************/
-#ifdef H5Smpi_DEBUG
-    HDfprintf(stderr, "%s: Making contig type %d MPI_BYTEs\n", FUNC,elmt_size );
-    for (i=rank-1; i>=0; --i)
-        HDfprintf(stderr, "d[%d].xtent=%Hu \n", i, d[i].xtent);
-#endif
-    if (MPI_SUCCESS != (mpi_code= MPI_Type_contiguous( (int)elmt_size, MPI_BYTE, &inner_type )))
-        HMPI_GOTO_ERROR(FAIL, "MPI_Type_contiguous failed", mpi_code);
-
-/*******************************************************
-*  Construct the type by walking the hyperslab dims
-*  from the inside out:
-*******************************************************/
-    for ( i=rank-1; i>=0; --i) {
-#ifdef H5Smpi_DEBUG
-        HDfprintf(stderr, "%s: Dimension i=%d \n"
-            "count=%Hu block=%Hu stride=%Hu\n",
-            FUNC, i, d[i].count, d[i].block, d[i].strid );
-#endif
-
-#ifdef H5Smpi_DEBUG
-        HDfprintf(stderr, "%s: i=%d  Making vector-type \n", FUNC,i);
-#endif
-       /****************************************
-       *  Build vector in current dimension:
-       ****************************************/
-	mpi_code =MPI_Type_vector((int)(d[i].count),        /* count */
-				  (int)(d[i].block),        /* blocklength */
-				  (int)(d[i].strid),   	    /* stride */
-				  inner_type,	            /* old type */
-				  &outer_type );            /* new type */
-
-        MPI_Type_free( &inner_type );
-        if (mpi_code!=MPI_SUCCESS)
-            HMPI_GOTO_ERROR(FAIL, "couldn't create MPI vector type", mpi_code);
-
-        displacement[1] = (MPI_Aint)elmt_size * max_xtent[i];
-        if(MPI_SUCCESS != (mpi_code = MPI_Type_extent(outer_type, &extent_len)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Type_extent failed", mpi_code);
-
-       /*************************************************
-       *  Restructure this datatype ("outer_type")
-       *  so that it still starts at 0, but its extent
-       *  is the full extent in this dimension.
-       *************************************************/
-        if ((int)extent_len < displacement[1]) {
-
-#ifdef H5Smpi_DEBUG
-            HDfprintf(stderr, "%s: i=%d Extending struct type\n"
-                "***displacements: 0, %d\n", FUNC, i, displacement[1]);
-#endif
-
-#ifdef H5_HAVE_MPI2  /*  have MPI-2  (this function is not included in MPICH) */
-            mpi_code = MPI_Type_create_resized
-                                  ( outer_type,        /* old type  */
-                                    0,                 /* blocklengths */
-                                    displacement[1],   /* displacements */
-                                    &inner_type);      /* new type */
-#else        /*  do not have MPI-2  */
-            block_length[0] = 1;
-            block_length[1] = 1;
-  
-            displacement[0] = 0;
-  
-            old_type[0] = outer_type;
-            old_type[1] = MPI_UB;
-            mpi_code = MPI_Type_struct ( 2,               /* count */
-                                    block_length,    /* blocklengths */
-                                    displacement,    /* displacements */
-                                    old_type,        /* old types */
-                                    &inner_type);    /* new type */
-#endif
-  
-            MPI_Type_free (&outer_type);
-    	    if (mpi_code!=MPI_SUCCESS)
-                HMPI_GOTO_ERROR(FAIL, "couldn't resize MPI vector type", mpi_code);
-        }
-        else {
-            inner_type = outer_type;
-        }
-    } /* end for */
-/***************************
-*  End of loop, walking 
-*  thru dimensions.
-***************************/
-
-
-    /* At this point inner_type is actually the outermost type, even for 0-trip loop */
-
-/***************************************************************
-*  Final task: create a struct which is a "clone" of the
-*  current struct, but displaced according to the d[i].start
-*  values given in the hyperslab description:
-***************************************************************/
-    displacement[0] = 0;
-    for (i=rank-1; i>=0; i--)
-        displacement[0] += d[i].start * offset[i];
-
-    if (displacement[0] > 0) {
-        displacement[0] *= elmt_size;
-        block_length[0] = 1;
-        old_type[0] = inner_type;
-
-#ifdef H5Smpi_DEBUG
-        HDfprintf(stderr, "%s:  Making final struct\n***count=1:\n", FUNC);
-        HDfprintf(stderr, "\tblocklength[0]=%d; displacement[0]=%d\n",
-                     block_length[0], displacement[0]);
-#endif
-
-  
-        if (MPI_SUCCESS != (mpi_code= MPI_Type_struct( 1,                  /* count */
-                     block_length,       /* blocklengths */
-                     displacement,       /* displacements */
-                     old_type,	         /* old type */
-                     new_type ))         /* new type */
-                )
-            HMPI_GOTO_ERROR(FAIL, "couldn't create MPI struct type", mpi_code);
-
-        if (MPI_SUCCESS != (mpi_code= MPI_Type_free (&old_type[0])))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Type_free failed", mpi_code);
-    }
-    else {
-        *new_type = inner_type;
-    }
-
-    if (MPI_SUCCESS != (mpi_code= MPI_Type_commit( new_type )))
-        HMPI_GOTO_ERROR(FAIL, "MPI_Type_commit failed", mpi_code);
-
-    /* fill in the remaining return values */
-    *count = 1;			/* only have to move one of these suckers! */
-    *extra_offset = 0;
-    *is_derived_type = 1;
-    HGOTO_DONE(SUCCEED);
-
-empty:
-    /* special case: empty hyperslab */
-    *new_type = MPI_BYTE;
-    *count = 0;
-    *extra_offset = 0;
-    *is_derived_type = 0;
-
-done:
-    /* Release selection iterator */
-    if(sel_iter_init) {
-        if (H5S_SELECT_ITER_RELEASE(&sel_iter)<0)
-            HDONE_ERROR (H5E_DATASPACE, H5E_CANTRELEASE, FAIL, "unable to release selection iterator");
-    } /* end if */
-
-#ifdef H5Smpi_DEBUG
-    HDfprintf(stderr, "Leave %s, count=%ld  is_derived_type=%d\n",
-		FUNC, *count, *is_derived_type );
-#endif
-    FUNC_LEAVE_NOAPI(ret_value);
-}
-#endif 
 
 
 /*-------------------------------------------------------------------------
@@ -843,176 +548,347 @@ done:
     FUNC_LEAVE_NOAPI(ret_value);
 }
 
+
 
 /*-------------------------------------------------------------------------
- * Function:	H5S_mpio_opt_possible
+ * Function:	H5S_mpio_space_span_ type
  *
- * Purpose:	Checks if an direct I/O transfer is possible between memory and
- *                  the file.
+ * Purpose:	Translate an HDF5 dataspace selection into a general
+                MPI derivewd datatype built with span-tree.
+ *             
+ *		Currently handle only hyperslab and "all" selections.
  *
- * Return:	Success:        Non-negative: TRUE or FALSE
- *		Failure:	Negative
+ * Return:	non-negative on success, negative on failure.
  *
- * Programmer:	Quincey Koziol
- *              Wednesday, April 3, 2002
+ * Outputs:	*new_type	  the MPI type corresponding to the selection
+ *		*count		  how many objects of the new_type in selection
+ *				  (useful if this is the buffer type for xfer)
+ *		*extra_offset     Number of bytes of offset within dataset
+ *		*is_derived_type  0 if MPI primitive type, 1 if derived
+ *
+ * Programmer:	KY
  *
  * Modifications:
  *
+ *      Quincey Koziol, June 18, 2002
+ *      Added 'extra_offset' parameter
+ *
  *-------------------------------------------------------------------------
  */
-htri_t
-H5S_mpio_opt_possible( const H5F_t *file, const H5S_t *mem_space, const H5S_t *file_space, const unsigned flags,const H5O_layout_t *layout)
+herr_t
+H5S_mpio_space_span_type( const H5S_t *space, size_t elmt_size,
+		     /* out: */
+		     MPI_Datatype *new_type,
+		     size_t *count,
+		     hsize_t *extra_offset,
+		     hbool_t *is_derived_type )
 {
-    htri_t c1,c2;               /* Flags whether a selection is optimizable */
-    htri_t ret_value=TRUE;
+    herr_t	ret_value = SUCCEED;
 
-    FUNC_ENTER_NOAPI(H5S_mpio_opt_possible, FAIL);
+    FUNC_ENTER_NOAPI_NOINIT(H5S_mpio_space_span_type);
 
     /* Check args */
-    assert(mem_space);
-    assert(file_space);
+    assert (space);
 
-    /* Parallel I/O conversion flag must be set, if it is not collective IO, go to false. */
-    if(!(flags&H5S_CONV_PAR_IO_POSSIBLE))
-        HGOTO_DONE(FALSE);
+    /* Creat MPI type based on the kind of selection */
+    switch (H5S_GET_EXTENT_TYPE(space)) {
+        case H5S_SCALAR:
+        case H5S_SIMPLE:
+            switch(H5S_GET_SELECT_TYPE(space)) {
+                case H5S_SEL_NONE:
+                    if ( H5S_mpio_none_type( space, elmt_size,
+                        /* out: */ new_type, count, extra_offset, is_derived_type ) <0)
+                        HGOTO_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't convert \"all\" selection to MPI type");
+                    break;
 
-    /* Check whether these are both simple or scalar dataspaces */
-    if (!((H5S_SIMPLE==H5S_GET_EXTENT_TYPE(mem_space) || H5S_SCALAR==H5S_GET_EXTENT_TYPE(mem_space))
-            && (H5S_SIMPLE==H5S_GET_EXTENT_TYPE(file_space) || H5S_SCALAR==H5S_GET_EXTENT_TYPE(file_space))))
-        HGOTO_DONE(FALSE);
+                case H5S_SEL_ALL:
+                    if ( H5S_mpio_all_type( space, elmt_size,
+                        /* out: */ new_type, count, extra_offset, is_derived_type ) <0)
+                        HGOTO_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't convert \"all\" selection to MPI type");
+                    break;
 
-    /* Check whether both selections are "regular" */
-    c1=H5S_SELECT_IS_REGULAR(file_space);
-    c2=H5S_SELECT_IS_REGULAR(mem_space);
-    if(c1==FAIL || c2==FAIL)
-        HGOTO_ERROR(H5E_DATASPACE, H5E_BADRANGE, FAIL, "invalid check for single selection blocks");
-    if(c1==FALSE || c2==FALSE)
-        HGOTO_DONE(FALSE);
+                case H5S_SEL_POINTS:
+                    /* not yet implemented */
+                    ret_value = FAIL;
+                    break;
 
-    /* Can't currently handle point selections */
-    if (H5S_SEL_POINTS==H5S_GET_SELECT_TYPE(mem_space) || H5S_SEL_POINTS==H5S_GET_SELECT_TYPE(file_space))
-        HGOTO_DONE(FALSE);
+                case H5S_SEL_HYPERSLABS:
+                    if(H5S_mpio_span_hyper_type( space, elmt_size,
+                            /* out: */ new_type, count, extra_offset, is_derived_type )<0)
+                        HGOTO_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't convert \"all\" selection to MPI type");
+                    break;
 
-    /* Dataset storage must be contiguous or chunked */
-    if ((flags&H5S_CONV_STORAGE_MASK)!=H5S_CONV_STORAGE_CONTIGUOUS && 
-            (flags&H5S_CONV_STORAGE_MASK)!=H5S_CONV_STORAGE_CHUNKED)
-        HGOTO_DONE(FALSE);
+                default:
+                    assert("unknown selection type" && 0);
+                    break;
+            } /* end switch */
+            break;
 
-    if ((flags&H5S_CONV_STORAGE_MASK)==H5S_CONV_STORAGE_CHUNKED) {
-        hsize_t chunk_dim[H5O_LAYOUT_NDIMS];        /* Chunk dimensions */
-        hssize_t startf[H5S_MAX_RANK],      /* Selection start bounds */
-            endf[H5S_MAX_RANK];     /* Selection end bounds */
-        unsigned dim_rankf;         /* Number of dimensions of file dataspace */
-        int pcheck_hyper,check_hyper,   /* Flags for checking if selection is in one chunk */
-            tnum_chunkf,            /* Number of chunks selection overlaps */
-            max_chunkf,             /* Maximum number of chunks selection overlaps */
-            min_chunkf,             /* Minimum number of chunks selection overlaps */
-            num_chunks_same;        /* Flag indicating whether all processes have the same # of chunks to operate on */
-        unsigned dim_chunks;        /* Temporary number of chunks in a dimension */
-        MPI_Comm comm;              /* MPI communicator for file */
-        int mpi_rank;               /* Rank in MPI communicator */
-        int mpi_code;               /* MPI return code */
-        unsigned u;                 /* Local index variable */
+        case H5S_COMPLEX:
+            /* not yet implemented */
+            HGOTO_ERROR(H5E_DATASPACE, H5E_UNSUPPORTED, FAIL, "complex data spaces are not supported yet");
 
-        /* Getting MPI communicator and rank */
-        if((comm = H5F_mpi_get_comm(file))==MPI_COMM_NULL)
-            HGOTO_ERROR(H5E_DATASPACE, H5E_CANTGET, FAIL, "can't retrieve MPI communicator")
-        if((mpi_rank = H5F_mpi_get_rank(file))<0)
-            HGOTO_ERROR(H5E_DATASPACE, H5E_CANTGET, FAIL, "can't retrieve MPI rank")
-
-      /* Currently collective chunking storage 
-	 inside HDF5 is supported for either one of the following two cases:
-	 1. All the hyperslabs for one process is inside one chunk.
-	 2. For single hyperslab selection, the number of chunks that covered 
-	    the single selection for all processes should be equal. 
-	    KY, 2004/7/14
-      */
-
-      /* Quincey, please read.
-	 This is maybe redundant, I think only when both memory and file space be SCALAR
-	 space, the collective IO can work. Otherwise, SELECT_POINT will be reached,collective
-	 IO shouldn't work.
-	 Please clarify and correct the code on the following,
-         Quincey said that it was probably okay if only one data space is SCALAR, 
-         Still keep the code here until we added more tests later.
-	 Kent */
-        if(H5S_SCALAR==mem_space->extent.type || H5S_SCALAR ==file_space->extent.type) {
-            if(!(H5S_SCALAR==mem_space->extent.type && H5S_SCALAR ==file_space->extent.type))
-                HGOTO_DONE(FALSE)
-            else
-                HGOTO_DONE(TRUE)
-        } /* end if */
-
-        dim_rankf = file_space->extent.rank;
-
-        if(H5S_SELECT_BOUNDS(file_space,startf,endf)==FAIL)
-            HGOTO_ERROR(H5E_DATASPACE, H5E_BADRANGE,FAIL, "invalid check for single selection blocks");
-
-        for(u=0; u < layout->u.chunk.ndims; u++) 
-            chunk_dim[u] = layout->u.chunk.dim[u];
-
-        /* Case 1: check whether all hyperslab in this process is inside one chunk.
-           Note: we don't handle when starting point is less than zero since that may cover
-           two chunks. */
-
-        /*for file space checking*/
-        pcheck_hyper = 1;
-        for (u=0; u<dim_rankf; u++)
-            if(endf[u]/chunk_dim[u]!=startf[u]/chunk_dim[u]) {
-                pcheck_hyper = 0;
-                break;
-            }
-      
-        if (MPI_SUCCESS != (mpi_code= MPI_Reduce(&pcheck_hyper,&check_hyper,1,MPI_INT,MPI_LAND,0,comm)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Reduce failed", mpi_code)
-        if (MPI_SUCCESS != (mpi_code= MPI_Bcast(&check_hyper,1,MPI_INT,0,comm)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Bcast failed", mpi_code)
-
-        /*if check_hyper is true, condition for collective IO case is fulfilled, no
-         need to do further test. */
-        if(check_hyper)
-            HGOTO_DONE(TRUE); 
-    
-      /* Case 2:Check whether the number of chunks that covered the single hyperslab is the same.
-	 If not,no collective chunk IO. 
-	 KY, 2004/7/14
-      */
-	 
-        c1 = H5S_SELECT_IS_SINGLE(file_space);
-        c2 = H5S_SELECT_IS_SINGLE(mem_space);
-
-        if(c1==FAIL || c2 ==FAIL)
-            HGOTO_ERROR(H5E_DATASPACE, H5E_BADRANGE, FAIL, "invalid check for single selection blocks");
-        if(c1==FALSE || c2 ==FALSE)
-            HGOTO_DONE(FALSE);
-
-        /* Compute the number of chunks covered by the selection on this process */
-        tnum_chunkf = 1;
-        for (u=0; u<dim_rankf; u++) {
-            dim_chunks = (endf[u]/chunk_dim[u]-startf[u]/chunk_dim[u])+1;
-            tnum_chunkf = dim_chunks*tnum_chunkf;
-        }
-
-        /* Determine the minimum and maximum # of chunks for all processes */
-        if (MPI_SUCCESS != (mpi_code= MPI_Reduce(&tnum_chunkf,&max_chunkf,1,MPI_INT,MPI_MAX,0,comm)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Reduce failed", mpi_code)
-        if (MPI_SUCCESS != (mpi_code= MPI_Reduce(&tnum_chunkf,&min_chunkf,1,MPI_INT,MPI_MIN,0,comm)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Reduce failed", mpi_code)
-  
-        /* Let the rank==0 process determine if the same number of chunks will be operated on by all processes */
-        if(mpi_rank == 0)
-            num_chunks_same = (max_chunkf==min_chunkf);
-                    
-        /* Broadcast the flag indicating the number of chunks are the same */
-        if (MPI_SUCCESS != (mpi_code= MPI_Bcast(&num_chunks_same,1,MPI_INT,0,comm)))
-            HMPI_GOTO_ERROR(FAIL, "MPI_Bcast failed", mpi_code)
-
-        /* Can't handle case when number of chunks is different (yet) */
-        if(!num_chunks_same)
-            HGOTO_DONE(FALSE);
+        default:
+            assert("unknown data space type" && 0);
+            break;
     }
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
-} /* H5S_mpio_opt_possible() */
+}
+
+
+/* The following codes have been used by Kent to test
+   general collective derived datatype functionality. 
+   It should NOT be called by other routines except with
+   macro #ifdef KENT #endif
+   Nov. 11th, 2004 */
+
+   
+static herr_t
+H5S_mpio_span_hyper_type( const H5S_t *space, size_t elmt_size,
+		     /* out: */
+		     MPI_Datatype *new_type,
+		     size_t *count,
+		     hsize_t *extra_offset,
+			  hbool_t *is_derived_type ){
+
+  MPI_Datatype          span_type;
+  H5S_hyper_span_t      *ospan;
+  H5S_hyper_span_info_t *odown;
+  hsize_t               *size;
+  int                   rank;
+  herr_t                ret_value = SUCCEED;
+
+   MPI_Aint              extent,lb;
+
+  FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5S_mpio_span_hyper_type);
+
+  printf("coming to hyper type \n");
+  /* Check args */
+    assert (space);
+    /* assert(sizeof(MPI_Aint) >= sizeof(elmt_size));?? */
+
+    /* Only for simple extent 
+    rank = space->extent.u.simple.rank;
+    */
+    rank = space->extent.rank;
+
+    /*    size = HDcalloc((size_t)rank,sizeof(hsize_t));  */ 
+    if (0==elmt_size)
+        goto empty;
+    size = space->extent.size;
+    
+
+    odown = space->select.sel_info.hslab->span_lst;
+    if(odown == NULL) 
+      goto empty;
+    ospan = odown->head;
+    if(ospan == NULL)
+      goto empty;
+    
+    obtain_datatype(space->extent.size,ospan,&span_type,elmt_size,rank);
+    MPI_Type_commit(&span_type);
+
+      MPI_Type_lb(span_type,&lb);
+      printf("lb %d\n",lb);
+      MPI_Type_extent(span_type,&extent);
+      printf("extent %d\n",extent);
+    *new_type = span_type;
+     /* fill in the remaining return values */
+    *count = 1;		
+    *extra_offset = 0;
+    *is_derived_type = 1;
+    printf("before freeing size\n");
+    /*    HDfree(size);*/
+    printf("after freeing size\n");
+    HGOTO_DONE(SUCCEED);
+
+empty:
+    /* special case: empty hyperslab */
+    *new_type = MPI_BYTE;
+    *count = 0;
+    *extra_offset = 0;
+    *is_derived_type = 0;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+  }
+
+
+static herr_t obtain_datatype(const hsize_t size[], H5S_hyper_span_t* span,MPI_Datatype *span_type,
+			      size_t elmt_size,int dimindex) {
+  
+  int                   innercount,outercount;
+  MPI_Datatype          bas_type;
+  MPI_Datatype          temp_type;
+  MPI_Datatype          tempinner_type;
+  MPI_Datatype          *inner_type;
+  int                   *blocklen;
+  MPI_Aint              *disp;
+  MPI_Aint              stride;
+  MPI_Aint              extent,lb;
+  H5S_hyper_span_info_t *down;
+  H5S_hyper_span_t      *tspan;
+#ifdef H5_HAVE_MPI2
+  MPI_Aint              sizeaint,sizedtype;
+#endif /* H5_HAVE_MPI2 */
+  hsize_t               total_lowd,total_lowd1;
+  int                   i;
+  int                   ret;
+
+  assert(span);
+
+  inner_type = NULL;
+  down = NULL;
+  tspan= NULL;
+  down  = span->down;
+  tspan = span;
+
+  outercount = 0;
+  while(tspan) {
+    if(tspan) {
+      HDfprintf(stdout, " span->low %Hd\n",tspan->low);
+      HDfprintf(stdout, " span->high %Hd\n",tspan->high); 
+      HDfprintf(stdout, " span->nelm %Hu\n",tspan->nelem);
+    }
+    tspan = tspan->next;
+    outercount ++;
+  }
+
+  if(outercount == 0) {
+    span_type = NULL;
+    return 0;
+  }
+  printf("outercount %d\n",outercount);
+#ifdef H5_HAVE_MPI2
+  printf("coming into HAVE_MPI2\n");
+  fflush(stdout);
+
+  MPI_Type_extent(MPI_Aint,&sizeaint);
+  MPI_Type_extent(MPI_Datatype,&sizedtype);
+  printf("coming into HAVE_MPI2 type extent\n");
+  fflush(stdout);
+
+  blocklen  = (int *)HDcalloc((size_t)outercount,sizeof(int));
+  disp = (MPI_Aint *)HDcalloc((size_t)outercount,sizeaint);
+  inner_type   = (MPI_Datatype *)HDcalloc((size_t)outercount,sizedtype);
+#else
+  printf("coming to MPI2 else \n");
+  blocklen  = (int *)HDcalloc((size_t)outercount,sizeof(int));
+  disp = (MPI_Aint *)HDcalloc((size_t)outercount,sizeof(int));
+  inner_type   = (MPI_Datatype *)HDcalloc((size_t)outercount,sizeof(int));
+  printf("end of calloc \n");
+#endif
+  
+  
+  tspan = span;
+  outercount = 0;
+
+  if(down == NULL){
+    printf("coming to down = NULL \n");
+    if(dimindex > 1) printf("wrong area \n");
+    MPI_Type_contiguous((int)elmt_size,MPI_BYTE,&bas_type);
+    MPI_Type_commit(&bas_type);
+    printf("after type commit \n");
+    while(tspan){
+      disp[outercount]      = (MPI_Aint)elmt_size * tspan->low;
+      blocklen[outercount]  = tspan->nelem;
+      tspan                 = tspan->next;
+      outercount ++;
+    }
+    /*    printf("outercount %d\n",outercount);
+	  printf("after while loop \n");*/
+    ret = MPI_Type_hindexed(outercount,blocklen,disp,bas_type,span_type);
+    if(ret < 0) printf("type hindexed doesn't work\n");
+    printf("after hindexed \n");
+
+     
+  }
+  else {/* dimindex is the rank of the dimension */
+
+    if(dimindex <2) printf("something is wrong \n");
+    /* Calculate the total bytes of the lower dimension */
+    total_lowd  = 1;  /* one dimension down */
+    total_lowd1 = 1; /* two dimensions down */
+
+    for ( i = dimindex-1; i > 0; i--)
+         total_lowd = total_lowd * size[i];
+
+    for ( i = dimindex-1; i > 1; i--)
+         total_lowd1 = total_lowd1 * size[i];
+     
+     HDfprintf(stdout, " one dimension down size %Hu\n",total_lowd);
+     HDfprintf(stdout, " two dimension down size %Hu\n",total_lowd1);   
+   
+     while(tspan){
+/* Displacement should be in byte and should have dimension information */
+/* First using MPI Type vector to build derived data type for this span only */
+/* Need to calculate the disp in byte for this dimension. */
+      /* Calculate the total bytes of the lower dimension */
+
+      disp[outercount]      = tspan->low*total_lowd*elmt_size;
+      blocklen[outercount]  = 1;
+      printf("displacement the 0 rank %d\n",disp[0]);
+      /* generating inner derived datatype by using MPI_Type_hvector */
+      obtain_datatype(size,tspan->down->head,&temp_type,elmt_size,dimindex-1);
+      ret= MPI_Type_commit(&temp_type);
+      if(ret < 0) printf("cannot commit temp_type\n");
+/*      inner_type[count] = temp_type; */
+
+#ifdef H5_HAVE_MPI2
+      MPI_Type_get_extent(temp_type,&lb,&extent);
+#else
+      MPI_Type_lb(temp_type,&lb);
+      printf("lb %d\n",lb);
+      MPI_Type_extent(temp_type,&extent);
+      printf("extent %d\n",extent);
+#endif
+     /* building the inner vector datatype */
+      /* The following calculation of stride is wrong since stride is calculated
+         from the first element of the block to the first element of the next
+         block. */
+      /*stride = total_lowd1 * (size[dimindex-1]*elmt_size-extent-lb);*/
+       stride     = total_lowd*elmt_size;
+      innercount  = tspan->nelem;
+      printf("stride %d\n",stride);
+      printf("innercount %d\n",innercount);
+      fflush(stdout);
+	ret = MPI_Type_hvector(innercount,1,stride,temp_type,&tempinner_type);
+
+      /* MPI_Type_contiguous(2,temp_type,&tempinner_type);*/
+      if(ret < 0) printf("wrong vector \n");
+      MPI_Type_commit(&tempinner_type);
+      printf("after tempinner_type commit\n");
+      MPI_Type_free(&temp_type);
+      printf("after free \n");
+      inner_type[outercount] = tempinner_type;
+      outercount ++;
+      tspan = tspan->next;
+    }
+    
+    /* building the whole vector datatype */
+    MPI_Type_struct(outercount,blocklen,disp,inner_type,span_type);
+    printf("after type struct \n");
+  }
+
+  
+  if(inner_type != NULL){
+    if(down != NULL) {
+    for(i=0;i<outercount;i++)
+             MPI_Type_free(&inner_type[i]);
+      
+    }
+  }
+
+  if(inner_type != NULL)
+    HDfree(inner_type);
+  if(blocklen != NULL)
+  HDfree(blocklen);
+  if(disp != NULL)
+  HDfree(disp);
+  printf("after obtaining type \n");
+  return 0;
+}
+
 #endif  /* H5_HAVE_PARALLEL */

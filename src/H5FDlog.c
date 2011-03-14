@@ -25,10 +25,9 @@
  *          With custom modifications...
  */
 
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5FD_log_init_interface
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5FD_log_mask
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
@@ -236,10 +235,6 @@ static const H5FD_class_t H5FD_log_g = {
     NULL,                                       /*unlock                */
     H5FD_FLMAP_NOLIST 				/*fl_map		*/
 };
-
-/* Interface initialization */
-#define INTERFACE_INIT	H5FD_log_init_interface
-static int interface_initialize_g = 0;
 
 
 /*--------------------------------------------------------------------------
@@ -595,7 +590,7 @@ H5FD_log_open(const char *name, unsigned flags, hid_t fapl_id,
     fa = H5P_get_driver_info(plist);
 
     file->fd = fd;
-    H5_ASSIGN_OVERFLOW(file->eof,sb.st_size,off_t,haddr_t);
+    H5_ASSIGN_OVERFLOW(file->eof,sb.st_size,h5_stat_size_t,haddr_t);
     file->pos = HADDR_UNDEF;
     file->op = OP_UNKNOWN;
 #ifdef WIN32
@@ -910,7 +905,7 @@ H5FD_log_alloc(H5FD_t *_file, H5FD_mem_t type, hid_t UNUSED dxpl_id, hsize_t siz
         if(file->fa.flags&H5FD_LOG_FLAVOR) {
             assert(addr<file->iosize);
             H5_CHECK_OVERFLOW(size,hsize_t,size_t);
-            HDmemset(&file->flavor[addr],type,(size_t)size);
+            HDmemset(&file->flavor[addr],(int)type,(size_t)size);
         } /* end if */
 
         if(file->fa.flags&H5FD_LOG_ALLOC)
@@ -1215,8 +1210,8 @@ H5FD_log_write(H5FD_t *_file, H5FD_mem_t type, hid_t UNUSED dxpl_id, haddr_t add
     assert(buf);
 
     /* Verify that we are writing out the type of data we allocated in this location */
-    assert(type==H5FD_MEM_DEFAULT || type==file->flavor[addr] || file->flavor[addr]==H5FD_MEM_DEFAULT);
-    assert(type==H5FD_MEM_DEFAULT || type==file->flavor[(addr+size)-1] || file->flavor[(addr+size)-1]==H5FD_MEM_DEFAULT);
+    assert(type==H5FD_MEM_DEFAULT || type==(H5FD_mem_t)file->flavor[addr] || (H5FD_mem_t)file->flavor[addr]==H5FD_MEM_DEFAULT);
+    assert(type==H5FD_MEM_DEFAULT || type==(H5FD_mem_t)file->flavor[(addr+size)-1] || (H5FD_mem_t)file->flavor[(addr+size)-1]==H5FD_MEM_DEFAULT);
 
     /* Check for overflow conditions */
     if (HADDR_UNDEF==addr) 
@@ -1317,8 +1312,8 @@ H5FD_log_write(H5FD_t *_file, H5FD_mem_t type, hid_t UNUSED dxpl_id, haddr_t add
 
         /* Check if this is the first write into a "default" section, grabbed by the metadata agregation algorithm */
         if(file->fa.flags&H5FD_LOG_FLAVOR) {
-            if(file->flavor[orig_addr]==H5FD_MEM_DEFAULT)
-                HDmemset(&file->flavor[orig_addr],type,orig_size);
+            if((H5FD_mem_t)file->flavor[orig_addr]==H5FD_MEM_DEFAULT)
+                HDmemset(&file->flavor[orig_addr],(int)type,orig_size);
         } /* end if */
 
 #ifdef H5_HAVE_GETTIMEOFDAY

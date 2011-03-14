@@ -57,7 +57,10 @@
 /* Definitions for space allocation time */
 #define H5D_CRT_ALLOC_TIME_NAME   "alloc_time"
 #define H5D_CRT_ALLOC_TIME_SIZE   sizeof(H5D_alloc_time_t)
-#define H5D_CRT_ALLOC_TIME_DEF    H5D_ALLOC_TIME_DEFAULT
+#define H5D_CRT_ALLOC_TIME_DEF    H5D_ALLOC_TIME_LATE
+#define H5D_CRT_ALLOC_TIME_STATE_NAME   "alloc_time_state"
+#define H5D_CRT_ALLOC_TIME_STATE_SIZE   sizeof(unsigned)
+#define H5D_CRT_ALLOC_TIME_STATE_DEF    1
 /* Definitions for time of fill value writing */
 #define H5D_CRT_FILL_TIME_NAME     "fill_time"
 #define H5D_CRT_FILL_TIME_SIZE     sizeof(H5D_fill_time_t)
@@ -169,12 +172,20 @@
 typedef struct H5D_t H5D_t;
 
 /* Typedef for dataset storage information */
+typedef struct {
+    hsize_t index;          /* "Index" of chunk in dataset (must be first for TBBT routines) */
+    hsize_t *offset;        /* Chunk's coordinates in elements */
+} H5D_chunk_storage_t;
+
+typedef struct {
+    haddr_t dset_addr;      /* Address of dataset in file */
+    hsize_t dset_size;      /* Total size of dataset in file */
+} H5D_contig_storage_t;
+
 typedef union H5D_storage_t {
     H5O_efl_t   efl;            /* External file list information for dataset */
-    struct {
-        hsize_t index;          /* "Index" of chunk in dataset (must be first for TBBT routines) */
-        hssize_t *offset;       /* Chunk's coordinates in elements */
-    } chunk;
+    H5D_chunk_storage_t chunk;  /* Chunk information for dataset */
+    H5D_contig_storage_t contig; /* Contiguous information for dataset */
 } H5D_storage_t;
 
 /* Typedef for cached dataset transfer property list information */
@@ -201,7 +212,8 @@ typedef struct H5D_dcpl_cache_t {
 
 /* Library-private functions defined in H5D package */
 H5_DLL herr_t H5D_init(void);
-H5_DLL hid_t H5D_open(H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL H5D_t *H5D_open(const H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL herr_t H5D_close(H5D_t *dataset);
 H5_DLL htri_t H5D_isa(H5G_entry_t *ent, hid_t dxpl_id);
 H5_DLL H5G_entry_t *H5D_entof(H5D_t *dataset);
 H5_DLL H5T_t *H5D_typeof(const H5D_t *dset);
@@ -212,86 +224,18 @@ H5_DLL herr_t H5D_xfer_create(hid_t dxpl_id, void *create_data);
 H5_DLL herr_t H5D_xfer_copy(hid_t new_plist_id, hid_t old_plist_id, 
                              void *copy_data);
 H5_DLL herr_t H5D_xfer_close(hid_t dxpl_id, void *close_data);
-H5_DLL herr_t H5D_flush(H5F_t *f, hid_t dxpl_id, unsigned flags);
+H5_DLL herr_t H5D_flush(const H5F_t *f, hid_t dxpl_id, unsigned flags);
 H5_DLL herr_t H5D_get_dxpl_cache(hid_t dxpl_id, H5D_dxpl_cache_t **cache);
 H5_DLL herr_t H5D_get_dxpl_cache_real(hid_t dxpl_id, H5D_dxpl_cache_t *cache);
-
-/* Functions that operate on byte sequences in memory and on disk */
-H5_DLL ssize_t H5D_seq_readvv(H5F_t *f, const H5D_dxpl_cache_t *dxpl_cache,
-    hid_t dxpl_id, H5D_t *dset, const H5D_storage_t *store, 
-    size_t dset_max_nseq, size_t *dset_curr_seq,  size_t dset_len_arr[], hsize_t dset_offset_arr[],
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    void *buf);
-H5_DLL ssize_t H5D_seq_writevv(H5F_t *f, const H5D_dxpl_cache_t *dxpl_cache,
-    hid_t dxpl_id, H5D_t *dset, const H5D_storage_t *store, 
-    size_t dset_max_nseq, size_t *dset_curr_seq,  size_t dset_len_arr[], hsize_t dset_offset_arr[],
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    const void *buf);
 
 /* Functions that operate on contiguous storage */
 H5_DLL herr_t H5D_contig_delete(H5F_t *f, hid_t dxpl_id,
     const H5O_layout_t *layout);
-H5_DLL haddr_t H5D_contig_get_addr(const H5D_t *dset);
-H5_DLL ssize_t H5D_contig_readvv(H5F_t *f, hid_t dxpl_id, H5D_t *dset,
-    haddr_t dset_addr, hsize_t dset_size,
-    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    void *buf);
-H5_DLL ssize_t H5D_contig_writevv(H5F_t *f, hid_t dxpl_id, H5D_t *dset,
-    haddr_t dset_addr, hsize_t dset_size,
-    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    const void *buf);
-
-/* Functions that operate on compact dataset storage */
-H5_DLL ssize_t H5D_compact_readvv(H5F_t *f, hid_t dxpl_id, const H5D_t *dset,
-    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_size_arr[], hsize_t dset_offset_arr[], 
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_size_arr[], hsize_t mem_offset_arr[], 
-    void *buf);
-H5_DLL ssize_t H5D_compact_writevv(H5F_t *f, hid_t dxpl_id, H5D_t *dset,
-    size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_size_arr[], hsize_t dset_offset_arr[], 
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_size_arr[], hsize_t mem_offset_arr[], 
-    const void *buf);
-
-/* forward reference for collective-chunk IO use */
-struct H5D_istore_ud1_t; /*define at H5Distore.c*/
 
 /* Functions that operate on indexed storage */
 H5_DLL herr_t H5D_istore_delete(H5F_t *f, hid_t dxpl_id,
     const H5O_layout_t *layout);
-H5_DLL ssize_t H5D_istore_readvv(H5F_t *f, const H5D_dxpl_cache_t *dxpl_cache,
-    hid_t dxpl_id, H5D_t *dset, const H5D_storage_t *store,
-    size_t chunk_max_nseq, size_t *chunk_curr_seq, size_t chunk_len_arr[], hsize_t chunk_offset_arr[],
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    void *buf);
-H5_DLL ssize_t H5D_istore_writevv(H5F_t *f, const H5D_dxpl_cache_t *dxpl_cache,
-    hid_t dxpl_id, H5D_t *dset, const H5D_storage_t *store,
-    size_t chunk_max_nseq, size_t *chunk_curr_seq, size_t chunk_len_arr[], hsize_t chunk_offset_arr[],
-    size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    const void *buf);
-H5_DLL haddr_t H5D_istore_get_addr(H5F_t *f, hid_t dxpl_id, 
-    const H5O_layout_t *layout, const hssize_t offset[], 
-    struct H5D_istore_ud1_t *_udata);
 H5_DLL herr_t H5D_istore_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
-				int indent, int fwidth, int ndims);
-
-#ifdef H5_HAVE_PARALLEL
-/* Forward references */
-struct H5S_t;
-
-/* MPI-IO function to read directly from app buffer to file rky980813 */
-H5_DLL herr_t H5D_mpio_spaces_read(H5F_t *f, const H5D_dxpl_cache_t *dxpl_cache, hid_t dxpl_id,
-    H5D_t *dset, const H5D_storage_t *store,
-    size_t nelmts, size_t elmt_size,
-    const struct H5S_t *file_space, const struct H5S_t *mem_space,
-    void *buf/*out*/);
-
-/* MPI-IO function to write directly from app buffer to file rky980813 */
-H5_DLL herr_t H5D_mpio_spaces_write(H5F_t *f, const H5D_dxpl_cache_t *dxpl_cache, hid_t dxpl_id,
-    H5D_t *dset, const H5D_storage_t *store,
-    size_t nelmts, size_t elmt_size,
-    const struct H5S_t *file_space, const struct H5S_t *mem_space,
-    const void *buf);
-#endif /* H5_HAVE_PARALLEL */
+				int indent, int fwidth, unsigned ndims);
 
 #endif

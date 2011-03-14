@@ -27,6 +27,7 @@ prefix="@prefix@"
 exec_prefix="@exec_prefix@"
 libdir="@libdir@"
 includedir="@includedir@"
+HL="@HL@"
 
 ############################################################################
 ##                                                                        ##
@@ -54,7 +55,6 @@ get_output_file="no"
 SHOW="eval"
 CXXBASE="@CXX@"
 CXXLINKERBASE="@CXX@"
-CFLAGS="@CFLAGS@"
 CXXFLAGS="@CXXFLAGS@"
 CPPFLAGS="@CPPFLAGS@"
 LDFLAGS="@LDFLAGS@"
@@ -92,10 +92,10 @@ usage() {
 }
 
 # Show the configuration summary of the library recorded in the
-# libhdf5.settings file reside in the lib directory.
+# libhdf5_cpp.settings file reside in the lib directory.
 showconfigure()
 {
-  cat ${libdir}/libhdf5.settings
+  cat ${libdir}/libhdf5_cpp.settings
   status=$?
 }
 
@@ -194,33 +194,34 @@ for arg in $@ ; do
     *)
       allargs="$allargs $qarg"
 
-      if test -s "$arg"; then
-        ext=`expr "$arg" : '.*\(\..*\)'`
+	if [ -s "$arg" ] ; then
+	    ext=`expr "$arg" : '.*\(\..*\)'`
+	    if [ "$ext" = ".C" -o "$ext" = ".cxx" -o "$ext" = ".cpp" -o \
+		 "$ext" = ".cc" -o "$ext" = ".c" -o "$ext" = ".CC" ] ; then
 
-        if test "x$ext" = "x.c"; then
-          do_compile="yes"
-          compile_args="$compile_args $arg"
-          fname=`basename $arg .c`
-          link_objs="$link_objs $fname.o"
-        elif test "x$ext" = "x.o"; then
-          if test "x$dash_c" = "xyes"; then
-            compile_args="$compile_args $arg"
-          else
-            do_link="yes"
-            link_objs="$link_objs $arg"
-          fi
-        elif test "x$ext" = "x.a"; then
-          # This is an archive that we're linking in
-          libraries=" $libraries $arg "
-        else
-          compile_args="$compile_args $arg"
-          link_args="$link_args $arg"
-        fi
-      else
-        compile_args="$compile_args $arg"
-        link_args="$link_args $arg"
-      fi
-      ;;
+	        do_compile="yes"
+	        compile_args="$compile_args $arg"
+	        fname=`basename $arg $ext`
+	        link_objs="$link_objs $fname.o"
+	    elif [ "$ext" = ".o" ] ; then
+		if test "x$dash_c" = "xyes"  ; then
+	            compile_args="$compile_args $arg"
+                else
+	            do_link="yes"
+	            link_objs="$link_objs $arg"
+                fi
+            elif test "x$ext" = "x.a"; then
+              # This is an archive that we're linking in
+              libraries=" $libraries $arg "
+            else
+              compile_args="$compile_args $arg"
+              link_args="$link_args $arg"
+            fi
+	    else
+	        compile_args="$compile_args $arg"
+	        link_args="$link_args $arg"
+	    fi
+	;;
   esac
 done
 
@@ -229,7 +230,7 @@ if test "x$do_compile" = "xyes"; then
     compile_args="-c $compile_args"
   fi
 
-  $SHOW $CXX -I$includedir $CPPFLAGS $CXXFLAGS $CFLAGS $compile_args
+  $SHOW $CXX -I$includedir $CPPFLAGS $CXXFLAGS $compile_args
   status=$?
 
   if test "$status" != "0"; then
@@ -238,8 +239,13 @@ if test "x$do_compile" = "xyes"; then
 fi
 
 if test "x$do_link" = "xyes"; then
-  link_args="$link_args ${libdir}/libhdf5_cpp.a ${libdir}/libhdf5.a $LIBS"
-  $SHOW $CXXLINKER -I$includedir $CPPFLAGS $CXXFLAGS $CFLAGS $LDFLAGS $clibpath $link_objs $link_args
+  # conditionnaly link with the hl library  
+    if test "X$HL" = "Xhl"; then
+     link_args="$link_args ${libdir}/libhdf5_cpp.a ${libdir}/libhdf5.a ${libdir}/libhdf5_hl.a $LIBS"
+    else
+     link_args="$link_args ${libdir}/libhdf5_cpp.a ${libdir}/libhdf5.a $LIBS"
+    fi
+  $SHOW $CXXLINKER -I$includedir $CPPFLAGS $CXXFLAGS $LDFLAGS $clibpath $link_objs $link_args
   status=$?
 fi
 

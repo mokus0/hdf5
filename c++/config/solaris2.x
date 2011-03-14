@@ -16,7 +16,7 @@ fi
 #. $srcdir/config/gnu-flags
 
 cxx_version="`$CXX -V 2>&1 |grep 'WorkShop' |\
-                sed 's/.*WorkShop.*C\+\+ \([0-9\.]*\).*/\1/'`"
+                sed 's/.*WorkShop.*C++ \([0-9\.]*\).*/\1/'`"
 
 cxx_vers_major=`echo $cxx_version | cut -f1 -d.`
 cxx_vers_minor=`echo $cxx_version | cut -f2 -d.`
@@ -31,7 +31,7 @@ fi
 
 # Try solaris native compiler flags
 if test -z "$cxx_flags_set"; then
-    CXXFLAGS="$CXXFLAGS -instances=global"
+    CXXFLAGS="$CXXFLAGS -instances=static"
     CPPFLAGS="$CPPFLAGS -LANG:std"
     LIBS="$LIBS -lsocket"
     DEBUG_CXXFLAGS=-g

@@ -9,8 +9,9 @@ Note: This short instruction is written for users who want to quickly
       trouble following any steps in the instructions, please refer to
       INSTALL_Windows.txt for further information.
       
-      For users who would like to build and test HDF5 package on command
-      line, please refer to INSATLL_Windows_From_Command_Line.txt.
+      For users who would like to build and test HDF5 package from the
+      command line, please refer to
+      INSATLL_Windows_From_Command_Line.txt.
         
 ***************************WARNINGS*************************************
 Please read CAREFULLY about HDF5 build and install preconditions and 
@@ -22,11 +23,11 @@ STEP 1: Building HDF5 Libraries and Tools
 1. Unpack all.zip
     
    Unpack all.zip in c:\MyHDFstuff\hdf5\windows into the 
-   C:\myHDFstuff directory. 
+   c:\MyHDFstuff directory. 
 
 2. Open all.dsw workspace
     
-   Open the c:\myHDFstuff\hdf5\proj\all\all.dsw workspace. 
+   Open the c:\MyHDFstuff\hdf5\proj\all\all.dsw workspace. 
 
 3. (Optional) Add C++ and/or FORTRAN related projects
     
@@ -51,7 +52,9 @@ STEP 1: Building HDF5 Libraries and Tools
           hdf5_f90cstubdll
           hdf5_fortran
           hdf5_fortrandll
+          libtest_cstubdll
           libtest_fortran
+          libtest_fortrandll
           testhdf5_fortran
           testhdf5_fortrandll
          
@@ -113,7 +116,7 @@ Run the batch file c:\MyHDFstuff\hdf5\installhdf5lib.bat to install
 all HDF5 libraries and tools into c:\MyHDFstuff\hdf5\hdf5lib directory.
 
 
-STEP 4: Building the Examples (Optional)
+STEP 4: Building HDF5 Examples (Optional)
 
 Please read section II, step 4 in INSTALL_Windows.txt.
 

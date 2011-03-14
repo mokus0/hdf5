@@ -71,23 +71,6 @@
 #define H5F_ACC_PUBLIC_FLAGS 	0x00ffu
 
 /*
- * Macros that check for overflows.  These are somewhat dangerous to fiddle
- * with.
- */
-#if (H5_SIZEOF_SIZE_T >= H5_SIZEOF_OFF_T)
-#   define H5F_OVERFLOW_SIZET2OFFT(X)					      \
-    ((size_t)(X)>=(size_t)((size_t)1<<(8*sizeof(off_t)-1)))
-#else
-#   define H5F_OVERFLOW_SIZET2OFFT(X) 0
-#endif
-#if (H5_SIZEOF_HSIZE_T >= H5_SIZEOF_OFF_T)
-#   define H5F_OVERFLOW_HSIZET2OFFT(X)					      \
-    ((hsize_t)(X)>=(hsize_t)((hsize_t)1<<(8*sizeof(off_t)-1)))
-#else
-#   define H5F_OVERFLOW_HSIZET2OFFT(X) 0
-#endif
-    
-/*
  * Define the structure to store the file information for HDF5 files. One of
  * these structures is allocated per file, not per H5Fopen(). That is, set of
  * H5F_t structs can all point to the same H5F_file_t struct. The `nrefs'
@@ -112,7 +95,7 @@ typedef struct H5F_file_t {
 
     unsigned	super_chksum;	/* Superblock checksum                  */
     unsigned	drvr_chksum;	/* Driver info block checksum           */
-    struct H5AC_t *cache;	/* The object cache			*/
+    H5AC_t      *cache;		/* The object cache			*/
     hid_t       fcpl_id;	/* File creation property list ID 	*/
     int         mdc_nelmts;	/* Size of meta data cache (elements)	*/
     size_t	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
@@ -176,8 +159,6 @@ union H5D_storage_t;
 H5_DLL void H5F_encode_length_unusual(const H5F_t *f, uint8_t **p, uint8_t *l);
 #endif /* NOT_YET */
 H5_DLL herr_t H5F_mountpoint(struct H5G_entry_t *find/*in,out*/);
-H5_DLL herr_t H5F_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
-			 int indent, int fwidth);
 
 #endif
 

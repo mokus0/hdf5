@@ -88,9 +88,9 @@
 #define H5G_PACKAGE     /*suppress error message about including H5Gpkg.h */
 #define H5F_PACKAGE     /*suppress error about including H5Fpkg	  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5G_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5G_init_interface
+
 
 /* Packages needed by this file... */
 #include "H5private.h"		/* Generic Functions			*/
@@ -120,11 +120,6 @@
 #define H5G_TARGET_NORMAL	0x0000
 #define H5G_TARGET_SLINK	0x0001
 #define H5G_TARGET_MOUNT	0x0002
-
-/* Interface initialization */
-static int interface_initialize_g = 0;
-#define INTERFACE_INIT	H5G_init_interface
-static herr_t H5G_init_interface(void);
 
 /* Local typedefs */
 
@@ -164,6 +159,7 @@ static size_t H5G_comp_alloc_g = 0;             /*sizeof component buffer */
 
 /* Declare a free list to manage the H5G_t struct */
 H5FL_DEFINE(H5G_t);
+H5FL_DEFINE(H5G_shared_t);
 
 /* Declare extern the PQ free list for the wrapped strings */
 H5FL_BLK_EXTERN(str_buf);
@@ -182,10 +178,11 @@ static herr_t H5G_linkval(H5G_entry_t *loc, const char *name, size_t size,
 			   char *buf/*out*/, hid_t dxpl_id);
 static herr_t H5G_move(H5G_entry_t *src_loc, const char *src_name,
 			H5G_entry_t *dst_loc, const char *dst_name, hid_t dxpl_it);
+static H5G_t * H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id);
 static herr_t H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
 static herr_t H5G_get_num_objs(H5G_entry_t *grp, hsize_t *num_objs, hid_t dxpl_id);
-static ssize_t H5G_get_objname_by_idx(H5G_entry_t *grp, hsize_t idx, char* name, size_t size, hid_t dxpl_id);
-static int H5G_get_objtype_by_idx(H5G_entry_t *grp, hsize_t idx, hid_t dxpl_id);
+static ssize_t H5G_get_objname_by_idx(H5G_entry_t *loc, hsize_t idx, char* name, size_t size, hid_t dxpl_id);
+static int H5G_get_objtype_by_idx(H5G_entry_t *loc, hsize_t idx, hid_t dxpl_id);
 static int H5G_replace_ent(void *obj_ptr, hid_t obj_id, void *key);
 static herr_t H5G_traverse_slink(H5G_entry_t *grp_ent/*in,out*/,
                   H5G_entry_t *obj_ent/*in,out*/, int *nlinks/*in,out*/, hid_t dxpl_id);
@@ -281,25 +278,31 @@ done:
 hid_t
 H5Gopen(hid_t loc_id, const char *name)
 {
-    hid_t	ret_value = FAIL;
-    H5G_t	*grp = NULL;
+    hid_t       ret_value = FAIL;
+    H5G_t       *grp = NULL;
     H5G_entry_t	*loc = NULL;
+    H5G_entry_t	 ent;
 
     FUNC_ENTER_API(H5Gopen, FAIL);
     H5TRACE2("i","is",loc_id,name);
 
     /* Check args */
     if (NULL==(loc=H5G_loc(loc_id)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if (!name || !*name)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no name");
-    
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no name");
+
+    /* Open the parent group, making sure it's a group */
+    if (H5G_find(loc, name, NULL, &ent/*out*/, H5AC_dxpl_id) < 0)
+        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "group not found");
+
     /* Open the group */
-    if (NULL == (grp = H5G_open(loc, name, H5AC_dxpl_id)))
-	HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open group");
+    if ((grp = H5G_open(&ent, H5AC_dxpl_id))==NULL)
+        HGOTO_ERROR(H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open group");
+
     /* Register an atom for the group */
     if ((ret_value = H5I_register(H5I_GROUP, grp)) < 0)
-	HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register group");
+        HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register group");
 
 done:
     if(ret_value<0) {
@@ -383,7 +386,6 @@ H5Giterate(hid_t loc_id, const char *name, int *idx_p,
 {
     int			idx;
     H5G_bt_ud2_t	udata;
-    H5G_entry_t		*loc = NULL;
     H5G_t		*grp = NULL;
     herr_t		ret_value;
     
@@ -391,8 +393,6 @@ H5Giterate(hid_t loc_id, const char *name, int *idx_p,
     H5TRACE5("e","is*Isxx",loc_id,name,idx_p,op,op_data);
 
     /* Check args */
-    if (NULL==(loc=H5G_loc (loc_id)))
-	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a location");
     if (!name || !*name)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "no name specified");
     idx = (idx_p == NULL ? 0 : *idx_p);
@@ -407,13 +407,13 @@ H5Giterate(hid_t loc_id, const char *name, int *idx_p,
      * Open the group on which to operate.  We also create a group ID which
      * we can pass to the application-defined operator.
      */
-    if (NULL==(grp = H5G_open (loc, name, H5AC_dxpl_id)))
-	HGOTO_ERROR (H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open group");
-    if ((udata.group_id=H5I_register (H5I_GROUP, grp))<0) {
-	H5G_close(grp);
-	HGOTO_ERROR (H5E_SYM, H5E_CANTREGISTER, FAIL, "unable to register group");
+    if ((udata.group_id = H5Gopen (loc_id, name)) <0)
+        HGOTO_ERROR (H5E_SYM, H5E_CANTOPENOBJ, FAIL, "unable to open group");
+    if ((grp=H5I_object(udata.group_id))==NULL) {
+        H5Gclose(udata.group_id);
+        HGOTO_ERROR (H5E_ATOM, H5E_BADATOM, FAIL, "bad group atom");
     }
-    
+
     /* Build udata to pass through H5B_iterate() to H5G_node_iterate() */
     udata.skip = idx;
     udata.ent = &(grp->ent);
@@ -513,7 +513,9 @@ ssize_t
 H5Gget_objname_by_idx(hid_t loc_id, hsize_t idx, char *name, size_t size)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
+#ifdef OLD_WAY
     hsize_t             num_objs;
+#endif /* OLD_WAY */
     ssize_t		ret_value = FAIL;
     
     FUNC_ENTER_API(H5Gget_objname_by_idx, FAIL);
@@ -525,10 +527,17 @@ H5Gget_objname_by_idx(hid_t loc_id, hsize_t idx, char *name, size_t size)
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a group");
         
+#ifdef OLD_WAY
+/* Don't check for the number of objects in the group currently, because this
+ * has to iterate through the group in order to find out the information.
+ * We might as well just iterate through all the group entries and error out
+ * if we didn't find the index we are looking for. -QAK
+ */
     if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "unable to retrieve number of members");
     if(idx >= num_objs)    
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "index out of bound");
+#endif /* OLD_WAY */
         
     /*call private function*/
     ret_value = H5G_get_objname_by_idx(loc, idx, name, size, H5AC_ind_dxpl_id);
@@ -560,7 +569,9 @@ int
 H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
+#ifdef OLD_WAY
     hsize_t             num_objs;
+#endif /* OLD_WAY */
     int 		ret_value = H5G_UNKNOWN;
     
     FUNC_ENTER_API(H5Gget_objtype_by_idx, FAIL);
@@ -572,10 +583,17 @@ H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, FAIL, "not a group");
         
+#ifdef OLD_WAY
+/* Don't check for the number of objects in the group currently, because this
+ * has to iterate through the group in order to find out the information.
+ * We might as well just iterate through all the group entries and error out
+ * if we didn't find the index we are looking for. -QAK
+ */
     if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "unable to retrieve number of members");
     if(idx >= num_objs)    
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "index out of bound");
+#endif /* OLD_WAY */
         
     /*call private function*/
     ret_value = H5G_get_objtype_by_idx(loc, idx, H5AC_ind_dxpl_id);
@@ -590,11 +608,13 @@ H5G_obj_t
 H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
 {
     H5G_entry_t		*loc = NULL;    /* Pointer to symbol table entry */
+#ifdef OLD_WAY
     hsize_t             num_objs;
+#endif /* OLD_WAY */
     H5G_obj_t		ret_value;
     
     FUNC_ENTER_API(H5Gget_objtype_by_idx, H5G_UNKNOWN);
-    H5TRACE2("Is","ih",loc_id,idx);
+    H5TRACE2("Go","ih",loc_id,idx);
 
     /* Check args */
     if (NULL==(loc=H5G_loc (loc_id)))
@@ -602,10 +622,17 @@ H5Gget_objtype_by_idx(hid_t loc_id, hsize_t idx)
     if(H5G_get_type(loc,H5AC_ind_dxpl_id)!=H5G_GROUP)
 	HGOTO_ERROR (H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "not a group");
         
+#ifdef OLD_WAY
+/* Don't check for the number of objects in the group currently, because this
+ * has to iterate through the group in order to find out the information.
+ * We might as well just iterate through all the group entries and error out
+ * if we didn't find the index we are looking for. -QAK
+ */
     if (H5G_get_num_objs(loc, &num_objs, H5AC_ind_dxpl_id)<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "unable to retrieve number of members");
     if(idx >= num_objs)    
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "index out of bound");
+#endif /* OLD_WAY */
         
     /*call private function*/
     ret_value = (H5G_obj_t)H5G_get_objtype_by_idx(loc, idx, H5AC_ind_dxpl_id);
@@ -1034,7 +1061,7 @@ H5G_term_interface(void)
 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_term_interface);
     
-    if (interface_initialize_g) {
+    if (H5_interface_initialize_g) {
 	if ((n=H5I_nmembers(H5I_GROUP))) {
 	    H5I_clear_group(H5I_GROUP, FALSE);
 	} else {
@@ -1052,7 +1079,7 @@ H5G_term_interface(void)
             H5G_comp_alloc_g = 0;
 
 	    /* Mark closed */
-	    interface_initialize_g = 0;
+	    H5_interface_initialize_g = 0;
 	    n = 1; /*H5I*/
 	}
     }
@@ -1393,7 +1420,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
     unsigned null_grp;          /* Flag to indicate this function was called with grp_ent set to NULL */
     unsigned group_copy = 0;    /* Flag to indicate that the group entry is copied */
     unsigned last_comp = 0;     /* Flag to indicate that a component is the last component in the name */
-    unsigned did_insert = 0;     /* Flag to indicate that H5G_stab_insert was called */
+    unsigned did_insert = 0;    /* Flag to indicate that H5G_stab_insert was called */
     herr_t      ret_value=SUCCEED;       /* Return value */
     
     FUNC_ENTER_NOAPI_NOINIT(H5G_namei);
@@ -1554,7 +1581,7 @@ H5G_namei(H5G_entry_t *loc_ent, const char *name, const char **rest/*out*/,
         *rest = name; /*final null */
 
     /* If this was an insert, make sure that the insert function was actually
-     * called (this catches no-op names like "/" and ".")  */
+     * called (this catches no-op names like "." and "/") */
      if(action == H5G_NAMEI_INSERT && !did_insert)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "group already exists");
 
@@ -1744,9 +1771,13 @@ H5G_mkroot (H5F_t *f, hid_t dxpl_id, H5G_entry_t *ent)
      * never be closed.
      */
     if (NULL==(f->shared->root_grp = H5FL_CALLOC (H5G_t)))
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+    if (NULL==(f->shared->root_grp->shared = H5FL_CALLOC (H5G_shared_t))) {
+        H5FL_FREE(H5G_t, f->shared->root_grp);
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
+    }
     f->shared->root_grp->ent = *ent;
-    f->shared->root_grp->nref = 1;
+    f->shared->root_grp->shared->fo_count = 1;
     assert (1==f->nopen_objs);
     f->nopen_objs = 0;
 
@@ -1785,7 +1816,7 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id)
 {
     H5G_t	*grp = NULL;	/*new group			*/
     H5F_t       *file = NULL;   /* File new group will be in    */
-    unsigned    stab_init=0;    /* Flag to indicate that the symbol stable was created successfully */
+    unsigned    stab_init=0;    /* Flag to indicate that the symbol table was created successfully */
     H5G_t	*ret_value;	/* Return value */
 
     FUNC_ENTER_NOAPI(H5G_create, NULL);
@@ -1796,7 +1827,9 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id)
 
     /* create an open group */
     if (NULL==(grp = H5FL_CALLOC(H5G_t)))
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    if (NULL==(grp->shared = H5FL_CALLOC(H5G_t)))
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* What file is the group being added to? */
     if (NULL==(file=H5G_insertion_file(loc, name, dxpl_id)))
@@ -1804,14 +1837,18 @@ H5G_create(H5G_entry_t *loc, const char *name, size_t size_hint, hid_t dxpl_id)
 
     /* Create the group entry */
     if (H5G_stab_create(file, dxpl_id, size_hint, &(grp->ent)/*out*/) < 0)
-	HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, NULL, "can't create grp");
+        HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, NULL, "can't create grp");
     stab_init=1;    /* Indicate that the symbol table information is valid */
     
     /* insert child name into parent */
     if(H5G_insert(loc,name,&(grp->ent), dxpl_id)<0)
-	HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group");
+        HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group");
 
-    grp->nref = 1;
+    /* Add group to list of open objects in file */
+    if(H5FO_insert(grp->ent.file, grp->ent.header, grp->shared)<0)
+        HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group into list of open objects")
+
+    grp->shared->fo_count = 1;
 
     /* Set return value */
     ret_value=grp;
@@ -1825,8 +1862,11 @@ done:
             if(H5O_delete(file, dxpl_id,grp->ent.header)<0)
                 HDONE_ERROR(H5E_SYM, H5E_CANTDELETE, NULL, "unable to delete object header");
         } /* end if */
-        if(grp!=NULL)
+        if(grp!=NULL) {
+            if(grp->shared != NULL)
+                H5FL_FREE(H5G_shared_t, grp->shared);
             H5FL_FREE(H5G_t,grp);
+        }
     } /* end if */
 
     FUNC_LEAVE_NOAPI(ret_value);
@@ -1927,25 +1967,47 @@ H5G_link_isa(H5G_entry_t *ent, hid_t UNUSED dxpl_id)
  *-------------------------------------------------------------------------
  */
 H5G_t *
-H5G_open(H5G_entry_t *loc, const char *name, hid_t dxpl_id)
+H5G_open(H5G_entry_t *ent, hid_t dxpl_id)
 {
-    H5G_t		*grp = NULL;
-    H5G_t		*ret_value = NULL;
-    H5G_entry_t         ent;    /* group symbol table entry	*/
+    H5G_t           *grp = NULL;
+    H5G_shared_t    *shared_fo=NULL;
+    H5G_t           *ret_value=NULL;
 
     FUNC_ENTER_NOAPI(H5G_open, NULL);
 
     /* Check args */
-    assert(loc);
-    assert(name && *name);
+    assert(ent);
 
-    /* Open the object, making sure it's a group */
-    if (H5G_find(loc, name, NULL, &ent/*out*/, dxpl_id) < 0)
-        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, NULL, "group not found");
+    /* Check if group was already open */
+    if((shared_fo=H5FO_opened(ent->file, ent->header))==NULL) {
 
-    /* Open the group object */
-    if ((grp=H5G_open_oid(&ent, dxpl_id)) ==NULL)
-        HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, NULL, "not found");
+        /* Clear any errors from H5FO_opened() */
+        H5E_clear();
+
+        /* Open the group object */
+        if ((grp=H5G_open_oid(ent, dxpl_id)) ==NULL)
+            HGOTO_ERROR(H5E_SYM, H5E_NOTFOUND, NULL, "not found");
+
+        /* Add group to list of open objects in file */
+        if(H5FO_insert(grp->ent.file, grp->ent.header, grp->shared)<0)
+        {
+            H5FL_FREE(H5G_shared_t, grp->shared);
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, NULL, "can't insert group into list of open objects")
+        }
+
+        grp->shared->fo_count =1;
+    }
+    else {
+        if(NULL == (grp = H5FL_CALLOC(H5G_t)))
+            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "can't allocate space for group")
+
+        /* Shallow copy (take ownership) of the group entry object */
+        if(H5G_ent_copy(&(grp->ent), ent, H5G_COPY_SHALLOW)<0)
+            HGOTO_ERROR (H5E_SYM, H5E_CANTCOPY, NULL, "can't copy group entry")
+
+        grp->shared=shared_fo;
+        shared_fo->fo_count++;
+    }
 
     /* Set return value */
     ret_value = grp;
@@ -1978,7 +2040,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-H5G_t *
+static H5G_t *
 H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id)
 {
     H5G_t		*grp = NULL;
@@ -1993,6 +2055,8 @@ H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id)
     /* Open the object, making sure it's a group */
     if (NULL==(grp = H5FL_CALLOC(H5G_t)))
         HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    if (NULL==(grp->shared = H5FL_CALLOC(H5G_t)))
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
     /* Copy over (take ownership) of the group entry object */
     H5G_ent_copy(&(grp->ent),ent,H5G_COPY_SHALLOW);
@@ -2004,14 +2068,16 @@ H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id)
         H5O_close(&(grp->ent));
         HGOTO_ERROR (H5E_SYM, H5E_CANTOPENOBJ, NULL, "not a group");
     }
-    grp->nref = 1;
 
     /* Set return value */
     ret_value = grp;
 
 done:
-    if (!ret_value && grp)
+    if (!ret_value && grp) {
+        if(grp->shared)
+            H5FL_FREE(H5G_shared_t, grp->shared);
         H5FL_FREE(H5G_t,grp);
+    }
 
     FUNC_LEAVE_NOAPI(ret_value);
 }
@@ -2077,18 +2143,63 @@ H5G_close(H5G_t *grp)
     FUNC_ENTER_NOAPI(H5G_close, FAIL);
 
     /* Check args */
-    assert(grp);
-    assert(grp->nref > 0);
+    assert(grp && grp->shared);
+    assert(grp->shared->fo_count > 0);
 
-    if (1 == grp->nref) {
-	assert (grp!=H5G_rootof(H5G_fileof(grp)));
-	if (H5O_close(&(grp->ent)) < 0)
-	    HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close");
-	grp->nref = 0;
-	H5FL_FREE (H5G_t,grp);
+    --grp->shared->fo_count;
+
+    if (0 == grp->shared->fo_count) {
+        assert (grp!=H5G_rootof(H5G_fileof(grp)));
+
+        /* Remove the dataset from the list of opened objects in the file */
+        if(H5FO_delete(grp->ent.file, H5AC_dxpl_id, grp->ent.header)<0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "can't remove group from list of open objects")
+        if (H5O_close(&(grp->ent)) < 0)
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close");
+        H5FL_FREE (H5G_shared_t, grp->shared);
     } else {
-	--grp->nref;
+        if(H5G_free_ent_name(&(grp->ent))<0)
+        {
+            H5FL_FREE (H5G_t,grp);
+            HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't free group entry name"); 
+        }
     }
+
+    H5FL_FREE (H5G_t,grp);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5G_free
+ *
+ * Purpose:	Free memory used by an H5G_t struct (and its H5G_shared_t).
+ *          Does not close the group or decrement the reference count.
+ *          Used to free memory used by the root group.
+ *
+ * Return:  Success:    Non-negative
+ *	        Failure:    Negative
+ *
+ * Programmer:  James Laird
+ *              Tuesday, September 7, 2004
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5G_free(H5G_t *grp)
+{
+    herr_t      ret_value=SUCCEED;       /* Return value */
+
+    FUNC_ENTER_NOAPI(H5G_free, FAIL);
+
+    assert(grp && grp->shared);
+
+    H5FL_FREE(H5G_shared_t, grp->shared);
+    H5FL_FREE(H5G_t, grp);
 
 done:
     FUNC_LEAVE_NOAPI(ret_value);
@@ -2353,8 +2464,8 @@ H5G_loc (hid_t loc_id)
                 HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of attribute");
             break;
                 
-        case H5I_TEMPBUF:
-            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of buffer");
+        case H5I_REFERENCE:
+            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "unable to get symbol table entry of reference");
 
         default:
             HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, NULL, "invalid object ID");
@@ -2737,6 +2848,10 @@ H5G_get_objname_by_idx(H5G_entry_t *loc, hsize_t idx, char* name, size_t size, h
               H5G_node_name, loc->cache.stab.btree_addr, &udata))<0)
 	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "iteration operator failed");
     
+    /* If we don't know the name now, we almost certainly went out of bounds */
+    if(udata.name==NULL)
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "index out of bound");
+
     /* Get the length of the name */
     ret_value = (ssize_t)HDstrlen(udata.name);
 
@@ -2778,7 +2893,7 @@ H5G_get_objtype_by_idx(H5G_entry_t *loc, hsize_t idx, hid_t dxpl_id)
     H5G_bt_ud3_t    udata;              /* User data for B-tree callback */
     int	    ret_value;          /* Return value */
     
-    FUNC_ENTER_NOAPI(H5G_get_objtype_by_idx, FAIL);
+    FUNC_ENTER_NOAPI(H5G_get_objtype_by_idx, H5G_UNKNOWN);
     
     /* Sanity check */
     assert(loc);
@@ -2788,12 +2903,17 @@ H5G_get_objtype_by_idx(H5G_entry_t *loc, hsize_t idx, hid_t dxpl_id)
     udata.idx = idx;
     udata.num_objs = 0;
     udata.ent = loc;
+    udata.type = H5G_UNKNOWN;
     
     /* Iterate over the group members */
     if (H5B_iterate (loc->file, dxpl_id, H5B_SNODE,
               H5G_node_type, loc->cache.stab.btree_addr, &udata)<0)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "iteration operator failed");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "iteration operator failed");
     
+    /* If we don't know the type now, we almost certainly went out of bounds */
+    if(udata.type==H5G_UNKNOWN)
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5G_UNKNOWN, "index out of bound");
+
     ret_value = udata.type;
 
 done:
@@ -2911,7 +3031,7 @@ H5G_set_comment(H5G_entry_t *loc, const char *name, const char *buf, hid_t dxpl_
     /* Add the new message */
     if (buf && *buf) {
 	comment.s = H5MM_xstrdup(buf);
-	if (H5O_modify(&obj_ent, H5O_NAME_ID, H5O_NEW_MESG, 0, 1, &comment, dxpl_id)<0)
+	if (H5O_modify(&obj_ent, H5O_NAME_ID, H5O_NEW_MESG, 0, H5O_UPDATE_TIME, &comment, dxpl_id)<0)
 	    HGOTO_ERROR(H5E_OHDR, H5E_CANTINIT, FAIL, "unable to set comment object header message");
 	H5O_reset(H5O_NAME_ID, &comment);
     }
@@ -3249,8 +3369,8 @@ H5G_free_grp_name(H5G_t *grp)
     FUNC_ENTER_NOAPI(H5G_free_grp_name, FAIL);
  
     /* Check args */
-    assert(grp);
-    assert(grp->nref > 0);
+    assert(grp && grp->shared);
+    assert(grp->shared->fo_count > 0);
 
     /* Get the entry for the group */
     if (NULL==( ent = H5G_entof(grp)))

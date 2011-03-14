@@ -19,17 +19,14 @@
 
 #define H5T_PACKAGE		/*suppress error about including H5Tpkg	  */
 
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5T_init_cset_interface
+
+
 #include "H5private.h"		/*generic functions			  */
 #include "H5Eprivate.h"		/*error handling			  */
 #include "H5Iprivate.h"		/*ID functions		   		  */
 #include "H5Tpkg.h"		/*data-type functions			  */
-
-#define PABLO_MASK	H5Tcset_mask
-
-/* Interface initialization */
-static int interface_initialize_g = 0;
-#define INTERFACE_INIT H5T_init_cset_interface
-static herr_t H5T_init_cset_interface(void);
 
 
 /*--------------------------------------------------------------------------
@@ -48,9 +45,9 @@ DESCRIPTION
 static herr_t
 H5T_init_cset_interface(void)
 {
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5T_init_cset_interface);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5T_init_cset_interface)
 
-    FUNC_LEAVE_NOAPI(H5T_init());
+    FUNC_LEAVE_NOAPI(H5T_init())
 } /* H5T_init_cset_interface() */
 
 
@@ -80,27 +77,25 @@ H5Tget_cset(hid_t type_id)
     H5T_t	*dt = NULL;
     H5T_cset_t	ret_value;
 
-    FUNC_ENTER_API(H5Tget_cset, H5T_CSET_ERROR);
+    FUNC_ENTER_API(H5Tget_cset, H5T_CSET_ERROR)
     H5TRACE1("Tc","i",type_id);
 
     /* Check args */
     if (NULL == (dt = H5I_object_verify(type_id,H5I_DATATYPE)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5T_CSET_ERROR, "not a data type");
-    while (dt->parent && !H5T_IS_STRING(dt))
-        dt = dt->parent;  /*defer to parent*/
-    if (!H5T_IS_STRING(dt))
-	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, H5T_CSET_ERROR, "operation not defined for data type class");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, H5T_CSET_ERROR, "not a data type")
+    while (dt->shared->parent && !H5T_IS_STRING(dt->shared))
+        dt = dt->shared->parent;  /*defer to parent*/
+    if (!H5T_IS_STRING(dt->shared))
+	HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, H5T_CSET_ERROR, "operation not defined for data type class")
     
     /* result */
-    if(H5T_STRING == dt->type)
-        ret_value = dt->u.atomic.u.s.cset;
-    else if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
-        ret_value = dt->u.vlen.cset;
-    else
-        HGOTO_ERROR(H5E_DATATYPE, H5E_BADVALUE, H5T_CSET_ERROR, "can't get cset info");
+    if(H5T_IS_FIXED_STRING(dt->shared))
+        ret_value = dt->shared->u.atomic.u.s.cset;
+    else 
+        ret_value = dt->shared->u.vlen.cset;
 
 done:
-    FUNC_LEAVE_API(ret_value);
+    FUNC_LEAVE_API(ret_value)
 }
 
 
@@ -128,30 +123,28 @@ H5Tset_cset(hid_t type_id, H5T_cset_t cset)
     H5T_t	*dt = NULL;
     herr_t      ret_value=SUCCEED;       /* Return value */
 
-    FUNC_ENTER_API(H5Tset_cset, FAIL);
+    FUNC_ENTER_API(H5Tset_cset, FAIL)
     H5TRACE2("e","iTc",type_id,cset);
 
     /* Check args */
     if (NULL == (dt = H5I_object_verify(type_id,H5I_DATATYPE)))
-	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
-    if (H5T_STATE_TRANSIENT!=dt->state)
-	HGOTO_ERROR(H5E_ARGS, H5E_CANTINIT, FAIL, "data type is read-only");
-    if (cset < 0 || cset >= H5T_NCSET)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "illegal character set type");
-    while (dt->parent && !H5T_IS_STRING(dt))
-        dt = dt->parent;  /*defer to parent*/
-    if (!H5T_IS_STRING(dt))
-	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "operation not defined for data type class");
+	HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type")
+    if (H5T_STATE_TRANSIENT!=dt->shared->state)
+	HGOTO_ERROR(H5E_ARGS, H5E_CANTINIT, FAIL, "data type is read-only")
+    if (cset < H5T_CSET_ASCII || cset >= H5T_NCSET)
+	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "illegal character set type")
+    while (dt->shared->parent && !H5T_IS_STRING(dt->shared))
+        dt = dt->shared->parent;  /*defer to parent*/
+    if (!H5T_IS_STRING(dt->shared))
+	HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "operation not defined for data type class")
     
     /* Commit */
-    if(H5T_STRING == dt->type)
-        dt->u.atomic.u.s.cset = cset;
-    else if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
-        dt->u.vlen.cset = cset;
-    else
-        HGOTO_ERROR(H5E_DATATYPE, H5E_BADVALUE, FAIL, "can't set cset info");
+    if(H5T_IS_FIXED_STRING(dt->shared))
+        dt->shared->u.atomic.u.s.cset = cset;
+    else 
+        dt->shared->u.vlen.cset = cset;
 
 done:
-    FUNC_LEAVE_API(ret_value);
+    FUNC_LEAVE_API(ret_value)
 }
 

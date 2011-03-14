@@ -32,9 +32,9 @@
  *
  */
 
-/* Pablo information */
-/* (Put before include files to avoid problems with inline functions) */
-#define PABLO_MASK	H5FD_mpiposix_mask
+/* Interface initialization */
+#define H5_INTERFACE_INIT_FUNC	H5FD_mpiposix_init_interface
+
 
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5ACprivate.h"	/* Metadata cache			*/
@@ -236,10 +236,6 @@ static const H5FD_class_mpi_t H5FD_mpiposix_g = {
     H5FD_mpiposix_mpi_size,                     /*get_size              */
     H5FD_mpiposix_communicator                  /*get_comm              */
 };
-
-/* Interface initialization */
-#define INTERFACE_INIT	H5FD_mpiposix_init_interface
-static int interface_initialize_g = 0;
 
 
 /*--------------------------------------------------------------------------
@@ -947,6 +943,8 @@ H5FD_mpiposix_close(H5FD_t *_file)
     if (HDclose(file->fd)<0)
         HGOTO_ERROR(H5E_IO, H5E_CANTCLOSEFILE, FAIL, "unable to close file")
 
+    /* make sure all processes have closed the file before returning. */
+    MPI_Barrier(file->comm);
     /* Clean up other stuff */
     MPI_Comm_free(&file->comm);
     H5MM_xfree(file);

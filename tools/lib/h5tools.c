@@ -455,6 +455,7 @@ h5tools_dump_simple_data(FILE *stream, const h5dump_t *info, hid_t container,
                          hsize_t nelmts, hid_t type, void *_mem)
 {
     unsigned char	*mem = (unsigned char*)_mem;
+    unsigned char       *tmp = NULL;
     hsize_t		i;		/*element counter		*/
     char		*s, *section;	/*a section of output		*/
     int			secnum;		/*section sequence number	*/
@@ -482,7 +483,12 @@ h5tools_dump_simple_data(FILE *stream, const h5dump_t *info, hid_t container,
     for (i = 0; i < nelmts; i++, ctx->cur_elmt++, elmt_counter++) {
         /* Render the element */
         h5tools_str_reset(&buffer);
-        h5tools_str_sprint(&buffer, info, container, type, mem + i * size, ctx);
+
+        if(H5Tis_variable_str(type)) {
+            tmp = ((unsigned char**)mem)[i];
+            h5tools_str_sprint(&buffer, info, container, type, tmp, ctx);
+        } else          
+            h5tools_str_sprint(&buffer, info, container, type, mem + i * size, ctx);
 
         if (i + 1 < nelmts || (flags & END_OF_DATA) == 0)
             h5tools_str_append(&buffer, "%s", OPT(info->elmt_suf1, ","));
@@ -1083,8 +1089,13 @@ h5tools_fixtype(hid_t f_type)
 	 * strDUAction == TRUE. if it is false we will do the original action
 	 * here.
 	 */
-	m_type = H5Tcopy(f_type);
-	H5Tset_cset(m_type, H5T_CSET_ASCII);
+        if(H5Tis_variable_str(f_type)) {                    
+            m_type = H5Tcopy(H5T_C_S1);                        
+            H5Tset_size(m_type, H5T_VARIABLE);                 
+        } else {                                      
+            m_type = H5Tcopy(f_type);
+            H5Tset_cset(m_type, H5T_CSET_ASCII);
+        }
 	break;
 
     case H5T_COMPOUND:

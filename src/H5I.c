@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5I.c,v 1.36.2.5 2002/06/12 18:02:37 koziol Exp $ */
+/* $Id: H5I.c,v 1.36.2.6 2003/01/10 05:03:21 koziol Exp $ */
 
 /*
  * FILE:	H5I.c - Internal storage routines for handling "IDs"
@@ -174,14 +174,14 @@ H5I_term_interface(void)
 
     if (interface_initialize_g) {
         /* How many groups are still being used? */
-        for (grp=(H5I_type_t)0; grp<H5I_NGROUPS; grp++) {
+        for (grp=(H5I_type_t)0; grp<H5I_NGROUPS; H5_INC_ENUM(H5I_type_t,grp)) {
             if ((grp_ptr=H5I_id_group_list_g[grp]) && grp_ptr->id_list)
                 n++;
         }
 
         /* If no groups are used then clean  up */
         if (0==n) {
-            for (grp=(H5I_type_t)0; grp<H5I_NGROUPS; grp++) {
+            for (grp=(H5I_type_t)0; grp<H5I_NGROUPS; H5_INC_ENUM(H5I_type_t,grp)) {
                 grp_ptr = H5I_id_group_list_g[grp];
                 H5MM_xfree(grp_ptr);
                 H5I_id_group_list_g[grp] = NULL;

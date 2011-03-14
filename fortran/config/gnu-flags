@@ -124,7 +124,7 @@ case "$cc_vendor-$cc_version" in
 	CFLAGS="$CFLAGS $ARCH -ansi"
 
 	# Production
-	PROC_CFLAGS="-O3 $NOFP -finline-functions -Wno-shadow"
+	PROD_CFLAGS="-O3 $NOFP -finline-functions -Wno-shadow"
 	PROD_CPPFLAGS=
 
 	# Debug

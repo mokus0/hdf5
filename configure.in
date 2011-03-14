@@ -15,7 +15,7 @@ dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.134.2.50 2002/06/28 20:04:21 wendling Exp $)
+AC_REVISION($Id: configure.in,v 1.134.2.85 2003/04/09 23:39:17 wendling Exp $)
 
 dnl AC_INIT takes the name of the package, the version number, and an
 dnl email address to report bugs. AC_CONFIG_SRCDIR takes a unique file
@@ -24,7 +24,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.4.4], [hdfhelp@ncsa.uiuc.edu])
+AC_INIT([HDF5], [1.4.5-post2], [hdfhelp@ncsa.uiuc.edu])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -110,14 +110,16 @@ case $host_os in
     ;;
 esac
 
-AC_ARG_ENABLE(hsizet,
-  [  --disable-hsizet        Datasets can normally be larger than memory
-                          and/or files but some compilers are unable to
-                          handle this (including versions of GCC before
-                          2.8.0). Disabling the feature causes dataset
-                          sizes to be restricted to the size of core memory,
-                          or 'size_t'.],
-  HSIZET=$enableval)
+AC_ARG_ENABLE([hsizet],
+              [AC_HELP_STRING([--disable-hsizet],
+                              [Datasets can normally be larger than
+                               memory and/or files but some compilers are
+                               unable to handle this (including versions
+                               of GCC before 2.8.0). Disabling the
+                               feature causes dataset sizes to be
+                               restricted to the size of core memory, or
+                               'size_t'.])],
+              HSIZET=$enableval)
 
 AC_MSG_CHECKING(for sizeof hsize_t and hssize_t)
 
@@ -155,7 +157,7 @@ for f in $host_cpu-$host_vendor-$host_os \
   fi
   AC_MSG_RESULT(no)
 done
-if test $host_config != "none"; then
+if test "X$host_config" != "Xnone"; then
   CC_BASENAME="`echo $CC | cut -f1 -d' ' | xargs basename 2>/dev/null`"
   . $host_config
 fi
@@ -188,11 +190,12 @@ dnl ----------------------------------------------------------------------
 dnl Check if they would like the Fortran interface compiled
 dnl
 AC_MSG_CHECKING(if fortran interface enabled)
-AC_ARG_ENABLE(fortran,
-  [  --enable-fortran        Compile the Fortran interface [default=no]],
-  HDF_FORTRAN=$enableval)
+AC_ARG_ENABLE([fortran],
+              [AC_HELP_STRING([--enable-fortran],
+                              [Compile the Fortran interface [default=no]])],
+              HDF_FORTRAN=$enableval)
 
-if test "X$HDF_FORTRAN" = "Xyes"; then
+if test "x$HDF_FORTRAN" = "xyes"; then
   echo "yes"
   if test -z "$config_dirs"; then
     config_dirs="fortran"
@@ -207,11 +210,12 @@ dnl ----------------------------------------------------------------------
 dnl Check if they would like the C++ interface compiled
 dnl
 AC_MSG_CHECKING(if c++ interface enabled)
-AC_ARG_ENABLE(cxx,
-  [  --enable-cxx            Compile the C++ interface [default=no]],
-  HDF_CXX=$enableval)
+AC_ARG_ENABLE([cxx],
+              [AC_HELP_STRING([--enable-cxx],
+                              [Compile the C++ interface [default=no]])],
+              HDF_CXX=$enableval)
 
-if test "X$HDF_CXX" = "Xyes"; then
+if test "x$HDF_CXX" = "xyes"; then
   echo "yes"
   if test -z "$config_dirs"; then
     config_dirs="c++"
@@ -229,11 +233,13 @@ dnl ----------------------------------------------------------------------
 dnl If we should build only static executables
 dnl
 AC_MSG_CHECKING(if should build only statically linked executables)
-AC_ARG_ENABLE(static_exec,
-  [  --enable-static-exec    Build only statically linked executables [default=no]],
-  STATIC_EXEC=$enableval)
+AC_ARG_ENABLE([static_exec],
+              [AC_HELP_STRING([--enable-static-exec],
+                              [Build only statically linked executables
+                               [default=no]])],
+              STATIC_EXEC=$enableval)
 
-if test "X$STATIC_EXEC" = "Xyes"; then
+if test "x$STATIC_EXEC" = "xyes"; then
   echo "yes"
   LT_STATIC_EXEC="-all-static"
 else
@@ -247,7 +253,7 @@ dnl Check if they have Perl installed on their system. We only need Perl
 dnl if they're using a GNU compiler.
 dnl
 AC_SUBST(PERL) PERL=""
-if test "X$GCC" = "Xyes"; then
+if test "x$GCC" = "xyes"; then
   AC_CHECK_PROGS(PERL, perl,, $PATH)
 fi
 
@@ -268,6 +274,23 @@ AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_LIBTOOL_DLOPEN
 AM_PROG_LIBTOOL
+
+dnl Post processing to patch up some deficiencies in libtool
+case $host_os in
+  linux*)
+    # If gcc is not used, need to set $wl to use "-Wl,"
+    if $CC -v 2>&1 | grep '^gcc' > /dev/null ; then
+      : using gcc
+    else
+      echo 'fixing $wl in' $ofile
+ed - $ofile <<EOF 2> /dev/null
+/^wl=""/s//wl="-Wl,"/
+w
+q
+EOF
+    fi
+    ;;
+esac
 
 dnl Fix up the INSTALL macro if it's a relative path. We want the
 dnl full-path to the binary instead.
@@ -405,13 +428,27 @@ dnl ----------------------------------------------------------------------
 dnl Production flags?  Save the value in $CONFIG_MODE so we have it for
 dnl the record.
 dnl
-AC_MSG_CHECKING(for production mode)
-AC_ARG_ENABLE(production,
-  [  --enable-production     Determines how to run the compiler.])
+AC_MSG_CHECKING([for production mode])
+AC_ARG_ENABLE([production],
+              [AC_HELP_STRING([--enable-production],
+                              [Determines how to run the compiler.])])
 
 case "X-$enable_production" in
   X-|X-yes)
     enable_production="yes"
+
+    dnl Remove the "-g" flag from CFLAGS if it's in there.
+    dnl
+    CFLAGS_temp=""
+    if test -n "$CFLAGS"; then
+      for d in $CFLAGS ; do
+        if test "X$d" != "X-g"; then
+          CFLAGS_temp="$CFLAGS_temp $d"
+        fi
+      done
+      CFLAGS=$CFLAGS_temp
+    fi
+
     AC_MSG_RESULT("production")
     CONFIG_MODE=production
     CFLAGS="$CFLAGS $PROD_CFLAGS"
@@ -441,7 +478,7 @@ esac
 dnl ----------------------------------------------------------------------
 dnl Check for system libraries.
 dnl
-AC_CHECK_LIB(m,ceil)
+AC_CHECK_LIB(m, ceil)
 
 if test "`uname`" = "SunOS" -o "`uname -sr`" = "HP-UX B.11.00"; then
   dnl ...for Solaris
@@ -482,10 +519,11 @@ case "$host_cpu-$host_vendor-$host_os" in
     dnl ----------------------------------------------------------------------
     dnl Enable large file support on linux? Store the result in the LINUX_LFS
     dnl variable for posterity
-    AC_ARG_ENABLE(linux-lfs,
-      [  --enable-linux-lfs      Enable support for large (64-bit) files on Linux.
-                          [default=check]])
-
+    AC_ARG_ENABLE([linux-lfs],
+                  [AC_HELP_STRING([--enable-linux-lfs],
+                                  [Enable support for large (64-bit)
+                                   files on Linux. [default=check]])])
+   
     LINUX_LFS="no"
     case "X-$enable_linux_lfs" in
       X-yes)
@@ -494,19 +532,19 @@ case "$host_cpu-$host_vendor-$host_os" in
       X-no)
         ;;
       X-|*)
-        AC_CHECK_FUNCS(getdents64,
-                       dnl Add the large file support flags to the
-                       dnl CPPFLAGS macro if we're on a Linux system
-                       dnl which austensibly supports LFS. (We think it
-                       dnl does if it has the `getdents64' syscall).
-                       LINUX_LFS=yes)
+        MAJOR_VER="`uname -r | cut -d '.' -f1`"
+        MINOR_VER="`uname -r | cut -d '.' -f2`"
+
+        if test ${MAJOR_VER} -gt 2 -o ${MAJOR_VER} -eq 2 -a ${MINOR_VER} -ge 4; then
+          LINUX_LFS="yes"
+        fi
         ;;
     esac
-
-    AC_MSG_CHECKING(for large file support on linux mode)
+   
+    AC_MSG_CHECKING([for large file support mode on Linux])
     if test "X$LINUX_LFS" = "Xyes"; then
       AC_MSG_RESULT(enabled)
-
+   
       CPPFLAGS="-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_LARGEFILE_SOURCE $CPPFLAGS"
     else
       AC_MSG_RESULT(disabled)
@@ -526,9 +564,9 @@ case "$host_cpu-$host_vendor-$host_os" in
 esac
 
 AC_TRY_COMPILE([#include <sys/types.h>],
-	       [off64_t n = 0;],
-	       AC_CHECK_FUNCS(lseek64 fseek64),
-	       AC_MSG_RESULT([skipping test for lseek64() and fseek64()]))
+               [off64_t n = 0;],
+               AC_CHECK_FUNCS(lseek64 fseek64),
+               AC_MSG_RESULT([skipping test for lseek64() and fseek64()]))
 
 dnl ----------------------------------------------------------------------
 dnl Data types and their sizes.
@@ -616,20 +654,93 @@ AC_ARG_WITH(fnord,
   ],,)
 
 dnl ----------------------------------------------------------------------
+dnl Is the dmalloc present? It has a header file `dmalloc.h' and a library
+dnl `-ldmalloc' and their locations might be specified with the `--with-dmalloc'
+dnl command-line switch. The value is an include path and/or a library path.
+dnl If the library path is specified then it must be preceded by a comma.
+dnl
+AC_ARG_WITH([dmalloc],
+            [AC_HELP_STRING([--with-dmalloc=DIR],
+                            [Use dmalloc memory debugging aid [default=no]])],,
+            withval=no)
+
+case $withval in
+  yes)
+    HAVE_DMALLOC="yes"
+    AC_CHECK_HEADERS(dmalloc.h)
+    AC_CHECK_LIB(dmalloc, dmalloc_shutdown,, unset HAVE_DMALLOC)
+
+    if test -z "$HAVE_DMALLOC" -a -n "$HDF5_CONFIG_ABORT"; then
+      AC_MSG_ERROR(couldn't find dmalloc library)
+    fi
+    ;;
+  no)
+    HAVE_DMALLOC="no"
+    AC_MSG_CHECKING(for dmalloc library)
+    AC_MSG_RESULT(suppressed)
+    ;;
+  *)
+    HAVE_DMALLOC="yes"
+    case "$withval" in
+      *,*)
+        dmalloc_inc="`echo $withval |cut -f1 -d,`"
+        dmalloc_lib="`echo $withval |cut -f2 -d, -s`"
+        ;;
+      *)
+        if test -n "$withval"; then
+          dmalloc_inc="$withval/include"
+          dmalloc_lib="$withval/lib"
+        fi
+        ;;
+    esac
+
+    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
+    dnl can mess some compilers up.
+    if test "X$dmalloc_inc" = "X/usr/include"; then
+      dmalloc_inc=""
+    fi
+    if test "X$dmalloc_lib" = "X/usr/lib"; then
+      dmalloc_lib=""
+    fi
+
+    saved_CPPFLAGS="$CPPFLAGS"
+    saved_LDFLAGS="$LDFLAGS"
+
+    if test -n "$dmalloc_inc"; then
+      CPPFLAGS="$CPPFLAGS -I$dmalloc_inc"
+    fi
+
+    AC_CHECK_HEADERS(dmalloc.h,, CPPFLAGS="$saved_CPPFLAGS")
+
+    if test -n "$dmalloc_lib"; then
+      LDFLAGS="$LDFLAGS -L$dmalloc_lib"
+    fi
+
+    AC_CHECK_LIB(dmalloc, dmalloc_shutdown,, LDFLAGS="$saved_LDFLAGS"; unset HAVE_DMALLOC)
+
+    if test -z "$HAVE_DMALLOC" -a -n "$HDF5_CONFIG_ABORT"; then
+      AC_MSG_ERROR(couldn't find dmalloc library)
+    fi
+    ;;
+esac
+
+dnl ----------------------------------------------------------------------
 dnl Is the GNU zlib present? It has a header file `zlib.h' and a library
 dnl `-lz' and their locations might be specified with the `--with-zlib'
 dnl command-line switch. The value is an include path and/or a library path.
 dnl If the library path is specified then it must be preceded by a comma.
 dnl
-AC_ARG_WITH(zlib,
-  [  --with-zlib[=DIR]       Use GNU zlib compression [default=yes]],,
-  withval=yes)
+AC_ARG_WITH([zlib],
+            [AC_HELP_STRING([--with-zlib=DIR],
+                            [Use GNU zlib compression [default=yes]])],,
+            withval=yes)
 
 case $withval in
   yes)
     HAVE_ZLIB="yes"
-    AC_CHECK_HEADERS(zlib.h)
+    AC_CHECK_HEADERS(zlib.h, HAVE_ZLIB_H="yes")
     AC_CHECK_LIB(z, compress2,, unset HAVE_ZLIB)
+    AC_CHECK_FUNC(compress2, HAVE_COMPRESS2="yes")
     ;;
   no)
     HAVE_ZLIB="no"
@@ -651,6 +762,15 @@ case $withval in
         ;;
     esac
 
+    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
+    dnl can mess some compilers up.
+    if test "X$zlib_inc" = "X/usr/include"; then
+      zlib_inc=""
+    fi
+    if test "X$zlib_lib" = "X/usr/lib"; then
+      zlib_lib=""
+    fi
+
     saved_CPPFLAGS="$CPPFLAGS"
     saved_LDFLAGS="$LDFLAGS"
 
@@ -658,24 +778,33 @@ case $withval in
       CPPFLAGS="$CPPFLAGS -I$zlib_inc"
     fi
 
-    AC_CHECK_HEADERS(zlib.h,, CPPFLAGS="$saved_CPPFLAGS")
+    AC_CHECK_HEADERS(zlib.h,
+                     HAVE_ZLIB_H="yes",
+                     CPPFLAGS="$saved_CPPFLAGS")
 
     if test -n "$zlib_lib"; then
       LDFLAGS="$LDFLAGS -L$zlib_lib"
     fi
 
     AC_CHECK_LIB(z, compress2,, LDFLAGS="$saved_LDFLAGS"; unset HAVE_ZLIB)
+    AC_CHECK_FUNC(compress2, HAVE_COMPRESS2="yes")
     ;;
 esac
+
+if test "X$HAVE_ZLIB" = "Xyes" -a "X$HAVE_ZLIB_H" = "Xyes" -a "X$HAVE_COMPRESS2" = "Xyes"; then
+  AC_DEFINE(HAVE_COMPRESSION, 1,
+            [Define if we have zlib compression support])
+fi
 
 dnl ----------------------------------------------------------------------
 dnl Is SSL library present? It is needed by GLOBUS-GASS and Grid Storage
 dnl driver. SSL must be tested before them.
 dnl
 AC_SUBST(SSL) SSL="yes"
-AC_ARG_WITH(ssl,
-  [  --with-ssl[=LIB]        Use the SSL library [default=no]],,
-  withval=no)
+AC_ARG_WITH([ssl],
+            [AC_HELP_STRING([--with-ssl=LIB],
+                            [Use the SSL library [default=no]])],,
+            withval=no)
 
 case "$withval" in
    yes)
@@ -689,7 +818,9 @@ case "$withval" in
       ;;
    *)
       saved_LDFLAGS="$LDFLAGS"
-      LDFLAGS="$LDFLAGS -L$with_ssl"
+      if test "X$with_ssl" != "X/usr/lib"; then
+        LDFLAGS="$LDFLAGS -L$with_ssl"
+      fi
       AC_CHECK_LIB(crypto,main,, LDFLAGS="$saved_LDFLAGS"; unset SSL)
       AC_CHECK_LIB(ssl,SSL_get_version,, LDFLAGS="$saved_LDFLAGS"; unset SSL)
       ;;
@@ -701,9 +832,10 @@ dnl the Grid Storage driver.
 dnl
 AC_SUBST(GASS) GASS="yes"
 AC_SUBST(TESTGASS) TESTGASS='$(srcdir)/testgass'
-AC_ARG_WITH(gass,
-  [  --with-gass[=DIR]       Use the GASS library [default=no]],,
-  withval=no)
+AC_ARG_WITH([gass],
+            [AC_HELP_STRING([--with-gass=DIR],
+                            [Use the GASS library [default=no]])],,
+            withval=no)
 
 case "$withval" in
   yes)
@@ -738,6 +870,15 @@ case "$withval" in
         fi
         ;;
     esac
+
+    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
+    dnl can mess some compilers up.
+    if test "X$gass_inc" = "X/usr/include"; then
+      gass_inc=""
+    fi
+    if test "X$gass_lib" = "X/usr/lib"; then
+      gass_lib=""
+    fi
 
     if test -n "$gass_inc"; then
       saved_CPPFLAGS="$CPPFLAGS"
@@ -785,9 +926,10 @@ dnl Are SRB Client and other system libraries(socket, elf) present?
 dnl
 AC_SUBST(SRB) SRB="yes"
 AC_SUBST(TESTSRB) TESTSRB='$(srcdir)/testsrb'
-AC_ARG_WITH(srb,
-  [  --with-srb[=DIR]        Use the SRB Library [default=no]],,
-	withval=no)
+AC_ARG_WITH([srb],
+            [AC_HELP_STRING([--with-srb=DIR],
+                            [Use the SRB Library [default=no]])],,
+            withval=no)
 
 case "$withval" in
   yes)
@@ -814,6 +956,15 @@ case "$withval" in
         fi
         ;;
     esac
+
+    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
+    dnl can mess some compilers up.
+    if test "X$srb_inc" = "X/usr/include"; then
+      srb_inc=""
+    fi
+    if test "X$srb_lib" = "X/usr/lib"; then
+      srb_lib=""
+    fi
 
     if test -n "$srb_inc"; then
       saved_CPPFLAGS="$CPPFLAGS"
@@ -865,9 +1016,10 @@ dnl be preceded by a comma.
 dnl
 AC_SUBST(PTHREAD) PTHREAD=yes
 
-AC_ARG_WITH(pthread,
-  [  --with-pthread[=DIR]    Use the Pthreads library [default=no]],,
-  withval=no)
+AC_ARG_WITH([pthread],
+            [AC_HELP_STRING([--with-pthread=DIR],
+                            [Use the Pthreads library [default=no]])],,
+            withval=no)
 
 case "$withval" in
   yes)
@@ -893,6 +1045,15 @@ case "$withval" in
         ;;
     esac
 
+    dnl Trying to include -I/usr/include and -L/usr/lib is redundant and
+    dnl can mess some compilers up.
+    if test "X$pthread_inc" = "X/usr/include"; then
+      pthread_inc=""
+    fi
+    if test "X$pthread_lib" = "X/usr/lib"; then
+      pthread_lib=""
+    fi
+
     if test -n "$pthread_inc"; then
       saved_CPPFLAGS="$CPPFLAGS"
       CPPFLAGS="$CPPFLAGS -I$pthread_inc"
@@ -916,9 +1077,10 @@ dnl ----------------------------------------------------------------------
 dnl Enable thread-safe version of library.  It requires Pthreads support.
 dnl
 AC_MSG_CHECKING(for thread safe support)
-AC_ARG_ENABLE(threadsafe,
-  [  --enable-threadsafe     Enable thread safe capability],
-  THREADSAFE=$enableval)
+AC_ARG_ENABLE([threadsafe],
+              [AC_HELP_STRING([--enable-threadsafe],
+                              [Enable thread safe capability])],
+              THREADSAFE=$enableval)
 
 case "X-$THREADSAFE" in
   X-|X-no)
@@ -927,8 +1089,8 @@ case "X-$THREADSAFE" in
   X-yes)
     dnl Check that we can link a simple Pthread program.
     AC_TRY_LINK(,pthread_create(),
-		AC_MSG_RESULT(yes); THREADSAFE=yes,
-		AC_MSG_ERROR(needed pthread library not available))
+                AC_MSG_RESULT(yes); THREADSAFE=yes,
+                AC_MSG_ERROR(needed pthread library not available))
     ;;
   *)
     AC_MSG_RESULT(error)
@@ -946,10 +1108,11 @@ dnl Check if they would like the HDF5 v1.2 compatibility functions
 dnl compiled in
 dnl
 AC_MSG_CHECKING(whether HDF5 v1.2 compatibility functions enabled)
-AC_ARG_ENABLE(hdf5v1_2,
-  [  --enable-hdf5v1_2       Compile the HDF5 v1.2 compatibility interface
-                          [default=no]],
-  HDF5_V1_2_COMPAT=$enableval)
+AC_ARG_ENABLE([hdf5v1_2],
+              [AC_HELP_STRING([--enable-hdf5v1_2],
+                              [Compile the HDF5 v1.2 compatibility
+                               interface [default=no]])],
+              HDF5_V1_2_COMPAT=$enableval)
 
 if test "X$HDF5_V1_2_COMPAT" = "Xyes"; then
   AC_MSG_RESULT(yes)
@@ -963,9 +1126,11 @@ dnl ----------------------------------------------------------------------
 dnl Should the Stream Virtual File Driver be compiled in ?
 dnl
 AC_MSG_CHECKING(for Stream Virtual File Driver support)
-AC_ARG_ENABLE(stream-vfd,
-  [  --enable-stream-vfd     Build the Stream Virtual File Driver [default=no]],
-  STREAM_VFD=$enableval)
+AC_ARG_ENABLE([stream-vfd],
+              [AC_HELP_STRING([--enable-stream-vfd],
+                              [Build the Stream Virtual File Driver
+                               [default=no]])],
+              STREAM_VFD=$enableval)
 
 if test "$STREAM_VFD" = "yes"; then
   AC_MSG_RESULT(yes)
@@ -1094,7 +1259,7 @@ AC_MSG_RESULT(no))
 dnl ----------------------------------------------------------------------
 dnl Check for functions.
 dnl
-AC_CHECK_FUNCS(compress2 difftime fork gethostname getpwuid getrusage)
+AC_CHECK_FUNCS(difftime fork gethostname getpwuid getrusage)
 AC_CHECK_FUNCS(gettimeofday BSDgettimeofday longjmp setsysinfo sigaction)
 AC_CHECK_FUNCS(signal snprintf vsnprintf strdup system waitpid)
 
@@ -1152,15 +1317,32 @@ AC_DEFINE_UNQUOTED(PRINTF_LL_WIDTH, "$hdf5_cv_printf_ll",
                    [Width for printf() for type \`long long' or \`__int64', us. \`ll'])
 
 dnl ----------------------------------------------------------------------
+dnl Checking to see if GPFS is available on this filesystem
+dnl
+AC_CHECK_HEADERS([gpfs.h],
+                 AC_MSG_CHECKING([for GPFS support])
+                 AC_TRY_COMPILE([#include <gpfs.h>],
+                                [int fd = 0; gpfs_fcntl(fd, (void *)0);],
+                                AC_DEFINE(HAVE_GPFS, 1,
+                                          [Define if we have GPFS support])
+                                AC_MSG_RESULT(yes)
+                                LIBS="$LIBS -lgpfs"
+                                GPFS="yes",
+                                AC_MSG_RESULT(no)
+                                GPFS="no"))
+
+dnl ----------------------------------------------------------------------
 dnl Turn on debugging by setting compiler flags
 dnl
 AC_MSG_CHECKING(for debug flags)
-AC_ARG_ENABLE(debug,
-  [  --enable-debug[=all]    Turn on debugging in all packages. One may also
-                          specify a comma-separated list of package names
-                          without the leading H5 or the word no. The default
-                          is most packages.],
-  DEBUG_PKG=$enableval)
+AC_ARG_ENABLE([debug],
+              [AC_HELP_STRING([--enable-debug=all],
+                              [Turn on debugging in all packages. One may
+                               also specify a comma-separated list of
+                               package names without the leading H5 or
+                               the word no. The default is most
+                               packages.])],
+              DEBUG_PKG=$enableval)
 
 AC_SUBST(DEBUG_PKG)
 all_packages="ac,b,d,e,f,g,hg,hl,i,mf,mm,o,p,s,t,v,z"
@@ -1193,22 +1375,36 @@ fi
 
 dnl ----------------------------------------------------------------------
 dnl Enable tracing of the API
+dnl This must come after the enable-debug since it depends on debug.
 dnl
 AC_MSG_CHECKING(for API tracing);
-AC_ARG_ENABLE(trace,
-  [  --disable-trace         Disable API tracing capability],
-  TRACE=$enableval)
+AC_ARG_ENABLE([trace],
+              [AC_HELP_STRING([--enable-trace],
+                              [Enable API tracing capability.
+			       Default=no if debug is disabled.])],
+              TRACE=$enableval)
 
 AC_SUBST(TRACE_API)
-if test -z "$TRACE" -o "X$TRACE" = "Xyes"; then
-  AC_MSG_RESULT(yes)
-  TRACE_API=yes
-  CPPFLAGS="$CPPFLAGS -DH5_DEBUG_API"
-else
-  AC_MSG_RESULT(no)
-  TRACE_API=no
-  CPPFLAGS="$CPPFLAGS -UH5_DEBUG_API"
+dnl Default to no if debug is disabled
+if test "X-$TRACE" = X- ; then
+  if test -z "$DEBUG_PKG" ; then
+    TRACE=no
+  else
+    TRACE=yes
+  fi
 fi
+case "X-$TRACE" in
+  X-yes)
+    AC_MSG_RESULT(yes)
+    TRACE_API=yes
+    CPPFLAGS="$CPPFLAGS -DH5_DEBUG_API"
+    ;;
+  X-no|*)
+    AC_MSG_RESULT(no)
+    TRACE_API=no
+    CPPFLAGS="$CPPFLAGS -UH5_DEBUG_API"
+    ;;
+esac
 
 dnl Checkpoint the cache
 AC_CACHE_SAVE
@@ -1348,8 +1544,9 @@ dnl `--disable-parallel' but specifies a known parallel compiler (like mpicc
 dnl or mpcc) then parallel support is enabled but configure doesn't search
 dnl for any parallel header files or libraries.
 dnl
-AC_ARG_ENABLE(parallel,
-  [  --enable-parallel=TYPE  Search for MPI-IO and MPI support files])
+AC_ARG_ENABLE([parallel],
+              [AC_HELP_STRING([--enable-parallel],
+                              [Search for MPI-IO and MPI support files])])
 
 AC_MSG_CHECKING(for parallel support files)
 case "X-$enable_parallel" in
@@ -1380,23 +1577,6 @@ case "X-$enable_parallel" in
     if test "X$PARALLEL" = "Xyes" -a -z "$RUNPARALLEL"; then
       RUNPARALLEL="mpirun -np \$\${NPROCS:=3}"
     fi
-    ;;
-
-  X-mpich)
-    dnl For normal mpich installation the compiler, mpicc, should know
-    dnl where the MPI and MPI-IO header files are located and know which
-    dnl extra libraries need to be linked and will supply appropriate
-    dnl flags to the underlying compiler.
-    AC_MSG_RESULT(mpich)
-    AC_MSG_WARN(*** Why aren't you using an mpicc compiler? ***)
-
-    dnl Apparently mpicc isn't installed correctly so configure must search
-    dnl for the header files and libraries. Actually we only have to search
-    dnl for the libraries in order to get the onto the link line, the user
-    dnl will have already told us about the locations. Fail if something
-    dnl is missing.
-    PARALLEL=mpich
-    AC_CHECK_LIB(mpich,MPI_Init,,AC_MSG_ERROR(no mpich library))
     ;;
 
   *)
@@ -1622,7 +1802,7 @@ no_create=yes
 PARALLEL_MAKE=""
 
 if test -n "$TESTPARALLEL"; then
-  PARALLEL_MAKE="$TESTPARALLEL/Makefile"
+  PARALLEL_MAKE="$TESTPARALLEL/Makefile $TESTPARALLEL/testph5.sh"
 fi
 
 AC_CONFIG_FILES([src/libhdf5.settings
@@ -1715,9 +1895,9 @@ IF_YES_NO() {
     return
   else
     while test $# -gt 0; do
-      if test "$1" != "yes"; then
-	PRINT "No"
-	return
+      if test "X$1" != "Xyes"; then
+        PRINT "No"
+        return
       fi
       shift
     done
@@ -1744,6 +1924,15 @@ case "X-$enable_production" in
   *)            PRINT "$enable_production" ;;
 esac
 
+PRINT_N "                         CFLAGS"
+PRINT "$CFLAGS"
+
+PRINT_N "                       CPPFLAGS"
+PRINT "$CPPFLAGS"
+
+PRINT_N "                        LDFLAGS"
+PRINT "$LDFLAGS"
+
 PRINT_N "                     Debug Mode"
 
 if test "X$DEBUG_PKG" = "X$all_packages"; then
@@ -1764,13 +1953,9 @@ PRINT_N "  Statically Linked Executables"
 IF_YES_NO "$STATIC_EXEC"
 
 PRINT_N "                        Tracing"
-if test -z "$TRACE" -o "X$TRACE" = "Xyes"; then
-  PRINT "Yes"
-else
-  PRINT "No"
-fi
+IF_YES_NO "$TRACE_API"
 
-PRINT "Features:"
+PRINT "Languages:"
 
 PRINT_N "                            C++"
 IF_YES_NO "$HDF_CXX"
@@ -1778,8 +1963,16 @@ IF_YES_NO "$HDF_CXX"
 PRINT_N "                        Fortran"
 IF_YES_NO "$HDF_FORTRAN"
 
+PRINT "Features:"
+
+PRINT_N "                        dmalloc"
+IF_YES_NO "$HAVE_DMALLOC"
+
 PRINT_N "                           GASS"
 IF_YES_NO "$GASS"
+
+PRINT_N "                           GPFS"
+IF_YES_NO "$GPFS"
 
 PRINT_N "        HDF5 v1.2 Compatibility"
 IF_YES_NO "$HDF5_V1_2_COMPAT"
@@ -1794,7 +1987,7 @@ PRINT_N " Linux Large File Support (LFS)"
 IF_ENABLED_DISABLED "$LINUX_LFS"
 
 PRINT_N "                  Parallel HDF5"
-if test "$PARALLEL" != "no"; then
+if test "X$PARALLEL" != "Xno"; then
   PRINT "Yes"
 else
   PRINT "No"
@@ -1809,6 +2002,5 @@ IF_ENABLED_DISABLED "$STREAM_VFD"
 PRINT_N "                   Threadsafety"
 IF_ENABLED_DISABLED "$THREADSAFE"
 
-dnl Zlib compression depends on zlib.h header and compress2()
 PRINT_N "               Zlib-compression"
-IF_YES_NO "$ac_cv_header_zlib_h" "$ac_cv_func_compress2"
+IF_YES_NO "$HAVE_ZLIB"

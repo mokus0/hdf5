@@ -50,24 +50,24 @@ CLEAN=
 $(TEST_PROGS): $(LIB) $(LIBHDF5)
 
 compound: compound.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ compound.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ compound.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 h5group: h5group.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ h5group.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ h5group.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 create: create.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ create.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ create.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 readdata: readdata.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ readdata.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ readdata.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 chunks: chunks.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ chunks.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ chunks.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 extend_ds: extend_ds.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ extend_ds.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ extend_ds.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 writedata: writedata.lo 
-	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ writedata.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5)
+	@$(LT_LINK_EXE) $(CXXFLAGS) -o $@ writedata.lo $(LDFLAGS) $(LIB) $(LIBS) $(LIBHDF5) $(DEFAULT_LIBS)
 
 @CONCLUDE@

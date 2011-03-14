@@ -166,6 +166,12 @@
 #   include "ProcIDs.h"
 #endif
 
+/*
+ * dmalloc (debugging malloc) support
+ */
+#ifdef H5_HAVE_DMALLOC_H
+#include "dmalloc.h"
+#endif /* H5_HAVE_DMALLOC_H */
 
 /*
  * NT doesn't define SIGBUS, but since NT only runs on processors             
@@ -182,12 +188,17 @@
  * suppresses warnings about unused function arguments.	 It's no big deal if
  * we don't.
  */
+#ifdef __cplusplus
+#   define __attribute__(X)	/*void*/
+#   define UNUSED		/*void*/
+#else /* __cplusplus */
 #ifdef H5_HAVE_ATTRIBUTE
 #   define UNUSED		__attribute__((unused))
 #else
 #   define __attribute__(X)	/*void*/
 #   define UNUSED		/*void*/
 #endif
+#endif /* __cplusplus */
 
 /*
  * Does the compiler expand __FUNCTION__ to be the name of the function
@@ -423,6 +434,20 @@
 #endif
 
 /*
+ * A macro to portably increment enumerated types.
+ */
+#ifndef H5_INC_ENUM
+#  define H5_INC_ENUM(TYPE,VAR) (VAR)=((TYPE)((VAR)+1))
+#endif
+
+/*
+ * A macro to portably decrement enumerated types.
+ */
+#ifndef H5_DEC_ENUM
+#  define H5_DEC_ENUM(TYPE,VAR) (VAR)=((TYPE)((VAR)-1))
+#endif
+
+/*
  * A macro for detecting over/under-flow when casting between types
  */
 #ifndef NDEBUG
@@ -461,11 +486,11 @@ typedef struct {
     double	etime;		/*elapsed wall-clock time	*/
 } H5_timer_t;
 
-__DLL__ void H5_timer_reset (H5_timer_t *timer);
-__DLL__ void H5_timer_begin (H5_timer_t *timer);
-__DLL__ void H5_timer_end (H5_timer_t *sum/*in,out*/,
+H5_DLL void H5_timer_reset (H5_timer_t *timer);
+H5_DLL void H5_timer_begin (H5_timer_t *timer);
+H5_DLL void H5_timer_end (H5_timer_t *sum/*in,out*/,
 			   H5_timer_t *timer/*in,out*/);
-__DLL__ void H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds);
+H5_DLL void H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds);
 
 /*
  * Redefine all the POSIX functions.  We should never see a POSIX
@@ -543,7 +568,7 @@ __DLL__ void H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds);
 #define HDfopen(S,M)		fopen(S,M)
 #define HDfork()		fork()
 #define HDfpathconf(F,N)	fpathconf(F,N)
-__DLL__ int HDfprintf (FILE *stream, const char *fmt, ...);
+H5_DLL int HDfprintf (FILE *stream, const char *fmt, ...);
 #define HDfputc(C,F)		fputc(C,F)
 #define HDfputs(S,F)		fputs(S,F)
 #define HDfread(M,Z,N,F)	fread(M,Z,N,F)
@@ -554,14 +579,22 @@ __DLL__ int HDfprintf (FILE *stream, const char *fmt, ...);
 #define HDfseek(F,O,W)		fseek(F,O,W)
 #define HDfsetpos(F,P)		fsetpos(F,P)
 /* definitions related to the file stat utilities */
+
+
 #ifdef WIN32
-#define HDfstat(F,B)            _fstati64(F,B)
-typedef	struct _stati64		h5_stat_t;
+# ifdef __MWERKS__ 
+#  define HDfstat(F,B)		fstat(F,B)
+   typedef struct stat  h5_stat_t;
+# else /*MSVC*/
+#  define HDfstat(F,B)     _fstati64(F,B)
+   typedef	struct _stati64		h5_stat_t;
+# endif
 #else
-#define HDfstat(F,B)		fstat(F,B)
-typedef struct stat             h5_stat_t;
+# define HDfstat(F,B)		fstat(F,B)
+  typedef struct stat  h5_stat_t;
 #endif
 #define HDftell(F)		ftell(F)
+#define HDftruncate(F,L)	ftruncate(F,L)
 #define HDfwrite(M,Z,N,F)	fwrite(M,Z,N,F)
 #define HDgetc(F)		getc(F)
 #define HDgetchar()		getchar()
@@ -604,7 +637,15 @@ typedef struct stat             h5_stat_t;
 #define HDlog(X)		log(X)
 #define HDlog10(X)		log10(X)
 #define HDlongjmp(J,N)		longjmp(J,N)
-#define HDlseek(F,O,W)		lseek(F,O,W)
+#ifdef WIN32
+# ifdef __MWERKS__ 
+#  define HDlseek(F,O,W)		lseek(F,O,W)
+# else /*MSVC*/
+#  define HDlseek(F,O,W)  _lseeki64(F,O,W)
+# endif
+#else
+#  define HDlseek(F,O,W)		lseek(F,O,W)
+#endif
 #define HDmalloc(Z)		malloc(Z)
 #define HDmblen(S,N)		mblen(S,N)
 #define HDmbstowcs(P,S,Z)	mbstowcs(P,S,Z)
@@ -626,7 +667,7 @@ typedef struct stat             h5_stat_t;
 #define HDmkfifo(S,M)		mkfifo(S,M)
 #define HDmktime(T)		mktime(T)
 #define HDmodf(X,Y)		modf(X,Y)
-#ifdef O_BINARY
+#ifdef O_BINARY 
 #define HDopen(S,F,M)		open(S,F|_O_BINARY,M)
 #else
 #define HDopen(S,F,M)		open(S,F,M)
@@ -684,7 +725,11 @@ typedef struct stat             h5_stat_t;
 #define HDsrand(N)		srand(N)
 /* sscanf() variable arguments */
 #ifdef WIN32
-#define HDstat(S,B)             _stati64(S,B)
+# ifdef __MWERKS__ 
+#  define HDstat(S,B)		stat(S,B)
+# else /*MSVC*/
+#  define HDstat(S,B)  _stati64(S,B)
+# endif
 #else
 #define HDstat(S,B)		stat(S,B)
 #endif
@@ -707,7 +752,7 @@ typedef struct stat             h5_stat_t;
 #define HDstrtod(S,R)		strtod(S,R)
 #define HDstrtok(X,Y)		strtok(X,Y)
 #define HDstrtol(S,R,N)		strtol(S,R,N)
-__DLL__ int64_t HDstrtoll (const char *s, const char **rest, int base);
+H5_DLL int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDstrtoul(S,R,N)	strtoul(S,R,N)
 #define HDstrxfrm(X,Y,Z)	strxfrm(X,Y,Z)
 #define HDsysconf(N)		sysconf(N)
@@ -753,7 +798,6 @@ __DLL__ int64_t HDstrtoll (const char *s, const char **rest, int base);
 #if defined (__MWERKS__)
 /* workaround for a bug in the Metrowerks header file for write
  which is not defined as const void*
- pvn
  */
 #define HDwrite(F,M,Z)		write(F,(void*)M,Z)
 #else
@@ -778,10 +822,10 @@ extern char *strdup(const char *s);
 
 
 #ifndef H5_HAVE_SNPRINTF
-__DLL__ int HDsnprintf(char *buf, size_t size, const char *fmt, ...);
+H5_DLL int HDsnprintf(char *buf, size_t size, const char *fmt, ...);
 #endif
 #ifndef H5_HAVE_VSNPRINTF
-__DLL__ int HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
+H5_DLL int HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
 #endif
 
 /*
@@ -818,6 +862,8 @@ typedef enum {
 
 typedef struct H5_debug_t {
     FILE		*trace;		/*API trace output stream	*/
+    hbool_t             ttop;           /*Show only top-level calls?    */
+    hbool_t             ttimes;         /*Show trace event times?       */
     struct {
 	const char	*name;		/*package name			*/
 	FILE		*stream;	/*output stream	or NULL		*/
@@ -844,33 +890,30 @@ extern H5_debug_t		H5_debug_g;
  *------------------------------------------------------------------------- 
  */
 #ifdef H5_DEBUG_API
-#define H5TRACE_DECL			   const char *RTYPE=NULL
-#define H5TRACE0(R,T)			   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T)
-#define H5TRACE1(R,T,A0)		   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0)
-#define H5TRACE2(R,T,A0,A1)		   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0,#A1,A1)
-#define H5TRACE3(R,T,A0,A1,A2)		   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0,#A1,A1,   \
-						    #A2,A2)
-#define H5TRACE4(R,T,A0,A1,A2,A3)	   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0,#A1,A1,   \
-						    #A2,A2,#A3,A3)
-#define H5TRACE5(R,T,A0,A1,A2,A3,A4)	   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0,#A1,A1,   \
-						    #A2,A2,#A3,A3,#A4,A4)
-#define H5TRACE6(R,T,A0,A1,A2,A3,A4,A5)	   RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0,#A1,A1,   \
-						    #A2,A2,#A3,A3,#A4,A4,     \
-						    #A5,A5)
-#define H5TRACE7(R,T,A0,A1,A2,A3,A4,A5,A6) RTYPE=R;			      \
-					   H5_trace(0,FUNC,T,#A0,A0,#A1,A1,   \
-						    #A2,A2,#A3,A3,#A4,A4,     \
-						    #A5,A5,#A6,A6)
-#define H5TRACE_RETURN(V)		   if (RTYPE) {			      \
-					      H5_trace(1,NULL,RTYPE,NULL,V);  \
-					      RTYPE=NULL;		      \
+#define H5TRACE_DECL			   const char *RTYPE=NULL;                                      \
+                                           double CALLTIME
+#define H5TRACE0(R,T)			   RTYPE=R;                                                     \
+					   CALLTIME=H5_trace(NULL,FUNC,T)
+#define H5TRACE1(R,T,A0)		   RTYPE=R;			                                \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0)
+#define H5TRACE2(R,T,A0,A1)		   RTYPE=R;                                                     \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0,#A1,A1)
+#define H5TRACE3(R,T,A0,A1,A2)		   RTYPE=R;			                                \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0,#A1,A1,#A2,A2)
+#define H5TRACE4(R,T,A0,A1,A2,A3)	   RTYPE=R;                                                     \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0,#A1,A1,#A2,A2,#A3,A3)
+#define H5TRACE5(R,T,A0,A1,A2,A3,A4)	   RTYPE=R;                                                     \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0,#A1,A1,#A2,A2,#A3,A3,   \
+                                                             #A4,A4)
+#define H5TRACE6(R,T,A0,A1,A2,A3,A4,A5)	   RTYPE=R;                                                     \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0,#A1,A1,#A2,A2,#A3,A3,   \
+                                                             #A4,A4,#A5,A5)
+#define H5TRACE7(R,T,A0,A1,A2,A3,A4,A5,A6) RTYPE=R;                                                     \
+					   CALLTIME=H5_trace(NULL,FUNC,T,#A0,A0,#A1,A1,#A2,A2,#A3,A3,   \
+                                                             #A4,A4,#A5,A5,#A6,A6)
+#define H5TRACE_RETURN(V)		   if (RTYPE) {                                                 \
+					      H5_trace(&CALLTIME,FUNC,RTYPE,NULL,V);                    \
+					      RTYPE=NULL;                                               \
 					   }
 #else
 #define H5TRACE_DECL			   /*void*/
@@ -885,8 +928,7 @@ extern H5_debug_t		H5_debug_g;
 #define H5TRACE_RETURN(V)		   /*void*/
 #endif
 
-__DLL__ void H5_trace(hbool_t returning, const char *func, const char *type,
-		      ...);
+H5_DLL double H5_trace(double *calltime, const char *func, const char *type, ...);
 
 
 /*-------------------------------------------------------------------------
@@ -1077,20 +1119,21 @@ extern hbool_t H5_libinit_g;   /*good thing C's lazy about extern! */
 #endif
 
 /* Private functions, not part of the publicly documented API */
-__DLL__ herr_t H5_init_library(void);
-__DLL__ void H5_term_library(void);
+H5_DLL herr_t H5_init_library(void);
+H5_DLL void H5_term_library(void);
 
 /* Functions to terminate interfaces */
-__DLL__ int H5A_term_interface(void);
-__DLL__ int H5D_term_interface(void);
-__DLL__ int H5F_term_interface(void);
-__DLL__ int H5G_term_interface(void);
-__DLL__ int H5I_term_interface(void);
-__DLL__ int H5P_term_interface(void);
-__DLL__ int H5R_term_interface(void);
-__DLL__ int H5S_term_interface(void);
-__DLL__ int H5TN_term_interface(void);
-__DLL__ int H5T_term_interface(void);
-__DLL__ int H5Z_term_interface(void);
+H5_DLL int H5A_term_interface(void);
+H5_DLL int H5AC_term_interface(void);
+H5_DLL int H5D_term_interface(void);
+H5_DLL int H5F_term_interface(void);
+H5_DLL int H5G_term_interface(void);
+H5_DLL int H5I_term_interface(void);
+H5_DLL int H5P_term_interface(void);
+H5_DLL int H5R_term_interface(void);
+H5_DLL int H5S_term_interface(void);
+H5_DLL int H5TN_term_interface(void);
+H5_DLL int H5T_term_interface(void);
+H5_DLL int H5Z_term_interface(void);
 
 #endif

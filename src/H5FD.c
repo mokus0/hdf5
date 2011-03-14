@@ -43,7 +43,10 @@ static int interface_initialize_g = 0;
 /* static prototypes */
 static herr_t H5FD_init_interface(void);
 static herr_t H5FD_free_cls(H5FD_class_t *cls);
-static haddr_t H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size);
+static haddr_t H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size);
+
+/* Declare a free list to manage the H5FD_free_t struct */
+H5FL_DEFINE(H5FD_free_t);
 
 /* Declare a PQ free list to manage the metadata accumulator buffer */
 H5FL_BLK_DEFINE_STATIC(meta_accum);
@@ -222,7 +225,7 @@ H5FDregister(const H5FD_class_t *cls)
 	HRETURN_ERROR(H5E_ARGS, H5E_UNINITIALIZED, FAIL,
 		      "`read' and/or `write' method is not defined");
     }
-    for (type=H5FD_MEM_DEFAULT; type<H5FD_MEM_NTYPES; type++) {
+    for (type=H5FD_MEM_DEFAULT; type<H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t,type)) {
 	if (cls->fl_map[type]<H5FD_MEM_NOLIST ||
 	    cls->fl_map[type]>=H5FD_MEM_NTYPES) {
 	    HRETURN_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL,
@@ -570,7 +573,6 @@ H5FD_fapl_free(hid_t driver_id, void *fapl)
     H5FD_class_t	*driver=NULL;
 
     FUNC_ENTER(H5FD_fapl_free, FAIL);
-    H5TRACE2("e","ix",driver_id,fapl);
 
     /* Check args */
     if (H5I_VFL!=H5I_get_type(driver_id) ||
@@ -918,14 +920,14 @@ H5FD_close(H5FD_t *file)
     /* Free all free-lists, leaking any memory thus described. Also leaks
      * file space allocated but not used when metadata aggregation is
      * turned on. */
-    for (i=H5FD_MEM_DEFAULT; i<H5FD_MEM_NTYPES; i++) {
+    for (i=H5FD_MEM_DEFAULT; i<H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t,i)) {
 	for (cur=file->fl[i]; cur; cur=next) {
 #ifdef H5F_DEBUG
 	    nblocks++;
 	    nbytes += cur->size;
 #endif
 	    next = cur->next;
-	    H5MM_xfree(cur);
+	    H5FL_FREE(H5FD_free_t,cur);
 	}
 	file->fl[i]=NULL;
     }
@@ -1155,12 +1157,12 @@ H5FD_query(const H5FD_t *f, unsigned long *flags/*out*/)
  *-------------------------------------------------------------------------
  */
 haddr_t
-H5FDalloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
+H5FDalloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
 {
     haddr_t	ret_value = HADDR_UNDEF;
     
     FUNC_ENTER(H5FDalloc, HADDR_UNDEF);
-    H5TRACE3("a","xMth",file,type,size);
+    H5TRACE4("a","xMtih",file,type,dxpl_id,size);
 
     /* Check args */
     if (!file || !file->cls) {
@@ -1177,7 +1179,7 @@ H5FDalloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
     }
 
     /* Do the real work */
-    if (HADDR_UNDEF==(ret_value=H5FD_alloc(file, type, size))) {
+    if (HADDR_UNDEF==(ret_value=H5FD_alloc(file, type, dxpl_id, size))) {
 	HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, HADDR_UNDEF,
 		      "unable to allocate file memory");
     }
@@ -1205,7 +1207,7 @@ H5FDalloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
  *-------------------------------------------------------------------------
  */
 haddr_t
-H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
+H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
 {
     haddr_t	ret_value = HADDR_UNDEF;
     H5FD_mem_t	mapped_type;
@@ -1219,7 +1221,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
     
 #ifdef H5F_DEBUG
     if (H5DEBUG(F)) {
-	fprintf(H5DEBUG(F), "%s: alignment=%ld, threshold=%ld, size=%ld\n",
+	HDfprintf(H5DEBUG(F), "%s: alignment=%Hu, threshold=%Hu, size=%Hu\n",
 	    FUNC, file->alignment, file->threshold, size);
     }
 #endif
@@ -1276,7 +1278,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                                 prev->next = cur->next;
                             else
                                 file->fl[mapped_type] = cur->next;
-                            H5MM_xfree(cur);
+                            H5FL_FREE(H5FD_free_t,cur);
                             if (size==file->maxsize)
                                 file->maxsize=0; /*unknown*/
                             HGOTO_DONE(ret_value);
@@ -1328,7 +1330,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                             prev->next = cur->next;
                         else
                             file->fl[mapped_type] = cur->next;
-                        H5MM_xfree(cur);
+                        H5FL_FREE(H5FD_free_t,cur);
                         if (size==file->maxsize)
                             file->maxsize=0; /*unknown*/
                         HGOTO_DONE(ret_value);
@@ -1387,7 +1389,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                 } /* end if */
                 else {
                     /* Attempt to allocate memory for temporary node */ 
-                    tmp = H5MM_malloc(sizeof(H5FD_free_t));
+                    tmp = H5FL_ALLOC(H5FD_free_t,0);
 #ifdef H5F_DEBUG
                     if (H5DEBUG(F)) {
                         HDfprintf(H5DEBUG(F),
@@ -1405,7 +1407,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                         } /* end if */
                         else {
                             /* no tail piece */
-                            H5MM_xfree(tmp);
+                            H5FL_FREE(H5FD_free_t,tmp);
                         } /* end else */
                     } /* end if */
                     else {
@@ -1441,7 +1443,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                 /* Check if the block asked for is too large for a metadata block */
                 if(size>=file->def_meta_block_size) {
                     /* Allocate more room for this new block the regular way */
-                    new_meta=H5FD_real_alloc(file,type,size);
+                    new_meta=H5FD_real_alloc(file,type,dxpl_id,size);
 
                     /* Check if the new metadata is at the end of the current metadata block */
                     if(file->eoma+file->cur_meta_block_size==new_meta) {
@@ -1460,7 +1462,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                 } /* end if */
                 else {
                     /* Allocate another metadata block */
-                    new_meta=H5FD_real_alloc(file,H5FD_MEM_DEFAULT,file->def_meta_block_size);
+                    new_meta=H5FD_real_alloc(file,H5FD_MEM_DEFAULT,dxpl_id,file->def_meta_block_size);
 
                     /* Check if the new metadata is at the end of the current metadata block */
                     if(file->eoma+file->cur_meta_block_size==new_meta) {
@@ -1469,7 +1471,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                     else {
                         /* Return the unused portion of the metadata block to a free list */
                         if(file->eoma!=0)
-                            if(H5FD_free(file,H5FD_MEM_DEFAULT,file->eoma,file->cur_meta_block_size)<0)
+                            if(H5FD_free(file,H5FD_MEM_DEFAULT,dxpl_id,file->eoma,file->cur_meta_block_size)<0)
                                 HRETURN_ERROR(H5E_VFL, H5E_CANTFREE, HADDR_UNDEF, "can't free metadata block");
 
                         /* Point the metadata block at the newly allocated block */
@@ -1492,7 +1494,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
             } /* end else */
         } /* end if */
         else { /* Allocate data the regular way */
-            ret_value=H5FD_real_alloc(file,type,size);
+            ret_value=H5FD_real_alloc(file,type,dxpl_id,size);
         } /* end else */
     } /* end if */
     else { /* Allocate "raw" data */
@@ -1509,7 +1511,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                 /* Check if the block asked for is too large for the "small data" block */
                 if(size>=file->def_sdata_block_size) {
                     /* Allocate more room for this new block the regular way */
-                    new_data=H5FD_real_alloc(file,type,size);
+                    new_data=H5FD_real_alloc(file,type,dxpl_id,size);
 
                     /* Check if the new raw data is at the end of the current "small data" block */
                     if(file->eosda+file->cur_sdata_block_size==new_data) {
@@ -1529,7 +1531,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                 } /* end if */
                 else {
                     /* Allocate another "small data" block */
-                    new_data=H5FD_real_alloc(file,type,file->def_sdata_block_size);
+                    new_data=H5FD_real_alloc(file,type,dxpl_id,file->def_sdata_block_size);
 
                     /* Check if the new raw data is at the end of the current "small data" block */
                     if(file->eosda+file->cur_sdata_block_size==new_data) {
@@ -1538,7 +1540,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
                     else {
                         /* Return the unused portion of the "small data" block to a free list */
                         if(file->eosda!=0)
-                            if(H5FD_free(file,H5FD_MEM_DRAW,file->eosda,file->cur_sdata_block_size)<0)
+                            if(H5FD_free(file,H5FD_MEM_DRAW,dxpl_id,file->eosda,file->cur_sdata_block_size)<0)
                                 HRETURN_ERROR(H5E_VFL, H5E_CANTFREE, HADDR_UNDEF, "can't free 'small data' block");
 
                         /* Point the "small data" block at the newly allocated block */
@@ -1561,7 +1563,7 @@ H5FD_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
             } /* end else */
         } /* end if */
         else { /* Allocate data the regular way */
-            ret_value=H5FD_real_alloc(file,type,size);
+            ret_value=H5FD_real_alloc(file,type,dxpl_id,size);
         } /* end else */
     } /* end else */
 
@@ -1589,7 +1591,7 @@ done:
  *-------------------------------------------------------------------------
  */
 static haddr_t
-H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
+H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
 {
     haddr_t	ret_value = HADDR_UNDEF;
 
@@ -1605,7 +1607,7 @@ H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
      * marker
      */
     if (file->cls->alloc) {
-        ret_value = (file->cls->alloc)(file, type, size);
+        ret_value = (file->cls->alloc)(file, type, dxpl_id, size);
         if (HADDR_UNDEF==ret_value) {
             HRETURN_ERROR(H5E_VFL, H5E_NOSPACE, HADDR_UNDEF,
                   "driver allocation request failed");
@@ -1617,8 +1619,8 @@ H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
 
 #ifdef H5F_DEBUG
 	if (file->alignment * file->threshold != 1 && H5DEBUG(F)) {
-	    fprintf(H5DEBUG(F),
-		"%s: alignment=%ld, threshold=%ld, size=%ld, Begin eoa=%ld\n",
+	    HDfprintf(H5DEBUG(F),
+		"%s: alignment=%Hu, threshold=%Hu, size=%Hu, Begin eoa=%a\n",
 		FUNC, file->alignment, file->threshold, size, eoa);
 	}
 #endif
@@ -1653,12 +1655,12 @@ H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
 
 	/* Free the wasted memory */
 	if (wasted)
-	    H5FDfree(file, type, oldeoa, wasted);
+	    H5FD_free(file, type, dxpl_id, oldeoa, wasted);
 
 #ifdef H5F_DEBUG
 	if (file->alignment * file->threshold != 1 && H5DEBUG(F)) {
-	    fprintf(H5DEBUG(F),
-		"%s: ret_value=%ld, wasted=%ld, Ended eoa=%ld\n",
+	    HDfprintf(H5DEBUG(F),
+		"%s: ret_value=%a, wasted=%Hu, Ended eoa=%a\n",
 		FUNC, ret_value, wasted, eoa);
 	}
 #endif
@@ -1691,10 +1693,10 @@ H5FD_real_alloc(H5FD_t *file, H5FD_mem_t type, hsize_t size)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5FDfree(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
+H5FDfree(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size)
 {
     FUNC_ENTER(H5FDfree, FAIL);
-    H5TRACE4("e","xMtah",file,type,addr,size);
+    H5TRACE5("e","xMtiah",file,type,dxpl_id,addr,size);
     
     /* Check args */
     if (!file || !file->cls) {
@@ -1705,7 +1707,7 @@ H5FDfree(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
     }
 
     /* Do the real work */
-    if (H5FD_free(file, type, addr, size)<0) {
+    if (H5FD_free(file, type, dxpl_id, addr, size)<0) {
         HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL,
 		      "file deallocation request failed");
     }
@@ -1731,10 +1733,10 @@ H5FDfree(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5FD_free(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
+H5FD_free(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size)
 {
     H5FD_mem_t		mapped_type;
-    
+        
     FUNC_ENTER(H5FD_free, FAIL);
 
     /* Check args */
@@ -1762,18 +1764,183 @@ H5FD_free(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
      * driver deallocate the memory.
      */
     if (mapped_type>=0) {
-        H5FD_free_t *cur = H5MM_malloc(sizeof(H5FD_free_t));
+        H5FD_free_t *last;          /* Last merged node */
+        H5FD_free_t *last_prev=NULL;/* Pointer to node before merged node */
+        H5FD_free_t *curr;          /* Current free block being inspected */
+        H5FD_free_t *prev;          /* Previous free block being inspected */
 
-        cur->addr = addr;
-        cur->size = size;
-        cur->next = file->fl[mapped_type];
-        file->fl[mapped_type] = cur;
-	file->maxsize = MAX(file->maxsize, size);
-    } else if (file->cls->free) {
-        if ((file->cls->free)(file, type, addr, size)<0) {
-            HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL,
-                  "driver free request failed");
+        /* Adjust the metadata accumulator to remove the freed block, if it overlaps */
+        if((file->feature_flags&H5FD_FEAT_ACCUMULATE_METADATA)
+                && H5F_addr_overlap(addr,size,file->accum_loc,file->accum_size)) {
+            size_t overlap_size;        /* Size of overlap with accumulator */
+
+            /* Check for overlapping the beginning of the accumulator */
+            if(H5F_addr_le(addr,file->accum_loc)) {
+                /* Check for completely overlapping the accumulator */
+                if(H5F_addr_ge(addr+size,file->accum_loc+file->accum_size)) {
+                    /* Reset the entire accumulator */
+                    file->accum_loc=HADDR_UNDEF;
+                    file->accum_size=FALSE;
+                    file->accum_dirty=FALSE;
+                } /* end if */
+                /* Block to free must end within the accumulator */
+                else {
+                    size_t new_accum_size;      /* Size of new accumulator buffer */
+
+                    /* Calculate the size of the overlap with the accumulator, etc. */
+                    overlap_size=(addr+size)-file->accum_loc;
+                    new_accum_size=file->accum_size-overlap_size;
+
+                    /* Move the accumulator buffer information to eliminate the freed block */
+                    HDmemmove(file->meta_accum,file->meta_accum+overlap_size,new_accum_size);
+
+                    /* Adjust the accumulator information */
+                    file->accum_loc+=overlap_size;
+                    file->accum_size=new_accum_size;
+                } /* end else */
+            } /* end if */
+            /* Block to free must start within the accumulator */
+            else {
+                /* Calculate the size of the overlap with the accumulator */
+                overlap_size=(file->accum_loc+file->accum_size)-addr;
+
+                /* Block to free is in the middle of the accumulator */
+                if(H5F_addr_lt(addr,file->accum_loc+file->accum_size)) {
+                    haddr_t tail_addr;
+                    hsize_t tail_size;
+
+                    /* Calculate the address & size of the tail to write */
+                    tail_addr=addr+size;
+                    tail_size=(file->accum_loc+file->accum_size)-tail_addr;
+
+                    /* Write out the part of the accumulator after the block to free */
+                    /* (Use the driver's write call directly - to avoid looping back and writing to metadata accumulator) */
+                    if ((file->cls->write)(file, H5FD_MEM_DEFAULT, dxpl_id, tail_addr, tail_size, file->meta_accum+(tail_addr-file->accum_loc))<0)
+                        HRETURN_ERROR(H5E_VFL, H5E_WRITEERROR, FAIL, "file write request failed");
+                } /* end if */
+
+                /* Adjust the accumulator information */
+                file->accum_size=file->accum_size-overlap_size;
+            } /* end else */
+        } /* end if */
+
+        /* Scan through the existing blocks for the mapped type to see if we can extend one */
+        curr=file->fl[mapped_type];
+        last=prev=NULL;
+        while(curr!=NULL) {
+            /* Check if the block to free adjoins the start of the current block */
+            if((addr+size)==curr->addr) {
+                /* If we previously found & merged a node, eliminate it from the list & free it */
+                if(last!=NULL) {
+                    /* Check if there was a previous block in the list */
+                    if(last_prev!=NULL)
+                        /* Eliminate the merged block from the list */
+                        last_prev->next=last->next;
+                    /* No previous block, this must be the head of the list */
+                    else
+                        /* Eliminate the merged block from the list */
+                        file->fl[mapped_type] = last->next;
+
+                    /* Check for eliminating the block before the 'current' one */
+                    if(last==prev)
+                        prev=last_prev;
+
+                    /* Free the memory for the merged block */
+                    H5FL_FREE(H5FD_free_t,last);
+                } /* end if */
+
+                /* Adjust the address and size of the block found */
+                curr->addr=addr;
+                curr->size+=size;
+
+                /* Adjust the information about to memory block to include the merged block */
+                addr=curr->addr;
+                size=curr->size;
+
+                /* Update the information about the merged node */
+                last=curr;
+                last_prev=prev;
+            } /* end if */
+            else {
+                /* Check if the block to free adjoins the end of the current block */
+                if((curr->addr+curr->size)==addr) {
+                    /* If we previously found & merged a node, eliminate it from the list & free it */
+                    if(last!=NULL) {
+                        /* Check if there was a previous block in the list */
+                        if(last_prev!=NULL)
+                            /* Eliminate the merged block from the list */
+                            last_prev->next=last->next;
+                        /* No previous block, this must be the head of the list */
+                        else
+                            /* Eliminate the merged block from the list */
+                            file->fl[mapped_type] = last->next;
+
+                        /* Check for eliminating the block before the 'current' one */
+                        if(last==prev)
+                            prev=last_prev;
+
+                        /* Free the memory for the merged block */
+                        H5FL_FREE(H5FD_free_t,last);
+                    } /* end if */
+
+                    /* Adjust the size of the block found */
+                    curr->size+=size;
+
+                    /* Adjust the information about to memory block to include the merged block */
+                    addr=curr->addr;
+                    size=curr->size;
+
+                    /* Update the information about the merged node */
+                    last=curr;
+                    last_prev=prev;
+                } /* end if */
+            } /* end else */
+
+            /* Advance to next node in list */
+            prev=curr;
+            curr=curr->next;
+        } /* end while */
+        /* Check if we adjusted an existing block */
+        if(last!=NULL) {
+            /* Move the node found to the front, if it wasn't already there */
+            if(last_prev!=NULL) {
+                last_prev->next=last->next;
+                last->next = file->fl[mapped_type];
+                file->fl[mapped_type] = last;
+            } /* end if */
+        } /* end if */
+        else {
+            /* Allocate a new node to hold the free block's information */
+            if(NULL==(last = H5FL_ALLOC(H5FD_free_t,0)))
+                HRETURN_ERROR(H5E_FILE, H5E_NOSPACE, FAIL, "can't allocate node for free space info");
+
+            last->addr = addr;
+            last->size = size;
+            last->next = file->fl[mapped_type];
+            file->fl[mapped_type] = last;
+        } /* end else */
+
+        /* Check if we increased the size of the largest block on the list */
+        file->maxsize = MAX(file->maxsize, last->size);
+
+        /* Check if this free block is at the end of file allocated space.
+         * Truncate it if this is true. */
+        if(file->cls->get_eoa) {
+            haddr_t     eoa;
+            eoa = file->cls->get_eoa(file);
+            if(eoa == (last->addr+last->size)) {
+                if(file->cls->set_eoa(file, last->addr) < 0)
+                    HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "set end of space allocation request failed");
+                /* Remove this free block from the list */
+                file->fl[mapped_type] = last->next;
+                if(file->maxsize==last->size)
+                    file->maxsize=0; /*unknown*/
+                H5FL_FREE(H5FD_free_t, last);
+            }
         }
+    } else if (file->cls->free) {
+        if ((file->cls->free)(file, type, dxpl_id, addr, size)<0)
+            HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "driver free request failed");
     } else {
         /* leak memory */
     }
@@ -1801,15 +1968,15 @@ H5FD_free(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size)
  *-------------------------------------------------------------------------
  */
 haddr_t
-H5FDrealloc(H5FD_t *file, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
+H5FDrealloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t old_addr, hsize_t old_size,
 	    hsize_t new_size)
 {
     haddr_t	ret_value=HADDR_UNDEF;
 
     FUNC_ENTER(H5FDrealloc, HADDR_UNDEF);
-    H5TRACE5("a","xMtahh",file,type,old_addr,old_size,new_size);
+    H5TRACE6("a","xMtiahh",file,type,dxpl_id,old_addr,old_size,new_size);
 
-    if (HADDR_UNDEF==(ret_value=H5FD_realloc(file, type, old_addr, old_size,
+    if (HADDR_UNDEF==(ret_value=H5FD_realloc(file, type, dxpl_id, old_addr, old_size,
 					     new_size))) {
 	HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, HADDR_UNDEF,
 		      "file reallocation request failed");
@@ -1837,7 +2004,7 @@ H5FDrealloc(H5FD_t *file, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
  *-------------------------------------------------------------------------
  */
 haddr_t
-H5FD_realloc(H5FD_t *file, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
+H5FD_realloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t old_addr, hsize_t old_size,
 	     hsize_t new_size)
 {
     haddr_t	new_addr=old_addr;
@@ -1852,34 +2019,34 @@ H5FD_realloc(H5FD_t *file, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
     } else if (0==old_size) {
         /* allocate memory */
         assert(!H5F_addr_defined(old_addr));
-        if (HADDR_UNDEF==(new_addr=H5FDalloc(file, type, new_size))) {
+        if (HADDR_UNDEF==(new_addr=H5FD_alloc(file, type, dxpl_id, new_size))) {
             HRETURN_ERROR(H5E_FILE, H5E_NOSPACE, HADDR_UNDEF,
                   "file allocation failed");
         }
     } else if (0==new_size) {
         /* free memory */
         assert(H5F_addr_defined(old_addr));
-        H5FDfree(file, type, old_addr, old_size);
+        H5FD_free(file, type, dxpl_id, old_addr, old_size);
         new_addr = HADDR_UNDEF;
         
     } else if (new_size<old_size) {
         /* free the end of the block */
-        H5FDfree(file, type, old_addr+old_size, old_size-new_size);
+        H5FD_free(file, type, dxpl_id, old_addr+old_size, old_size-new_size);
     } else {
         /* move memory to new location */
-        if (HADDR_UNDEF==(new_addr=H5FDalloc(file, type, new_size))) {
+        if (HADDR_UNDEF==(new_addr=H5FD_alloc(file, type, dxpl_id, new_size))) {
             HRETURN_ERROR(H5E_FILE, H5E_NOSPACE, HADDR_UNDEF,
                   "file allocation failed");
         }
         assert(old_size==(hsize_t)((size_t)old_size)); /*check for overflow*/
         if (old_size>sizeof(_buf) && NULL==(buf=H5MM_malloc((size_t)old_size))) {
-            H5FDfree(file, type, new_addr, new_size);
+            H5FD_free(file, type, dxpl_id, new_addr, new_size);
             HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF,
                   "memory allocation failed");
         }
-        if (H5FDread(file, type, H5P_DEFAULT, old_addr, old_size, buf)<0 ||
-                H5FDwrite(file, type, H5P_DEFAULT, new_addr, old_size, buf)<0) {
-            H5FDfree(file, type, new_addr, new_size);
+        if (H5FD_read(file, type, dxpl_id, old_addr, old_size, buf)<0 ||
+                H5FD_write(file, type, dxpl_id, new_addr, old_size, buf)<0) {
+            H5FD_free(file, type, dxpl_id, new_addr, new_size);
             H5MM_xfree(buf);
             HRETURN_ERROR(H5E_FILE, H5E_READERROR, HADDR_UNDEF,
                   "unable to move file block");
@@ -1887,7 +2054,7 @@ H5FD_realloc(H5FD_t *file, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
         
         if (buf!=_buf)
             H5MM_xfree(buf);
-        H5FDfree(file, type, old_addr, old_size);
+        H5FD_free(file, type, dxpl_id, old_addr, old_size);
     }
 
     FUNC_LEAVE(new_addr);
@@ -2220,7 +2387,7 @@ H5FD_read(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t si
     FUNC_ENTER(H5FD_read, FAIL);
     assert(file && file->cls);
     assert(H5P_DEFAULT==dxpl_id ||
-	   (H5P_DATASET_XFER==H5P_get_class(dxpl_id) || H5I_object(dxpl_id)));
+	   (H5P_DATASET_XFER==H5P_get_class(dxpl_id) && H5I_object(dxpl_id)));
     assert(buf);
 
 #ifndef H5_HAVE_PARALLEL
@@ -2671,10 +2838,10 @@ H5FD_write(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t s
  *-------------------------------------------------------------------------
  */
 herr_t
-H5FDflush(H5FD_t *file)
+H5FDflush(H5FD_t *file, hid_t dxpl_id)
 {
     FUNC_ENTER(H5FDflush, FAIL);
-    H5TRACE1("e","x",file);
+    H5TRACE2("e","xi",file,dxpl_id);
 
     /* Check args */
     if (!file || !file->cls) {
@@ -2682,7 +2849,7 @@ H5FDflush(H5FD_t *file)
     }
 
     /* Do the real work */
-    if (H5FD_flush(file)<0) {
+    if (H5FD_flush(file,dxpl_id)<0) {
 	HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL,
 		      "file flush request failed");
     }
@@ -2708,7 +2875,7 @@ H5FDflush(H5FD_t *file)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5FD_flush(H5FD_t *file)
+H5FD_flush(H5FD_t *file, hid_t dxpl_id)
 {
     FUNC_ENTER(H5FD_flush, FAIL);
     assert(file && file->cls);
@@ -2717,14 +2884,14 @@ H5FD_flush(H5FD_t *file)
     if((file->feature_flags&H5FD_FEAT_ACCUMULATE_METADATA) && file->accum_dirty && file->accum_size>0) {
         /* Flush the metadata contents */
         /* Not certain if the type and dxpl should be the way they are... -QAK */
-        if ((file->cls->write)(file, H5FD_MEM_DEFAULT, H5P_DEFAULT, file->accum_loc, file->accum_size, file->meta_accum)<0)
+        if ((file->cls->write)(file, H5FD_MEM_DEFAULT, dxpl_id, file->accum_loc, file->accum_size, file->meta_accum)<0)
             HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "driver write request failed");
 
         /* Reset the dirty flag */
         file->accum_dirty=FALSE;
     } /* end if */
 
-    if (file->cls->flush && (file->cls->flush)(file)<0)
+    if (file->cls->flush && (file->cls->flush)(file, dxpl_id)<0)
         HRETURN_ERROR(H5E_VFL, H5E_CANTINIT, FAIL, "driver flush request failed");
 
     FUNC_LEAVE(SUCCEED);

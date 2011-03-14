@@ -1,3 +1,4 @@
+     
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -11,19 +12,21 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+!
+    SUBROUTINE external_test(cleanup, total_error)
 
-    SUBROUTINE external_test(total_error)
-
-!    This subroutine tests following functionalities: 
-!    h5pset_external_f,  h5pget_external_count_f,
-!    h5pget_external_f
+!   This subroutine tests following functionalities: 
+!   h5pset_external_f,  h5pget_external_count_f,
+!   h5pget_external_f
 
      USE HDF5 ! This module contains all necessary modules 
         
      IMPLICIT NONE
+     LOGICAL, INTENT(IN)  :: cleanup
      INTEGER, INTENT(OUT) :: total_error 
 
-     CHARACTER(LEN=11), PARAMETER :: filename = "external.h5"
+     CHARACTER(LEN=8), PARAMETER :: filename = "external"
+     CHARACTER(LEN=80) :: fix_filename
      INTEGER(HID_T) :: file_id     
      INTEGER(HID_T) :: plist_id     
      INTEGER(HID_T) :: space_id     
@@ -42,16 +45,16 @@
                       !specified dataset
      INTEGER(SIZE_T) :: namesize
 
-     !
-     !  Initialize FORTRAN predefined datatypes
-     !
-!     CALL h5init_types_f(error)
-!     CALL check("h5init_types_f",error,total_error)
 
      !
      !Create file "external.h5" using default properties.
      ! 
-     CALL h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, error)
+          CALL h5_fixname_f(filename, fix_filename, H5P_DEFAULT_F, error)
+          if (error .ne. 0) then
+              write(*,*) "Cannot modify filename"
+              stop
+          endif
+     CALL h5fcreate_f(fix_filename, H5F_ACC_TRUNC_F, file_id, error)
      CALL check("h5fcreate_f",error,total_error)
 
      CALL h5pcreate_f(H5P_DATASET_CREATE_F, plist_id, error)
@@ -107,9 +110,9 @@
      CALL h5fclose_f(file_id, error)
      CALL check("h5fclose_f", error, total_error)
 
-!     CALL h5close_types_f(error)
-!     CALL check("h5close_types_f", error, total_error)
 
+          if(cleanup) CALL h5_cleanup_f(filename, H5P_DEFAULT_F, error)
+              CALL check("h5_cleanup_f", error, total_error)
      RETURN
      END SUBROUTINE external_test
     

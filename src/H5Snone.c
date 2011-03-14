@@ -33,7 +33,263 @@
 #define INTERFACE_INIT  NULL
 static int             interface_initialize_g = 0;
 
+static herr_t H5S_none_init (const struct H5O_layout_t *layout,
+			    const H5S_t *space, H5S_sel_iter_t *iter);
+static hsize_t H5S_none_favail (const H5S_t *space, const H5S_sel_iter_t *iter,
+			      hsize_t max);
+static hsize_t H5S_none_fgath (H5F_t *f, const struct H5O_layout_t *layout,
+			     const struct H5O_pline_t *pline,
+			     const struct H5O_fill_t *fill,
+			     const struct H5O_efl_t *efl, size_t elmt_size,
+			     const H5S_t *file_space,
+			     H5S_sel_iter_t *file_iter, hsize_t nelmts,
+			     hid_t dxpl_id, void *buf/*out*/);
+static herr_t H5S_none_fscat (H5F_t *f, const struct H5O_layout_t *layout,
+			     const struct H5O_pline_t *pline,
+			     const struct H5O_fill_t *fill,
+			     const struct H5O_efl_t *efl, size_t elmt_size,
+			     const H5S_t *file_space,
+			     H5S_sel_iter_t *file_iter, hsize_t nelmts,
+			     hid_t dxpl_id, const void *buf);
+static hsize_t H5S_none_mgath (const void *_buf, size_t elmt_size,
+			     const H5S_t *mem_space, H5S_sel_iter_t *mem_iter,
+			     hsize_t nelmts, void *_tconv_buf/*out*/);
+static herr_t H5S_none_mscat (const void *_tconv_buf, size_t elmt_size,
+			     const H5S_t *mem_space, H5S_sel_iter_t *mem_iter,
+			     hsize_t nelmts, void *_buf/*out*/);
 static herr_t H5S_select_none(H5S_t *space);
+
+const H5S_fconv_t	H5S_NONE_FCONV[1] = {{
+    "none", 					/*name			*/
+    H5S_SEL_NONE,				/*selection type	*/
+    H5S_none_init,				/*initialize		*/
+    H5S_none_favail,				/*available		*/
+    H5S_none_fgath,				/*gather		*/
+    H5S_none_fscat,				/*scatter		*/
+}};
+
+const H5S_mconv_t	H5S_NONE_MCONV[1] = {{
+    "none", 					/*name			*/
+    H5S_SEL_NONE,				/*selection type	*/
+    H5S_none_init,				/*initialize		*/
+    H5S_none_mgath,				/*gather		*/
+    H5S_none_mscat, 				/*scatter		*/
+}};
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_none_init
+ *
+ * Purpose:	Initializes iteration information for none selection.
+ *
+ * Return:	non-negative on success, negative on failure.
+ *
+ * Programmer:	Quincey Koziol
+ *              Tuesday, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5S_none_init(const struct H5O_layout_t UNUSED *layout,
+	       const H5S_t UNUSED *space, H5S_sel_iter_t UNUSED *sel_iter)
+{
+    FUNC_ENTER(H5S_none_init, FAIL);
+
+    /* Check args */
+    assert(layout);
+    assert(space && H5S_SEL_NONE==space->select.type);
+    assert(sel_iter);
+
+    FUNC_LEAVE (SUCCEED);
+} /* H5S_none_init() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_none_favail
+ *
+ * Purpose:	Figure out the optimal number of elements to transfer to/from
+ *		the file.
+ *
+ * Return:	zero always.
+ *
+ * Programmer:	Quincey Koziol
+ *              Tuesday, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static hsize_t
+H5S_none_favail(const H5S_t UNUSED *space, const H5S_sel_iter_t UNUSED *sel_iter, hsize_t UNUSED max)
+{
+    FUNC_ENTER(H5S_none_favail, 0);
+
+    /* Check args */
+    assert(space && H5S_SEL_NONE==space->select.type);
+    assert(sel_iter);
+
+    FUNC_LEAVE(0);
+}   /* H5S_none_favail() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_none_fgath
+ *
+ * Purpose:	Gathers data points from file F and accumulates them in the
+ *		type conversion buffer BUF.  The LAYOUT argument describes
+ *		how the data is stored on disk and EFL describes how the data
+ *		is organized in external files.  ELMT_SIZE is the size in
+ *		bytes of a datum which this function treats as opaque.
+ *		FILE_SPACE describes the data space of the dataset on disk
+ *		and the elements that have been selected for reading (via
+ *		hyperslab, etc).  This function will copy at most NELMTS
+ *		elements.
+ *
+ * Return:	0 always
+ *
+ * Programmer:	Quincey Koziol
+ *              Tuesday, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static hsize_t
+H5S_none_fgath (H5F_t UNUSED *f, const struct H5O_layout_t UNUSED *layout,
+	       const struct H5O_pline_t UNUSED *pline,
+	       const struct H5O_fill_t UNUSED *fill, const struct H5O_efl_t UNUSED *efl,
+	       size_t UNUSED elmt_size, const H5S_t UNUSED *file_space,
+	       H5S_sel_iter_t UNUSED *file_iter, hsize_t UNUSED nelmts, hid_t UNUSED dxpl_id,
+	       void UNUSED *buf/*out*/)
+{
+    FUNC_ENTER(H5S_none_fgath, 0);
+
+    /* Check args */
+    assert(f);
+    assert(layout);
+    assert(elmt_size>0);
+    assert(file_space && H5S_SEL_NONE==file_space->select.type);
+    assert(file_iter);
+    assert(nelmts>0);
+    assert(buf);
+
+    FUNC_LEAVE(0);
+} /* H5S_none_fgath() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_none_fscat
+ *
+ * Purpose:	Scatters dataset elements from the type conversion buffer BUF
+ *		to the file F where the data points are arranged according to
+ *		the file data space FILE_SPACE and stored according to
+ *		LAYOUT and EFL. Each element is ELMT_SIZE bytes.
+ *		The caller is requesting that NELMTS elements are copied.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Tuesday, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5S_none_fscat (H5F_t UNUSED *f, const struct H5O_layout_t UNUSED *layout,
+	       const struct H5O_pline_t UNUSED *pline, const struct H5O_fill_t UNUSED *fill,
+	       const struct H5O_efl_t UNUSED *efl, size_t UNUSED elmt_size,
+	       const H5S_t UNUSED *file_space, H5S_sel_iter_t UNUSED *file_iter,
+	       hsize_t UNUSED nelmts, hid_t UNUSED dxpl_id, const void UNUSED *buf)
+{
+    FUNC_ENTER(H5S_none_fscat, FAIL);
+
+    /* Check args */
+    assert(f);
+    assert(layout);
+    assert(elmt_size>0);
+    assert(file_space && H5S_SEL_NONE==file_space->select.type);
+    assert(file_iter);
+    assert(nelmts>0);
+    assert(buf);
+
+    FUNC_LEAVE(SUCCEED);
+}   /* H5S_none_fscat() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_none_mgath
+ *
+ * Purpose:	Gathers dataset elements from application memory BUF and
+ *		copies them into the data type conversion buffer TCONV_BUF.
+ *		Each element is ELMT_SIZE bytes and arranged in application
+ *		memory according to MEM_SPACE.  
+ *		The caller is requesting that at most NELMTS be gathered.
+ *
+ * Return:	0 always
+ *
+ * Programmer:	Quincey Koziol
+ *              Tuesday, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static hsize_t
+H5S_none_mgath (const void UNUSED *_buf, size_t UNUSED elmt_size,
+	       const H5S_t UNUSED *mem_space, H5S_sel_iter_t UNUSED *mem_iter,
+	       hsize_t UNUSED nelmts, void UNUSED *tconv_buf/*out*/)
+{
+    FUNC_ENTER(H5S_none_mgath, 0);
+
+    /* Check args */
+    assert(_buf);
+    assert(elmt_size>0);
+    assert(mem_space && H5S_SEL_NONE==mem_space->select.type);
+    assert(mem_iter);
+    assert(nelmts>0);
+    assert(tconv_buf);
+
+    FUNC_LEAVE(0);
+}   /* H5S_none_mgath() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_none_mscat
+ *
+ * Purpose:	Scatters NELMTS data points from the type conversion buffer
+ *		TCONV_BUF to the application buffer BUF.  Each element is
+ *		ELMT_SIZE bytes and they are organized in application memory
+ *		according to MEM_SPACE.
+ *
+ * Return:	Non-negative on success/Negative on failure
+ *
+ * Programmer:	Quincey Koziol
+ *              Tuesday, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5S_none_mscat (const void UNUSED *tconv_buf, size_t UNUSED elmt_size,
+	       const H5S_t UNUSED *mem_space, H5S_sel_iter_t UNUSED *mem_iter,
+	       hsize_t UNUSED nelmts, void UNUSED *_buf/*out*/)
+{
+    FUNC_ENTER (H5S_none_mscat, FAIL);
+
+    /* Check args */
+    assert(tconv_buf);
+    assert(elmt_size>0);
+    assert(mem_space && H5S_SEL_NONE==mem_space->select.type);
+    assert(mem_iter);
+    assert(nelmts>0);
+    assert(_buf);
+
+    FUNC_LEAVE(SUCCEED);
+}   /* H5S_none_mscat() */
 
 
 /*--------------------------------------------------------------------------

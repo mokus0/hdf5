@@ -190,7 +190,7 @@ h5_cleanup(const char *base_name[], hid_t fapl)
 	    } else if (H5FD_MULTI==driver) {
 		H5FD_mem_t mt;
 		assert(strlen(multi_letters)==H5FD_MEM_NTYPES);
-		for (mt=H5FD_MEM_DEFAULT; mt<H5FD_MEM_NTYPES; mt++) {
+		for (mt=H5FD_MEM_DEFAULT; mt<H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t,mt)) {
 		    HDsnprintf(temp, sizeof temp, "%s-%c.h5",
 			       filename, multi_letters[mt]);
 		    remove(temp); /*don't care if it fails*/
@@ -311,6 +311,7 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
     }
     
     /* Use different ones depending on parallel or serial driver used. */
+#ifdef H5_HAVE_PARALLEL
     if (H5P_DEFAULT != fapl && H5F_LOW_MPIO == driver){
 	/* For parallel:
 	 * First use command line option, then the environment variable,
@@ -323,6 +324,7 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
             prefix = HDF5_PARAPREFIX;
 #endif  /* HDF5_PARAPREFIX */
     }else{
+#endif /* H5_HAVE_PARALLEL */
 	/* For serial:
 	 * First use the environment variable, then try the constant
 	 */
@@ -330,7 +332,9 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
 #ifdef HDF5_PREFIX
 	if (!prefix) prefix = HDF5_PREFIX;
 #endif
+#ifdef H5_HAVE_PARALLEL
     }
+#endif /* H5_HAVE_PARALLEL */
 #else /* H5_WANT_H5_V1_2_COMPAT */
     /* figure out the suffix */
     if (H5P_DEFAULT != fapl){
@@ -345,6 +349,7 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
     }
     
     /* Use different ones depending on parallel or serial driver used. */
+#ifdef H5_HAVE_PARALLEL
     if (H5P_DEFAULT != fapl && H5FD_MPIO == driver){
 	/* For parallel:
 	 * First use command line option, then the environment variable,
@@ -357,6 +362,7 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
             prefix = HDF5_PARAPREFIX;
 #endif  /* HDF5_PARAPREFIX */
     }else{
+#endif /* H5_HAVE_PARALLEL */
 	/* For serial:
 	 * First use the environment variable, then try the constant
 	 */
@@ -366,11 +372,14 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
 	if (!prefix)
             prefix = HDF5_PREFIX;
 #endif  /* HDF5_PREFIX */
+#ifdef H5_HAVE_PARALLEL
     }
+#endif /* H5_HAVE_PARALLEL */
 #endif /* H5_WANT_H5_V1_2_COMPAT */
 
     /* Prepend the prefix value to the base name */
     if (prefix && *prefix) {
+#ifdef H5_HAVE_PARALLEL
 #ifdef H5_WANT_H5_V1_2_COMPAT
         if (H5P_DEFAULT != fapl && H5F_LOW_MPIO == driver) {
 #else
@@ -423,10 +432,13 @@ h5_fixname(const char *base_name, hid_t fapl, char *fullname, size_t size)
                 return NULL;
             }
         } else {
+#endif /* H5_HAVE_PARALLEL */
             if (HDsnprintf(fullname, size, "%s/%s", prefix, base_name) == (int)size)
                 /* Buffer is too small */
                 return NULL;
+#ifdef H5_HAVE_PARALLEL
         }
+#endif /* H5_HAVE_PARALLEL */
     } else if (strlen(base_name) >= size) {
 	return NULL; /*buffer is too small*/
     } else {
@@ -543,7 +555,7 @@ h5_fileaccess(void)
 	memset(memb_addr, 0, sizeof memb_addr);
 
 	assert(strlen(multi_letters)==H5FD_MEM_NTYPES);
-	for (mt=H5FD_MEM_DEFAULT; mt<H5FD_MEM_NTYPES; mt++) {
+        for (mt=H5FD_MEM_DEFAULT; mt<H5FD_MEM_NTYPES; H5_INC_ENUM(H5FD_mem_t,mt)) {
 	    memb_fapl[mt] = H5P_DEFAULT;
 	    sprintf(sv[mt], "%%s-%c.h5", multi_letters[mt]);
 	    memb_name[mt] = sv[mt];

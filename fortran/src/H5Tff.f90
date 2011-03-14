@@ -3011,4 +3011,111 @@
             hdferr = h5tget_tag_c(type_id, tag, taglen)
           END SUBROUTINE h5tget_tag_f
 
+!----------------------------------------------------------------------
+! Name:		h5tget_member_index_f 
+!
+! Purpose: 	Retrieves the index of a compound or enumeration datatype member. 
+!
+! Inputs:  
+!		type_id		- datatype identifier
+!		name		- name of the field or member whose index to
+!                                 to be retrieved from the datatype.
+! Outputs:  
+!               index           - 0-based index of the filed or member (0 to N-1)
+!		hdferr:		- error code		
+!				 	Success:  0
+!				 	Failure: -1   
+! Optional parameters:
+!				NONE
+!
+! Programmer:	Elena Pourmal
+!		September 26, 2002
+!
+! Modifications:
+!
+! Comment:		
+!----------------------------------------------------------------------
+
+          SUBROUTINE h5tget_member_index_f(type_id, name, index, hdferr) 
+!
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: h5tget_member_index_f
+!DEC$endif
+!
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: type_id  ! Datatype identifier 
+            CHARACTER(LEN=*), INTENT(IN) :: name   ! Field or member name
+            INTEGER, INTENT(OUT) :: index          ! Field or member index
+            INTEGER, INTENT(OUT) :: hdferr          ! Error code
+            INTEGER :: namelen          ! Name length 
+
+            INTERFACE
+              INTEGER FUNCTION h5tget_member_index_c(type_id, name, namelen, index)
+              USE H5GLOBAL
+              !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+              !MS$ATTRIBUTES C,reference,alias:'_H5TGET_MEMBER_INDEX_C'::h5tget_member_index_c
+              !DEC$ ENDIF
+              !DEC$ATTRIBUTES reference ::name 
+              INTEGER(HID_T), INTENT(IN) :: type_id
+              CHARACTER(LEN=*), INTENT(IN) :: name
+              INTEGER, INTENT(IN)  :: namelen
+              INTEGER, INTENT(OUT) :: index  
+              END FUNCTION h5tget_member_index_c
+            END INTERFACE
+
+            namelen = LEN(name)
+            hdferr = h5tget_member_index_c(type_id, name, namelen, index)
+          END SUBROUTINE h5tget_member_index_f
+
+
+!----------------------------------------------------------------------
+! Name:		h5tvlen_create_f 
+!
+! Purpose: 	Creates a new variable-lenght datatype. 
+!
+! Inputs:  
+!		type_id		- identifier iof base datatype
+! Outputs:  
+!		vltype_id	- identifier for VL datatype
+!		hdferr:		- error code		
+!				 	Success:  0
+!				 	Failure: -1   
+! Optional parameters:
+!				NONE
+!
+! Programmer:	Elena Pourmal
+!		Wednesday, October 23, 2002
+!
+! Modifications: 	
+!
+! Comment: Only basic Fortran base datatypes are supported		
+!----------------------------------------------------------------------
+
+          SUBROUTINE h5tvlen_create_f(type_id, vltype_id, hdferr) 
+!
+!This definition is needed for Windows DLLs
+!DEC$if defined(BUILD_HDF5_DLL)
+!DEC$attributes dllexport :: h5tvlen_create_f
+!DEC$endif
+!
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN)  :: type_id    ! Datatype identifier 
+            INTEGER(HID_T), INTENT(OUT) :: vltype_id  ! VL datatype identifier 
+            INTEGER, INTENT(OUT) :: hdferr            ! Error code
+
+            INTERFACE
+              INTEGER FUNCTION h5tvlen_create_c(type_id, vltype_id)
+              USE H5GLOBAL
+              !DEC$ IF DEFINED(HDF5F90_WINDOWS)
+              !MS$ATTRIBUTES C,reference,alias:'_H5TVLEN_CREATE_C'::h5tvlen_create_c
+              !DEC$ ENDIF
+              INTEGER(HID_T), INTENT(IN)  :: type_id
+              INTEGER(HID_T), INTENT(OUT) :: vltype_id
+              END FUNCTION h5tvlen_create_c
+            END INTERFACE
+
+            hdferr = h5tvlen_create_c(type_id, vltype_id)
+          END SUBROUTINE h5tvlen_create_f
+
       END MODULE H5T

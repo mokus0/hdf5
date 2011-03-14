@@ -37,8 +37,9 @@
 #include "H5Pprivate.h"
 #include "H5Vprivate.h"
 
-/* MPIO driver functions are needed for some special checks */
+/* MPIO & MPIPOSIX driver functions are needed for some special checks */
 #include "H5FDmpio.h"
+#include "H5FDmpiposix.h"
 
 /* Interface initialization */
 #define PABLO_MASK	H5Fseq_mask
@@ -73,6 +74,7 @@ H5F_seq_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
          hsize_t seq_len, hsize_t file_offset, void *buf/*out*/)
 {
     hsize_t	dset_dims[H5O_LAYOUT_NDIMS];	/* dataspace dimensions */
+    hssize_t    mem_offset[H5O_LAYOUT_NDIMS];	/* offset of hyperslab in memory buffer */
     hssize_t    coords[H5O_LAYOUT_NDIMS];	/* offset of hyperslab in dataspace */
     hsize_t	hslab_size[H5O_LAYOUT_NDIMS];	/* hyperslab size in dataspace*/
     hsize_t     down_size[H5O_LAYOUT_NDIMS];    /* Cumulative yperslab sizes (in elements) */
@@ -95,14 +97,13 @@ H5F_seq_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
 
 #ifdef H5_HAVE_PARALLEL
     {
-        /* Get the transfer mode */
+	/* Get the transfer mode for MPIO transfers */
         H5D_xfer_t *dxpl;
-        H5FD_mpio_dxpl_t *dx;
 
-        if (H5P_DEFAULT!=dxpl_id && (dxpl=H5I_object(dxpl_id)) &&
-                H5FD_MPIO==dxpl->driver_id && (dx=dxpl->driver_info) &&
-                H5FD_MPIO_INDEPENDENT!=dx->xfer_mode) {
-            xfer_mode = dx->xfer_mode;
+        if (IS_H5FD_MPIO(f) && H5P_DEFAULT!=dxpl_id && (dxpl=H5I_object(dxpl_id)) &&
+                H5FD_MPIO==dxpl->driver_id && 
+                H5FD_MPIO_INDEPENDENT!=dxpl->xfer_mode) {
+            xfer_mode = dxpl->xfer_mode;
         }
     }
 
@@ -226,13 +227,16 @@ H5F_seq_read(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
             addr/=elmt_size;
 
             /* Build the array of cumulative hyperslab sizes */
+            /* (And set the memory offset to zero) */
             for(acc=1, i=(ndims-1); i>=0; i--) {
+                mem_offset[i]=0;
                 down_size[i]=acc;
                 acc*=dset_dims[i];
 #ifdef QAK
 printf("%s: acc=%ld, down_size[%d]=%ld\n",FUNC,(long)acc,i,(long)down_size[i]);
 #endif /* QAK */
             } /* end for */
+            mem_offset[ndims]=0;
 
             /* Compute the hyperslab offset from the address given */
             for(i=ndims-1; i>=0; i--) {
@@ -283,10 +287,9 @@ printf("%s: partial_size=%lu, hslab_size[%d]=%ld\n",FUNC,(unsigned long)partial_
 #endif /* QAK */
 
                     /* Read in the partial hyperslab */
-                    if (H5F_istore_read(f, dxpl_id, layout, pline, fill, coords,
-                                 hslab_size, buf)<0) {
+                    if (H5F_istore_read(f, dxpl_id, layout, pline, fill, 
+                            hslab_size, mem_offset, coords, hslab_size, buf)<0)
                         HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked read failed");
-                    }
 
                     /* Increment the buffer offset */
                     buf=(unsigned char *)buf+(partial_size*elmt_size);
@@ -365,10 +368,9 @@ printf("%s: tmp_seq_len=%lu, hslab_size[%d]=%ld\n",FUNC,(unsigned long)tmp_seq_l
 #endif /* QAK */
 
                 /* Read the full hyperslab in */
-                if (H5F_istore_read(f, dxpl_id, layout, pline, fill, coords,
-                             hslab_size, buf)<0) {
+                if (H5F_istore_read(f, dxpl_id, layout, pline, fill,
+                        hslab_size, mem_offset, coords, hslab_size, buf)<0)
                     HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked read failed");
-                }
 
                 /* Increment the buffer offset */
                 buf=(unsigned char *)buf+(full_size*elmt_size);
@@ -424,10 +426,9 @@ printf("%s: partial_size=%lu, coords[%d]=%ld, hslab_size[%d]=%ld\n",FUNC,(unsign
 #endif /* QAK */
 
                         /* Read in the partial hyperslab */
-                        if (H5F_istore_read(f, dxpl_id, layout, pline, fill, coords,
-                                     hslab_size, buf)<0) {
+                        if (H5F_istore_read(f, dxpl_id, layout, pline, fill,
+                                hslab_size, mem_offset, coords, hslab_size, buf)<0)
                             HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked read failed");
-                        }
 
                         /* Increment the buffer offset */
                         buf=(unsigned char *)buf+(partial_size*elmt_size);
@@ -471,10 +472,9 @@ printf("%s: partial_size=%lu, coords[%d]=%ld, hslab_size[%d]=%ld\n",FUNC,(unsign
 #endif /* QAK */
 
                     /* Read in the partial hyperslab */
-                    if (H5F_istore_read(f, dxpl_id, layout, pline, fill, coords,
-                                 hslab_size, buf)<0) {
+                    if (H5F_istore_read(f, dxpl_id, layout, pline, fill,
+                            hslab_size, mem_offset, coords, hslab_size, buf)<0)
                         HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked read failed");
-                    }
 
                     /* Double-check the amount read in */
                     assert(seq_len==partial_size);
@@ -519,6 +519,7 @@ H5F_seq_write(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
          hsize_t seq_len, hsize_t file_offset, const void *buf)
 {
     hsize_t	dset_dims[H5O_LAYOUT_NDIMS];	/* dataspace dimensions */
+    hssize_t    mem_offset[H5O_LAYOUT_NDIMS];	/* offset of hyperslab in memory buffer */
     hssize_t    coords[H5O_LAYOUT_NDIMS];	/* offset of hyperslab in dataspace */
     hsize_t	hslab_size[H5O_LAYOUT_NDIMS];	/* hyperslab size in dataspace*/
     hsize_t     down_size[H5O_LAYOUT_NDIMS];    /* Cumulative hyperslab sizes (in elements) */
@@ -541,14 +542,13 @@ H5F_seq_write(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
 
 #ifdef H5_HAVE_PARALLEL
     {
-        /* Get the transfer mode */
+	/* Get the transfer mode for MPIO transfers */
         H5D_xfer_t *dxpl;
-        H5FD_mpio_dxpl_t *dx;
 
-        if (H5P_DEFAULT!=dxpl_id && (dxpl=H5I_object(dxpl_id)) &&
-                H5FD_MPIO==dxpl->driver_id && (dx=dxpl->driver_info) &&
-                H5FD_MPIO_INDEPENDENT!=dx->xfer_mode) {
-            xfer_mode = dx->xfer_mode;
+        if (IS_H5FD_MPIO(f) && H5P_DEFAULT!=dxpl_id && (dxpl=H5I_object(dxpl_id)) &&
+                H5FD_MPIO==dxpl->driver_id && 
+                H5FD_MPIO_INDEPENDENT!=dxpl->xfer_mode) {
+            xfer_mode = dxpl->xfer_mode;
         }
     }
 
@@ -672,13 +672,16 @@ H5F_seq_write(H5F_t *f, hid_t dxpl_id, const struct H5O_layout_t *layout,
             addr/=elmt_size;
 
             /* Build the array of cumulative hyperslab sizes */
+            /* (And set the memory offset to zero) */
             for(acc=1, i=(ndims-1); i>=0; i--) {
+                mem_offset[i]=0;
                 down_size[i]=acc;
                 acc*=dset_dims[i];
 #ifdef QAK
 printf("%s: acc=%ld, down_size[%d]=%ld\n",FUNC,(long)acc,i,(long)down_size[i]);
 #endif /* QAK */
             } /* end for */
+            mem_offset[ndims]=0;
 
             /* Compute the hyperslab offset from the address given */
             for(i=ndims-1; i>=0; i--) {
@@ -729,10 +732,9 @@ printf("%s: partial_size=%lu, hslab_size[%d]=%ld\n",FUNC,(unsigned long)partial_
 #endif /* QAK */
 
                     /* Write out the partial hyperslab */
-                    if (H5F_istore_write(f, dxpl_id, layout, pline, fill, coords,
-                                 hslab_size, buf)<0) {
+                    if (H5F_istore_write(f, dxpl_id, layout, pline, fill,
+                            hslab_size, mem_offset, coords, hslab_size, buf)<0)
                         HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked write failed");
-                    }
 
                     /* Increment the buffer offset */
                     buf=(const unsigned char *)buf+(partial_size*elmt_size);
@@ -811,10 +813,9 @@ printf("%s: tmp_seq_len=%lu, hslab_size[%d]=%ld\n",FUNC,(unsigned long)tmp_seq_l
 #endif /* QAK */
 
                 /* Write the full hyperslab in */
-                if (H5F_istore_write(f, dxpl_id, layout, pline, fill, coords,
-                             hslab_size, buf)<0) {
+                if (H5F_istore_write(f, dxpl_id, layout, pline, fill,
+                        hslab_size, mem_offset, coords, hslab_size, buf)<0)
                     HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked write failed");
-                }
 
                 /* Increment the buffer offset */
                 buf=(const unsigned char *)buf+(full_size*elmt_size);
@@ -870,10 +871,9 @@ printf("%s: partial_size=%lu, coords[%d]=%ld, hslab_size[%d]=%ld\n",FUNC,(unsign
 #endif /* QAK */
 
                         /* Write out the partial hyperslab */
-                        if (H5F_istore_write(f, dxpl_id, layout, pline, fill, coords,
-                                     hslab_size, buf)<0) {
+                        if (H5F_istore_write(f, dxpl_id, layout, pline, fill,
+                                hslab_size, mem_offset, coords, hslab_size, buf)<0)
                             HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked write failed");
-                        }
 
                         /* Increment the buffer offset */
                         buf=(const unsigned char *)buf+(partial_size*elmt_size);
@@ -914,10 +914,9 @@ printf("%s: partial_size=%lu, coords[%d]=%ld, hslab_size[%d]=%ld\n",FUNC,(unsign
 #endif /* QAK */
 
                     /* Write in the final partial hyperslab */
-                    if (H5F_istore_write(f, dxpl_id, layout, pline, fill, coords,
-                                 hslab_size, buf)<0) {
+                    if (H5F_istore_write(f, dxpl_id, layout, pline, fill,
+                            hslab_size, mem_offset, coords, hslab_size, buf)<0)
                         HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "chunked write failed");
-                    }
 
                     /* Double-check the amount read in */
                     assert(seq_len==partial_size);

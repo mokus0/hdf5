@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -12,6 +13,7 @@
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
+!
 ! Purpose:	This is the second half of a two-part test that makes sure
 !		that a file can be read after an application crashes as long
 !		as the file was flushed first.  This half tries to read the
@@ -24,10 +26,8 @@
         
      IMPLICIT NONE
 
-     !
-     !the respective filename is "fflush1.h5" 
-     !
-     CHARACTER(LEN=10), PARAMETER :: filename = "fflush1.h5"
+     CHARACTER(LEN=7), PARAMETER :: filename = "fflush1"
+     CHARACTER(LEN=80) :: fix_filename
 
      !
      !data space rank and dimensions
@@ -88,12 +88,17 @@
      !Initialize FORTRAN predifined datatypes
      !
      CALL h5open_f(error) 
-          CALL check("h5init_types_f",error,total_error)
+          CALL check("h5open_f",error,total_error)
 
      !
      !Open the file.
      !
-     CALL h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, error)
+          CALL h5_fixname_f(filename, fix_filename, H5P_DEFAULT_F, error)
+          if (error .ne. 0) then
+              write(*,*) "Cannot modify filename"
+              stop
+          endif
+     CALL h5fopen_f(fix_filename, H5F_ACC_RDONLY_F, file_id, error)
           CALL check("h5fopen_f",error,total_error)
 
      !
@@ -167,8 +172,13 @@
 
      !
      !Close FORTRAN predifined datatypes
-     !
+      !
+     CALL h5_cleanup_f(filename, H5P_DEFAULT_F, error)
      CALL h5close_f(error)
          CALL check("h5close_types_f",error,total_error)
+     
+     ! if errors detected, exit with non-zero code. This is not truly fortran
+     ! standard but likely supported by most fortran compilers.
+     IF (total_error .ne. 0) CALL exit (total_error)
 
      END PROGRAM FFLUSH2EXAMPLE

@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: titerate.c,v 1.4.2.5 2002/06/19 15:52:03 epourmal Exp $ */
+/* $Id: titerate.c,v 1.4.2.6 2003/01/10 05:03:54 koziol Exp $ */
 
 /***********************************************************
 *
@@ -46,10 +46,11 @@
 #define SPACE1_DIM1	4
 
 /* Custom group iteration callback data */
+typedef enum {RET_ZERO, RET_ONE, RET_CHANGE} iter_command;   /* The type of return value */
 typedef struct {
     char name[NAMELEN];     /* The name of the object */
     int type;               /* The type of the object */
-    enum {RET_ZERO, RET_ONE, RET_CHANGE} command;   /* The type of return value */
+    iter_command command;   /* The type of return value */
 } iter_info;
 
 /* Local functions */

@@ -25,7 +25,7 @@
 #   include <zlib.h>
 #else
 /* Make sure compression is disabled too. */
-#undef H5_HAVE_COMPRESS2
+#undef H5_HAVE_COMPRESSION
 #endif
 
 /* Interface initialization */
@@ -51,7 +51,7 @@ static int interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 size_t
-#if defined(H5_HAVE_COMPRESS2)
+#ifdef H5_HAVE_COMPRESSION
 H5Z_filter_deflate (unsigned flags, size_t cd_nelmts,
 		    const unsigned cd_values[], size_t nbytes,
 		    size_t *buf_size, void **buf)
@@ -63,7 +63,7 @@ H5Z_filter_deflate (unsigned UNUSED flags, size_t cd_nelmts,
 {
     size_t	ret_value = 0;
     void	*outbuf = NULL;
-#if defined(H5_HAVE_COMPRESS2)
+#ifdef H5_HAVE_COMPRESSION
     int		aggression = 6;
     int		status;
 #endif
@@ -76,7 +76,7 @@ H5Z_filter_deflate (unsigned UNUSED flags, size_t cd_nelmts,
 		    "invalid deflate aggression level");
     }
 
-#if defined(H5_HAVE_COMPRESS2)
+#ifdef H5_HAVE_COMPRESSION
     aggression = cd_values[0];
     if (flags & H5Z_FLAG_REVERSE) {
 	/* Input; uncompress */

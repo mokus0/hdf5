@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.c,v 1.32.2.7 2002/06/19 16:08:25 koziol Exp $ */
+/* $Id: testphdf5.c,v 1.32.2.11 2003/02/19 18:57:35 slu Exp $ */
 
 /*
  * Main driver of the Parallel HDF5 tests
@@ -42,15 +42,18 @@ void *old_client_data;			/* previous error handler arg.*/
 /* other option flags */
 int doread=1;				/* read test */
 int dowrite=1;				/* write test */
+int doindependent=1;			/* independent test */
+
 /* FILENAME and filenames must have the same number of names */
-const char *FILENAME[6]={
+const char *FILENAME[7]={
 	    "ParaEg1",
 	    "ParaEg2",
 	    "ParaEg3",
 	    "ParaMdset",
             "ParaMgroup",
+            "ParaIndividual",
 	    NULL};
-char	filenames[6][PATH_MAX];
+char	filenames[7][PATH_MAX];
 hid_t	fapl;				/* file access property list */
 
 #ifdef USE_PAUSE
@@ -118,9 +121,11 @@ usage(void)
 	"\tset number of datasets for the multiple dataset test\n");
     printf("\t-n<n_groups>"
         "\tset number of groups for the multiple group test\n");  
+    printf("\t-i\t\tno independent read test\n");
     printf("\t-v\t\tverbose on\n");
     printf("\t-f <prefix>\tfilename prefix\n");
     printf("\t-s\t\tuse Split-file together with MPIO\n");
+    printf("\t-p\t\tuse combo MPI-POSIX driver\n");
     printf("\t-d <dim0> <dim1>\tdataset dimensions\n");
     printf("\t-c <dim0> <dim1>\tdataset chunk dimensions\n");
     printf("\tDefault: do write then read with dimensions %dx%d\n",
@@ -165,6 +170,8 @@ parse_options(int argc, char **argv)
                                 return(1);
 			    }
                             break;
+                case 'i':   doindependent = 0;
+                            break;
 		case 'v':   verbose = 1;
 			    break;
 		case 'f':   if (--argc < 1) {
@@ -176,6 +183,9 @@ parse_options(int argc, char **argv)
 				return(1);
 			    }
 			    paraprefix = *argv;
+			    break;
+		case 'p':   /* Use the MPI-POSIX driver access */
+			    facc_type = FACC_MPIPOSIX;
 			    break;
 		case 's':   /* Use the split-file driver with MPIO access */
 			    /* Can use $HDF5_METAPREFIX to define the */
@@ -299,6 +309,13 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type )
 	return(ret_pl);
     }
 
+    if (l_facc_type == FACC_MPIPOSIX) {
+	/* set Parallel access with communicator */
+	ret = H5Pset_fapl_mpiposix(ret_pl, comm);
+	VRFY((ret >= 0), "");
+	return(ret_pl);
+    }
+
     /* unknown file access types */
     return (ret_pl);
 }
@@ -307,6 +324,10 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type )
 int main(int argc, char **argv)
 {
     int mpi_size, mpi_rank;				/* mpi variables */
+
+    /* Un-buffer the stdout and stderr */
+    setbuf(stderr, NULL);
+    setbuf(stdout, NULL);
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -317,6 +338,7 @@ int main(int argc, char **argv)
 	printf("PHDF5 TESTS START\n");
 	printf("===================================\n");
     }
+    H5open();
     h5_show_hostname();
 
     fapl = H5Pcreate (H5P_FILE_ACCESS);
@@ -327,6 +349,9 @@ int main(int argc, char **argv)
 	    usage();
 	goto finish;
     }
+
+    MPI_BANNER("test_comm_info_delete...");
+    test_comm_info_delete();
 
     if (ndatasets){
 	MPI_BANNER("multiple datasets write ...");
@@ -379,12 +404,28 @@ int main(int argc, char **argv)
 	MPI_BANNER("read tests skipped");
     }
 
+    if (doindependent){
+	MPI_BANNER("collective group and dataset write ...");
+        collective_group_write(filenames[5], ngroups);
+        if (doread) {
+       	    MPI_BANNER("indepenent group and dataset read ...");
+            independent_group_read(filenames[5], ngroups);
+        }
+    }
+    else{
+        MPI_BANNER("Independent test skipped");
+    }
+        
     if (!(dowrite || doread || ndatasets || ngroups)){
 	usage();
 	nerrors++;
     }
 
 finish:
+    /* make sure all processes are finished before final report, cleanup
+     * and exit.
+     */
+    MPI_Barrier(MPI_COMM_WORLD);
     if (MAINPROCESS){		/* only process 0 reports */
 	printf("===================================\n");
 	if (nerrors){
@@ -395,11 +436,18 @@ finish:
 	}
 	printf("===================================\n");
     }
-    MPI_Finalize();
-    if (dowrite)
+    if (dowrite){
 	h5_cleanup(FILENAME, fapl);
-    else
+    } else {
+	/* h5_cleanup would have closed fapl.  Now must do it explicitedly */
 	H5Pclose(fapl);
+    }
+    
+    /* close HDF5 library */
+    H5close();
+
+    /* MPI_Finalize must be called AFTER H5close which may use MPI calls */
+    MPI_Finalize();
     return(nerrors);
 }
 

@@ -29,8 +29,8 @@
 extern "C" {
 #endif
 
-__DLL__ hid_t H5FD_log_init(void);
-__DLL__ herr_t H5Pset_fapl_log(hid_t fapl_id, char *logfile, int verbosity);
+H5_DLL hid_t H5FD_log_init(void);
+H5_DLL herr_t H5Pset_fapl_log(hid_t fapl_id, char *logfile, int verbosity);
 
 #ifdef __cplusplus
 }

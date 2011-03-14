@@ -20,9 +20,6 @@
  */
  
 #include <string>
-#ifndef H5_NO_NAMESPACE
-using namespace std;
-#endif
 
 #ifdef OLD_HEADER_FILENAME
 #include <iostream.h>

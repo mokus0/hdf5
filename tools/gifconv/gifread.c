@@ -8,8 +8,7 @@ ReadDataSubBlocks(BYTE **MemGif2 , WORD *DSize);
 int EndianOrder;
 
 WORD 
-GetWord (MemGif)
-BYTE *MemGif;
+GetWord (BYTE *MemGif)
 {
 	register WORD w;
 	if (EndianOrder == 1) /* LittleEndian */
@@ -26,8 +25,7 @@ BYTE *MemGif;
 }
 
 BYTE
-GetByte (MemGif)
-BYTE *MemGif;
+GetByte (BYTE *MemGif)
 {	
 	return *MemGif;
 }
@@ -43,9 +41,9 @@ BYTE *MemGif;
 **           otherwise 0 if no error occured.
 */
 int
-ReadGifHeader(GifHead, MemGif2)
-GIFHEAD *GifHead;       /* Pointer to GIF header structure  */
-BYTE    **MemGif2;       /* GIF image file input FILE stream */
+ReadGifHeader(
+GIFHEAD *GifHead,       /* Pointer to GIF header structure  */
+BYTE    **MemGif2)       /* GIF image file input FILE stream */
 {
     WORD i;    /* Loop counter                                */
     WORD tableSize;     /* Number of entires in the Global Color Table */
@@ -111,9 +109,9 @@ BYTE    **MemGif2;       /* GIF image file input FILE stream */
 **           otherwise 0 if no error occured.
 */
 int
-ReadGifImageDesc(GifImageDesc, MemGif2)
-GIFIMAGEDESC *GifImageDesc; /* Pointer to GIF image descriptor structure  */
-BYTE         **MemGif2;     /* GIF image file input FILE stream           */
+ReadGifImageDesc(
+GIFIMAGEDESC *GifImageDesc, /* Pointer to GIF image descriptor structure  */
+BYTE         **MemGif2)     /* GIF image file input FILE stream           */
 {
     register WORD i;        /* Loop counter                               */
     WORD tableSize;         /* Number of entries in the Local Color Table */
@@ -207,9 +205,9 @@ BYTE         **MemGif2;     /* GIF image file input FILE stream           */
 **           otherwise 0 if no error occured.
 */
 int
-ReadGifGraphicControl(GifGraphicControl, MemGif2)
-GIFGRAPHICCONTROL *GifGraphicControl; /* Pointer to GC Extension structure */
-BYTE              **MemGif2;          /* GIF image file input FILE stream  */
+ReadGifGraphicControl(
+GIFGRAPHICCONTROL *GifGraphicControl, /* Pointer to GC Extension structure */
+BYTE              **MemGif2)          /* GIF image file input FILE stream  */
 {
     int i;
     
@@ -231,9 +229,9 @@ BYTE              **MemGif2;          /* GIF image file input FILE stream  */
 **           otherwise 0 if no error occured.
 */
 int
-ReadGifPlainText(GifPlainText, MemGif2)
-GIFPLAINTEXT *GifPlainText; /* Pointer to Plain Text Extension structure */
-BYTE         **MemGif2;       /* GIF image file input FILE stream          */
+ReadGifPlainText(
+GIFPLAINTEXT *GifPlainText, /* Pointer to Plain Text Extension structure */
+BYTE         **MemGif2)       /* GIF image file input FILE stream          */
 {
     int i;
 
@@ -269,9 +267,9 @@ BYTE         **MemGif2;       /* GIF image file input FILE stream          */
 **           otherwise 0 if no error occured.
 */
 int
-ReadGifApplication(GifApplication, MemGif2)
-GIFAPPLICATION *GifApplication; /* Pointer to Application Extension structure */
-BYTE           **MemGif2;          /* GIF image file input FILE stream           */
+ReadGifApplication(
+GIFAPPLICATION *GifApplication, /* Pointer to Application Extension structure */
+BYTE           **MemGif2)          /* GIF image file input FILE stream           */
 {
     int i;
 
@@ -306,9 +304,9 @@ BYTE           **MemGif2;          /* GIF image file input FILE stream          
 **           otherwise 0 if no error occured.
 */
 int
-ReadGifComment(GifComment, MemGif2)
-GIFCOMMENT *GifComment; /* Pointer to GIF Comment Extension structure */
-BYTE       **MemGif2;      /* GIF image file input FILE stream           */
+ReadGifComment(
+GIFCOMMENT *GifComment, /* Pointer to GIF Comment Extension structure */
+BYTE       **MemGif2)      /* GIF image file input FILE stream           */
 {
 	
     /* Read in the Plain Text data sub-blocks */
@@ -332,9 +330,9 @@ BYTE       **MemGif2;      /* GIF image file input FILE stream           */
 **           otherwise a valid pointer if no error occured.
 */
 static BYTE *
-ReadDataSubBlocks(MemGif2 , DSize)
-BYTE **MemGif2;        /* GIF image file input FILE stream              */
-WORD *DSize;
+ReadDataSubBlocks(
+BYTE **MemGif2,        /* GIF image file input FILE stream              */
+WORD *DSize)
 {
     BYTE *ptr1;     /* Pointer used to "walk the heap"               */
     BYTE *ptr2;     /* Pointer used to mark the top of the heap      */

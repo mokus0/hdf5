@@ -381,6 +381,62 @@ H5S_all_mscat (const void *tconv_buf, size_t elmt_size,
 
 
 /*-------------------------------------------------------------------------
+ * Function:	H5S_all_opt_possible
+ *
+ * Purpose:	Checks if an direct I/O transfer is possible between memory and
+ *                  the file.
+ *
+ * Return:	Success:        Non-negative: TRUE or FALSE
+ *		Failure:	Negative
+ *
+ * Programmer:	Quincey Koziol
+ *              Wednesday, April 3, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5S_all_opt_possible( const H5S_t *mem_space, const H5S_t *file_space, const unsigned UNUSED flags)
+{
+    htri_t c1,c2;               /* Flags whether a selection is optimizable */
+    htri_t ret_value=TRUE;
+
+    FUNC_ENTER(H5S_all_opt_possible, FAIL);
+
+    /* Check args */
+    assert(mem_space);
+    assert(file_space);
+
+    /* Check whether these are both simple dataspaces */
+    if (H5S_SIMPLE!=mem_space->extent.type || H5S_SIMPLE!=file_space->extent.type)
+        HGOTO_DONE(FALSE);
+
+    /* Special case for two "none" selections */
+    if(H5S_SEL_NONE==mem_space->select.type && H5S_SEL_NONE==file_space->select.type)
+        HGOTO_DONE(TRUE);
+
+    /* Check whether both selections are single blocks */
+    c1=H5S_select_single(file_space);
+    c2=H5S_select_single(mem_space);
+    if(c1==FAIL || c2==FAIL)
+        HGOTO_ERROR(H5E_DATASPACE, H5E_BADRANGE, FAIL, "invalid check for single selection blocks");
+    if(c1==FALSE || c2==FALSE)
+        HGOTO_DONE(FALSE);
+
+    /* Check whether the shape of each block is the same */
+    c1=H5S_select_shape_same(mem_space,file_space);
+    if(c1==FAIL)
+        HGOTO_ERROR(H5E_DATASPACE, H5E_BADRANGE, FAIL, "invalid check for selection blocks same");
+    if(c1==FALSE)
+        HGOTO_DONE(FALSE);
+
+done:
+    FUNC_LEAVE(ret_value);
+} /* H5S_all_opt_possible() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	H5S_all_read
  *
  * Purpose:	Reads directly from file into application memory if possible.
@@ -408,206 +464,90 @@ herr_t
 H5S_all_read(H5F_t *f, const H5O_layout_t *layout, const H5O_pline_t *pline,
              const struct H5O_fill_t *fill,
 	     const H5O_efl_t *efl, size_t elmt_size, const H5S_t *file_space,
-	     const H5S_t *mem_space, hid_t dxpl_id, void *_buf/*out*/,
-	     hbool_t *must_convert/*out*/)
+	     const H5S_t *mem_space, hid_t dxpl_id, void *_buf/*out*/)
 {
-    char       *buf=(char*)_buf;        /* Get pointer to buffer */
-    H5S_hyper_node_t *file_node=NULL,*mem_node=NULL;     /* Hyperslab node */
-    hsize_t	mem_size,file_size;
-    hssize_t	file_off,mem_off;
-    hssize_t    count;              /* Regular hyperslab count */
-    hsize_t	size[H5O_LAYOUT_NDIMS];
-    hssize_t	file_offset[H5O_LAYOUT_NDIMS];
-    hssize_t	mem_offset[H5O_LAYOUT_NDIMS];
-    unsigned	u;
-    unsigned    small_contiguous=0,     /* Flags for indicating contiguous hyperslabs */
-                large_contiguous=0;
-    int	        i;
-    size_t	down_size[H5O_LAYOUT_NDIMS];
-    hsize_t      acc;
+    H5S_hyper_node_t *file_node=NULL;   /* Hyperslab node */
+    hsize_t	file_elmts=0;           /* Number of elements in each dimension of selection */
+    hssize_t	file_off=0,mem_off=0;   /* Offset (in elements) of selection */
+    hsize_t	mem_size[H5O_LAYOUT_NDIMS];     /* Size of memory buffer */
+    hsize_t	size[H5O_LAYOUT_NDIMS];         /* Size of selection */
+    hssize_t	file_offset[H5O_LAYOUT_NDIMS];  /* Offset of selection in file */
+    hssize_t	mem_offset[H5O_LAYOUT_NDIMS];   /* Offset of selection in memory */
+    unsigned	u;                              /* Index variable */
 
     FUNC_ENTER(H5S_all_read, FAIL);
-    *must_convert = TRUE;
-
-#ifdef QAK
-printf("%s: check 1.0\n",FUNC);
-#endif /* QAK */
-    /* Check whether we can handle this */
-    if (H5S_SIMPLE!=mem_space->extent.type)
-        goto fall_through;
-    if (H5S_SIMPLE!=file_space->extent.type)
-        goto fall_through;
-    if (mem_space->extent.u.simple.rank!=file_space->extent.u.simple.rank)
-        goto fall_through;
-
-    /* Check for a single hyperslab block defined in memory dataspace */
-    if (mem_space->select.type==H5S_SEL_HYPERSLABS) {
-        /* Check for a "regular" hyperslab selection */
-        if(mem_space->select.sel_info.hslab.diminfo != NULL) {
-            /* Check each dimension */
-            for(count=1,u=0; u<mem_space->extent.u.simple.rank; u++)
-                count*=mem_space->select.sel_info.hslab.diminfo[u].count;
-            /* If the regular hyperslab definition creates more than one hyperslab, fall through */
-            if(count>1)
-                goto fall_through;
-        } /* end if */
-        else {
-            if(mem_space->select.sel_info.hslab.hyper_lst->count>1)
-                goto fall_through;
-            mem_node=mem_space->select.sel_info.hslab.hyper_lst->head;
-        } /* end else */
-    } /* end if */
-    else
-    	if(mem_space->select.type!=H5S_SEL_ALL)
-            goto fall_through;
-
-    /* Check for a single hyperslab block defined in file dataspace */
-    if (file_space->select.type==H5S_SEL_HYPERSLABS) {
-        /* Check for a "regular" hyperslab selection */
-        if(file_space->select.sel_info.hslab.diminfo != NULL) {
-            /* Check each dimension */
-            for(count=1,u=0; u<file_space->extent.u.simple.rank; u++)
-                count*=file_space->select.sel_info.hslab.diminfo[u].count;
-            /* If the regular hyperslab definition creates more than one hyperslab, fall through */
-            if(count>1)
-                goto fall_through;
-        } /* end if */
-        else {
-            if(file_space->select.sel_info.hslab.hyper_lst->count>1)
-                goto fall_through;
-            file_node=file_space->select.sel_info.hslab.hyper_lst->head;
-        } /* end else */
-    } /* end if */
-    else
-        if(file_space->select.type!=H5S_SEL_ALL)
-            goto fall_through;
 
     /* Get information about memory and file */
     for (u=0; u<mem_space->extent.u.simple.rank; u++) {
-        if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
-            /* Check for a "regular" hyperslab selection */
-            if(mem_space->select.sel_info.hslab.diminfo != NULL) {
-                mem_size=mem_space->select.sel_info.hslab.diminfo[u].block;
-                mem_off=mem_space->select.sel_info.hslab.diminfo[u].start;
-            } /* end if */
-            else {
-                mem_size=(mem_node->end[u]-mem_node->start[u])+1;
-                mem_off=mem_node->start[u];
-            } /* end else */
-            mem_off+=mem_space->select.offset[u];
-        } /* end if */
-        else {
-            mem_size=mem_space->extent.u.simple.size[u];
-            mem_off=0;
-        } /* end else */
+        switch(mem_space->select.type) {
+            case H5S_SEL_HYPERSLABS:
+                /* Check for a "regular" hyperslab selection */
+                if(mem_space->select.sel_info.hslab.diminfo != NULL)
+                    mem_off=mem_space->select.sel_info.hslab.diminfo[u].start;
+                else
+                    mem_off=mem_space->select.sel_info.hslab.hyper_lst->head->start[u];
+                mem_off+=mem_space->select.offset[u];
+                break;
 
-        if(file_space->select.type==H5S_SEL_HYPERSLABS) {
-            /* Check for a "regular" hyperslab selection */
-            if(file_space->select.sel_info.hslab.diminfo != NULL) {
-                file_size=file_space->select.sel_info.hslab.diminfo[u].block;
-                file_off=file_space->select.sel_info.hslab.diminfo[u].start;
-            } /* end if */
-            else {
-                file_size=(file_node->end[u]-file_node->start[u])+1;
-                file_off=file_node->start[u];
-            } /* end else */
-            file_off+=file_space->select.offset[u];
-        } /* end if */
-        else {
-            file_size=file_space->extent.u.simple.size[u];
-            file_off=0;
-        } /* end else */
+            case H5S_SEL_ALL:
+                mem_off=0;
+                break;
 
-        if (mem_size!=file_size)
-            goto fall_through;
+            case H5S_SEL_POINTS:
+                mem_off=mem_space->select.sel_info.pnt_lst->head->pnt[u]
+                            +mem_space->select.offset[u];
+                break;
 
-        size[u] = file_size;
+            default:
+                assert(0 && "Invalid selection type!");
+        } /* end switch */
+
+        switch(file_space->select.type) {
+            case H5S_SEL_HYPERSLABS:
+                /* Check for a "regular" hyperslab selection */
+                if(file_space->select.sel_info.hslab.diminfo != NULL) {
+                    file_elmts=file_space->select.sel_info.hslab.diminfo[u].block;
+                    file_off=file_space->select.sel_info.hslab.diminfo[u].start;
+                } /* end if */
+                else {
+                    file_node=file_space->select.sel_info.hslab.hyper_lst->head;
+
+                    file_elmts=(file_node->end[u]-file_node->start[u])+1;
+                    file_off=file_node->start[u];
+                } /* end else */
+                file_off+=file_space->select.offset[u];
+                break;
+
+            case H5S_SEL_ALL:
+                file_elmts=file_space->extent.u.simple.size[u];
+                file_off=0;
+                break;
+
+            case H5S_SEL_POINTS:
+                file_elmts=1;
+                file_off=file_space->select.sel_info.pnt_lst->head->pnt[u]
+                            +file_space->select.offset[u];
+                break;
+
+            default:
+                assert(0 && "Invalid selection type!");
+        } /* end switch */
+
+        mem_size[u]=mem_space->extent.u.simple.size[u];
+        size[u] = file_elmts;
         file_offset[u] = file_off;
         mem_offset[u] = mem_off;
     }
+    mem_size[u]=elmt_size;
     size[u] = elmt_size;
     file_offset[u] = 0;
     mem_offset[u] = 0;
 
-    /* Disallow reading a memory hyperslab in the "middle" of a dataset which */
-    /* spans multiple rows in "interior" dimensions, but allow reading a */
-    /* hyperslab which is in the "middle" of the fastest or slowest changing */
-    /* dimension because a hyperslab which "fills" the interior dimensions is */
-    /* contiguous in memory. i.e. these are allowed: */
-    /*    ---------------------         ---------------------         */
-    /*    |                   |         |                   |         */
-    /*    |*******************|         |   *********       |         */
-    /*    |*******************|         |                   |         */
-    /*    |                   |         |                   |         */
-    /*    |                   |         |                   |         */
-    /*    ---------------------         ---------------------         */
-    /*    ("large" contiguous block)    ("small" contiguous block)    */
-    /* But this is not: */
-    /*    --------------------- */
-    /*    |                   | */
-    /*    |  *********        | */
-    /*    |  *********        | */
-    /*    |                   | */
-    /*    |                   | */
-    /*    --------------------- */
-    /*    (not contiguous in memory) */
-    if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
-        /* Check for a "small" contiguous block */
-        if(size[0]==1) {
-            small_contiguous=1;
-            /* size of block in all dimensions except the fastest must be '1' */
-            for (u=0; u<(mem_space->extent.u.simple.rank-1); u++) {
-                if(size[u]>1) {
-                    small_contiguous=0;
-                    break;
-                } /* end if */
-            } /* end for */
-        } /* end if */
-        /* Check for a "large" contiguous block */
-        else {
-            large_contiguous=1;
-            /* size of block in all dimensions except the slowest must be the */
-            /* full size of the dimension */
-            for (u=1; u<mem_space->extent.u.simple.rank; u++) {
-                if(size[u]!=mem_space->extent.u.simple.size[u]) {
-                    large_contiguous=0;
-                    break;
-                } /* end if */
-            } /* end for */
-        } /* end else */
-
-        /* Check for contiguous block */
-        if(small_contiguous || large_contiguous) {
-            /* Compute the "down sizes" for each dimension */
-            for (acc=elmt_size, i=(mem_space->extent.u.simple.rank-1); i>=0; i--) {
-	        H5_ASSIGN_OVERFLOW(down_size[i],acc,hsize_t,size_t);
-                acc*=mem_space->extent.u.simple.size[i];
-            } /* end for */
-
-            /* Adjust the buffer offset and memory offsets by the proper amount */
-            for (u=0; u<mem_space->extent.u.simple.rank; u++) {
-                buf+=mem_offset[u]*down_size[u];
-                mem_offset[u]=0;
-            } /* end for */
-        } /* end if */
-        else {
-            /* Non-contiguous hyperslab block */
-            goto fall_through;
-        } /* end else */
-    } /* end if */
-
-#ifdef QAK
-printf("%s: check 2.0\n",FUNC);
-#endif /* QAK */
     /* Read data from the file */
     if (H5F_arr_read(f, dxpl_id, layout, pline, fill, efl, size,
-		     size, mem_offset, file_offset, buf/*out*/)<0) {
-        HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL,
-		      "unable to read data from the file");
-    }
-    *must_convert = FALSE;
+                 mem_size, mem_offset, file_offset, _buf/*out*/)<0)
+        HRETURN_ERROR(H5E_IO, H5E_READERROR, FAIL, "unable to read data from the file");
 
-fall_through:
     FUNC_LEAVE(SUCCEED);
 }
 
@@ -642,201 +582,96 @@ H5S_all_write(H5F_t *f, const struct H5O_layout_t *layout,
               const struct H5O_fill_t *fill,
               const H5O_efl_t *efl,
 	      size_t elmt_size, const H5S_t *file_space,
-	      const H5S_t *mem_space, hid_t dxpl_id, const void *_buf,
-	      hbool_t *must_convert/*out*/)
+	      const H5S_t *mem_space, hid_t dxpl_id, const void *_buf)
 {
-    const char *buf=(const char*)_buf;  /* Get pointer to buffer */
-    H5S_hyper_node_t *file_node=NULL,*mem_node=NULL;     /* Hyperslab node */
-    hsize_t	mem_size,file_size;
-    hssize_t	file_off,mem_off;
-    hssize_t    count;              /* Regular hyperslab count */
-    hsize_t	size[H5O_LAYOUT_NDIMS];
-    hssize_t	file_offset[H5O_LAYOUT_NDIMS];
-    hssize_t	mem_offset[H5O_LAYOUT_NDIMS];
-    unsigned	u;
-    unsigned    small_contiguous=0,     /* Flags for indicating contiguous hyperslabs */
-                large_contiguous=0;
-    int	        i;
-    size_t	down_size[H5O_LAYOUT_NDIMS];
-    hsize_t      acc;
+    H5S_hyper_node_t *file_node=NULL;       /* Hyperslab node */
+    hsize_t	file_elmts=0;               /* Number of elements in each dimension of selection */
+    hssize_t	file_off=0,mem_off=0;       /* Offset (in elements) of selection */
+    hsize_t	mem_size[H5O_LAYOUT_NDIMS];     /* Size of memory buffer */
+    hsize_t	size[H5O_LAYOUT_NDIMS];         /* Size of selection */
+    hssize_t	file_offset[H5O_LAYOUT_NDIMS];  /* Offset of selection in file */
+    hssize_t	mem_offset[H5O_LAYOUT_NDIMS];   /* Offset of selection in memory */
+    unsigned	u;                              /* Index variable */
     
     FUNC_ENTER(H5S_all_write, FAIL);
-    *must_convert = TRUE;
-
-    /* Check whether we can handle this */
-    if (H5S_SIMPLE!=mem_space->extent.type)
-        goto fall_through;
-    if (H5S_SIMPLE!=file_space->extent.type)
-        goto fall_through;
-    if (mem_space->extent.u.simple.rank!=file_space->extent.u.simple.rank)
-        goto fall_through;
-
-    /* Check for a single hyperslab block defined in memory dataspace */
-    if (mem_space->select.type==H5S_SEL_HYPERSLABS) {
-        /* Check for a "regular" hyperslab selection */
-        if(mem_space->select.sel_info.hslab.diminfo != NULL) {
-            /* Check each dimension */
-            for(count=1,u=0; u<mem_space->extent.u.simple.rank; u++)
-                count*=mem_space->select.sel_info.hslab.diminfo[u].count;
-            /* If the regular hyperslab definition creates more than one hyperslab, fall through */
-            if(count>1)
-                goto fall_through;
-        } /* end if */
-        else {
-            if(mem_space->select.sel_info.hslab.hyper_lst->count>1)
-                goto fall_through;
-            mem_node=mem_space->select.sel_info.hslab.hyper_lst->head;
-        } /* end else */
-    } /* end if */
-    else
-    	if(mem_space->select.type!=H5S_SEL_ALL)
-            goto fall_through;
-
-    /* Check for a single hyperslab block defined in file dataspace */
-    if (file_space->select.type==H5S_SEL_HYPERSLABS) {
-        /* Check for a "regular" hyperslab selection */
-        if(file_space->select.sel_info.hslab.diminfo != NULL) {
-            /* Check each dimension */
-            for(count=1,u=0; u<file_space->extent.u.simple.rank; u++)
-                count*=file_space->select.sel_info.hslab.diminfo[u].count;
-            /* If the regular hyperslab definition creates more than one hyperslab, fall through */
-            if(count>1)
-                goto fall_through;
-        } /* end if */
-        else {
-            if(file_space->select.sel_info.hslab.hyper_lst->count>1)
-                goto fall_through;
-            file_node=file_space->select.sel_info.hslab.hyper_lst->head;
-        } /* end else */
-    } /* end if */
-    else
-    	if(file_space->select.type!=H5S_SEL_ALL)
-            goto fall_through;
 
     /* Get information about memory and file */
     for (u=0; u<mem_space->extent.u.simple.rank; u++) {
-        if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
-            /* Check for a "regular" hyperslab selection */
-            if(mem_space->select.sel_info.hslab.diminfo != NULL) {
-                mem_size=mem_space->select.sel_info.hslab.diminfo[u].block;
-                mem_off=mem_space->select.sel_info.hslab.diminfo[u].start;
-            } /* end if */
-            else {
-                mem_size=(mem_node->end[u]-mem_node->start[u])+1;
-                mem_off=mem_node->start[u];
-            } /* end else */
-            mem_off+=mem_space->select.offset[u];
-        } /* end if */
-        else {
-            mem_size=mem_space->extent.u.simple.size[u];
-            mem_off=0;
-        } /* end else */
+        switch(mem_space->select.type) {
+            case H5S_SEL_HYPERSLABS:
+                /* Check for a "regular" hyperslab selection */
+                if(mem_space->select.sel_info.hslab.diminfo != NULL)
+                    mem_off=mem_space->select.sel_info.hslab.diminfo[u].start;
+                else
+                    mem_off=mem_space->select.sel_info.hslab.hyper_lst->head->start[u];
+                mem_off+=mem_space->select.offset[u];
+                break;
 
-        if(file_space->select.type==H5S_SEL_HYPERSLABS) {
-            /* Check for a "regular" hyperslab selection */
-            if(file_space->select.sel_info.hslab.diminfo != NULL) {
-                file_size=file_space->select.sel_info.hslab.diminfo[u].block;
-                file_off=file_space->select.sel_info.hslab.diminfo[u].start;
-            } /* end if */
-            else {
-                file_size=(file_node->end[u]-file_node->start[u])+1;
-                file_off=file_node->start[u];
-            } /* end else */
-            file_off+=file_space->select.offset[u];
-        } /* end if */
-        else {
-            file_size=file_space->extent.u.simple.size[u];
-            file_off=0;
-        } /* end else */
+            case H5S_SEL_ALL:
+            case H5S_SEL_NONE:
+                mem_off=0;
+                break;
 
-        if (mem_size!=file_size)
-            goto fall_through;
+            case H5S_SEL_POINTS:
+                mem_off=mem_space->select.sel_info.pnt_lst->head->pnt[u]
+                            +mem_space->select.offset[u];
+                break;
 
-        size[u] = file_size;
+            default:
+                assert(0 && "Invalid selection type!");
+        } /* end switch */
+
+        switch(file_space->select.type) {
+            case H5S_SEL_HYPERSLABS:
+                /* Check for a "regular" hyperslab selection */
+                if(file_space->select.sel_info.hslab.diminfo != NULL) {
+                    file_elmts=file_space->select.sel_info.hslab.diminfo[u].block;
+                    file_off=file_space->select.sel_info.hslab.diminfo[u].start;
+                } /* end if */
+                else {
+                    file_node=file_space->select.sel_info.hslab.hyper_lst->head;
+
+                    file_elmts=(file_node->end[u]-file_node->start[u])+1;
+                    file_off=file_node->start[u];
+                } /* end else */
+                file_off+=file_space->select.offset[u];
+                break;
+
+            case H5S_SEL_ALL:
+                file_elmts=file_space->extent.u.simple.size[u];
+                file_off=0;
+                break;
+
+            case H5S_SEL_NONE:
+                file_elmts=0;
+                file_off=0;
+                break;
+
+            case H5S_SEL_POINTS:
+                file_elmts=1;
+                file_off=file_space->select.sel_info.pnt_lst->head->pnt[u]
+                            +file_space->select.offset[u];
+                break;
+
+            default:
+                assert(0 && "Invalid selection type!");
+        } /* end switch */
+
+        mem_size[u]=mem_space->extent.u.simple.size[u];
+        size[u] = file_elmts;
         file_offset[u] = file_off;
         mem_offset[u] = mem_off;
     }
+    mem_size[u]=elmt_size;
     size[u] = elmt_size;
     file_offset[u] = 0;
     mem_offset[u] = 0;
 
-    /* Disallow reading a memory hyperslab in the "middle" of a dataset which */
-    /* spans multiple rows in "interior" dimensions, but allow reading a */
-    /* hyperslab which is in the "middle" of the fastest or slowest changing */
-    /* dimension because a hyperslab which "fills" the interior dimensions is */
-    /* contiguous in memory. i.e. these are allowed: */
-    /*    ---------------------         ---------------------         */
-    /*    |                   |         |                   |         */
-    /*    |*******************|         |   *********       |         */
-    /*    |*******************|         |                   |         */
-    /*    |                   |         |                   |         */
-    /*    |                   |         |                   |         */
-    /*    ---------------------         ---------------------         */
-    /*    ("large" contiguous block)    ("small" contiguous block)    */
-    /* But this is not: */
-    /*    --------------------- */
-    /*    |                   | */
-    /*    |  *********        | */
-    /*    |  *********        | */
-    /*    |                   | */
-    /*    |                   | */
-    /*    --------------------- */
-    /*    (not contiguous in memory) */
-    if(mem_space->select.type==H5S_SEL_HYPERSLABS) {
-        /* Check for a "small" contiguous block */
-        if(size[0]==1) {
-            small_contiguous=1;
-            /* size of block in all dimensions except the fastest must be '1' */
-            for (u=0; u<(mem_space->extent.u.simple.rank-1); u++) {
-                if(size[u]>1) {
-                    small_contiguous=0;
-                    break;
-                } /* end if */
-            } /* end for */
-        } /* end if */
-        /* Check for a "large" contiguous block */
-        else {
-            large_contiguous=1;
-            /* size of block in all dimensions except the slowest must be the */
-            /* full size of the dimension */
-            for (u=1; u<mem_space->extent.u.simple.rank; u++) {
-                if(size[u]!=mem_space->extent.u.simple.size[u]) {
-                    large_contiguous=0;
-                    break;
-                } /* end if */
-            } /* end for */
-        } /* end else */
-
-        /* Check for contiguous block */
-        if(small_contiguous || large_contiguous) {
-            /* Compute the "down sizes" for each dimension */
-            for (acc=elmt_size, i=(mem_space->extent.u.simple.rank-1); i>=0; i--) {
-	      H5_ASSIGN_OVERFLOW(down_size[i],acc,hsize_t,size_t);
-                acc*=mem_space->extent.u.simple.size[i];
-            } /* end for */
-
-            /* Adjust the buffer offset and memory offsets by the proper amount */
-            for (u=0; u<mem_space->extent.u.simple.rank; u++) {
-                buf+=mem_offset[u]*down_size[u];
-                mem_offset[u]=0;
-            } /* end for */
-        } /* end if */
-        else {
-            /* Non-contiguous hyperslab block */
-            goto fall_through;
-        } /* end else */
-    } /* end if */
-
     /* Write data to the file */
     if (H5F_arr_write(f, dxpl_id, layout, pline, fill, efl, size,
-		      size, mem_offset, file_offset, buf)<0) {
-        HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL,
-		      "unable to write data to the file");
-    }
-    *must_convert = FALSE;
+            mem_size, mem_offset, file_offset, _buf)<0)
+        HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "unable to write data to the file");
 
-
-fall_through:
     FUNC_LEAVE(SUCCEED);
 }
 

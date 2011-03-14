@@ -57,6 +57,14 @@ H5S_mpio_all_type( const H5S_t *space, size_t elmt_size, hbool_t prefer_derived_
 		     hbool_t *use_view,
 		     hbool_t *is_derived_type );
 static herr_t
+H5S_mpio_none_type( const H5S_t *space, size_t elmt_size, hbool_t prefer_derived_types,
+		     /* out: */
+		     MPI_Datatype *new_type,
+		     hsize_t *count,
+		     hsize_t *extra_offset,
+		     hbool_t *use_view,
+		     hbool_t *is_derived_type );
+static herr_t
 H5S_mpio_hyper_type( const H5S_t *space, size_t elmt_size, hbool_t prefer_derived_types,
 		     /* out: */
 		     MPI_Datatype *new_type,
@@ -84,8 +92,7 @@ static herr_t
 H5S_mpio_spaces_xfer(H5F_t *f, const struct H5O_layout_t *layout,
                      size_t elmt_size,
                      const H5S_t *file_space, const H5S_t *mem_space,
-                     hid_t dxpl_id, void *buf/*out*/,
-		     hbool_t *must_convert/*out*/, hbool_t do_write);
+                     hid_t dxpl_id, void *buf/*out*/, hbool_t do_write);
 
 /*-------------------------------------------------------------------------
  * Function:	H5S_mpio_all_type
@@ -163,6 +170,69 @@ H5S_mpio_all_type( const H5S_t *space, size_t elmt_size, hbool_t prefer_derived_
 #endif
     FUNC_LEAVE (SUCCEED);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_mpio_none_type
+ *
+ * Purpose:	Translate an HDF5 "none" selection into an MPI type.
+ *
+ * Return:	non-negative on success, negative on failure.
+ *
+ * Outputs:	*new_type	  the MPI type corresponding to the selection
+ *		*count		  how many objects of the new_type in selection
+ *				  (useful if this is the buffer type for xfer)
+ *		*extra_offset     Number of bytes of offset within dataset
+ *		*use_view         0 if view not needed, 1 if needed
+ *		*is_derived_type  0 if MPI primitive type, 1 if derived
+ *
+ * Programmer:	Quincey Koziol, October 29, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+H5S_mpio_none_type( const H5S_t *space, size_t UNUSED elmt_size, hbool_t prefer_derived_types,
+		     /* out: */
+		     MPI_Datatype *new_type,
+		     hsize_t *count,
+		     hsize_t *extra_offset,
+		     hbool_t *use_view,
+		     hbool_t *is_derived_type )
+{
+    int         mpi_code;               /* MPI return code */
+    herr_t      ret_value=SUCCEED;      /* Return value */
+
+    FUNC_ENTER(H5S_mpio_none_type,FAIL);
+
+    /* Check args */
+    assert(space);
+
+    /* Check if we should prefer creating a derived type */
+    if(prefer_derived_types) {
+        /* fill in the return values */
+        if (MPI_SUCCESS != (mpi_code=MPI_Type_contiguous(0, MPI_BYTE, new_type )))
+            HMPI_GOTO_ERROR(FAIL, "MPI_Type_contiguous failed", mpi_code);
+        if(MPI_SUCCESS != (mpi_code=MPI_Type_commit(new_type)))
+            HMPI_GOTO_ERROR(FAIL, "MPI_Type_commit failed", mpi_code);
+        *count = 1;
+        *extra_offset = 0;
+        *use_view = 1;
+        *is_derived_type = 1;
+    } /* end if */
+    else {
+        /* fill in the return values */
+        *new_type = MPI_BYTE;
+        *count = 0;
+        *extra_offset = 0;
+        *use_view = 0;
+        *is_derived_type = 0;
+    } /* end else */
+
+done:
+    FUNC_LEAVE (ret_value);
+} /* H5S_mpio_none_type() */
 
 
 /*-------------------------------------------------------------------------
@@ -652,13 +722,14 @@ H5S_mpio_space_type( const H5S_t *space, size_t elmt_size, hbool_t prefer_derive
     /* Creat MPI type based on the kind of selection */
     switch (space->extent.type) {
         case H5S_SCALAR:
-            /* not yet implemented */
-	    ret_value = FAIL;
-            break;
-
         case H5S_SIMPLE:
             switch(space->select.type) {
                 case H5S_SEL_NONE:
+                    if ( H5S_mpio_none_type( space, elmt_size, prefer_derived_types,
+                        /* out: */ new_type, count, extra_offset, use_view, is_derived_type ) <0)
+                        HRETURN_ERROR(H5E_DATASPACE, H5E_BADTYPE, FAIL,"couldn't convert \"all\" selection to MPI type");
+                    break;
+
                 case H5S_SEL_ALL:
                     err = H5S_mpio_all_type( space, elmt_size, prefer_derived_types,
 				/* out: */ new_type, count, extra_offset, use_view, is_derived_type );
@@ -746,7 +817,6 @@ H5S_mpio_spaces_xfer(H5F_t *f, const struct H5O_layout_t *layout,
                      size_t elmt_size,
                      const H5S_t *file_space, const H5S_t *mem_space,
 		     hid_t dxpl_id, void *_buf /*out*/,
-		     hbool_t *must_convert /*out*/,
 		     hbool_t do_write )
 {
     haddr_t	 addr;                  /* Address of dataset (or selection) within file */
@@ -765,8 +835,6 @@ H5S_mpio_spaces_xfer(H5F_t *f, const struct H5O_layout_t *layout,
 
     FUNC_ENTER (H5S_mpio_spaces_xfer, FAIL);
 
-    *must_convert = 0;	/* means we at least tried to do optimized xfer */
-
     /* Check args */
     assert (f);
     assert (layout);
@@ -774,46 +842,6 @@ H5S_mpio_spaces_xfer(H5F_t *f, const struct H5O_layout_t *layout,
     assert (mem_space);
     assert (buf);
     assert (IS_H5FD_MPIO(f));
-
-    /* INCOMPLETE!!!  rky 980816 */
-    /* Currently can only handle H5D_CONTIGUOUS layout */
-    if (layout->type != H5D_CONTIGUOUS) {
-#ifdef H5S_DEBUG
-	if (H5DEBUG(S)) {
-            fprintf (H5DEBUG(S), "H5S: can only create MPI datatype for hyperslab when layout is contiguous.\n" );
-	}
-#endif
-	*must_convert = 1;      /* can't do optimized xfer; do the old way */
-	HGOTO_DONE(SUCCEED);
-    }
-
-    /*
-     * For collective data transfer only since this would eventually
-     * call H5FD_mpio_setup to do setup to eveually call MPI_File_set_view
-     * in H5FD_mpio_read or H5FD_mpio_write.  MPI_File_set_view is a
-     * collective call.  Letting independent data transfer use this
-     * route would result in hanging.
-     */
-#if 0
-    /* For now, the checking is being done in
-     * H5D_write and H5D_read before it is called because
-     * the following block of code, though with the right idea, is not
-     * correct yet.
-     */
-    {   /* Get the transfer mode */
-        H5D_xfer_t *dxpl;
-        H5FD_mpio_dxpl_t *dx;
-
-        if (H5P_DEFAULT!=dxpl_id && (dxpl=H5I_object(dxpl_id)) &&
-                H5FD_MPIO==dxpl->driver_id && (dx=dxpl->driver_info) &&
-                H5FD_MPIO_COLLECTIVE==dx->xfer_mode) {
-	    /* let it fall through */
-	}else{
-	    *must_convert = 1;	/* can't do optimized xfer; do the old way */
-	    HGOTO_DONE(SUCCEED);
-	}
-    }
-#endif
 
     /* Get the preference for MPI derived types */
     /* (Set via the "HDF5_MPI_PREFER_DERIVED_TYPES" environment variable for now) */
@@ -917,8 +945,7 @@ H5S_mpio_spaces_read(H5F_t *f, const struct H5O_layout_t *layout,
 		     const struct H5O_fill_t UNUSED *fill,
                      const struct H5O_efl_t UNUSED *efl, size_t elmt_size,
                      const H5S_t *file_space, const H5S_t *mem_space,
-                     hid_t dxpl_id, void *buf/*out*/,
-		     hbool_t *must_convert/*out*/)
+                     hid_t dxpl_id, void *buf/*out*/)
 {
     herr_t ret_value = FAIL;
 
@@ -926,7 +953,7 @@ H5S_mpio_spaces_read(H5F_t *f, const struct H5O_layout_t *layout,
 
     ret_value = H5S_mpio_spaces_xfer(f, layout, elmt_size,
 				     file_space, mem_space, dxpl_id,
-				     buf, must_convert/*out*/, 0/*read*/);
+				     buf, 0/*read*/);
 
     FUNC_LEAVE (ret_value);
 }
@@ -954,8 +981,7 @@ H5S_mpio_spaces_write(H5F_t *f, const struct H5O_layout_t *layout,
 		      const struct H5O_fill_t UNUSED *fill,
 		      const struct H5O_efl_t UNUSED *efl, size_t elmt_size,
 		      const H5S_t *file_space, const H5S_t *mem_space,
-		      hid_t dxpl_id, const void *buf,
-		      hbool_t *must_convert/*out*/)
+		      hid_t dxpl_id, const void *buf)
 {
     herr_t ret_value = FAIL;
 
@@ -964,10 +990,67 @@ H5S_mpio_spaces_write(H5F_t *f, const struct H5O_layout_t *layout,
     /*OKAY: CAST DISCARDS CONST QUALIFIER*/
     ret_value = H5S_mpio_spaces_xfer(f, layout, elmt_size,
 				     file_space, mem_space, dxpl_id,
-				     (void*)buf, must_convert/*out*/,
-				     1/*write*/);
+				     (void*)buf, 1/*write*/);
 
     FUNC_LEAVE (ret_value);
 }
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5S_mpio_opt_possible
+ *
+ * Purpose:	Checks if an direct I/O transfer is possible between memory and
+ *                  the file.
+ *
+ * Return:	Success:        Non-negative: TRUE or FALSE
+ *		Failure:	Negative
+ *
+ * Programmer:	Quincey Koziol
+ *              Wednesday, April 3, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5S_mpio_opt_possible( const H5S_t *mem_space, const H5S_t *file_space, const unsigned flags)
+{
+    htri_t c1,c2;               /* Flags whether a selection is optimizable */
+    htri_t ret_value=TRUE;
+
+    FUNC_ENTER(H5S_all_opt_possible, FAIL);
+
+    /* Check args */
+    assert(mem_space);
+    assert(file_space);
+
+    /* Check whether these are both simple dataspaces */
+    if (!((H5S_SIMPLE==mem_space->extent.type || H5S_SCALAR==mem_space->extent.type)
+         && (H5S_SIMPLE==file_space->extent.type || H5S_SCALAR==file_space->extent.type)))
+        HGOTO_DONE(FALSE);
+
+    /* Check whether both selections are "regular" */
+    c1=H5S_select_regular(file_space);
+    c2=H5S_select_regular(mem_space);
+    if(c1==FAIL || c2==FAIL)
+        HGOTO_ERROR(H5E_DATASPACE, H5E_BADRANGE, FAIL, "invalid check for single selection blocks");
+    if(c1==FALSE || c2==FALSE)
+        HGOTO_DONE(FALSE);
+
+    /* Can't currently handle point selections */
+    if (H5S_SEL_POINTS==mem_space->select.type || H5S_SEL_POINTS==file_space->select.type)
+        HGOTO_DONE(FALSE);
+
+    /* Dataset storage must be contiguous currently */
+    if ((flags&H5S_CONV_STORAGE_MASK)!=H5S_CONV_STORAGE_CONTIGUOUS)
+        HGOTO_DONE(FALSE);
+
+    /* Parallel I/O conversion flag must be set */
+    if(!(flags&H5S_CONV_PAR_IO_POSSIBLE))
+        HGOTO_DONE(FALSE);
+
+done:
+    FUNC_LEAVE(ret_value);
+} /* H5S_mpio_opt_possible() */
 
 #endif  /* H5_HAVE_PARALLEL */

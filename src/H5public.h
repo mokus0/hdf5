@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5public.h,v 1.262.2.58 2002/06/27 18:42:48 hdfadmin Exp $ */
+/* $Id: H5public.h,v 1.262.2.82 2003/04/05 21:39:09 hdfadmin Exp $ */
 
 
 /*
@@ -64,10 +64,10 @@
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	4	/* For tweaks, bug-fixes, or development     */
-#define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
+#define H5_VERS_RELEASE	5	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_SUBRELEASE "post2"	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.4.4"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.4.5-post2"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -174,16 +174,16 @@ extern "C" {
 #endif
 
 /* Functions in H5.c */
-__DLL__ herr_t H5open(void);
-__DLL__ herr_t H5close(void);
-__DLL__ herr_t H5dont_atexit(void);
-__DLL__ herr_t H5garbage_collect(void);
-__DLL__ herr_t H5set_free_list_limits (int reg_global_lim, int reg_list_lim,
+H5_DLL herr_t H5open(void);
+H5_DLL herr_t H5close(void);
+H5_DLL herr_t H5dont_atexit(void);
+H5_DLL herr_t H5garbage_collect(void);
+H5_DLL herr_t H5set_free_list_limits (int reg_global_lim, int reg_list_lim,
                 int arr_global_lim, int arr_list_lim, int blk_global_lim,
                 int blk_list_lim);
-__DLL__ herr_t H5get_libversion(unsigned *majnum, unsigned *minnum,
+H5_DLL herr_t H5get_libversion(unsigned *majnum, unsigned *minnum,
 				unsigned *relnum);
-__DLL__ herr_t H5check_version(unsigned majnum, unsigned minnum,
+H5_DLL herr_t H5check_version(unsigned majnum, unsigned minnum,
 			       unsigned relnum);
 
 #ifdef __cplusplus

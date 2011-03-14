@@ -454,6 +454,7 @@ main(int argc, char **argv)
 	printf("MPI functionality tests\n");
 	printf("===================================\n");
     }
+    H5open();
     h5_show_hostname();
 
     fapl = H5Pcreate (H5P_FILE_ACCESS);
@@ -471,6 +472,10 @@ main(int argc, char **argv)
     test_mpio_overlap_writes(filenames[0]);
 
 finish:
+    /* make sure all processes are finished before final report, cleanup
+     * and exit.
+     */
+    MPI_Barrier(MPI_COMM_WORLD);
     if (MAINPROCESS){		/* only process 0 reports */
 	printf("===================================\n");
 	if (nerrors){
@@ -481,8 +486,13 @@ finish:
 	}
 	printf("===================================\n");
     }
-    MPI_Finalize();
+
     h5_cleanup(FILENAME, fapl);
+    H5close();
+
+    /* MPI_Finalize must be called AFTER H5close which may use MPI calls */
+    MPI_Finalize();
+
     /* always return 0 as this test is informational only. */
     return(0);
 }

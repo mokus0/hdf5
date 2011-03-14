@@ -12,18 +12,14 @@
   * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifdef OLD_HEADER_FILENAME
-#include <iostream.h>
-#else
-#include <iostream>
-#endif
-
 #include "H5Include.h"
 #include "H5Exception.h"
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
-	using namespace std;
+#ifndef H5_NO_STD
+using namespace std;
+#endif
 #endif
 
 // Default constructor
@@ -219,14 +215,6 @@ IdComponentException::IdComponentException(): Exception() {}
 IdComponentException::IdComponentException(const string& func_name, const string& message) : Exception(func_name, message) {}
 IdComponentException::IdComponentException(const char* func_name, const char* message) : Exception(func_name, message) {}
 IdComponentException::~IdComponentException() {}
-
-// The following are from Java API but not done here:
-// AtomException, BtreeException, DataFiltersException, 
-// ExternalFileListException, FunctionEntryExitException, 
-// HeapException, InternalErrorException, LowLevelIOException, 
-// MetaDataCacheException, ResourceUnavailableException, 
-// SymbolTableException, ObjectHeaderException, FunctionArgumentException,
-// DataStorageException
 
 #ifndef H5_NO_NAMESPACE
 } // end namespace

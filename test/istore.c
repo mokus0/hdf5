@@ -109,7 +109,7 @@ new_object(H5F_t *f, const char *name, unsigned ndims, H5G_entry_t *ent/*out*/)
     unsigned		    u;
 
     /* Create the object header */
-    if (H5O_create(f, 64, ent)) {
+    if (H5O_create(f, H5P_DEFAULT, 64, ent)) {
 	H5_FAILED();
 	puts("    H5O_create() = NULL");
 	goto error;
@@ -125,15 +125,15 @@ new_object(H5F_t *f, const char *name, unsigned ndims, H5G_entry_t *ent/*out*/)
 	    layout.dim[u] = 2;
 	}
     }
-    H5F_arr_create(f, &layout/*in,out*/);
-    if (H5O_modify(ent, H5O_LAYOUT, H5O_NEW_MESG, 0, &layout) < 0) {
+    H5F_arr_create(f, H5P_DEFAULT, &layout/*in,out*/);
+    if (H5O_modify(ent, H5O_LAYOUT, H5O_NEW_MESG, 0, &layout, H5P_DEFAULT) < 0) {
 	H5_FAILED();
 	puts("    H5O_modify istore message failure.");
 	goto error;
     }
 
     /* Give the object header a name */
-    if (H5G_insert(H5G_entof(H5G_rootof(f)), name, ent) < 0) {
+    if (H5G_insert(H5G_entof(H5G_rootof(f)), name, ent, H5P_DEFAULT) < 0) {
 	H5_FAILED();
 	printf("    H5G_insert(f, name=\"%s\", ent) failed\n", name);
 	goto error;
@@ -247,7 +247,7 @@ test_extend(H5F_t *f, const char *prefix,
 	printf("    Cannot create %u-d object `%s'\n", ndims, name);
 	goto error;
     }
-    if (NULL == H5O_read(&handle, H5O_LAYOUT, 0, &layout)) {
+    if (NULL == H5O_read(&handle, H5O_LAYOUT, 0, &layout, H5P_DEFAULT)) {
 	H5_FAILED();
 	puts("    Unable to read istore message.");
 	goto error;
@@ -448,7 +448,7 @@ test_sparse(H5F_t *f, const char *prefix, size_t nblocks,
 	printf("    Cannot create %u-d object `%s'\n", ndims, name);
 	goto error;
     }
-    if (NULL == H5O_read(&handle, H5O_LAYOUT, 0, &layout)) {
+    if (NULL == H5O_read(&handle, H5O_LAYOUT, 0, &layout, H5P_DEFAULT)) {
 	H5_FAILED();
 	printf("    Unable to read istore message\n");
 	goto error;

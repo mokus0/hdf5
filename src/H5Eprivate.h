@@ -105,17 +105,16 @@ typedef struct H5E_t {
     H5E_error_t slot[H5E_NSLOTS];	/*array of error records	     */
 } H5E_t;
 
-__DLLVAR__ const hbool_t H5E_clearable_g;/*safe to call H5E_clear() on enter?*/
-__DLLVAR__ herr_t (*H5E_auto_g)(void *client_data);
-__DLLVAR__ void *H5E_auto_data_g;
+H5_DLLVAR const hbool_t H5E_clearable_g;/*safe to call H5E_clear() on enter?*/
+H5_DLLVAR herr_t (*H5E_auto_g)(void *client_data);
+H5_DLLVAR void *H5E_auto_data_g;
 
-__DLL__ herr_t H5E_push (H5E_major_t maj_num, H5E_minor_t min_num,
+H5_DLL herr_t H5E_push (H5E_major_t maj_num, H5E_minor_t min_num,
 			 const char *func_name, const char *file_name,
 			 unsigned line, const char *desc);
-__DLL__ herr_t H5E_clear (void);
-__DLL__ herr_t H5E_walk (H5E_direction_t dir, H5E_walk_t func,
+H5_DLL herr_t H5E_clear (void);
+H5_DLL herr_t H5E_walk (H5E_direction_t dir, H5E_walk_t func,
 			 void *client_data);
-#endif
 
 #ifdef H5_HAVE_PARALLEL
 /*
@@ -137,4 +136,6 @@ extern	int	H5E_mpi_error_str_len;
     HMPI_ERROR(mpierr);							      \
     HRETURN_ERROR(H5E_INTERNAL, H5E_MPI, retcode, str);                       \
 }
+#endif
+
 #endif

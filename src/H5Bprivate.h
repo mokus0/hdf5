@@ -81,13 +81,13 @@ typedef struct H5B_class_t {
     H5B_subid_t id;					/*id as found in file*/
     size_t	sizeof_nkey;			/*size of native (memory) key*/
     size_t	(*get_sizeof_rkey)(H5F_t*, const void*);    /*raw key size   */
-    herr_t	(*new_node)(H5F_t*, H5B_ins_t, void*, void*, void*, haddr_t*);
-    int	(*cmp2)(H5F_t*, void*, void*, void*);	    /*compare 2 keys */
-    int	(*cmp3)(H5F_t*, void*, void*, void*);	    /*compare 3 keys */
-    herr_t	(*found)(H5F_t*, haddr_t, const void*, void*, const void*);
+    herr_t	(*new_node)(H5F_t*, hid_t, H5B_ins_t, void*, void*, void*, haddr_t*);
+    int	(*cmp2)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 2 keys */
+    int	(*cmp3)(H5F_t*, hid_t, void*, void*, void*);	    /*compare 3 keys */
+    herr_t	(*found)(H5F_t*, hid_t, haddr_t, const void*, void*, const void*);
     
     /* insert new data */
-    H5B_ins_t	(*insert)(H5F_t*, haddr_t, void*, hbool_t*, void*, void*,
+    H5B_ins_t	(*insert)(H5F_t*, hid_t, haddr_t, void*, hbool_t*, void*, void*,
 			  void*, hbool_t*, haddr_t*);
 
     /* min insert uses min leaf, not new(), similarily for max insert */
@@ -95,16 +95,16 @@ typedef struct H5B_class_t {
     hbool_t	follow_max;
     
     /* remove existing data */
-    H5B_ins_t	(*remove)(H5F_t*, haddr_t, void*, hbool_t*, void*, void*,
+    H5B_ins_t	(*remove)(H5F_t*, hid_t, haddr_t, void*, hbool_t*, void*, void*,
 			  hbool_t*);
 
     /* iterate through the leaf nodes */
-    herr_t	(*list)(H5F_t*, void*, haddr_t, void*, void*);
+    herr_t	(*list)(H5F_t*, hid_t, void*, haddr_t, void*, void*);
 
     /* encode, decode, debug key values */
     herr_t	(*decode)(H5F_t*, struct H5B_t*, uint8_t*, void*);
     herr_t	(*encode)(H5F_t*, struct H5B_t*, uint8_t*, void*);
-    herr_t	(*debug_key)(FILE*, int, int, const void*, const void*);
+    herr_t	(*debug_key)(FILE*, H5F_t*, hid_t, int, int, const void*, const void*);
 } H5B_class_t;
 
 /*
@@ -121,7 +121,6 @@ typedef struct H5B_t {
                             /* first field in structure */
     const H5B_class_t	*type;		/*type of tree			     */
     size_t		sizeof_rkey;	/*size of raw (disk) key	     */
-    hbool_t		dirty;		/*something in the tree is dirty     */
     int		ndirty;		/*num child ptrs to emit	     */
     int		level;		/*node level			     */
     haddr_t		left;		/*address of left sibling	     */
@@ -136,17 +135,17 @@ typedef struct H5B_t {
 /*
  * Library prototypes.
  */
-__DLL__ herr_t H5B_debug (H5F_t *f, haddr_t addr, FILE * stream,
+H5_DLL herr_t H5B_debug (H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,
 			  int indent, int fwidth, const H5B_class_t *type,
 			  void *udata);
-__DLL__ herr_t H5B_create (H5F_t *f, const H5B_class_t *type, void *udata,
+H5_DLL herr_t H5B_create (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, void *udata,
 			   haddr_t *addr_p/*out*/);
-__DLL__ herr_t H5B_find (H5F_t *f, const H5B_class_t *type, haddr_t addr,
+H5_DLL herr_t H5B_find (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			 void *udata);
-__DLL__ herr_t H5B_insert (H5F_t *f, const H5B_class_t *type, haddr_t addr,
+H5_DLL herr_t H5B_insert (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			   const double split_ratios[], void *udata);
-__DLL__ herr_t H5B_remove(H5F_t *f, const H5B_class_t *type, haddr_t addr,
+H5_DLL herr_t H5B_remove(H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			  void *udata);
-__DLL__ herr_t H5B_iterate (H5F_t *f, const H5B_class_t *type, haddr_t addr,
+H5_DLL herr_t H5B_iterate (H5F_t *f, hid_t dxpl_id, const H5B_class_t *type, haddr_t addr,
 			    void *udata);
 #endif

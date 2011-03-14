@@ -20,7 +20,7 @@
 namespace H5 {
 #endif
 
-class __DLLCPP__ DSetMemXferPropList : public PropList {
+class H5_DLLCPP DSetMemXferPropList : public PropList {
    public:
 	static const DSetMemXferPropList DEFAULT;
 

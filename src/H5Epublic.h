@@ -39,7 +39,7 @@
  *	    the error reporting won't be properly restored!
  */
 #define H5E_BEGIN_TRY {							      \
-    herr_t (*H5E_saved_efunc)(void*);					      \
+    H5E_auto_t H5E_saved_efunc;						      \
     void *H5E_saved_edata;						      \
     H5Eget_auto (&H5E_saved_efunc, &H5E_saved_edata);			      \
     H5Eset_auto (NULL, NULL);
@@ -137,6 +137,7 @@ typedef enum H5E_minor_t {
     H5E_WRITEERROR,             /*write failed                               */
     H5E_CLOSEERROR,             /*close failed                               */
     H5E_OVERFLOW,		/*address overflowed			     */
+    H5E_FCNTL,                  /*file fcntl failed                          */
 
     /* Function entry/exit interface errors */
     H5E_CANTINIT,               /*Can't initialize                           */
@@ -209,24 +210,24 @@ typedef enum H5E_direction_t {
     H5E_WALK_DOWNWARD	= 1		/*begin at API function, end deep    */
 } H5E_direction_t;
 
-/* Error stack traversal callback function */
-typedef herr_t (*H5E_walk_t)(int n, H5E_error_t *err_desc, void *client_data);
-typedef herr_t (*H5E_auto_t)(void *client_data);
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-__DLL__ herr_t H5Eset_auto (H5E_auto_t func, void *client_data);
-__DLL__ herr_t H5Eget_auto (H5E_auto_t *func, void **client_data);
-__DLL__ herr_t H5Eclear (void);
-__DLL__ herr_t H5Eprint (FILE *stream);
-__DLL__ herr_t H5Ewalk (H5E_direction_t direction, H5E_walk_t func,
+/* Error stack traversal callback function */
+typedef herr_t (*H5E_walk_t)(int n, H5E_error_t *err_desc, void *client_data);
+typedef herr_t (*H5E_auto_t)(void *client_data);
+
+H5_DLL herr_t H5Eset_auto (H5E_auto_t func, void *client_data);
+H5_DLL herr_t H5Eget_auto (H5E_auto_t *func, void **client_data);
+H5_DLL herr_t H5Eclear (void);
+H5_DLL herr_t H5Eprint (FILE *stream);
+H5_DLL herr_t H5Ewalk (H5E_direction_t direction, H5E_walk_t func,
 			void *client_data);
-__DLL__ herr_t H5Ewalk_cb (int n, H5E_error_t *err_desc, void *client_data);
-__DLL__ const char *H5Eget_major (H5E_major_t major_number);
-__DLL__ const char *H5Eget_minor (H5E_minor_t minor_number);
-__DLL__ herr_t H5Epush(const char *file, const char *func,
+H5_DLL herr_t H5Ewalk_cb (int n, H5E_error_t *err_desc, void *client_data);
+H5_DLL const char *H5Eget_major (H5E_major_t major_number);
+H5_DLL const char *H5Eget_minor (H5E_minor_t minor_number);
+H5_DLL herr_t H5Epush(const char *file, const char *func,
             unsigned line, H5E_major_t maj, H5E_minor_t min, const char *str);
 
 #ifdef __cplusplus

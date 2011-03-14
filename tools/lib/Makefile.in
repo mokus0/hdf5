@@ -44,6 +44,7 @@ PROGS=$(PUB_PROGS) $(TEST_PROGS)
 LIB_SRC=h5tools.c h5tools_str.c h5tools_utils.c
 LIB_OBJ=$(LIB_SRC:.c=.lo)
 PUB_LIB=
+AUX_LIB=$(LIB)
 
 TEST_SRC=talign.c
 TEST_OBJ=$(TEST_SRC:.c=.lo)

@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: tmisc.c,v 1.1.2.8 2002/06/11 15:58:20 koziol Exp $ */
+/* $Id: tmisc.c,v 1.1.2.9 2003/01/24 19:07:38 koziol Exp $ */
 
 /***********************************************************
 *
@@ -120,6 +120,9 @@ typedef struct
 #define MISC7_DSETNAME2         "Dataset2"
 #define MISC7_TYPENAME1         "Datatype1"
 #define MISC7_TYPENAME2         "Datatype2"
+
+/* Definitions for misc. test #8 */
+#define MISC8_FILE              "tmisc8.h5"
 
 /****************************************************************
 **
@@ -1015,6 +1018,34 @@ test_misc7(void)
 
 /****************************************************************
 **
+**  test_misc8(): Test that H5Fopen() does not succeed for core
+**      files, H5Fcreate() must be used to open them.
+**
+****************************************************************/
+static void
+test_misc8(void)
+{
+    hid_t fapl, fid;
+    herr_t ret;
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing core file opening\n"));
+
+    fapl = H5Pcreate(H5P_FILE_ACCESS);
+    CHECK(fapl, FAIL, "H5Pcreate");
+
+    ret=H5Pset_fapl_core(fapl, 1024, 0);
+    CHECK(ret, FAIL, "H5Pset_fapl_core");
+
+    fid = H5Fopen(MISC8_FILE, H5F_ACC_RDWR, fapl);
+    VERIFY(fid,FAIL,"H5Fopen");
+
+    ret=H5Pclose(fapl);
+    CHECK(ret, FAIL, "H5Pset_fapl_core");
+} /* end test_misc8() */
+
+/****************************************************************
+**
 **  test_misc(): Main misc. test routine.
 ** 
 ****************************************************************/
@@ -1030,7 +1061,8 @@ test_misc(void)
     test_misc4();   /* Test retrieving the fileno for various objects with H5Gget_objinfo() */
     test_misc5();   /* Test several level deep nested compound & VL datatypes */
     test_misc6();   /* Test object header continuation code */
-    test_misc7();       /* Test for sensible datatypes stored on disk */
+    test_misc7();   /* Test for sensible datatypes stored on disk */
+    test_misc8();   /* Test for opening (not creating) core files */
 
 } /* test_misc() */
 
@@ -1061,4 +1093,5 @@ cleanup_misc(void)
     remove(MISC5_FILE);
     remove(MISC6_FILE);
     remove(MISC7_FILE);
+    remove(MISC8_FILE);
 }

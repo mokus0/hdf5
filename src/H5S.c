@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5S.c,v 1.69.2.10 2002/06/19 20:19:44 koziol Exp $ */
+/* $Id: H5S.c,v 1.69.2.14 2003/01/23 22:16:20 koziol Exp $ */
 
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
 
@@ -86,6 +86,7 @@ H5S_init_interface(void)
     /* Register space conversion functions */
     if (H5S_register(H5S_SEL_POINTS, H5S_POINT_FCONV, H5S_POINT_MCONV)<0 ||
 	H5S_register(H5S_SEL_ALL, H5S_ALL_FCONV, H5S_ALL_MCONV) <0 ||
+	H5S_register(H5S_SEL_NONE, H5S_NONE_FCONV, H5S_NONE_MCONV) <0 ||
 	H5S_register(H5S_SEL_HYPERSLABS, H5S_HYPER_FCONV, H5S_HYPER_MCONV)<0) {
 	HRETURN_ERROR(H5E_DATASPACE, H5E_CANTINIT, FAIL,
 		      "unable to register one or more conversion functions");
@@ -1098,7 +1099,7 @@ H5S_get_simple_extent_dims(const H5S_t *ds, hsize_t dims[], hsize_t max_dims[])
  *-------------------------------------------------------------------------
  */
 herr_t
-H5S_modify(H5G_entry_t *ent, const H5S_t *ds)
+H5S_modify(H5G_entry_t *ent, const H5S_t *ds, hid_t dxpl_id)
 {
     FUNC_ENTER(H5S_modify, FAIL);
 
@@ -1108,7 +1109,7 @@ H5S_modify(H5G_entry_t *ent, const H5S_t *ds)
     switch (ds->extent.type) {
         case H5S_SCALAR:
         case H5S_SIMPLE:
-            if (H5O_modify(ent, H5O_SDSPACE, 0, 0, &(ds->extent.u.simple))<0) {
+            if (H5O_modify(ent, H5O_SDSPACE, 0, 0, &(ds->extent.u.simple), dxpl_id)<0) {
                 HRETURN_ERROR(H5E_DATASPACE, H5E_CANTINIT, FAIL,
                       "can't update simple data space message");
             }
@@ -1145,28 +1146,25 @@ H5S_modify(H5G_entry_t *ent, const H5S_t *ds)
  *-------------------------------------------------------------------------
  */
 H5S_t *
-H5S_read(H5G_entry_t *ent)
+H5S_read(H5G_entry_t *ent, hid_t dxpl_id)
 {
-    H5S_t		   *ds = NULL;
+    H5S_t		   *ds = NULL;          /* Dataspace to return */
+    H5S_t		   *ret_value = NULL;   /* Return value */
 
     FUNC_ENTER(H5S_read, NULL);
 
     /* check args */
     assert(ent);
 
-    if (NULL==(ds = H5FL_ALLOC(H5S_t,1))) {
-        HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL,
-		       "memory allocation failed");
-    }
+    if (NULL==(ds = H5FL_ALLOC(H5S_t,1)))
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
     
-    if (H5O_read(ent, H5O_SDSPACE, 0, &(ds->extent.u.simple)) == NULL) {
-	  HRETURN_ERROR(H5E_DATASPACE, H5E_CANTINIT, NULL,
-			"unable to load dataspace info from dataset header");
-    }
+    if (H5O_read(ent, H5O_SDSPACE, 0, &(ds->extent.u.simple), dxpl_id) == NULL)
+        HGOTO_ERROR(H5E_DATASPACE, H5E_CANTINIT, NULL, "unable to load dataspace info from dataset header");
 
     if(ds->extent.u.simple.rank != 0) {
          ds->extent.type = H5S_SIMPLE;
-     } else {
+    } else {
          ds->extent.type = H5S_SCALAR;
     }
 
@@ -1174,11 +1172,19 @@ H5S_read(H5G_entry_t *ent)
     ds->select.type=H5S_SEL_ALL;
 
     /* Allocate space for the offset and set it to zeros */
-    if (NULL==(ds->select.offset = H5FL_ARR_ALLOC(hssize_t,(hsize_t)ds->extent.u.simple.rank,1))) {
-        HRETURN_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
-    }
+    if (NULL==(ds->select.offset = H5FL_ARR_ALLOC(hssize_t,(hsize_t)ds->extent.u.simple.rank,1)))
+        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
 
-    FUNC_LEAVE(ds);
+    /* Set return value on success */
+    ret_value=ds;
+
+done:
+    if(ret_value==NULL) {
+        if(ds!=NULL)
+            H5FL_FREE(H5S_t,ds);
+    } /* end if */
+
+    FUNC_LEAVE(ret_value);
 }
 
 /*-------------------------------------------------------------------------
@@ -1506,11 +1512,11 @@ H5S_set_extent_simple (H5S_t *space, int rank, const hsize_t *dims,
  *-------------------------------------------------------------------------
  */
 H5S_conv_t *
-H5S_find (const H5S_t *mem_space, const H5S_t *file_space)
+H5S_find (const H5S_t *mem_space, const H5S_t *file_space, unsigned flags)
 {
-    size_t	i;
-    htri_t c1,c2;
-    H5S_conv_t	*path;
+    H5S_conv_t	*path;  /* Space conversion path */
+    htri_t opt;         /* Flag whether a selection is optimizable */
+    size_t	i;      /* Index variable */
     
     FUNC_ENTER (H5S_find, NULL);
 
@@ -1524,11 +1530,8 @@ H5S_find (const H5S_t *mem_space, const H5S_t *file_space)
      * We can't do conversion if the source and destination select a
      * different number of data points.
      */
-    if (H5S_get_select_npoints(mem_space) !=
-	H5S_get_select_npoints (file_space)) {
-        HRETURN_ERROR (H5E_DATASPACE, H5E_BADRANGE, NULL,
-		       "memory and file data spaces are different sizes");
-    }
+    if (H5S_get_select_npoints(mem_space) != H5S_get_select_npoints (file_space))
+        HRETURN_ERROR (H5E_DATASPACE, H5E_BADRANGE, NULL, "memory and file data spaces are different sizes");
 
     /*
      * Is this path already present in the data space conversion path table?
@@ -1536,24 +1539,41 @@ H5S_find (const H5S_t *mem_space, const H5S_t *file_space)
      */
     for (i=0; i<H5S_nconv_g; i++) {
         if (H5S_conv_g[i]->f->type==file_space->select.type &&
-            H5S_conv_g[i]->m->type==mem_space->select.type) {
+                H5S_conv_g[i]->m->type==mem_space->select.type) {
+#ifdef H5_HAVE_PARALLEL
             /*
-             * Initialize direct read/write functions
+             * Check if we can set direct MPI-IO read/write functions
              */
-            c1=H5S_select_contiguous(file_space);
-            c2=H5S_select_contiguous(mem_space);
-            if(c1==FAIL || c2==FAIL)
-                HRETURN_ERROR(H5E_DATASPACE, H5E_BADRANGE, NULL,
-                      "invalid check for contiguous dataspace ");
+            opt=H5S_mpio_opt_possible(mem_space,file_space,flags);
+            if(opt==FAIL)
+                HRETURN_ERROR(H5E_DATASPACE, H5E_BADRANGE, NULL, "invalid check for contiguous dataspace ");
 
-            if (c1==TRUE && c2==TRUE) {
-                H5S_conv_g[i]->read = H5S_all_read;
-                H5S_conv_g[i]->write = H5S_all_write;
-            }
+            /* Check if we can use the optimized parallel I/O routines */
+            if(opt==TRUE) {
+                H5S_conv_g[i]->read = H5S_mpio_spaces_read;
+                H5S_conv_g[i]->write = H5S_mpio_spaces_write;
+            } /* end if */
             else {
-                H5S_conv_g[i]->read = NULL;
-                H5S_conv_g[i]->write = NULL;
-            }
+#endif /* H5_HAVE_PARALLEL */
+                /*
+                 * Check if we can set direct "all" read/write functions
+                 */
+                opt=H5S_all_opt_possible(mem_space,file_space,flags);
+                if(opt==FAIL)
+                    HRETURN_ERROR(H5E_DATASPACE, H5E_BADRANGE, NULL, "invalid check for contiguous dataspace ");
+
+                /* Check if we can use the optimized "all" I/O routines */
+                if(opt==TRUE) {
+                    H5S_conv_g[i]->read = H5S_all_read;
+                    H5S_conv_g[i]->write = H5S_all_write;
+                } /* end if */
+                else {
+                    H5S_conv_g[i]->read = NULL;
+                    H5S_conv_g[i]->write = NULL;
+                } /* end else */
+#ifdef H5_HAVE_PARALLEL
+            } /* end else */
+#endif /* H5_HAVE_PARALLEL */
 
             HRETURN(H5S_conv_g[i]);
         }
@@ -1563,36 +1583,56 @@ H5S_find (const H5S_t *mem_space, const H5S_t *file_space)
      * The path wasn't found.  Do we have enough information to create a new
      * path?
      */
-    if (NULL==H5S_fconv_g[file_space->select.type] ||
-            NULL==H5S_mconv_g[mem_space->select.type]) {
-        HRETURN_ERROR(H5E_DATASPACE, H5E_UNSUPPORTED, NULL,
-		      "unable to convert between data space selections");
-    }
+    if (NULL==H5S_fconv_g[file_space->select.type] || NULL==H5S_mconv_g[mem_space->select.type])
+        HRETURN_ERROR(H5E_DATASPACE, H5E_UNSUPPORTED, NULL, "unable to convert between data space selections");
 
     /*
      * Create a new path.
      */
-    if (NULL==(path = H5MM_calloc(sizeof(*path)))) {
-        HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL,
-		      "memory allocation failed for data space conversion "
-		      "path");
-    }
+    if (NULL==(path = H5MM_calloc(sizeof(*path))))
+        HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for data space conversion path");
+
+    /* Initialize file & memory conversion functions */
     path->f = H5S_fconv_g[file_space->select.type];
     path->m = H5S_mconv_g[mem_space->select.type];
 
     /*
      * Initialize direct read/write functions
      */
-    c1=H5S_select_contiguous(file_space);
-    c2=H5S_select_contiguous(mem_space);
-    if(c1==FAIL || c2==FAIL)
-        HRETURN_ERROR(H5E_DATASPACE, H5E_BADRANGE, NULL,
-		      "invalid check for contiguous dataspace ");
+#ifdef H5_HAVE_PARALLEL
+    /*
+     * Check if we can set direct MPI-IO read/write functions
+     */
+    opt=H5S_mpio_opt_possible(mem_space,file_space,flags);
+    if(opt==FAIL)
+        HRETURN_ERROR(H5E_DATASPACE, H5E_BADRANGE, NULL, "invalid check for contiguous dataspace ");
 
-    if (c1==TRUE && c2==TRUE) {
-        path->read = H5S_all_read;
-        path->write = H5S_all_write;
-    }
+    /* Check if we can use the optimized parallel I/O routines */
+    if(opt==TRUE) {
+        path->read = H5S_mpio_spaces_read;
+        path->write = H5S_mpio_spaces_write;
+    } /* end if */
+    else {
+#endif /* H5_HAVE_PARALLEL */
+        /*
+         * Check if we can set direct "all" read/write functions
+         */
+        opt=H5S_all_opt_possible(mem_space,file_space,flags);
+        if(opt==FAIL)
+            HRETURN_ERROR(H5E_DATASPACE, H5E_BADRANGE, NULL, "invalid check for contiguous dataspace ");
+
+        /* Check if we can use the optimized "all" I/O routines */
+        if(opt==TRUE) {
+            path->read = H5S_all_read;
+            path->write = H5S_all_write;
+        } /* end if */
+        else {
+            path->read = NULL;
+            path->write = NULL;
+        } /* end else */
+#ifdef H5_HAVE_PARALLEL
+    } /* end else */
+#endif /* H5_HAVE_PARALLEL */
     
     /*
      * Add the new path to the table.
@@ -1601,14 +1641,11 @@ H5S_find (const H5S_t *mem_space, const H5S_t *file_space)
         size_t n = MAX(10, 2*H5S_aconv_g);
         H5S_conv_t **p = H5MM_realloc(H5S_conv_g, n*sizeof(H5S_conv_g[0]));
 
-        if (NULL==p) {
-            HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL,
-                  "memory allocation failed for data space conversion "
-                  "path table");
-        }
+        if (NULL==p)
+            HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for data space conversion path table");
         H5S_aconv_g = n;
         H5S_conv_g = p;
-    }
+    } /* end if */
     H5S_conv_g[H5S_nconv_g++] = path;
 
     FUNC_LEAVE(path);
@@ -1927,7 +1964,7 @@ H5Soffset_simple(hid_t space_id, const hssize_t *offset)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5S_debug(H5F_t *f, const void *_mesg, FILE *stream, int indent, int fwidth)
+H5S_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE *stream, int indent, int fwidth)
 {
     const H5S_t	*mesg = (const H5S_t*)_mesg;
     
@@ -1942,7 +1979,7 @@ H5S_debug(H5F_t *f, const void *_mesg, FILE *stream, int indent, int fwidth)
     case H5S_SIMPLE:
 	fprintf(stream, "%*s%-*s H5S_SIMPLE\n", indent, "", fwidth,
 		"Space class:");
-	(H5O_SDSPACE->debug)(f, &(mesg->extent.u.simple), stream,
+	(H5O_SDSPACE->debug)(f, dxpl_id, &(mesg->extent.u.simple), stream,
 			     indent+3, MAX(0, fwidth-3));
 	break;
 	

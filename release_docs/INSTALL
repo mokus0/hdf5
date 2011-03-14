@@ -42,6 +42,8 @@
 	5.4. Building
 	5.5. Testing
 	5.6. Installing
+        5.7  Building and testing with Intel compilers
+        5.8  Building and testing with PGI compilers
 
 	6. Using the Library
 
@@ -107,8 +109,8 @@
 	used to configure, build, test, and install the HDF5 library,
 	header files, and support programs.
 
-	    $ gunzip < hdf5-1.4.3.tar.gz | tar xf -
-	    $ cd hdf5-1.4.3
+	    $ gunzip < hdf5-1.4.5.tar.gz | tar xf -
+	    $ cd hdf5-1.4.5
 	    $ make check
 	    $ make install
 
@@ -145,23 +147,23 @@
 5.1. Unpacking the distribution
 	The HDF5 source code is distributed in a variety of formats which
 	can be unpacked with the following commands, each of which
-	creates an `hdf5-1.4.3' directory.
+	creates an `hdf5-1.4.5' directory.
 
 5.1.1. Non-compressed tar archive (*.tar)
 
-	    $ tar xf hdf5-1.4.3.tar
+	    $ tar xf hdf5-1.4.5.tar
 
 5.1.2. Compressed tar archive (*.tar.Z)
 
-	    $ uncompress -c < hdf5-1.4.3.tar.Z | tar xf -
+	    $ uncompress -c < hdf5-1.4.5.tar.Z | tar xf -
 
 5.1.3. Gzip'd tar archive (*.tar.gz)
 
-	    $ gunzip < hdf5-1.4.3.tar.gz | tar xf -
+	    $ gunzip < hdf5-1.4.5.tar.gz | tar xf -
 
 5.1.4. Bzip'd tar archive (*.tar.bz2)
 
-	    $ bunzip2 < hdf5-1.4.3.tar.bz2 | tar xf -
+	    $ bunzip2 < hdf5-1.4.5.tar.bz2 | tar xf -
 
 5.2. Source vs. Build Directories
 	On most systems the build can occur in a directory other than the
@@ -229,10 +231,11 @@
 
 	    $ CC=cc ./configure
 
-	A parallel version of hdf5 can be built by specifying `mpicc' as
-	the C compiler (the `--enable-parallel' flag documented below is
-	optional).  Using the `mpicc' compiler will insure that the
-	correct MPI and MPI-IO header files and libraries are used.
+	A parallel version of hdf5 can be built by specifying `mpicc'
+	as the C compiler (the `--enable-parallel' flag documented
+	below is optional in this case).  Using the `mpicc' compiler
+	will insure that the correct MPI and MPI-IO header files and
+	libraries are used.
 
 	    $ CC=/usr/local/mpi/bin/mpicc ./configure
 
@@ -246,6 +249,15 @@
 	correct flags with the CC variable:
 
 	    $ CC='cc -xarch=v9' ./configure
+
+	To configure AIX 64 bits including fortran API,
+	(Remark: need to hardset $AR to 'ar -X 64'.)
+	Serial:
+	    $ CC='xlc -q64' F9X='xlf -q64' AR='ar -X 64'\
+	    $ ./configure --enable-fortran
+	Parallel:
+	    $ CC='mpcc_r -q64' F9X='mpxlf_r -q64' AR='ar -X 64'\
+	    $ ./configure --enable-fortran
 
 	Specifying these machine architecture flags in the CFLAGS variable
 	(see below) will not work correctly.
@@ -278,13 +290,13 @@
 	interface supports parallel HDF5 while the C++ interface does
 	not.
           
-        Note:  On T3E and J90 the following files should be modified before
+        Note:  On Crays the following files should be modified before
                building the Fortran Library:
                  fortran/src/H5Dff.f90
                  fortran/src/H5Aff.f90
                  fortran/src/H5Pff.f90
                Check for "Comment if on T3E ..." comment and comment out 
-               specified lines.       
+               specified lines or use a patch fro HDF FTP server.       
 
 5.3.5. Specifying other programs
 	The build system has been tuned for use with GNU make but works
@@ -524,10 +536,78 @@
 	    ./tools/h5ls	(list file contents)
 	    ./tools/h5dump	(dump file contents)
 	    ./tools/h5repart	(repartition file families)
-	    ./tools/h5toh4	(hdf5 to hdf4 file converter)
 	    ./tools/h5debug	(low-level file debugging)
 	    ./tools/h5import	(a demo)
-            ./tools/h4toh5      (hdf4 to hdf5 file converter)
+
+5.7  Building and testing with Intel compilers
+
+
+     When Intel compilers are used (icc or ecc), you will need to 
+     modify the generated "libtool" program after configuration is finished.
+     On or around line 104 of the libtool file, there are lines which 
+     look like:
+
+          # How to pass a linker flag through the compiler.
+          wl=""
+
+      Change these lines to this:
+
+          # How to pass a linker flag through the compiler.
+          wl="-Wl,"
+
+      UPDATE: This is now done automatically by the configure script. However,
+      if you still experience a problem, you may want to check this line in
+      the libtool file and make sure that it has the correct value.
+
+    * To build the Fortran library using Intel compiler on Linux 2.4, one has to 
+          x Use -fpp -DDEC$=DEC_ -DMS$=MS_ compiler flags to disable
+            DEC and MS compiler directives in source files in fortran/src, fortran/test 
+            and fortran/examples directories.
+	    e.g., setenv F9X 'ifc -fpp -DDEC$=DEC_ -DMS$=MS_'
+	    (do not use double quotes since $ is interpreted in them.)
+
+          x If Version 6.0 of Fortran compiler is used, build fails in 
+            the fortran/test directory and then in the
+            fortran/examples directory; to proceed, edit the work.pcl files in
+            those directories to contain two lines
+
+                    work.pc
+                    ../src/work.pc 
+
+          x Do the same in fortran/examples directory
+          x Problem with work.pc files was resolved for newest version of the compiler (7.0)
+
+    * To build the Fortran Library on IA32 follow step described above, except that DEC and
+      MS compiler directives should be removed manually or use a patch from HDF FTP server.
+
+    * To build the Fortran library on IA64 use
+                   setenv CC "ecc -DIA64"
+                   setenv F9X efc
+            before running configure and see the steps described above for IA32.
+
+5.8  Building and testing with PGI compilers
+     
+     When PGI C and C++ compilers are used (pgcc or pgCC), you will need to 
+     modify the generated "libtool" program after configuration is finished.
+     On or around line 104 of the libtool file, there are lines which 
+     look like:
+
+          # How to pass a linker flag through the compiler.
+          wl=""
+
+      Change these lines to this:
+
+          # How to pass a linker flag through the compiler.
+          wl="-Wl,"
+
+      UPDATE: This is now done automatically by the configure script. However,
+      if you still experience a problem, you may want to check this line in
+      the libtool file and make sure that it has the correct value.
+
+      To build HDF5 C++ Library with pgCC (version 4.0 and later), set
+      environment variable CXX to "pgCC -tlocal"
+         setenv CXX "pgCC -tlocal"
+      before running the configure script.
 
 
 6. Using the Library

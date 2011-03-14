@@ -6,6 +6,7 @@
 # in column one with a '#'.
 #------------------------------------------------------------------------------
 
+./.autom4te.cfg             _DO_NOT_DISTRIBUTE_
 ./COPYING
 ./MANIFEST
 ./Makefile.dist
@@ -55,10 +56,12 @@
 ./config/hpux11.00
 ./config/hpux9.03
 ./config/i386-pc-cygwin32
+./config/ia64-linux-gnu
 ./config/intel-osf1
 ./config/irix5.x
 ./config/irix6.x
 ./config/linux-gnu
+./config/linux-gnuaout
 ./config/linux-gnulibc1
 ./config/linux-gnulibc2
 ./config/powerpc-ibm-aix4.x
@@ -67,9 +70,11 @@
 ./config/solaris2.x
 ./config/sv1-cray
 ./config/unicos
+./config/unicos10.0.X
 ./config/unicosmk
 ./config/unicosmk2.0.X
 ./config/unicosmk2.0.5.X
+./config/unicosmk2.0.6.X
 
 ./config/site-specific/BlankForm
 
@@ -193,6 +198,7 @@
 ./doc/html/TechNotes/ChStudy_p1.obj     _DO_NOT_DISTRIBUTE_
 ./doc/html/TechNotes/ChunkingStudy.html
 ./doc/html/TechNotes/CodeReview.html
+./doc/html/TechNotes/Daily_Test_Explained.htm
 ./doc/html/TechNotes/Dependencies
 ./doc/html/TechNotes/ExternalFiles.html
 ./doc/html/TechNotes/FreeLists.html
@@ -511,10 +517,12 @@
 ./fortran/config/hpux11.00
 ./fortran/config/hpux9.03
 ./fortran/config/i386-pc-cygwin32
+./fortran/config/ia64-linux-gnu
 ./fortran/config/intel-osf1
 ./fortran/config/irix5.x
 ./fortran/config/irix6.x
 ./fortran/config/linux-gnu
+./fortran/config/linux-gnuaout
 ./fortran/config/linux-gnulibc1
 ./fortran/config/linux-gnulibc2
 ./fortran/config/powerpc-ibm-aix4.x
@@ -523,9 +531,11 @@
 ./fortran/config/solaris2.x
 ./fortran/config/sv1-cray
 ./fortran/config/unicos
+./fortran/config/unicos10.0.X
 ./fortran/config/unicosmk
 ./fortran/config/unicosmk2.0.X
 ./fortran/config/unicosmk2.0.5.X
+./fortran/config/unicosmk2.0.6.X
 
 ./fortran/examples/Dependencies
 ./fortran/examples/Makefile.in
@@ -590,7 +600,9 @@
 ./fortran/test/fflush1.f90
 ./fortran/test/fflush2.f90
 ./fortran/test/fortranlib_test.f90
-./fortran/test/hdf5test.f90
+./fortran/test/t.c
+./fortran/test/t.h
+./fortran/test/tf.f90
 ./fortran/test/tH5A.f90
 ./fortran/test/tH5D.f90
 ./fortran/test/tH5E.f90
@@ -602,11 +614,11 @@
 ./fortran/test/tH5S.f90
 ./fortran/test/tH5Sselect.f90
 ./fortran/test/tH5T.f90
+./fortran/test/tH5VL.f90
 
 ./fortran/testpar/Dependencies
 ./fortran/testpar/Makefile.in
 ./fortran/testpar/ptesthdf5_fortran.f90
-./fortran/testpar/tcheck.f90
 ./fortran/testpar/thdf5.f90
 ./fortran/testpar/thyperslab_wr.f90
 
@@ -635,7 +647,10 @@
 ./c++/config/depend3.in
 ./c++/config/depend4.in
 ./c++/config/dependN.in
+./c++/config/hpux11.00
+./c++/config/irix6.x
 ./c++/config/linux-gnu
+./c++/config/linux-gnuaout
 ./c++/config/linux-gnulibc1
 ./c++/config/linux-gnulibc2
 ./c++/config/rs6000-ibm-aix4.x
@@ -809,6 +824,8 @@
 ./src/H5FDlog.h
 ./src/H5FDmpio.c
 ./src/H5FDmpio.h
+./src/H5FDmpiposix.c
+./src/H5FDmpiposix.h
 ./src/H5FDmulti.c
 ./src/H5FDmulti.h
 ./src/H5FDprivate.h
@@ -846,6 +863,7 @@
 ./src/H5MMpublic.h
 ./src/H5O.c
 ./src/H5Oattr.c
+./src/H5Obogus.c
 ./src/H5Ocomp.c
 ./src/H5Ocont.c
 ./src/H5Odtype.c
@@ -861,6 +879,10 @@
 ./src/H5Oshared.c
 ./src/H5Ostab.c
 ./src/H5P.c
+./src/H5Pdcpl.c
+./src/H5Pdxpl.c
+./src/H5Pfapl.c
+./src/H5Pfcpl.c
 ./src/H5Pprivate.h
 ./src/H5Ppublic.h
 ./src/H5R.c
@@ -940,6 +962,7 @@
 ./test/tarray.c
 ./test/tarrold.h5
 ./test/tattr.c
+./test/tbogus.h5
 ./test/tconfig.c
 ./test/testhdf5.c
 ./test/testhdf5.h
@@ -971,8 +994,10 @@
 ./testpar/t_file.c
 ./testpar/t_mdset.c
 ./testpar/t_mpi.c
+./testpar/t_ph5basic.c
 ./testpar/testphdf5.c
 ./testpar/testphdf5.h
+./testpar/testph5.sh.in
 
 ./tools/Dependencies
 ./tools/Makefile.in
@@ -993,7 +1018,7 @@
 ./tools/h5dump/Makefile.in
 ./tools/h5dump/h5dump.c
 ./tools/h5dump/h5dump.h
-./tools/h5dump/h5dumptst.c
+./tools/h5dump/h5dumpgentest.c
 ./tools/h5dump/testh5dump.sh
 
 ./tools/h5ls/Dependencies
@@ -1103,6 +1128,7 @@
 ./tools/testfiles/tmulti-s.h5
 ./tools/testfiles/tnestcomp-1.ddl
 ./tools/testfiles/tnestedcomp.h5
+./tools/testfiles/tnofilename.ddl
 ./tools/testfiles/tobjref.h5
 ./tools/testfiles/tobjref.ddl
 ./tools/testfiles/topaque.h5
@@ -1128,6 +1154,8 @@
 ./tools/testfiles/tvldtypes3.h5
 ./tools/testfiles/tvldtypes4.ddl
 ./tools/testfiles/tvldtypes4.h5
+./tools/testfiles/tvlstr.ddl
+./tools/testfiles/tvlstr.h5
 
 # Expected output from h5ls tests
 ./tools/testfiles/help-1.ls
@@ -1201,6 +1229,7 @@
 ./tools/testfiles/tvldtypes1.h5.xml
 ./tools/testfiles/tvldtypes2.h5.xml
 ./tools/testfiles/tvldtypes3.h5.xml
+./tools/testfiles/tvlstr.h5.xml
 
 ./windows/all.zip
 ./windows/all_withf90.zip

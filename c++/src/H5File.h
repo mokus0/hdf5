@@ -20,7 +20,7 @@
 namespace H5 {
 #endif
 
-class __DLLCPP__ H5File : public IdComponent, public CommonFG {
+class H5_DLLCPP H5File : public IdComponent, public CommonFG {
    public:
 	// Default constructor
 	H5File();

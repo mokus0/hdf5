@@ -73,7 +73,7 @@ int ReadHDF(BYTE** data ,
 	}
 
 	/* get the dimension size of the image */
-	if (H5Sget_simple_extent_dims(dspace , image_size , NULL) !=2 ) {
+	if (H5Sget_simple_extent_dims(dspace , image_size , NULL) <0 ) {
 		fprintf(stderr , "Unable to get dimension info\n");
 		return -1;
 	}

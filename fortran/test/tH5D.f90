@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -12,21 +13,24 @@
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
+!
 ! 
 !    Testing Dataset Interface functionality.
 !
 !
-!The following subroutine tests the following functionalities:
-!h5dcreate_f, h5dopen_f, h5dclose_f, h5dget_space_f, h5dget_type_f,
-!h5dread_f, and h5dwrite_f
+!    The following subroutine tests the following functionalities:
+!    h5dcreate_f, h5dopen_f, h5dclose_f, h5dget_space_f, h5dget_type_f,
+!    h5dread_f, and h5dwrite_f
 !
-        SUBROUTINE datasettest(total_error)
+        SUBROUTINE datasettest(cleanup, total_error)
         USE HDF5 ! This module contains all necessary modules 
 
           IMPLICIT NONE
+          LOGICAL, INTENT(IN) :: cleanup
           INTEGER, INTENT(OUT) :: total_error 
 
-          CHARACTER(LEN=8), PARAMETER :: filename = "dsetf.h5" ! File name
+          CHARACTER(LEN=5), PARAMETER :: filename = "dsetf" ! File name
+          CHARACTER(LEN=80) :: fix_filename 
           CHARACTER(LEN=4), PARAMETER :: dsetname = "dset"     ! Dataset name
 
           INTEGER(HID_T) :: file_id       ! File identifier 
@@ -54,16 +58,16 @@
              end do
           end do
 
-          !
-          ! Initialize FORTRAN predefined datatypes.
-          !
-!          CALL h5init_types_f(error)
-!              CALL check("h5init_types_f", error, total_error)
 
           !
           ! Create a new file using default properties.
           ! 
-          CALL h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, error)
+          CALL h5_fixname_f(filename, fix_filename, H5P_DEFAULT_F, error)
+          if (error .ne. 0) then
+              write(*,*) "Cannot modify filename"
+              stop
+          endif
+          CALL h5fcreate_f(fix_filename, H5F_ACC_TRUNC_F, file_id, error)
               CALL check("h5fcreate_f", error, total_error)
 
 
@@ -111,7 +115,7 @@
           !
           ! Open the existing file.
           !
-          CALL h5fopen_f (filename, H5F_ACC_RDWR_F, file_id, error)
+          CALL h5fopen_f (fix_filename, H5F_ACC_RDWR_F, file_id, error)
               CALL check("h5fopen_f", error, total_error)
 
           !
@@ -135,6 +139,9 @@
           !
           ! Read the dataset.
           !
+          data_dims(1) = 4
+          data_dims(2) = 6 
+
           CALL h5dread_f(dset_id, H5T_NATIVE_INTEGER, data_out, data_dims, error)
               CALL check("h5dread_f", error, total_error)
 
@@ -172,13 +179,9 @@
           !
           CALL h5fclose_f(file_id, error)
               CALL check("h5fclose_f", error, total_error)
+          if(cleanup) CALL h5_cleanup_f(filename, H5P_DEFAULT_F, error)
+              CALL check("h5_cleanup_f", error, total_error)
      
-         !
-         !Close FORTRAN predifined datatypes
-         !
-!         CALL h5close_types_f(error)
-!              CALL check("h5close_types_f",error,total_error)
-
           RETURN
         END SUBROUTINE datasettest
 
@@ -186,16 +189,18 @@
 !the following subroutine tests h5dextend_f functionality
 !
 
-        SUBROUTINE extenddsettest(total_error)
+        SUBROUTINE extenddsettest(cleanup, total_error)
         USE HDF5 ! This module contains all necessary modules 
 
           IMPLICIT NONE
+          LOGICAL, INTENT(IN)  :: cleanup
           INTEGER, INTENT(OUT) :: total_error 
 
           !
           !the dataset is stored in file "extf.h5"
           !
-          CHARACTER(LEN=7), PARAMETER :: filename = "extf.h5"
+          CHARACTER(LEN=4), PARAMETER :: filename = "extf"
+          CHARACTER(LEN=80) :: fix_filename
 
           !
           !dataset name is "ExtendibleArray"
@@ -273,7 +278,12 @@
           !
           !Create a new file using default properties.
           ! 
-          CALL h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, error)
+          CALL h5_fixname_f(filename, fix_filename, H5P_DEFAULT_F, error)
+          if (error .ne. 0) then
+              write(*,*) "Cannot modify filename"
+              stop
+          endif
+          CALL h5fcreate_f(fix_filename, H5F_ACC_TRUNC_F, file_id, error)
                CALL check("h5fcreate_f",error,total_error)
 
 
@@ -354,7 +364,7 @@
           !
           !Open the file.
           !
-          CALL h5fopen_f (filename, H5F_ACC_RDONLY_F, file_id, error)
+          CALL h5fopen_f (fix_filename, H5F_ACC_RDONLY_F, file_id, error)
               CALL check("hfopen_f",error,total_error)
 
           !
@@ -451,12 +461,8 @@
           !
           CALL h5fclose_f(file_id, error)
               CALL check("h5fclose_f",error,total_error)
-
-          !
-          ! Close FORTRAN predefined datatypes.
-          !
-!          CALL h5close_types_f(error)
-!              CALL check("h5close_types_f",error,total_error)
+          if(cleanup) CALL h5_cleanup_f(filename, H5P_DEFAULT_F, error)
+              CALL check("h5_cleanup_f", error, total_error)
 
           RETURN
         END SUBROUTINE extenddsettest 

@@ -212,11 +212,11 @@ static int ClearCode;
 static int EOFCode;
 
 /********************************************************/
-static void compress(init_bits, outfile, data, len)
-int   init_bits;
-FILE *outfile;
-byte *data;
-int   len;
+static void compress(
+int   init_bits,
+FILE *outfile,
+byte *data,
+int   len)
 {
   register long fcode;
   register int i = 0;
@@ -346,8 +346,7 @@ unsigned long masks[] = { 0x0000, 0x0001, 0x0003, 0x0007, 0x000F,
                                   0x01FF, 0x03FF, 0x07FF, 0x0FFF,
                                   0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF };
 
-static void output(code)
-int code;
+static void output(int code)
 {
   cur_accum &= masks[cur_bits];
 
@@ -405,7 +404,7 @@ int code;
 
 
 /********************************/
-static void cl_block ()             /* table clear for block compress */
+static void cl_block (void)             /* table clear for block compress */
 {
   /* Clear out the hash table */
 
@@ -418,8 +417,8 @@ static void cl_block ()             /* table clear for block compress */
 
 
 /********************************/
-static void cl_hash(hashsize)          /* reset code table */
-register count_int hashsize;
+static void cl_hash(           /* reset code table */
+register count_int hashsize)
 {
   register count_int *htab_p = htab+hashsize;
   register long i;
@@ -465,7 +464,7 @@ static size_t a_count;
 /*
  * Set up the 'byte output' routine
  */
-static void char_init()
+static void char_init(void)
 {
 	a_count = 0;
 }
@@ -479,8 +478,7 @@ static char accum[ 256 ];
  * Add a character to the end of the current packet, and if it is 254
  * characters, flush the packet to disk.
  */
-static void char_out(c)
-int c;
+static void char_out(int c)
 {
   accum[ a_count++ ] = c;
   if( a_count >= 254 ) 
@@ -490,7 +488,7 @@ int c;
 /*
  * Flush the packet to disk, and reset the accumulator
  */
-static void flush_char()
+static void flush_char(void)
 {
   if( a_count > 0 ) {
     fputc( (int)a_count, g_outfile );

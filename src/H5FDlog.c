@@ -126,7 +126,6 @@ typedef struct H5FD_log_t {
  *			either lseek() or lseek64().
  */
 /* adding for windows NT file system support. */
-/* pvn: added __MWERKS__ support. */
 
 #ifdef H5_HAVE_LSEEK64
 #   define file_offset_t	off64_t
@@ -177,7 +176,7 @@ static H5FD_t *H5FD_log_open(const char *name, unsigned flags, hid_t fapl_id,
 static herr_t H5FD_log_close(H5FD_t *_file);
 static int H5FD_log_cmp(const H5FD_t *_f1, const H5FD_t *_f2);
 static herr_t H5FD_log_query(const H5FD_t *_f1, unsigned long *flags);
-static haddr_t H5FD_log_alloc(H5FD_t *_file, H5FD_mem_t type, hsize_t size);
+static haddr_t H5FD_log_alloc(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size);
 static haddr_t H5FD_log_get_eoa(H5FD_t *_file);
 static herr_t H5FD_log_set_eoa(H5FD_t *_file, haddr_t addr);
 static haddr_t H5FD_log_get_eof(H5FD_t *_file);
@@ -185,7 +184,7 @@ static herr_t H5FD_log_read(H5FD_t *_file, H5FD_mem_t type, hid_t fapl_id, haddr
 			     hsize_t size, void *buf);
 static herr_t H5FD_log_write(H5FD_t *_file, H5FD_mem_t type, hid_t fapl_id, haddr_t addr,
 			      hsize_t size, const void *buf);
-static herr_t H5FD_log_flush(H5FD_t *_file);
+static herr_t H5FD_log_flush(H5FD_t *_file, hid_t dxpl_id);
 
 /*
  * The free list map which causes each request type to use no free lists
@@ -521,10 +520,7 @@ H5FD_log_close(H5FD_t *_file)
 
     FUNC_ENTER(H5FD_log_close, FAIL);
 
-    if (H5FD_log_flush(_file)<0)
-        HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "unable to flush file");
-
-    if (close(file->fd)<0)
+    if (HDclose(file->fd)<0)
         HRETURN_ERROR(H5E_IO, H5E_CANTCLOSEFILE, FAIL, "unable to close file");
 
     /* Dump I/O information */
@@ -583,7 +579,7 @@ H5FD_log_close(H5FD_t *_file)
         file->nread=H5MM_xfree(file->nread);
         file->flavor=H5MM_xfree(file->flavor);
         if(file->logfp!=stderr)
-            fclose(file->logfp);
+            HDfclose(file->logfp);
     } /* end if */
 
     H5MM_xfree(file);
@@ -692,7 +688,7 @@ H5FD_log_query(const H5FD_t UNUSED *_f, unsigned long *flags /* out */)
  *-------------------------------------------------------------------------
  */
 static haddr_t
-H5FD_log_alloc(H5FD_t *_file, H5FD_mem_t type, hsize_t size)
+H5FD_log_alloc(H5FD_t *_file, H5FD_mem_t type, hid_t UNUSED dxpl_id, hsize_t size)
 {
     H5FD_log_t	*file = (H5FD_log_t*)_file;
     haddr_t		addr;
@@ -1024,7 +1020,7 @@ H5FD_log_write(H5FD_t *_file, H5FD_mem_t UNUSED type, hid_t UNUSED dxpl_id, hadd
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_log_flush(H5FD_t *_file)
+H5FD_log_flush(H5FD_t *_file, hid_t UNUSED dxpl_id)
 {
     H5FD_log_t	*file = (H5FD_log_t*)_file;
 
@@ -1034,7 +1030,7 @@ H5FD_log_flush(H5FD_t *_file)
         if (-1==file_seek(file->fd, (file_offset_t)(file->eoa-1), SEEK_SET))
             HRETURN_ERROR(H5E_IO, H5E_SEEKERROR, FAIL,
 			  "unable to seek to proper position");
-        if (write(file->fd, "", 1)!=1)
+        if (HDwrite(file->fd, "", 1)!=1)
             HRETURN_ERROR(H5E_IO, H5E_WRITEERROR, FAIL, "file write failed");
         file->eof = file->eoa;
         file->pos = file->eoa;

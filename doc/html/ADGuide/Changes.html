@@ -53,7 +53,121 @@ an application synchroniaed with the HDF5 library or related software.
 
 <!-- Document API CHANGES ONLY in this file. -->
 
-<h2>Release 1.4.4 (current release) versus Release 1.4.3</h2> 
+<h2>Release 1.4.5 (current release) versus Release 1.4.4</h2> 
+<dir>
+    <h3>C Library</h3>
+    <dir>
+
+      <b>Added functions:</b>
+        <dir>
+        <table border=0>
+        <tr valign=top align=left><td>
+<pre>
+<!-- List added function(s) here.  Remove forced spaces. -->
+herr_t H5Pset_fapl_mpiposix(hid_t fapl_id, MPI_Comm comm);
+herr_t H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/);
+</pre>
+        </td></tr>
+        </table>
+        </dir>
+
+      <b>Changed functions:</b>
+        <dir>
+        <table border=0>
+        <tr valign=top align=left><td>
+        The following functions have changed behavior.
+        <dir>
+        <dl>
+        <dt><code>H5Pset_fapl_mpio</code>
+        <dt><code>H5Pget_fapl_mpio</code>
+        <dt><code>H5Fcreate</code>
+        <dt><code>H5Fopen</code>
+        <dt><code>H5Fclose</code>
+          <dd>
+    Previously, the Communicator and Info object arguments supplied
+    to H5Pset_fapl_mpio() are stored in the property with its handle
+    values.  This meant changes to the communicator or the Info object
+    after calling H5Pset_fapl_mpio would affect the how the property
+    list function.  This was also the case when H5Fopen/create operated.
+    They just stored the handle value.  This is not according to the
+    MPI-2 defined behavior of how Info objects should be handled. (MPI-2
+    defines Info objects must be parsed when called.)<br>
+    H5Pset_fapl_mpio now stores a duplicate of each of the communicator
+    and Info object.<br>
+    H5Pget_fapl_mpio returns a duplicate of its stored communicator and
+    Info object.  It is now the responsibility of the applications to free
+    those objects when done.<br>
+    H5Fcreate and H5Fopen also store a duplicate of the communicator and Info
+    object supplied by the File Access Property list.
+    H5Fclose frees the duplicates.<br>
+    (Advice to users)User applications should release the communicator and
+    Info object returned by H5Pget_fapl_mpio when they are no longer needed.
+    (end of advice).
+        </dl>
+        </dir>
+
+<!--
+<pre>
+List deleted function(s) here.  Remove forced spaces. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</pre>
+-->
+        </td><td>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        </td><td>
+<pre>
+<!-- List deleted function(s) here.  Remove forced spaces. -->&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</pre>
+        </td></tr>
+        </table>
+        </dir>
+
+      <b>Removed functions:</b>
+        <dir>
+        <table border=0>
+        <tr valign=top align=left><td>
+None
+<!--
+<pre>
+List deleted function(s) here.  Remove forced spaces. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</pre>
+-->
+        </td><td>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        </td><td>
+<pre>
+<!-- List deleted function(s) here.  Remove forced spaces. -->&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</pre>
+        </td></tr>
+        </table>
+        </dir>
+
+      There were no other public API changes in the C library for this release.
+
+    </dir>
+    <h3>Fortran90 Library</h3>
+    <dir>
+
+
+      The following missing Fortran functions were added:
+<br>
+<br>
+      <code> h5get_libversion_f, h5check_version_f, h5garbage_collect_f, h5dont_atexit_f </code>
+<br>
+      <code> h5tget_member_index_f, h5tvlen_create_f </code>
+<br>
+      <code> h5dget_storage_size_f, h5dvlen_get_max_len_f , h5dwrite_vl_f, h5dread_vl_f</code>
+<br>
+<br>
+      Only <code>integer, real</code> and
+      <code>character</code> types are supported for VL datatypes.
+
+    </dir>
+</dir>
+
+
+<!-- Document API CHANGES ONLY in this file. -->
+
+<h2>Release 1.4.4  versus Release 1.4.3</h2> 
 <dir>
     <h3>C Library</h3>
     <dir>
@@ -518,11 +632,11 @@ V1.4.0
 
 <!-- Created: Spring 1999 -->
 <!-- hhmts start -->
-Last modified:  25 June 2002 
+Last modified:  2 February 2003 
 <!-- hhmts end -->
 
 <br>
-Describes HDF5 Release 1.4.4, July 2002
+Describes HDF5 Release 1.4.5, February 2003
 
 
   </body>

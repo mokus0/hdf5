@@ -67,7 +67,7 @@ static int             interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 haddr_t
-H5MF_alloc(H5F_t *f, H5FD_mem_t type, hsize_t size)
+H5MF_alloc(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, hsize_t size)
 {
     haddr_t	ret_value=HADDR_UNDEF;
     
@@ -83,7 +83,7 @@ H5MF_alloc(H5F_t *f, H5FD_mem_t type, hsize_t size)
     }
 
     /* Allocate space from the virtual file layer */
-    if (HADDR_UNDEF==(ret_value=H5FD_alloc(f->shared->lf, type, size))) {
+    if (HADDR_UNDEF==(ret_value=H5FD_alloc(f->shared->lf, type, dxpl_id, size))) {
 	HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF,
 		      "file allocation failed");
     }
@@ -117,7 +117,7 @@ H5MF_alloc(H5F_t *f, H5FD_mem_t type, hsize_t size)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5MF_xfree(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size)
+H5MF_xfree(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size)
 {
     FUNC_ENTER(H5MF_xfree, FAIL);
 
@@ -132,7 +132,7 @@ H5MF_xfree(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size)
     addr += f->shared->base_addr;
 
     /* Allow virtual file layer to free block */
-    if (H5FD_free(f->shared->lf, type, addr, size)<0) {
+    if (H5FD_free(f->shared->lf, type, dxpl_id, addr, size)<0) {
 #ifdef H5MF_DEBUG
 	if (H5DEBUG(MF)) {
 	    fprintf(H5DEBUG(MF),
@@ -182,7 +182,7 @@ H5MF_xfree(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size)
  *-------------------------------------------------------------------------
  */
 haddr_t
-H5MF_realloc(H5F_t *f, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
+H5MF_realloc(H5F_t *f, H5FD_mem_t type, hid_t dxpl_id, haddr_t old_addr, hsize_t old_size,
 	     hsize_t new_size)
 {
     haddr_t	ret_value=HADDR_UNDEF;
@@ -193,7 +193,7 @@ H5MF_realloc(H5F_t *f, H5FD_mem_t type, haddr_t old_addr, hsize_t old_size,
     old_addr += f->shared->base_addr;
 
     /* Reallocate memory from the virtual file layer */
-    ret_value = H5FD_realloc(f->shared->lf, type, old_addr, old_size,
+    ret_value = H5FD_realloc(f->shared->lf, type, dxpl_id, old_addr, old_size,
 			     new_size);
     if (HADDR_UNDEF==ret_value) {
 	HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF,

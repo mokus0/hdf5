@@ -131,13 +131,13 @@ static void do_cleanupfile(iotype iot, char *fname);
 
 /* GPFS-specific functions */
 #ifdef H5_HAVE_GPFS
-static void access_range(int handle, off_t start, off_t length, int is_write);
-static void free_range(int handle, off_t start, off_t length);
-static void clear_file_cache(int handle);
-static void cancel_hints(int handle);
-static void start_data_shipping(int handle, int num_insts);
-static void stop_data_shipping(int handle);
-static void invalidate_file_cache(const char *filename);
+static void gpfs_access_range(int handle, off_t start, off_t length, int is_write);
+static void gpfs_free_range(int handle, off_t start, off_t length);
+static void gpfs_clear_file_cache(int handle);
+static void gpfs_cancel_hints(int handle);
+static void gpfs_start_data_shipping(int handle, int num_insts);
+static void gpfs_stop_data_shipping(int handle);
+static void gpfs_invalidate_file_cache(const char *filename);
 #endif /* H5_HAVE_GPFS */
 
 /*
@@ -278,6 +278,11 @@ do_pio(parameters param)
         sprintf(base_name, "#pio_tmp_%lu", nf);
         pio_create_filename(iot, base_name, fname, sizeof(fname));
 
+#ifdef H5_HAVE_GPFS
+        if (param.h5_use_gpfs)
+            gpfs_invalidate_file_cache(fname);
+#endif  /* H5_HAVE_GPFS */
+
 	/* Need barrier to make sure everyone starts at the same time */
         MPI_Barrier(pio_comm_g);
 
@@ -285,6 +290,19 @@ do_pio(parameters param)
         hrc = do_fopen(&param, fname, &fd, PIO_CREATE | PIO_WRITE);
 
         VRFY((hrc == SUCCESS), "do_fopen failed");
+
+#ifdef H5_HAVE_GPFS
+        if (param.h5_use_gpfs)
+            /* GPFS start data shipping call */
+            switch (iot) {
+            case POSIXIO:
+                gpfs_start_data_shipping(fd.posixfd, param.num_procs);
+                break;
+            case MPIO:
+            case PHDF5:
+                break;
+            }
+#endif  /* H5_HAVE_GPFS */
 
         set_time(res.timers, HDF5_FINE_WRITE_FIXED_DIMS, START);
         hrc = do_write(&res, &fd, &param, ndsets, nbytes, buf_size, buffer);
@@ -329,6 +347,20 @@ do_pio(parameters param)
 	/* Need barrier to make sure everyone is done with the file */
 	/* before it may be removed by do_cleanupfile */
         MPI_Barrier(pio_comm_g);
+
+#ifdef H5_HAVE_GPFS
+        if (param.h5_use_gpfs)
+            /* GPFS stop data shipping call */
+            switch (iot) {
+            case POSIXIO:
+                gpfs_stop_data_shipping(fd.posixfd);
+                break;
+            case MPIO:
+            case PHDF5:
+                break;
+            }
+#endif  /* H5_HAVE_GPFS */
+
         do_cleanupfile(iot, fname);
     }
 
@@ -495,7 +527,7 @@ do_write(results *res, file_descr *fd, parameters *parms, long ndsets,
     unsigned char *buf_p;       /* Current buffer pointer               */
 
     /* POSIX variables */
-    off_t       file_offset;    /* Ffile offset of the next transfer    */
+    off_t       file_offset;    /* File offset of the next transfer    */
     off_t       posix_file_offset;    /* Base file offset of the next transfer      */
 
     /* MPI variables */
@@ -972,7 +1004,7 @@ done:
  */
 static herr_t
 do_read(results *res, file_descr *fd, parameters *parms, long ndsets,
-         off_t nbytes, size_t buf_size, void *buffer)
+         off_t nbytes, size_t buf_size, void *buffer /*out*/)
 {
     int         ret_code = SUCCESS;
     int         rc;             /*routine return code                   */
@@ -987,7 +1019,7 @@ do_read(results *res, file_descr *fd, parameters *parms, long ndsets,
     unsigned char *buf_p;       /* Current buffer pointer               */
 
     /* POSIX variables */
-    off_t       file_offset;    /* Ffile offset of the next transfer    */
+    off_t       file_offset;    /* File offset of the next transfer    */
     off_t       posix_file_offset;    /* Base file offset of the next transfer      */
 
     /* MPI variables */
@@ -1518,12 +1550,23 @@ do_fopen(parameters *param, char *fname, file_descr *fd /*out*/, int flags)
             GOTOERROR(FAIL);
         }
 
-        /* Set the file driver to the MPI-I/O driver */
-        hrc = H5Pset_fapl_mpio(acc_tpl, pio_comm_g, h5_io_info_g);     
-        if (hrc < 0) {
-            fprintf(stderr, "HDF5 Property List Set failed\n");
-            GOTOERROR(FAIL);
-        }
+        /* Use the appropriate VFL driver */
+        if(param->h5_use_mpi_posix) {
+            /* Set the file driver to the MPI-posix driver */
+            hrc = H5Pset_fapl_mpiposix(acc_tpl, pio_comm_g);     
+            if (hrc < 0) {
+                fprintf(stderr, "HDF5 Property List Set failed\n");
+                GOTOERROR(FAIL);
+            }
+        } /* end if */
+        else {
+            /* Set the file driver to the MPI-I/O driver */
+            hrc = H5Pset_fapl_mpio(acc_tpl, pio_comm_g, h5_io_info_g);     
+            if (hrc < 0) {
+                fprintf(stderr, "HDF5 Property List Set failed\n");
+                GOTOERROR(FAIL);
+            }
+        } /* end else */
 
         /* Set the alignment of objects in HDF5 file */
         hrc = H5Pset_alignment(acc_tpl, param->h5_thresh, param->h5_align);
@@ -1648,7 +1691,7 @@ do_cleanupfile(iotype iot, char *fname)
     /* Descriptions here come from the IBM GPFS Manual */
 
 /*
- * Function:    access_range
+ * Function:    gpfs_access_range
  * Purpose:     Declares an access range within a file for an
  *              application.
  *
@@ -1676,7 +1719,7 @@ do_cleanupfile(iotype iot, char *fname)
  * Modifications:
  */
 static void
-access_range(int handle, off_t start, off_t length, int is_write)
+gpfs_access_range(int handle, off_t start, off_t length, int is_write)
 {
     struct {
         gpfsFcntlHeader_t hdr;
@@ -1686,22 +1729,22 @@ access_range(int handle, off_t start, off_t length, int is_write)
     access_range.hdr.totalLength = sizeof(access_range);
     access_range.hdr.fcntlVersion = GPFS_FCNTL_CURRENT_VERSION;
     access_range.hdr.fcntlReserved = 0;
-    access_range.start.structLen = sizeof(gpfsAccessRange_t);
-    access_range.start.structType = GPFS_ACCESS_RANGE;
-    access_range.start.start = start;
-    access_range.start.length = length;
-    access_range.start.isWrite = is_write;
+    access_range.access.structLen = sizeof(gpfsAccessRange_t);
+    access_range.access.structType = GPFS_ACCESS_RANGE;
+    access_range.access.start = start;
+    access_range.access.length = length;
+    access_range.access.isWrite = is_write;
 
     if (gpfs_fcntl(handle, &access_range) != 0) {
         fprintf(stderr,
                 "gpfs_fcntl DS start directive failed. errno=%d errorOffset=%d\n",
-                errno, ds_start.hdr.errorOffset);
+                errno, access_range.hdr.errorOffset);
         exit(EXIT_FAILURE);
     }
 }
 
 /*
- * Function:    free_range
+ * Function:    gpfs_free_range
  * Purpose:     Undeclares an access range within a file for an
  *              application.
  *
@@ -1725,7 +1768,7 @@ access_range(int handle, off_t start, off_t length, int is_write)
  * Modifications:
  */
 static void
-free_range(int handle, off_t start, off_t length)
+gpfs_free_range(int handle, off_t start, off_t length)
 {
     struct {
         gpfsFcntlHeader_t hdr;
@@ -1750,7 +1793,7 @@ free_range(int handle, off_t start, off_t length)
 }
 
 /*
- * Function:    clear_file_cache
+ * Function:    gpfs_clear_file_cache
  * Purpose:     Indicates file access in the near future is not expected.
  *
  *              The application does not expect to make any further
@@ -1769,7 +1812,7 @@ free_range(int handle, off_t start, off_t length)
  * Modifications:
  */
 static void
-clear_file_cache(int handle)
+gpfs_clear_file_cache(int handle)
 {
     struct {
         gpfsFcntlHeader_t hdr;
@@ -1779,8 +1822,8 @@ clear_file_cache(int handle)
     clear_cache.hdr.totalLength = sizeof(clear_cache);
     clear_cache.hdr.fcntlVersion = GPFS_FCNTL_CURRENT_VERSION;
     clear_cache.hdr.fcntlReserved = 0;
-    clear_cache.start.structLen = sizeof(gpfsClearFileCache_t);
-    clear_cache.start.structType = GPFS_CLEAR_FILE_CACHE;
+    clear_cache.clear.structLen = sizeof(gpfsClearFileCache_t);
+    clear_cache.clear.structType = GPFS_CLEAR_FILE_CACHE;
 
     if (gpfs_fcntl(handle, &clear_cache) != 0) {
         fprintf(stderr,
@@ -1791,7 +1834,7 @@ clear_file_cache(int handle)
 }
 
 /*
- * Function:    cancel_hints
+ * Function:    gpfs_cancel_hints
  * Purpose:     Indicates to remove any hints against the open file
  *              handle.
  *
@@ -1815,7 +1858,7 @@ clear_file_cache(int handle)
  * Modifications:
  */
 static void
-cancel_hints(int handle)
+gpfs_cancel_hints(int handle)
 {
     struct {
         gpfsFcntlHeader_t hdr;
@@ -1825,19 +1868,19 @@ cancel_hints(int handle)
     cancel_hints.hdr.totalLength = sizeof(cancel_hints);
     cancel_hints.hdr.fcntlVersion = GPFS_FCNTL_CURRENT_VERSION;
     cancel_hints.hdr.fcntlReserved = 0;
-    cancel_hints.start.structLen = sizeof(gpfsCancelHints_t);
-    cancel_hints.start.structType = GPFS_CANCEL_HINTS;
+    cancel_hints.cancel.structLen = sizeof(gpfsCancelHints_t);
+    cancel_hints.cancel.structType = GPFS_CANCEL_HINTS;
 
     if (gpfs_fcntl(handle, &cancel_hints) != 0) {
         fprintf(stderr,
                 "gpfs_fcntl cancel hints directive failed. errno=%d errorOffset=%d\n",
-                errno, ds_start.hdr.errorOffset);
+                errno, cancel_hints.hdr.errorOffset);
         exit(EXIT_FAILURE);
     }
 }
 
 /*
- * Function:    start_data_shipping
+ * Function:    gpfs_start_data_shipping
  * Purpose:     Start up data shipping. The second parameter is the total
  *              number of open instances on all nodes that will be
  *              operating on the file. Must be called for every such
@@ -1847,7 +1890,7 @@ cancel_hints(int handle)
  * Modifications:
  */
 static void
-start_data_shipping(int handle, int num_insts)
+gpfs_start_data_shipping(int handle, int num_insts)
 {
     struct {
         gpfsFcntlHeader_t hdr;
@@ -1871,15 +1914,15 @@ start_data_shipping(int handle, int num_insts)
 }
 
 /*
- * Function:    stop_data_shipping
+ * Function:    gpfs_stop_data_shipping
  * Purpose:     Shut down data shipping. Must be called for every handle
- *              for which start_data_shipping was called.
+ *              for which gpfs_start_data_shipping was called.
  * Return:      Nothing
  * Programmer:  Bill Wendling, 28. May 2002
  * Modifications:
  */
 static void
-stop_data_shipping(int handle)
+gpfs_stop_data_shipping(int handle)
 {
     struct {
         gpfsFcntlHeader_t hdr;
@@ -1899,7 +1942,7 @@ stop_data_shipping(int handle)
 }
 
 /*
- * Function:    invalidate_file_cache
+ * Function:    gpfs_invalidate_file_cache
  * Purpose:     Invalidate all cached data held on behalf of a file on
  *              this node.
  * Return:      Nothing
@@ -1907,7 +1950,7 @@ stop_data_shipping(int handle)
  * Modifications:
  */
 static void
-invalidate_file_cache(const char *filename)
+gpfs_invalidate_file_cache(const char *filename)
 {
     int handle;
     struct {
@@ -1946,56 +1989,6 @@ invalidate_file_cache(const char *filename)
         exit(1);
     }
 }
-
-#else
-
-/* turn the stubs off since some compilers are warning they are not used */
-#if 0
-/* H5_HAVE_GPFS isn't defined...stub functions */
-
-static void
-access_range(int UNUSED handle, off_t UNUSED start, off_t UNUSED length, int UNUSED is_write)
-{
-    return;
-}
-
-static void
-free_range(int UNUSED handle, off_t UNUSED start, off_t UNUSED length)
-{
-    return;
-}
-
-static void
-clear_file_cache(int UNUSED handle)
-{
-    return;
-}
-
-static void
-cancel_hints(int UNUSED handle)
-{
-    return;
-}
-
-static void
-start_data_shipping(int UNUSED handle, int UNUSED num_insts)
-{
-    return;
-}
-
-static void
-stop_data_shipping(int UNUSED handle)
-{
-    return;
-}
-
-static void
-invalidate_file_cache(const char UNUSED *filename)
-{
-    return;
-}
-
-#endif  /* 0 */
 
 #endif  /* H5_HAVE_GPFS */
 

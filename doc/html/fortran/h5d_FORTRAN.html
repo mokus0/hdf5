@@ -200,7 +200,8 @@ FORTRAN Dataset API -- h5d
 
 
 <dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dread_f</strong>
-    (for all datatypes except object and dataset region references)
+    (for all datatypes except variable-length data and 
+    object and dataset region references)
 <pre>
 
           SUBROUTINE h5dread_f(dset_id, mem_type_id, buf, dims, hdferr, &
@@ -235,7 +236,9 @@ FORTRAN Dataset API -- h5d
 </pre>
 
 
+<a name="h5dread_f_ref">
 <p>&nbsp;
+</a>
 
 
 <dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dread_f</strong>
@@ -275,6 +278,50 @@ FORTRAN Dataset API -- h5d
 </pre>
 
 
+<a name="h5dread_f_vl">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dread_vl_f</strong>
+    (for variable length datatypes)
+<pre>
+
+          SUBROUTINE h5dread_vl_f(dset_id, mem_type_id, buf, dims, len, hdferr, &
+                                mem_space_id, file_space_id, xfer_prp)
+
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: dset_id   ! Dataset identifier
+            INTEGER(HID_T), INTENT(IN) :: mem_type_id ! Memory datatype identifier
+            DIMENSION(2), INTEGER(HSIZE_T), INTENT(IN)  :: dims 
+                                                ! Array to hold dimensions of buffer buf 
+                                                ! First element is the maximum size of the
+                                                ! variable lenght element; second element
+                                                ! is a number of varaible-length elements 
+            TYPE, DIMENSION(dims(1), dims(2)), INTENT(INTOUT) :: buf
+                                                ! Data buffer of rank 2; each columns stores 
+                                                ! element of variable length type; number
+                                                ! of columns is a number of variable length 
+                                                ! elements to read
+                                                ! TYPE may be INTEGER, REAL or CHARACTER 
+            INTEGER(SIZE_T), INTENT(IN), DIMENSION(*) :: len ! Array to store the length of each
+                                                             element
+            INTEGER, INTENT(OUT) :: hdferr      ! Error code 
+                                                ! 0 on success and -1 on failure
+            INTEGER(HID_T), OPTIONAL, INTENT(IN) :: mem_space_id 
+                                                ! Memory dataspace identfier 
+                                                ! Default value is H5S_ALL_F
+            INTEGER(HID_T), OPTIONAL, INTENT(IN) :: file_space_id 
+                                                ! File dataspace identfier 
+                                                ! Default value is H5S_ALL_F
+            INTEGER(HID_T), OPTIONAL, INTENT(IN) :: xfer_prp 
+                                                ! Transfer property list identifier 
+                                                ! Default value is H5P_DEFAULT_F 
+            
+          END SUBROUTINE h5dread_vl_f
+</pre>
+
+
 <p>&nbsp;
 <p>&nbsp;
 <hr>
@@ -285,7 +332,8 @@ FORTRAN Dataset API -- h5d
 
 
 <dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dwrite_f</strong>
-    (for all datatypes except object and dataset region references)
+    (for all datatypes except variable-length data and 
+    object and dataset region references)
 <pre>
 
           SUBROUTINE h5dwrite_f(dset_id, mem_type_id, buf, dims, hdferr, &
@@ -320,7 +368,9 @@ FORTRAN Dataset API -- h5d
 </pre>
 
 
+<a name="h5dwrite_f_ref">
 <p>&nbsp;
+</a>
 
 
 <dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dwrite_f</strong>
@@ -360,6 +410,96 @@ FORTRAN Dataset API -- h5d
 </pre>
 
 
+
+<a name="h5dwrite_f_vl">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dwrite_vl_f</strong>
+    (for variable length datatypes)
+<pre>
+
+          SUBROUTINE h5dwrite_vl_f(dset_id, mem_type_id, buf, dims, len, hdferr, &
+                                mem_space_id, file_space_id, xfer_prp)
+
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: dset_id   ! Dataset identifier
+            INTEGER(HID_T), INTENT(IN) :: mem_type_id ! Memory datatype identifier
+            DIMENSION(2), INTEGER(HSIZE_T), INTENT(IN)  :: dims 
+                                                ! Array to hold dimensions of buffer buf 
+                                                ! First element is the maximum size of the
+                                                ! variable lenght element; second element
+                                                ! is a number of varaible-length elements 
+            TYPE, DIMENSION(dims(1), dims(2)), INTENT(INT) :: buf
+                                                ! Data buffer of rank 2; each column contains
+                                                ! element of variable length type; number
+                                                ! of columns is a number of varaible length 
+                                                ! elements to write
+                                                ! TYPE may be INTEGER, REAL or CHARACTER 
+            INTEGER(SIZE_T), INTENT(IN), DIMENSION(*) :: len ! Array to store the legth of each
+                                                             element
+            INTEGER, INTENT(OUT) :: hdferr      ! Error code 
+                                                ! 0 on success and -1 on failure
+            INTEGER(HID_T), OPTIONAL, INTENT(IN) :: mem_space_id 
+                                                ! Memory dataspace identfier 
+                                                ! Default value is H5S_ALL_F
+            INTEGER(HID_T), OPTIONAL, INTENT(IN) :: file_space_id 
+                                                ! File dataspace identfier 
+                                                ! Default value is H5S_ALL_F
+            INTEGER(HID_T), OPTIONAL, INTENT(IN) :: xfer_prp 
+                                                ! Transfer property list identifier 
+                                                ! Default value is H5P_DEFAULT_F 
+            
+          END SUBROUTINE h5dwrite_vl_f
+</pre>
+
+
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5dget_storage_size_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dget_storage_size_f</strong>
+<pre>
+          SUBROUTINE h5dget_storage_size_f(dset_id, size, hdferr)
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: dset_id  ! Dataset identifier  
+            INTEGER(HSIZE_T), INTENT(OUT)  :: size ! Amount of storage required for dataset
+            INTEGER, INTENT(OUT) :: hdferr         ! Error code  
+                                                   ! 0 on success and -1 on failure
+          END SUBROUTINE h5dget_storage_size_f
+</pre>
+
+
+<p>&nbsp;
+<p>&nbsp;
+<hr>
+<p>&nbsp;
+<a name="h5dvlen_get_max_len_f">
+<p>&nbsp;
+</a>
+
+
+<dt><strong>FORTRAN interface:</strong> &nbsp <strong>h5dvlen_get_max_len_f</strong>
+<pre>
+          SUBROUTINE h5dvlen_get_max_len_f(dset_id, size, hdferr)
+            IMPLICIT NONE
+            INTEGER(HID_T), INTENT(IN) :: dset_id  ! Dataset identifier  
+            INTEGER(HID_T), INTENT(IN) :: type_id  ! Datatype identifier  
+            INTEGER(HID_T), INTENT(IN) :: space_id ! Dataspace identifier  
+            
+            INTEGER(SIZE_T), INTENT(OUT)  :: elem_len ! Maximum length of the element
+            INTEGER, INTENT(OUT) :: hdferr         ! Error code  
+                                                   ! 0 on success and -1 on failure
+          END SUBROUTINE h5dvlen_get_max_len_f
+</pre>
+
+
 </dl>
 
 <p>&nbsp;
@@ -372,9 +512,9 @@ FORTRAN Dataset API -- h5d
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 </address>
 
-Last modified:  7 May 2002
+Last modified:  30 January 2003
 <br>
-Describes HDF5 Release 1.4.4, July 2002
+Describes HDF5 Release 1.4.5, February 2003
 
 </body>
 </html>

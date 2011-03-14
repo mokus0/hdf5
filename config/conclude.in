@@ -21,7 +21,7 @@ TAGS: $(LIB_SRC)
 ## Runs each test in order, passing $(TEST_FLAGS) to the program.
 ## Since tests are done in a shell loop, "make -i" does apply inside it.
 ## Set HDF5_Make_Ignore to a non-blank string to ignore errors inside the loop.
-tests: $(TEST_PROGS) $(TEST_PROGS_PARA) $(LIB)
+tests: $(TEST_PROGS) $(TEST_PROGS_PARA) $(TEST_SCRIPTS) $(LIB)
 check test _test: tests
 	@for test in $(TEST_PROGS) dummy; do                                  \
 	   if test $$test != dummy; then				      \
@@ -75,7 +75,7 @@ $(bindir):
 	$(top_srcdir)/bin/mkdirs $@
 
 ## Install the library, the public header files, and public programs.
-install: $(PUB_LIB) $(PUB_HDR) $(PUB_PROGS) $(libdir) $(includedir) $(bindir)
+install: $(AUX_LIB) $(PUB_LIB) $(PUB_HDR) $(PUB_PROGS) $(libdir) $(includedir) $(bindir)
 	@for f in X $(PUB_LIB); do					      \
 	   if test $$f != X; then					      \
 	      ($(LT_INSTALL_LIB) $$f $(libdir)/. || exit 1);		      \

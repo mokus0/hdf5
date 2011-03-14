@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: testphdf5.h,v 1.15.2.8 2002/06/19 16:08:25 koziol Exp $ */
+/* $Id: testphdf5.h,v 1.15.2.12 2003/02/18 22:46:32 slu Exp $ */
 
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
@@ -86,6 +86,7 @@
 #define DATASETNAME1	"Data1"
 #define DATASETNAME2	"Data2"
 #define DATASETNAME3	"Data3"
+#define DATASETNAME4	"Data4"
 /* hyperslab layout styles */
 #define BYROW		1	/* divide into slabs of rows */
 #define BYCOL		2	/* divide into blocks of columns */
@@ -98,6 +99,7 @@
 #define FACC_MPIO	0x1	/* MPIO */
 #define FACC_SPLIT	0x2	/* Split File */
 #define FACC_MULTI	0x4	/* Multi File */
+#define FACC_MPIPOSIX   0x8	/* MPIPOSIX */
 
 /* dataset data type.  Int's can be easily octo dumped. */
 typedef int DATATYPE;
@@ -116,7 +118,10 @@ hid_t create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type );
 void multiple_dset_write(char *filename, int ndatasets);
 void multiple_group_write(char *filename, int ngroups);
 void multiple_group_read(char *filename, int ngroups);
+void collective_group_write(char *filename, int ngroups);
+void independent_group_read(char *filename, int ngroups);
 void test_split_comm_access(char *filename);
+void test_comm_info_delete(void);
 void dataset_writeInd(char *filename);
 void dataset_writeAll(char *filename);
 void extend_writeInd(char *filename);

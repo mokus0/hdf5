@@ -46,7 +46,6 @@
 typedef struct H5G_node_t {
     H5AC_info_t cache_info; /* Information for H5AC cache functions, _must_ be */
                             /* first field in structure */
-    hbool_t     dirty;                  /*has cache been modified?           */
     int         nsyms;                  /*number of symbols                  */
     H5G_entry_t *entry;                 /*array of symbol table entries      */
 } H5G_node_t;
@@ -124,29 +123,29 @@ typedef struct H5G_bt_ud2_t {
 /*
  * This is the class identifier to give to the B-tree functions.
  */
-__DLLVAR__ H5B_class_t H5B_SNODE[1];
+H5_DLLVAR H5B_class_t H5B_SNODE[1];
 
 /* The cache subclass */
-__DLLVAR__ const H5AC_class_t H5AC_SNODE[1];
+H5_DLLVAR const H5AC_class_t H5AC_SNODE[1];
 
 /*
  * Functions that understand symbol tables but not names.  The
  * functions that understand names are exported to the rest of
  * the library and appear in H5Gprivate.h.
  */
-__DLL__ herr_t H5G_stab_create(H5F_t *f, size_t size_hint,
+H5_DLL herr_t H5G_stab_create(H5F_t *f, hid_t dxpl_id, size_t size_hint,
 			       H5G_entry_t *ent/*out*/);
-__DLL__ herr_t H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
-			     H5G_entry_t *obj_ent/*out*/);
-__DLL__ herr_t H5G_stab_insert(H5G_entry_t *grp_ent, const char *name,
-			       H5G_entry_t *obj_ent);
-__DLL__ herr_t H5G_stab_remove(H5G_entry_t *grp_ent, const char *name);
+H5_DLL herr_t H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
+			     H5G_entry_t *obj_ent/*out*/, hid_t dxpl_id);
+H5_DLL herr_t H5G_stab_insert(H5G_entry_t *grp_ent, const char *name,
+			       H5G_entry_t *obj_ent, hid_t dxpl_id);
+H5_DLL herr_t H5G_stab_remove(H5G_entry_t *grp_ent, const char *name, hid_t dxpl_id);
 
 /*
  * Functions that understand symbol table entries.
  */
-__DLL__ herr_t H5G_ent_decode_vec(H5F_t *f, const uint8_t **pp,
+H5_DLL herr_t H5G_ent_decode_vec(H5F_t *f, const uint8_t **pp,
 				  H5G_entry_t *ent, int n);
-__DLL__ herr_t H5G_ent_encode_vec(H5F_t *f, uint8_t **pp,
+H5_DLL herr_t H5G_ent_encode_vec(H5F_t *f, uint8_t **pp,
 				  const H5G_entry_t *ent, int n);
 #endif

@@ -109,14 +109,17 @@ facilitate moving easily between them.</i>
 <tr><td valign=top>
 <ul>
     <li><a href="#Library-Open">h5open_f</a>
-</ul>
-</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
-<ul>
     <li><a href="#Library-Close">h5close_f</a>
 </ul>
 </td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
 <ul>
-    &nbsp;
+    <li><a href="#Library-Version">h5get_libversion_f</a>
+    <li><a href="#Library-VersCheck">h5check_version_f</a>
+</ul>
+</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td valign=top>
+<ul>
+    <li><a href="#Library-DontAtExit">h5dont_atexit_f</a>
+    <li><a href="#Library-GarbageCollect">h5garbage_collect_f</a>
 </ul>
 </td></tr>
 </table>
@@ -210,11 +213,9 @@ facilitate moving easily between them.</i>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
-<!--
 <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5_FORTRAN.html#h5xxx_f" 
+    <dd><a href="fortran/h5_FORTRAN.html#h5garbage_collect_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
--->
         <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
@@ -250,11 +251,9 @@ facilitate moving easily between them.</i>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
-<!--
 <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5_FORTRAN.html#h5xxx_f" 
+    <dd><a href="fortran/h5_FORTRAN.html#h5dont_atexit_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
--->
         <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
@@ -288,11 +287,9 @@ facilitate moving easily between them.</i>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
-<!--
 <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5_FORTRAN.html#h5xxx_f" 
+    <dd><a href="fortran/h5_FORTRAN.html#h5get_libversion_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
--->
         <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
@@ -387,11 +384,9 @@ facilitate moving easily between them.</i>
 <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful.
         Upon failure, this function causes the application to abort.
-<!--
 <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5_FORTRAN.html#h5xxx_f" 
+    <dd><a href="fortran/h5_FORTRAN.html#h5check_version_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
--->
         <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
@@ -439,10 +434,10 @@ H5&nbsp;&nbsp;
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 
 <br>
-Last modified:  24 July 2001
+Last modified:  17 December 2002
 
 <br>
-Describes HDF5 Release 1.4.4, July 2002
+Describes HDF5 Release 1.4.5, February 2003
 
 
 </body>

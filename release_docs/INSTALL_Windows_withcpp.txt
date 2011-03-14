@@ -19,7 +19,7 @@ Preconditions
             C:\                         (any drive of your choice)
            MyHDFstuff\                  (any folder name)
 
-    4. Download the hdf5-1.4.3 distribution archive and use WinZip to 
+    4. Download the hdf5-1.4.5 distribution archive and use WinZip to 
        extract the hdf5 package into C:\MyHDFstuff.  This creates a 
        directory called 'hdf5xxx' under MyHDFstuff which contains 
        several files and directories.  Rename "hdf5xxx" to "hdf5". 

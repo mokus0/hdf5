@@ -38,7 +38,7 @@
 
       ! Do not forget to change the following line when new predefined 
       ! integer data types are added
-      INTEGER, PARAMETER :: INTEGER_TYPES_LEN = 16
+      INTEGER, PARAMETER :: INTEGER_TYPES_LEN = 17
 
       INTEGER(HID_T) H5T_NATIVE_INTEGER, &
                      H5T_NATIVE_REAL, &
@@ -65,7 +65,8 @@
                      H5T_STD_U32BE,   &
                      H5T_STD_U32LE,   &
                      H5T_STD_U64BE,   &
-                     H5T_STD_U64LE
+                     H5T_STD_U64LE,   &
+                     H5T_STRING
 
 
       INTEGER(HID_T), DIMENSION(PREDEF_TYPES_LEN) :: predef_types
@@ -99,6 +100,7 @@
       EQUIVALENCE (integer_types(14), H5T_STD_U32LE)
       EQUIVALENCE (integer_types(15), H5T_STD_U64BE)
       EQUIVALENCE (integer_types(16), H5T_STD_U64LE)
+      EQUIVALENCE (integer_types(17), H5T_STRING)
 
 
 !      COMMON /PREDEFINED_TYPES/ H5T_NATIVE_INTEGER, &

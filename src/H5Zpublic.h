@@ -40,6 +40,10 @@ typedef int H5Z_filter_t;
 #define H5Z_FLAG_INVMASK	0xff00	/*invocation flag mask		*/
 #define H5Z_FLAG_REVERSE	0x0100	/*reverse direction; read	*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * A filter gets definition flags and invocation flags (defined above), the
  * client data array and size defined when the filter was added to the
@@ -59,11 +63,7 @@ typedef size_t (*H5Z_func_t)(unsigned int flags, size_t cd_nelmts,
 			     const unsigned int cd_values[], size_t nbytes,
 			     size_t *buf_size, void **buf);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-__DLL__ herr_t H5Zregister(H5Z_filter_t id, const char *comment,
+H5_DLL herr_t H5Zregister(H5Z_filter_t id, const char *comment,
 			   H5Z_func_t filter);
 
 size_t H5Z_filter_deflate(unsigned flags, size_t cd_nelmts,

@@ -378,7 +378,7 @@ test_compression(hid_t file)
     const hsize_t	hs_size[2] = {4, 50};
     hsize_t		i, j, n;
     void		*tconv_buf = NULL;
-#if !(defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ))
+#ifndef H5_HAVE_COMPRESSION
     const char		*not_supported;
 
     not_supported = "    Deflate compression is not supported.\n"
@@ -406,7 +406,7 @@ test_compression(hid_t file)
     /* Create the dataset */
     if ((dataset = H5Dcreate(file, DSET_COMPRESS_NAME, H5T_NATIVE_INT, space,
 			     dc))<0) goto error;
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();
@@ -433,7 +433,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();
@@ -455,7 +455,7 @@ test_compression(hid_t file)
 
     if (H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, xfer, points)<0)
 	goto error;
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();
@@ -484,7 +484,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();
@@ -524,7 +524,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();
@@ -556,7 +556,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();
@@ -602,7 +602,7 @@ test_compression(hid_t file)
 	    }
 	}
     }
-#if defined(H5_HAVE_COMPRESS2) && defined(H5_HAVE_ZLIB_H) && defined(H5_HAVE_LIBZ)
+#ifdef H5_HAVE_COMPRESSION
     PASSED();
 #else
     SKIPPED();

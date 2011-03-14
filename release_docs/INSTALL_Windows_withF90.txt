@@ -15,7 +15,7 @@ Preconditions
        prior to building the HDF5 library.
 
 
-    3. Download the hdf5-1.4.4 distribution archive and run WinZip to unpack 
+    3. Download the hdf5-1.4.5 distribution archive and run WinZip to unpack 
        the source code.  The code will be unpacked into the hdf5\ directory.
 
     4. GNU zlib library should be installed on the machine. 

@@ -30,10 +30,10 @@
 #include "H5MMprivate.h"
 #include "H5Oprivate.h"
 
-static void *H5O_shared_decode (H5F_t*, const uint8_t*, H5O_shared_t *sh);
+static void *H5O_shared_decode (H5F_t*, hid_t dxpl_id, const uint8_t*, H5O_shared_t *sh);
 static herr_t H5O_shared_encode (H5F_t*, uint8_t*, const void*);
 static size_t H5O_shared_size (H5F_t*, const void*);
-static herr_t H5O_shared_debug (H5F_t*, const void*, FILE*, int, int);
+static herr_t H5O_shared_debug (H5F_t*, hid_t dxpl_id, const void*, FILE*, int, int);
 
 /* This message derives from H5O */
 const H5O_class_t H5O_SHARED[1] = {{
@@ -77,7 +77,7 @@ static int interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_shared_decode (H5F_t *f, const uint8_t *buf, H5O_shared_t UNUSED *sh)
+H5O_shared_decode (H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *buf, H5O_shared_t UNUSED *sh)
 {
     H5O_shared_t	*mesg;
     unsigned		flags, version;
@@ -219,7 +219,7 @@ H5O_shared_size (H5F_t *f, const void UNUSED *_mesg)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_shared_debug (H5F_t UNUSED *f, const void *_mesg,
+H5O_shared_debug (H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg,
 		  FILE *stream, int indent, int fwidth)
 {
     const H5O_shared_t	*mesg = (const H5O_shared_t *)_mesg;
@@ -247,7 +247,7 @@ H5O_shared_debug (H5F_t UNUSED *f, const void *_mesg,
 	HDfprintf (stream, "%*s%-*s %s\n", indent, "", fwidth,
 		   "Sharing method",
 		   "Obj Hdr");
-	H5G_ent_debug (f, &(mesg->u.ent), stream, indent, fwidth,
+	H5G_ent_debug (f, dxpl_id, &(mesg->u.ent), stream, indent, fwidth,
 		       HADDR_UNDEF);
     }
     

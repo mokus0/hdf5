@@ -28,12 +28,12 @@
 
 #define PABLO_MASK	H5O_fill_mask
 
-static void *H5O_fill_decode(H5F_t *f, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_fill_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
 static herr_t H5O_fill_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_fill_copy(const void *_mesg, void *_dest);
 static size_t H5O_fill_size(H5F_t *f, const void *_mesg);
 static herr_t H5O_fill_reset(void *_mesg);
-static herr_t H5O_fill_debug(H5F_t *f, const void *_mesg, FILE *stream,
+static herr_t H5O_fill_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE *stream,
 			     int indent, int fwidth);
 
 /* This message derives from H5O */
@@ -74,7 +74,7 @@ static int interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_fill_decode(H5F_t UNUSED *f, const uint8_t *p,
+H5O_fill_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const uint8_t *p,
 		H5O_shared_t UNUSED *sh)
 {
     H5O_fill_t	*mesg=NULL;
@@ -275,7 +275,7 @@ H5O_fill_reset(void *_mesg)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_fill_debug(H5F_t UNUSED *f, const void *_mesg, FILE *stream,
+H5O_fill_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE *stream,
 	       int indent, int fwidth)
 {
     const H5O_fill_t	*mesg = (const H5O_fill_t *)_mesg;
@@ -319,7 +319,7 @@ H5O_fill_debug(H5F_t UNUSED *f, const void *_mesg, FILE *stream,
  *-------------------------------------------------------------------------
  */
 herr_t
-H5O_fill_convert(H5O_fill_t *fill, H5T_t *dset_type)
+H5O_fill_convert(H5O_fill_t *fill, H5T_t *dset_type, hid_t dxpl_id)
 {
     H5T_path_t		*tpath=NULL;		/*type conversion info	*/
     void		*buf=NULL, *bkg=NULL;	/*conversion buffers	*/
@@ -372,7 +372,7 @@ H5O_fill_convert(H5O_fill_t *fill, H5T_t *dset_type)
     }
 
     /* Do the conversion */
-    if (H5T_convert(tpath, src_id, dst_id, (hsize_t)1, 0, 0, buf, bkg, H5P_DEFAULT)<0) {
+    if (H5T_convert(tpath, src_id, dst_id, (hsize_t)1, 0, 0, buf, bkg, dxpl_id)<0) {
 	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		    "data type conversion failed");
     }

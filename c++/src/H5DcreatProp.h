@@ -20,7 +20,7 @@
 namespace H5 {
 #endif
 
-class __DLLCPP__ DSetCreatPropList : public PropList {
+class H5_DLLCPP DSetCreatPropList : public PropList {
    public:
 	static const DSetCreatPropList DEFAULT;
 

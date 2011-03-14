@@ -57,7 +57,7 @@ static int		interface_initialize_g = 0;
  *-------------------------------------------------------------------------
  */
 herr_t
-H5G_stab_create(H5F_t *f, size_t init, H5G_entry_t *self/*out*/)
+H5G_stab_create(H5F_t *f, hid_t dxpl_id, size_t init, H5G_entry_t *self/*out*/)
 {
     size_t		    name;	/*offset of "" name	*/
     H5O_stab_t		    stab;	/*symbol table message	*/
@@ -72,10 +72,10 @@ H5G_stab_create(H5F_t *f, size_t init, H5G_entry_t *self/*out*/)
     init = MAX(init, H5HL_SIZEOF_FREE(f) + 2);
 
     /* Create symbol table private heap */
-    if (H5HL_create(f, init, &(stab.heap_addr)/*out*/)<0) {
+    if (H5HL_create(f, dxpl_id, init, &(stab.heap_addr)/*out*/)<0) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't create heap");
     }
-    name = H5HL_insert(f, stab.heap_addr, 1, "");
+    name = H5HL_insert(f, dxpl_id, stab.heap_addr, 1, "");
     if ((size_t)(-1)==name) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't initialize heap");
     }
@@ -87,7 +87,7 @@ H5G_stab_create(H5F_t *f, size_t init, H5G_entry_t *self/*out*/)
     assert(0 == name);
 
     /* Create the B-tree */
-    if (H5B_create(f, H5B_SNODE, NULL, &(stab.btree_addr)/*out*/) < 0) {
+    if (H5B_create(f, dxpl_id, H5B_SNODE, NULL, &(stab.btree_addr)/*out*/) < 0) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't create B-tree");
     }
 
@@ -96,7 +96,7 @@ H5G_stab_create(H5F_t *f, size_t init, H5G_entry_t *self/*out*/)
      * since nothing refers to it yet.	The link count will be
      * incremented if the object is added to the group directed graph.
      */
-    if (H5O_create(f, 4 + 2 * H5F_SIZEOF_ADDR(f), self/*out*/) < 0) {
+    if (H5O_create(f, dxpl_id, 4 + 2 * H5F_SIZEOF_ADDR(f), self/*out*/) < 0) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't create header");
     }
 
@@ -104,7 +104,7 @@ H5G_stab_create(H5F_t *f, size_t init, H5G_entry_t *self/*out*/)
      * Insert the symbol table message into the object header and the symbol
      * table entry.
      */
-    if (H5O_modify(self, H5O_STAB, H5O_NEW_MESG, H5O_FLAG_CONSTANT, &stab)<0) {
+    if (H5O_modify(self, H5O_STAB, H5O_NEW_MESG, H5O_FLAG_CONSTANT, &stab, dxpl_id)<0) {
 	H5O_close(self);
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "can't create message");
     }
@@ -137,7 +137,7 @@ H5G_stab_create(H5F_t *f, size_t init, H5G_entry_t *self/*out*/)
  */
 herr_t
 H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
-	      H5G_entry_t *obj_ent/*out*/)
+	      H5G_entry_t *obj_ent/*out*/, hid_t dxpl_id)
 {
     H5G_bt_ud1_t	udata;		/*data to pass through B-tree	*/
     H5O_stab_t		stab;		/*symbol table message		*/
@@ -150,7 +150,7 @@ H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
     assert(name && *name);
 
     /* set up the udata */
-    if (NULL == H5O_read(grp_ent, H5O_STAB, 0, &stab)) {
+    if (NULL == H5O_read(grp_ent, H5O_STAB, 0, &stab, dxpl_id)) {
 	HRETURN_ERROR(H5E_SYM, H5E_BADMESG, FAIL, "can't read message");
     }
     udata.operation = H5G_OPER_FIND;
@@ -158,7 +158,7 @@ H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
     udata.heap_addr = stab.heap_addr;
 
     /* search the B-tree */
-    if (H5B_find(grp_ent->file, H5B_SNODE, stab.btree_addr, &udata) < 0) {
+    if (H5B_find(grp_ent->file, dxpl_id, H5B_SNODE, stab.btree_addr, &udata) < 0) {
 	HRETURN_ERROR(H5E_SYM, H5E_NOTFOUND, FAIL, "not found");
     }
     if (obj_ent) *obj_ent = udata.ent;
@@ -185,7 +185,8 @@ H5G_stab_find(H5G_entry_t *grp_ent, const char *name,
  *-------------------------------------------------------------------------
  */
 herr_t
-H5G_stab_insert(H5G_entry_t *grp_ent, const char *name, H5G_entry_t *obj_ent)
+H5G_stab_insert(H5G_entry_t *grp_ent, const char *name, H5G_entry_t *obj_ent,
+    hid_t dxpl_id)
 {
     H5O_stab_t		stab;		/*symbol table message		*/
     H5G_bt_ud1_t	udata;		/*data to pass through B-tree	*/
@@ -203,7 +204,7 @@ H5G_stab_insert(H5G_entry_t *grp_ent, const char *name, H5G_entry_t *obj_ent)
     }
 
     /* initialize data to pass through B-tree */
-    if (NULL == H5O_read(grp_ent, H5O_STAB, 0, &stab)) {
+    if (NULL == H5O_read(grp_ent, H5O_STAB, 0, &stab, dxpl_id)) {
 	HRETURN_ERROR(H5E_SYM, H5E_BADMESG, FAIL, "not a symbol table");
     }
     udata.operation = H5G_OPER_INSERT;
@@ -212,7 +213,7 @@ H5G_stab_insert(H5G_entry_t *grp_ent, const char *name, H5G_entry_t *obj_ent)
     udata.ent = *obj_ent;
 
     /* insert */
-    if (H5B_insert(grp_ent->file, H5B_SNODE, stab.btree_addr, split_ratios,
+    if (H5B_insert(grp_ent->file, dxpl_id, H5B_SNODE, stab.btree_addr, split_ratios,
 		   &udata) < 0) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINSERT, FAIL, "unable to insert entry");
     }
@@ -238,7 +239,7 @@ H5G_stab_insert(H5G_entry_t *grp_ent, const char *name, H5G_entry_t *obj_ent)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5G_stab_remove(H5G_entry_t *grp_ent, const char *name)
+H5G_stab_remove(H5G_entry_t *grp_ent, const char *name, hid_t dxpl_id)
 {
     H5O_stab_t		stab;		/*symbol table message		*/
     H5G_bt_ud1_t	udata;		/*data to pass through B-tree	*/
@@ -248,7 +249,7 @@ H5G_stab_remove(H5G_entry_t *grp_ent, const char *name)
     assert(name && *name);
 
     /* initialize data to pass through B-tree */
-    if (NULL==H5O_read(grp_ent, H5O_STAB, 0, &stab)) {
+    if (NULL==H5O_read(grp_ent, H5O_STAB, 0, &stab, dxpl_id)) {
 	HRETURN_ERROR(H5E_SYM, H5E_BADMESG, FAIL, "not a symbol table");
     }
     udata.operation = H5G_OPER_REMOVE;
@@ -257,7 +258,7 @@ H5G_stab_remove(H5G_entry_t *grp_ent, const char *name)
     HDmemset(&(udata.ent), 0, sizeof(udata.ent));
 
     /* remove */
-    if (H5B_remove(grp_ent->file, H5B_SNODE, stab.btree_addr, &udata)<0) {
+    if (H5B_remove(grp_ent->file, dxpl_id, H5B_SNODE, stab.btree_addr, &udata)<0) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to remove entry");
     }
 

@@ -29,12 +29,15 @@
 #include "H5Eprivate.h"
 #include "H5Fpkg.h"
 #include "H5FDprivate.h"	/*file driver				  */
-#include "H5MMprivate.h"
+#include "H5FLprivate.h"	/*Free Lists                            */
 
 /* Interface initialization */
 #define PABLO_MASK	H5Fcontig_mask
 static int		interface_initialize_g = 0;
 #define INTERFACE_INIT NULL
+
+/* Declare a PQ free list to manage the sieve buffer information */
+H5FL_BLK_DEFINE(sieve_buf);
 
 
 /*-------------------------------------------------------------------------
@@ -168,8 +171,7 @@ H5F_contig_read(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr, hsize
             } /* end if */
             else {
                 /* Allocate room for the data sieve buffer */
-                assert(f->shared->sieve_buf_size==(hsize_t)((size_t)f->shared->sieve_buf_size)); /*check for overflow*/
-                if (NULL==(f->shared->sieve_buf=H5MM_malloc((size_t)f->shared->sieve_buf_size))) {
+                if (NULL==(f->shared->sieve_buf=H5FL_BLK_ALLOC(sieve_buf,f->shared->sieve_buf_size,0))) {
                     HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
                           "memory allocation failed");
                 }
@@ -389,8 +391,7 @@ H5F_contig_write(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr, hsiz
             } /* end if */
             else {
                 /* Allocate room for the data sieve buffer */
-                assert(f->shared->sieve_buf_size==(hsize_t)((size_t)f->shared->sieve_buf_size)); /*check for overflow*/
-                if (NULL==(f->shared->sieve_buf=H5MM_malloc((size_t)f->shared->sieve_buf_size))) {
+                if (NULL==(f->shared->sieve_buf=H5FL_BLK_ALLOC(sieve_buf,f->shared->sieve_buf_size,0))) {
                     HRETURN_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL,
                           "memory allocation failed");
                 }

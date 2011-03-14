@@ -101,11 +101,11 @@ typedef struct {
 } H5P_t;
 
 /* Private functions, not part of the publicly documented API */
-__DLL__ herr_t H5P_init(void);
-__DLL__ hid_t H5P_create(H5P_class_t type, H5P_t *plist);
-__DLL__ void *H5P_copy(H5P_class_t type, const void *src);
-__DLL__ herr_t H5P_close(void *plist);
-__DLL__ H5P_class_t H5P_get_class(hid_t tid);
-__DLL__ hid_t H5P_get_driver(hid_t plist_id);
+H5_DLL herr_t H5P_init(void);
+H5_DLL hid_t H5P_create(H5P_class_t type, H5P_t *plist);
+H5_DLL void *H5P_copy(H5P_class_t type, const void *src);
+H5_DLL herr_t H5P_close(void *plist);
+H5_DLL H5P_class_t H5P_get_class(hid_t tid);
+H5_DLL hid_t H5P_get_driver(hid_t plist_id);
 
 #endif

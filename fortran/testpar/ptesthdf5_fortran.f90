@@ -12,7 +12,7 @@
 !   http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have     *
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
-
+!
 !
 ! Main program for parallel HDF5 Fortran tests. 
 
@@ -31,6 +31,7 @@
      INTEGER :: mpierror       ! MPI error flag
      INTEGER :: comm, info
      INTEGER :: mpi_size, mpi_rank
+     LOGICAL :: cleanup = .TRUE.
      comm = MPI_COMM_WORLD
      info = MPI_INFO_NULL
      CALL MPI_INIT(mpierror)
@@ -60,7 +61,7 @@
      if (mpi_rank .eq. 0) then 
          write(*,*) 'Writing/reading dataset by hyperslabs'
      endif
-     CALL dataset_wr_by_hyperslabs(error_1)
+     CALL dataset_wr_by_hyperslabs(cleanup, error_1)
      if (error_1 .ne. 0 ) write(*,*) 'Process ', mpi_rank, 'reports failure'
      if (mpi_rank .eq. 0) then
          write(*,*) 

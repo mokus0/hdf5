@@ -1,11 +1,20 @@
 dnl -------------------------------------------------------------------------
 dnl -------------------------------------------------------------------------
 dnl
+dnl Copyright by the Board of Trustees of the University of Illinois.
+dnl All rights reserved.
+dnl
+dnl This file is part of HDF5.  The full HDF5 copyright notice, including
+dnl terms governing use, modification, and redistribution, is contained in
+dnl the files COPYING and Copyright.html.  COPYING can be found at the root
+dnl of the source code distribution tree; Copyright.html can be found at the
+dnl root level of an installed copy of the electronic HDF5 document set and
+dnl is linked from the top-level documents page.  It can also be found at
+dnl http://hdf.ncsa.uiuc.edu/HDF5/doc/Copyright.html.  If you do not have
+dnl access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu.
+dnl
 dnl Macros for HDF5 Fortran
 dnl
-dnl Copyright (C) 2000, 2002
-dnl     National Center for Supercomputing Applications.
-dnl     All rights reserved.
 dnl -------------------------------------------------------------------------
 dnl -------------------------------------------------------------------------
 
@@ -15,7 +24,7 @@ dnl
 dnl	Check for a Fortran 9X compiler.
 dnl
 AC_DEFUN(AC_PROG_F9X,
-[AC_CHECK_PROGS(F9X, f90 pgf90 f95 g95)
+[AC_CHECK_PROGS(F9X, f90 pgf90 xlf90 f95 g95 xlf95)
 test -z "$F9X" && AC_MSG_ERROR([no acceptable f9X compiler found in \$PATH])
 
 AC_PROG_F9X_WORKS
@@ -61,8 +70,8 @@ if AC_TRY_EVAL(ac_link) && test -s conftest${ac_exeext}; then
     [$3]=yes
   fi
 else
-  echo "configure: failed program was:" >&AC_FD_CC
-  cat conftest.$ac_ext >&AC_FD_CC
+  echo "configure: failed program was:" >&AS_MESSAGE_LOG_FD
+  cat conftest.$ac_ext >&AS_MESSAGE_LOG_FD
   [$2]=no
 fi
 rm -fr conftest*
@@ -75,8 +84,8 @@ dnl	Generic macro to setup the Fortran 9X specific env variables.
 dnl
 m4_define([AC_LANG(FORTRAN9X)],
 [ac_ext=f90
-ac_compile='${F9X-f90} -c $FFLAGS conftest.$ac_ext 1>&AC_FD_CC'
-ac_link='${F9X-f90} -o conftest${ac_exeext} $FFLAGS conftest.$ac_ext $LDFLAGS $LIBS 1>&AC_FD_CC'
+ac_compile='${F9X-f90} -c $FFLAGS conftest.$ac_ext 1>&AS_MESSAGE_LOG_FD'
+ac_link='${F9X-f90} -o conftest${ac_exeext} $FFLAGS conftest.$ac_ext $LDFLAGS $LIBS 1>&AS_MESSAGE_LOG_FD'
 cross_compiling=$ac_cv_prog_f9x_cross
 ])
 
@@ -160,7 +169,7 @@ for flags in "-fast" "-O3" "-O" "";do
       program main
       end
 EOF
-  ac_compile='${F9X-f90} -c $flag $FFLAGS conftest.$ac_ext 1>&AC_FD_CC'
+  ac_compile='${F9X-f90} -c $flag $FFLAGS conftest.$ac_ext 1>&AS_MESSAGE_LOG_FD'
   if AC_TRY_EVAL(ac_compile); then
     if grep 'passed to ld' conftest.out > /dev/null 2>&1; then :; else
       FFLAGS="$FFLAGS $flags"
@@ -242,7 +251,7 @@ for flag in "-I" "-M" "-p"; do
       end program conftest
 EOF
 
-  ac_compile='${F9X-f90} $FFLAGS ${flag}conftestdir -c conftest.$ac_ext 1>&AC_FD_CC'
+  ac_compile='${F9X-f90} $FFLAGS ${flag}conftestdir -c conftest.$ac_ext 1>&AS_MESSAGE_LOG_FD'
 
   if AC_TRY_EVAL(ac_compile); then
     F9XMODFLAG=$flag
@@ -258,6 +267,37 @@ else
 fi
 AC_SUBST(F9XMODFLAG)
 AC_SUBST(F9XMODEXT)
+rm -rf conftest*
+])
+
+dnl -------------------------------------------------------------------------
+dnl AC_TRY_FCOMPILE()
+dnl
+dnl	Check if we can compile a simple Fortran 90 program.
+dnl
+dnl AC_TRY_FCOMPILE(FUNCTION-BODY,
+dnl                 [ACTION-IF-SUCCESS], [ACTION-IF-NOT-SUCCESS])
+dnl
+AC_DEFUN([AC_TRY_FCOMPILE],
+[AC_LANG_SAVE
+AC_LANG_FORTRAN9X
+
+test -d conftestdir || mkdir conftestdir
+cd conftestdir
+rm -rf *
+
+cat >conftest.$ac_ext <<EOF
+          $1
+EOF
+
+if AC_TRY_EVAL(ac_compile); then
+  :
+  [$2]
+else
+  :
+  [$3]
+fi
+cd ..
 rm -rf conftest*
 ])
 

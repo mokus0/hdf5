@@ -90,7 +90,7 @@ test_1 (hid_t fapl)
 	size = i+1;
 	memset (out, 'A'+i%26, size);
 	H5Eclear ();
-	status = H5HG_insert (f, size, out, obj+i);
+	status = H5HG_insert (f, H5P_DEFAULT, size, out, obj+i);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
@@ -109,7 +109,7 @@ test_1 (hid_t fapl)
 	size = i+1;
 	memset (out, 'A'+i%26, size);
 	H5Eclear ();
-	if (NULL==H5HG_read (f, obj+i, in)) {
+	if (NULL==H5HG_read (f, H5P_DEFAULT, obj+i, in)) {
 	    H5_FAILED();
 	    puts("    Unable to read object");
 	    nerrors++;
@@ -182,7 +182,7 @@ test_2 (hid_t fapl)
 	size = 1024-i;
 	memset (out, 'A'+i%26, size);
 	H5Eclear ();
-	if (H5HG_insert (f, size, out, obj+i)<0) {
+	if (H5HG_insert (f, H5P_DEFAULT, size, out, obj+i)<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
 	    nerrors++;
@@ -196,7 +196,7 @@ test_2 (hid_t fapl)
 	size = 1024-i;
 	memset (out, 'A'+i%26, size);
 	H5Eclear ();
-	if (NULL==H5HG_read (f, obj+i, in)) {
+	if (NULL==H5HG_read (f, H5P_DEFAULT, obj+i, in)) {
 	    H5_FAILED();
 	    puts("    Unable to read object");
 	    nerrors++;
@@ -267,7 +267,7 @@ test_3 (hid_t fapl)
 	size = i%30+100;
 	memset (out, 'A'+i%26, size);
 	H5Eclear ();
-	status = H5HG_insert (f, size, out, obj+i);
+	status = H5HG_insert (f, H5P_DEFAULT, size, out, obj+i);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
@@ -277,7 +277,7 @@ test_3 (hid_t fapl)
 
     /* Remove everything */
     for (i=0; i<1024; i++) {
-	status = H5HG_remove (f, obj+i);
+	status = H5HG_remove (f, H5P_DEFAULT, obj+i);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to remove object");
@@ -346,7 +346,7 @@ test_4 (hid_t fapl)
 	size = i%30+100;
 	memset (out, 'A'+i%26, size);
 	H5Eclear ();
-	status = H5HG_insert (f, size, out, obj+i);
+	status = H5HG_insert (f, H5P_DEFAULT, size, out, obj+i);
 	if (status<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
@@ -360,7 +360,7 @@ test_4 (hid_t fapl)
 	 */ 
 	if (1==i%3) {
 	    H5Eclear ();
-	    status = H5HG_remove (f, obj+i-1);
+	    status = H5HG_remove (f, H5P_DEFAULT, obj+i-1);
 	    if (status<0) {
 		H5_FAILED();
 		puts("    Unable to remove object");

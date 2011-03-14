@@ -12,13 +12,22 @@ Windows NT platform.
 
 These instructions assume a basic knowledge of the Code Warrior compiler.
 
+zlib library
+
+The zlib library is needed to build the HDF5 library. You can obtain it at
+  ftp://hdf.ncsa.uiuc.edu/gzip/windows/zlib114/
+The Code Warrior project file assumes that this library is installed into
+D:\zlib
+the files zconf.h, zlib.h and zlib.lib should be copied to this directory
+
+
 To install the HDF5 library:
 1. Open the project file hdf5.mcp (located in hdf5\proj\codewarrior\).
-2. To build the library:
+2. Build the library:
 	Select the 'hdf5' target and build (menu Projects-> Make or F7 key).
-3. To build all the targets (HDF5 library, test, and tools):
+3. Build all the targets (HDF5 library, test, and tools):
 	Select the 'all' target and build.
-4. To run the tests in a command line window:
+4. Run the tests in a command line window:
 
 	In the command line window, change directory to hdf5\test\
 	Type 

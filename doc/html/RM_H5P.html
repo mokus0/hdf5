@@ -314,8 +314,8 @@ facilitate moving easily between them.</i>
 
     <p><i>Dataset Memory and Transfer Properties</i>
     <ul>
-<!--<li><a href="#Property-SetBuffer">h5pset_buffer_f</a>                 -->
-<!--<li><a href="#Property-GetBuffer">h5pget_buffer_f</a>                 -->
+    <li><a href="#Property-SetBuffer">h5pset_buffer_f</a>
+    <li><a href="#Property-GetBuffer">h5pget_buffer_f</a>
 <!--<li><a href="#Property-SetPreserve">h5pset_preserve_f</a>             -->
 <!--<li><a href="#Property-GetPreserve">h5pget_preserve_f</a>             -->
     <li><a href="#Property-SetHyperCache">h5pset_hyper_cache_f</a>
@@ -2140,11 +2140,10 @@ facilitate moving easily between them.</i>
   <dt><strong>Returns:</strong>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
-  <!--
   <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5p_FORTRAN.html#h5pxxx" 
+    <dd><a href="fortran/h5p_FORTRAN.html#h5pset_buffer_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
-  -->   <!--
+        <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
@@ -2178,11 +2177,10 @@ facilitate moving easily between them.</i>
   <dt><strong>Returns:</strong>
     <dd>Returns buffer size, in bytes, if successful;
         otherwise 0 on failure.
-  <!--
   <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5p_FORTRAN.html#h5pxxx" 
+    <dd><a href="fortran/h5p_FORTRAN.html#h5pget_buffer_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
-  -->   <!--
+        <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
@@ -2848,19 +2846,23 @@ facilitate moving easily between them.</i>
         <p>
         <code>comm</code> is the MPI communicator to be used for 
         file open as defined in <code>MPI_FILE_OPEN</code> of MPI-2. 
-        This function does not create a duplicated communicator. 
-        Modifications to <code>comm</code> after this function call 
-        returns may have an undetermined effect on the access property list. 
-        Users should not modify the communicator while it is defined 
-        in a property list.
+	This function makes a duplicate of <code>comm</code>. Any
+	modification to <code>comm</code> after this function call
+	returns has no effect on the access property list.
+
         <p>
         <code>info</code> is the MPI info object to be used for 
         file open as defined in <code>MPI_FILE_OPEN</code> of MPI-2. 
-        This function does not create a duplicated info object. 
-        Any modification to the info object after this function call 
-        returns may have an undetermined effect on the access property list. 
-        Users should not modify the info while it is defined 
-        in a property list.
+	This function makes a duplicate of <code>info</code>. Any
+	modification to <code>info</code> after this function call
+	returns has no effect on the access property list.
+	
+	<p>
+	If fapl_id has previously set <code>comm</code> and
+	<code>info</code> values, they will be replaced and the old
+	communicator and Info object are freed.
+
+
   <dt><strong>Parameters:</strong>
     <dl>
         <dt><em>hid_t</em> <code>fapl_id</code>
@@ -2896,13 +2898,12 @@ facilitate moving easily between them.</i>
     <dd> Returns MPI communicator information.
   <dt><strong>Description:</strong>
     <dd>If the file access property list is set to the <code>H5FD_MPIO</code> 
-        driver, <code>H5Pget_fapl_mpio</code> returns the MPI communicator and 
-        information through the <code>comm</code> and <code>info</code>
-        pointers, if those values are non-null.
+        driver, <code>H5Pget_fapl_mpio</code> returns duplicates of the MPI
+	communicator and Info object stored through the <code>comm</code>
+	and <code>info</code> pointers, if those values are non-null.
         <p>
-        Neither <code>comm</code> nor <code>info</code> is copied, 
-        so they are valid only until the file access property list 
-        is either modified or closed.
+        It is the responsibility of the application to free the returned
+	communicator and Info object when they are not needed.
   <dt><strong>Parameters:</strong>
     <dl>
         <dt><em>hid_t</em> <code>fapl_id</code>
@@ -4113,9 +4114,9 @@ H5P&nbsp;&nbsp;
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 
 <br>
-Last modified:  13 June 2002
+Last modified:  19 December 2002
 <br>
-Describes HDF5 Release 1.4.4, July 2002
+Describes HDF5 Release 1.4.5, February 2003
 
 </body>
 </html>

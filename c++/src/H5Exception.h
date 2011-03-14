@@ -20,10 +20,12 @@
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
+#ifndef H5_NO_STD
 using namespace std;
 #endif
+#endif
 
-class __DLLCPP__ Exception {
+class H5_DLLCPP Exception {
    public:
 	// Default constructor
 	Exception();
@@ -83,12 +85,14 @@ class __DLLCPP__ Exception {
 // Because 'string' is not instantiated at compilation time, this
 // warning is displayed; but the class is exported so the warning
 // is harmless
+#if defined(WIN32)
 #pragma warning(disable: 4251)
+#endif
 	string detailMessage;
 	string funcName;
 };
 
-class __DLLCPP__ FileIException : public Exception {
+class H5_DLLCPP FileIException : public Exception {
    public:
 	FileIException();
 	FileIException( const string& func_name, const string& message = NULL);
@@ -96,7 +100,7 @@ class __DLLCPP__ FileIException : public Exception {
 	virtual ~FileIException();
 };
 
-class __DLLCPP__ GroupIException : public Exception {
+class H5_DLLCPP GroupIException : public Exception {
    public:
 	GroupIException();
 	GroupIException( const string& func_name, const string& message=NULL);
@@ -104,7 +108,7 @@ class __DLLCPP__ GroupIException : public Exception {
 	virtual ~GroupIException();
 };
 
-class __DLLCPP__ DataSpaceIException : public Exception {
+class H5_DLLCPP DataSpaceIException : public Exception {
    public:
 	DataSpaceIException();
 	DataSpaceIException(const string& func_name, const string& message=NULL);
@@ -112,7 +116,7 @@ class __DLLCPP__ DataSpaceIException : public Exception {
 	virtual ~DataSpaceIException();
 };
 
-class __DLLCPP__ DataTypeIException : public Exception {
+class H5_DLLCPP DataTypeIException : public Exception {
    public:
 	DataTypeIException();
 	DataTypeIException(const string& func_name, const string& message = NULL);
@@ -120,7 +124,7 @@ class __DLLCPP__ DataTypeIException : public Exception {
 	virtual ~DataTypeIException();
 };
 
-class __DLLCPP__ PropListIException : public Exception {
+class H5_DLLCPP PropListIException : public Exception {
    public:
 	PropListIException();
 	PropListIException(const string& func_name, const string& message=NULL);
@@ -128,7 +132,7 @@ class __DLLCPP__ PropListIException : public Exception {
 	virtual ~PropListIException();
 };
 
-class __DLLCPP__ DataSetIException : public Exception {
+class H5_DLLCPP DataSetIException : public Exception {
    public:
 	DataSetIException();
 	DataSetIException(const string& func_name, const string& message=NULL);
@@ -136,7 +140,7 @@ class __DLLCPP__ DataSetIException : public Exception {
 	virtual ~DataSetIException();
 };
 
-class __DLLCPP__ AttributeIException : public Exception {
+class H5_DLLCPP AttributeIException : public Exception {
    public:
 	AttributeIException();
 	AttributeIException(const string& func_name, const string& message=NULL);
@@ -144,7 +148,7 @@ class __DLLCPP__ AttributeIException : public Exception {
 	virtual ~AttributeIException();
 };
 
-class __DLLCPP__ ReferenceException : public Exception {
+class H5_DLLCPP ReferenceException : public Exception {
    public:
 	ReferenceException();
 	ReferenceException(const string& func_name, const string& message=NULL);
@@ -152,7 +156,7 @@ class __DLLCPP__ ReferenceException : public Exception {
 	virtual ~ReferenceException();
 };
 
-class __DLLCPP__ LibraryIException : public Exception {
+class H5_DLLCPP LibraryIException : public Exception {
    public:
 	LibraryIException();
 	LibraryIException(const string& func_name, const string& message=NULL);
@@ -160,7 +164,7 @@ class __DLLCPP__ LibraryIException : public Exception {
 	virtual ~LibraryIException();
 };
 
-class __DLLCPP__ IdComponentException : public Exception {
+class H5_DLLCPP IdComponentException : public Exception {
    public:
 	IdComponentException();
 	IdComponentException(const string& func_name, const string& message=NULL);

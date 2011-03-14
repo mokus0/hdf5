@@ -129,7 +129,7 @@ facilitate moving easily between them.</i>
     <li><a href="#Dataset-GetSpace">h5dget_space_f</a>
     <li><a href="#Dataset-GetType">h5dget_type_f</a>
     <li><a href="#Dataset-GetCreatePlist">h5dget_create_plist_f</a>
-<!--<li><a href="#Dataset-GetStorageSize">h5dget_storage_size_f</a>      -->
+    <li><a href="#Dataset-GetStorageSize">h5dget_storage_size_f</a>
 <!--<li><a href="#Dataset-VLGetBuf">h5dvlen_get_buf_size_f</a>           -->
 <!--<li><a href="#Dataset-VLReclaim">h5dvlen_reclaim_f</a>               -->
 </ul>
@@ -365,11 +365,10 @@ facilitate moving easily between them.</i>
     <dd>Returns the amount of storage space allocated for the dataset, 
         not counting meta data; 
         otherwise returns 0 (zero).
-<!--
 <dt><strong>Non-C API(s):</strong>
-    <dd><a href="fortran/h5d_FORTRAN.html#h5dget_storage_size" 
+    <dd><a href="fortran/h5d_FORTRAN.html#h5dget_storage_size_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
--->     <!--
+        <!--
         <img src="Graphics/Java.gif"> 
         <img src="Graphics/C++.gif">
         -->
@@ -632,6 +631,35 @@ facilitate moving easily between them.</i>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
 <dt><strong>Non-C API(s):</strong>
+    <dd>There are three FORTRAN couterparts for the C function 
+        <code>H5Dread</code>:  
+        <center>
+        <table width=80%>
+	<tr valign=top align=left>
+            <td>
+            <a href="fortran/h5d_FORTRAN.html#h5dread_f"
+                target="FortranWin"><code>h5dread_f</code></a>
+            </td><td>&nbsp;&nbsp;</td><td>
+            <strong>Purpose:</strong>
+            Reads any data except object or dataset region references 
+            or variable-length data.
+        </tr><tr valign=top align=left>
+            <td>
+            <a href="fortran/h5d_FORTRAN.html#h5dread_f_ref"
+                target="FortranWin"><code>h5dread_f</code></a>
+            </td><td>&nbsp;&nbsp;</td><td>
+            <strong>Purpose:</strong>
+            Reads object and dataset region references.
+        </tr><tr valign=top align=left>
+            <td>
+            <a href="fortran/h5d_FORTRAN.html#h5dread_f_vl"
+               target="FortranWin"><code>h5dread_vl_f</code></a> 
+            </td><td>&nbsp;&nbsp;</td><td>
+            <strong>Purpose:</strong>
+            Reads variable-length data.
+            </td>
+        </table>
+        </center>
     <dd><a href="fortran/h5d_FORTRAN.html#h5dread_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
         <!--
@@ -800,6 +828,35 @@ facilitate moving easily between them.</i>
     <dd>Returns a non-negative value if successful;
         otherwise returns a negative value.
 <dt><strong>Non-C API(s):</strong>
+    <dd>There are three FORTRAN couterparts for the C function 
+        <code>H5Dwrite</code>:  
+        <center>
+        <table width=80%>
+	<tr valign=top align=left>
+            <td>
+            <a href="fortran/h5d_FORTRAN.html#h5dwrite_f"
+                target="FortranWin"><code>h5dwrite_f</code></a>
+            </td><td>&nbsp;&nbsp;</td><td>
+            <strong>Purpose:</strong>
+            Writes any data except object or dataset region references 
+            or variable-length data.
+        </tr><tr valign=top align=left>
+            <td>
+            <a href="fortran/h5d_FORTRAN.html#h5dwrite_f_ref"
+                target="FortranWin"><code>h5dwrite_f</code></a>
+            </td><td>&nbsp;&nbsp;</td><td>
+            <strong>Purpose:</strong>
+            Writes object and dataset region references.
+        </tr><tr valign=top align=left>
+            <td>
+            <a href="fortran/h5d_FORTRAN.html#h5dwrite_f_vl"
+               target="FortranWin"><code>h5dwrite_vl_f</code></a> 
+            </td><td>&nbsp;&nbsp;</td><td>
+            <strong>Purpose:</strong>
+            Writes variable-length data.
+            </td>
+        </table>
+        </center>
     <dd><a href="fortran/h5d_FORTRAN.html#h5dwrite_f" 
         target="FortranWin"><img src="Graphics/FORTRAN.gif" border=0></a>
         <!--
@@ -973,9 +1030,9 @@ H5D&nbsp;&nbsp;
 <a href="mailto:hdfhelp@ncsa.uiuc.edu">HDF Help Desk</a> 
 
 <br>
-Last modified:  1 February 2002
+Last modified:  30 January 2003
 <br>
-Describes HDF5 Release 1.4.4, July 2002
+Describes HDF5 Release 1.4.5, February 2003
 
 </body>
 </html>

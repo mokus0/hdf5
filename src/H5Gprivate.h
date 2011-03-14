@@ -112,7 +112,7 @@ typedef struct H5G_t H5G_t;
  */
 typedef struct H5G_typeinfo_t {
     int	type;			/*one of the public H5G_* types	     */
-    htri_t	(*isa)(H5G_entry_t*);	/*function to determine type	     */
+    htri_t	(*isa)(H5G_entry_t*, hid_t);	/*function to determine type	     */
     char	*desc;			/*description of object type	     */
 } H5G_typeinfo_t;
 
@@ -120,52 +120,53 @@ typedef struct H5G_typeinfo_t {
  * Library prototypes...  These are the ones that other packages routinely
  * call.
  */
-__DLL__ herr_t H5G_register_type(int type, htri_t(*isa)(H5G_entry_t*),
+H5_DLL herr_t H5G_register_type(int type, htri_t(*isa)(H5G_entry_t*, hid_t),
 				 const char *desc);
-__DLL__ H5G_entry_t *H5G_loc(hid_t loc_id);
-__DLL__ herr_t H5G_mkroot(H5F_t *f, H5G_entry_t *root_entry);
-__DLL__ H5G_entry_t *H5G_entof(H5G_t *grp);
-__DLL__ H5F_t *H5G_fileof(H5G_t *grp);
-__DLL__ H5G_t *H5G_create(H5G_entry_t *loc, const char *name,
-			  size_t size_hint);
-__DLL__ H5G_t *H5G_open(H5G_entry_t *loc, const char *name);
-__DLL__ H5G_t *H5G_open_oid(H5G_entry_t *ent);
-__DLL__ H5G_t *H5G_reopen(H5G_t *grp);
-__DLL__ herr_t H5G_close(H5G_t *grp);
-__DLL__ H5G_t *H5G_rootof(H5F_t *f);
-__DLL__ htri_t H5G_isa(H5G_entry_t *ent);
-__DLL__ herr_t H5G_link(H5G_entry_t *loc, H5G_link_t type,
+H5_DLL H5G_entry_t *H5G_loc(hid_t loc_id);
+H5_DLL herr_t H5G_mkroot(H5F_t *f, hid_t dxpl_id, H5G_entry_t *root_entry);
+H5_DLL H5G_entry_t *H5G_entof(H5G_t *grp);
+H5_DLL H5F_t *H5G_fileof(H5G_t *grp);
+H5_DLL H5G_t *H5G_create(H5G_entry_t *loc, const char *name,
+			  size_t size_hint, hid_t dxpl_id);
+H5_DLL H5G_t *H5G_open(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
+H5_DLL H5G_t *H5G_open_oid(H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL H5G_t *H5G_reopen(H5G_t *grp);
+H5_DLL herr_t H5G_close(H5G_t *grp);
+H5_DLL H5G_t *H5G_rootof(H5F_t *f);
+H5_DLL htri_t H5G_isa(H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL herr_t H5G_link(H5G_entry_t *loc, H5G_link_t type,
 			const char *cur_name, const char *new_name,
-			unsigned namei_flags);
-__DLL__ int H5G_get_type(H5G_entry_t *ent);
-__DLL__ herr_t H5G_get_objinfo(H5G_entry_t *loc, const char *name,
+			unsigned namei_flags, hid_t dxpl_id);
+H5_DLL int H5G_get_type(H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL herr_t H5G_get_objinfo(H5G_entry_t *loc, const char *name,
 			       hbool_t follow_link,
-			       H5G_stat_t *statbuf/*out*/);
-__DLL__ herr_t H5G_linkval(H5G_entry_t *loc, const char *name, size_t size,
-			   char *buf/*out*/);
-__DLL__ herr_t H5G_set_comment(H5G_entry_t *loc, const char *name,
-			       const char *buf);
-__DLL__ int H5G_get_comment(H5G_entry_t *loc, const char *name,
-			     size_t bufsize, char *buf);
-__DLL__ herr_t H5G_insert(H5G_entry_t *loc, const char *name,
-			  H5G_entry_t *ent);
-__DLL__ herr_t H5G_move(H5G_entry_t *loc, const char *src_name,
-			const char *dst_name);
-__DLL__ herr_t H5G_unlink(H5G_entry_t *loc, const char *name);
-__DLL__ herr_t H5G_find(H5G_entry_t *loc, const char *name,
-			H5G_entry_t *grp_ent/*out*/, H5G_entry_t *ent/*out*/);
-__DLL__ H5F_t *H5G_insertion_file(H5G_entry_t *loc, const char *name);
-__DLL__ herr_t H5G_traverse_slink(H5G_entry_t *grp_ent/*in,out*/,
+			       H5G_stat_t *statbuf/*out*/, hid_t dxpl_id);
+H5_DLL herr_t H5G_linkval(H5G_entry_t *loc, const char *name, size_t size,
+			   char *buf/*out*/, hid_t dxpl_id);
+H5_DLL herr_t H5G_set_comment(H5G_entry_t *loc, const char *name,
+			       const char *buf, hid_t dxpl_id);
+H5_DLL int H5G_get_comment(H5G_entry_t *loc, const char *name,
+			     size_t bufsize, char *buf, hid_t dxpl_id);
+H5_DLL herr_t H5G_insert(H5G_entry_t *loc, const char *name,
+			  H5G_entry_t *ent, hid_t dxpl_id);
+H5_DLL herr_t H5G_move(H5G_entry_t *loc, const char *src_name,
+			const char *dst_name, hid_t dxpl_id);
+H5_DLL herr_t H5G_unlink(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
+H5_DLL herr_t H5G_find(H5G_entry_t *loc, const char *name,
+			H5G_entry_t *grp_ent/*out*/, H5G_entry_t *ent/*out*/,
+                        hid_t dxpl_id);
+H5_DLL H5F_t *H5G_insertion_file(H5G_entry_t *loc, const char *name, hid_t dxpl_id);
+H5_DLL herr_t H5G_traverse_slink(H5G_entry_t *grp_ent/*in,out*/,
 				  H5G_entry_t *obj_ent/*in,out*/,
-				  int *nlinks/*in,out*/);
-__DLL__ herr_t H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent);
-__DLL__ herr_t H5G_ent_decode(H5F_t *f, const uint8_t **pp,
+				  int *nlinks/*in,out*/, hid_t dxpl_id);
+H5_DLL herr_t H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent);
+H5_DLL herr_t H5G_ent_decode(H5F_t *f, const uint8_t **pp,
 			      H5G_entry_t *ent/*out*/);
 
 /*
  * These functions operate on symbol table nodes.
  */
-__DLL__ herr_t H5G_node_debug(H5F_t *f, haddr_t addr, FILE *stream,
+H5_DLL herr_t H5G_node_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream,
 			      int indent, int fwidth, haddr_t heap);
 
 /*
@@ -173,8 +174,8 @@ __DLL__ herr_t H5G_node_debug(H5F_t *f, haddr_t addr, FILE *stream,
  * in the H5O package where header messages are cached in symbol table
  * entries.  The subclasses of H5O probably don't need them though.
  */
-__DLL__ H5G_cache_t *H5G_ent_cache(H5G_entry_t *ent, H5G_type_t *cache_type);
-__DLL__ herr_t H5G_ent_modified(H5G_entry_t *ent, H5G_type_t cache_type);
-__DLL__ herr_t H5G_ent_debug(H5F_t *f, const H5G_entry_t *ent, FILE * stream,
+H5_DLL H5G_cache_t *H5G_ent_cache(H5G_entry_t *ent, H5G_type_t *cache_type);
+H5_DLL herr_t H5G_ent_modified(H5G_entry_t *ent, H5G_type_t cache_type);
+H5_DLL herr_t H5G_ent_debug(H5F_t *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * stream,
 			     int indent, int fwidth, haddr_t heap);
 #endif

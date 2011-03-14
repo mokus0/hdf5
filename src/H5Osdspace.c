@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Osdspace.c,v 1.26.2.4 2002/06/10 19:47:49 wendling Exp $ */
+/* $Id: H5Osdspace.c,v 1.26.2.5 2003/01/23 22:16:06 koziol Exp $ */
 
 #define H5S_PACKAGE		/*prevent warning from including H5Spkg.h */
 
@@ -27,13 +27,13 @@
 #define PABLO_MASK	H5O_sdspace_mask
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_sdspace_decode(H5F_t *f, const uint8_t *p, H5O_shared_t *sh);
+static void *H5O_sdspace_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p, H5O_shared_t *sh);
 static herr_t H5O_sdspace_encode(H5F_t *f, uint8_t *p, const void *_mesg);
 static void *H5O_sdspace_copy(const void *_mesg, void *_dest);
 static size_t H5O_sdspace_size(H5F_t *f, const void *_mesg);
 static herr_t H5O_sdspace_reset(void *_mesg);
 static herr_t H5O_sdspace_free (void *_mesg);
-static herr_t H5O_sdspace_debug(H5F_t *f, const void *_mesg,
+static herr_t H5O_sdspace_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg,
 				FILE * stream, int indent, int fwidth);
 
 /* This message derives from H5O */
@@ -91,7 +91,7 @@ H5FL_ARR_EXTERN(hsize_t);
         Added a version number and reformatted the message for aligment.
 --------------------------------------------------------------------------*/
 static void *
-H5O_sdspace_decode(H5F_t *f, const uint8_t *p, H5O_shared_t UNUSED *sh)
+H5O_sdspace_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p, H5O_shared_t UNUSED *sh)
 {
     H5S_simple_t	*sdim = NULL;/* New simple dimensionality structure */
     void		*ret_value = NULL;
@@ -411,7 +411,7 @@ H5O_sdspace_free (void *mesg)
     parameter.
 --------------------------------------------------------------------------*/
 static herr_t
-H5O_sdspace_debug(H5F_t UNUSED *f, const void *mesg,
+H5O_sdspace_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *mesg,
 		  FILE * stream, int indent, int fwidth)
 {
     const H5S_simple_t	   *sdim = (const H5S_simple_t *) mesg;

@@ -386,7 +386,7 @@
               !DEC$ ENDIF
               INTEGER(HID_T), INTENT(IN) :: space_id 
               INTEGER(HSIZE_T), DIMENSION(*), INTENT(IN) :: startblock 
-              INTEGER(HSSIZE_T), INTENT(IN) :: num_blocks 
+              INTEGER(HSIZE_T), INTENT(IN) :: num_blocks 
               INTEGER(HSIZE_T), DIMENSION(*), INTENT(OUT) :: buf 
               END FUNCTION h5sget_select_hyper_blocklist_c
             END INTERFACE

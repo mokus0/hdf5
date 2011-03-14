@@ -1,3 +1,4 @@
+
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !   Copyright by the Board of Trustees of the University of Illinois.         *
 !   All rights reserved.                                                      *
@@ -12,10 +13,11 @@
 !   access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
 ! * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 !
-! Purpose:    This is the first half of a two-part test that makes sure
-!	      that a file can be read after an application crashes as long
-!	      as the file was flushed first.  We simulate by exit the 
-!             the program using stop statement.
+!
+! Purpose:	This is the first half of a two-part test that makes sure
+!		that a file can be read after an application crashes as long
+!		as the file was flushed first.  We simulate by exit the 
+!              the program using stop statement
 !
 
      PROGRAM FFLUSH1EXAMPLE
@@ -27,7 +29,8 @@
      !
      !the respective filename is "fflush1.h5" 
      !
-     CHARACTER(LEN=10), PARAMETER :: filename = "fflush1.h5"
+     CHARACTER(LEN=7), PARAMETER :: filename = "fflush1"
+     CHARACTER(LEN=80) :: fix_filename
 
      !
      !data space rank and dimensions
@@ -88,7 +91,7 @@
      !Initialize FORTRAN predifined datatypes
      !
      CALL h5open_f(error) 
-          CALL check("h5init_types_f",error,total_error)
+          CALL check("h5open_f",error,total_error)
 
      !
      !Initialize data_in buffer
@@ -102,7 +105,12 @@
      !
      !Create file "fflush1.h5" using default properties.
      ! 
-     CALL h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, error)
+          CALL h5_fixname_f(filename, fix_filename, H5P_DEFAULT_F, error)
+          if (error .ne. 0) then
+              write(*,*) "Cannot modify filename"
+              stop
+          endif
+     CALL h5fcreate_f(fix_filename, H5F_ACC_TRUNC_F, file_id, error)
           CALL check("h5fcreate_f",error,total_error)
 
      !
@@ -135,6 +143,10 @@
      !
      CALL H5fflush_f(file_id, H5F_SCOPE_GLOBAL_F, error)
           CALL check("h5fflush_f",error,total_error)
+
+     ! if errors detected, exit with non-zero code. This is not truly fortran
+     ! standard but likely supported by most fortran compilers.
+     IF (total_error .ne. 0) CALL exit (total_error)
 
 
      001 STOP

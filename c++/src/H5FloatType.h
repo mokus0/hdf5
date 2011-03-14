@@ -20,7 +20,7 @@
 namespace H5 {
 #endif
 
-class __DLLCPP__ FloatType : public AtomType {
+class H5_DLLCPP FloatType : public AtomType {
    public:
 	// default constructor
 	FloatType();

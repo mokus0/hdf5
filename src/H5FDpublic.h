@@ -149,8 +149,8 @@ typedef struct H5FD_class_t {
     herr_t (*close)(H5FD_t *file);
     int (*cmp)(const H5FD_t *f1, const H5FD_t *f2);
     herr_t (*query)(const H5FD_t *f1, unsigned long *flags);
-    haddr_t (*alloc)(H5FD_t *file, H5FD_mem_t type, hsize_t size);
-    herr_t (*free)(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size);
+    haddr_t (*alloc)(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size);
+    herr_t (*free)(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size);
     haddr_t (*get_eoa)(H5FD_t *file);
     herr_t (*set_eoa)(H5FD_t *file, haddr_t addr);
     haddr_t (*get_eof)(H5FD_t *file);
@@ -158,7 +158,7 @@ typedef struct H5FD_class_t {
 		   void *buffer);
     herr_t (*write)(H5FD_t *file, H5FD_mem_t type, hid_t dxpl, haddr_t addr, hsize_t size,
 		    const void *buffer);
-    herr_t (*flush)(H5FD_t *file);
+    herr_t (*flush)(H5FD_t *file, hid_t dxpl_id);
     H5FD_mem_t fl_map[H5FD_MEM_NTYPES];
 } H5FD_class_t;
 
@@ -209,25 +209,25 @@ extern "C" {
 #endif
 
 /* Function prototypes */
-__DLL__ hid_t H5FDregister(const H5FD_class_t *cls);
-__DLL__ herr_t H5FDunregister(hid_t driver_id);
-__DLL__ H5FD_t *H5FDopen(const char *name, unsigned flags, hid_t fapl_id,
+H5_DLL hid_t H5FDregister(const H5FD_class_t *cls);
+H5_DLL herr_t H5FDunregister(hid_t driver_id);
+H5_DLL H5FD_t *H5FDopen(const char *name, unsigned flags, hid_t fapl_id,
 		 haddr_t maxaddr);
-__DLL__ herr_t H5FDclose(H5FD_t *file);
-__DLL__ int H5FDcmp(const H5FD_t *f1, const H5FD_t *f2);
-__DLL__ int H5FDquery(const H5FD_t *f, unsigned long *flags);
-__DLL__ haddr_t H5FDalloc(H5FD_t *file, H5FD_mem_t type, hsize_t size);
-__DLL__ herr_t H5FDfree(H5FD_t *file, H5FD_mem_t type, haddr_t addr, hsize_t size);
-__DLL__ haddr_t H5FDrealloc(H5FD_t *file, H5FD_mem_t type, haddr_t addr,
+H5_DLL herr_t H5FDclose(H5FD_t *file);
+H5_DLL int H5FDcmp(const H5FD_t *f1, const H5FD_t *f2);
+H5_DLL int H5FDquery(const H5FD_t *f, unsigned long *flags);
+H5_DLL haddr_t H5FDalloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, hsize_t size);
+H5_DLL herr_t H5FDfree(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size);
+H5_DLL haddr_t H5FDrealloc(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
 		    hsize_t old_size, hsize_t new_size);
-__DLL__ haddr_t H5FDget_eoa(H5FD_t *file);
-__DLL__ herr_t H5FDset_eoa(H5FD_t *file, haddr_t eof);
-__DLL__ haddr_t H5FDget_eof(H5FD_t *file);
-__DLL__ herr_t H5FDread(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size,
+H5_DLL haddr_t H5FDget_eoa(H5FD_t *file);
+H5_DLL herr_t H5FDset_eoa(H5FD_t *file, haddr_t eof);
+H5_DLL haddr_t H5FDget_eof(H5FD_t *file);
+H5_DLL herr_t H5FDread(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size,
 		void *buf/*out*/);
-__DLL__ herr_t H5FDwrite(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size,
+H5_DLL herr_t H5FDwrite(H5FD_t *file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr, hsize_t size,
 		 const void *buf);
-__DLL__ herr_t H5FDflush(H5FD_t *file);
+H5_DLL herr_t H5FDflush(H5FD_t *file, hid_t dxpl_id);
 
 #ifdef __cplusplus
 }

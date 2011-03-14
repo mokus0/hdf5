@@ -1517,7 +1517,7 @@ H5Topen(hid_t loc_id, const char *name)
     }
 
     /* Open it */
-    if (NULL==(type=H5T_open (loc, name))) {
+    if (NULL==(type=H5T_open (loc, name, H5AC_dxpl_id))) {
 	HRETURN_ERROR (H5E_DATATYPE, H5E_CANTOPENOBJ, FAIL,
 		       "unable to open named data type");
     }
@@ -1570,7 +1570,7 @@ H5Tcommit(hid_t loc_id, const char *name, hid_t type_id)
     }
 
     /* Commit the type */
-    if (H5T_commit (loc, name, type)<0) {
+    if (H5T_commit (loc, name, type, H5AC_dxpl_id)<0) {
 	HRETURN_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		       "unable to commit data type");
     }
@@ -1980,6 +1980,74 @@ H5T_detect_class (H5T_t *dt, H5T_class_t cls)
     } /* end if */
 
     FUNC_LEAVE (FALSE);
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5Tis_variable_str
+ *
+ * Purpose:	Check whether a datatype is a variable-length string
+ *
+ * Return:	TRUE (1) or FALSE (0) on success/Negative on failure
+ *
+ * Programmer:	Raymond Lu
+ *		November 4, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5Tis_variable_str(hid_t dtype_id)
+{
+    H5T_t	*dt;            /* Datatype to query */
+    htri_t      ret_value;      /* Return value */
+
+    FUNC_ENTER(H5Tis_variable_str, FAIL);
+    H5TRACE1("b","i",dtype_id);
+    
+    /* Check args */
+    if (H5I_DATATYPE != H5I_get_type(dtype_id) ||
+	NULL == (dt = H5I_object(dtype_id)))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a data type");
+
+    /* Set return value */
+    ret_value=H5T_is_variable_str(dt);
+
+done:
+    FUNC_LEAVE(ret_value);   
+}
+ 
+
+/*-------------------------------------------------------------------------
+ * Function:	H5T_is_variable_str
+ *
+ * Purpose:	Private function of H5Tis_variable_str.
+ *              Check whether a datatype is a variable-length string
+ *		
+ *
+ * Return:	TRUE (1) or FALSE (0) on success/Negative on failure
+ *
+ * Programmer:	Raymond Lu
+ *		November 4, 2002
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+htri_t
+H5T_is_variable_str(H5T_t *dt)
+{
+    htri_t      ret_value=FALSE;        /* Return value */
+
+    FUNC_ENTER(H5T_is_variable_str, FAIL);
+    
+    assert(dt);
+
+    if(H5T_VLEN == dt->type && H5T_VLEN_STRING == dt->u.vlen.type)
+        ret_value = TRUE;
+
+    FUNC_LEAVE(ret_value);   
 }
 
 
@@ -4969,14 +5037,14 @@ H5T_create(H5T_class_t type, size_t size)
  *-------------------------------------------------------------------------
  */
 htri_t
-H5T_isa(H5G_entry_t *ent)
+H5T_isa(H5G_entry_t *ent, hid_t dxpl_id)
 {
     htri_t	exists;
     
     FUNC_ENTER(H5T_isa, FAIL);
     assert(ent);
 
-    if ((exists=H5O_exists(ent, H5O_DTYPE, 0))<0) {
+    if ((exists=H5O_exists(ent, H5O_DTYPE, 0, dxpl_id))<0) {
 	HRETURN_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		      "unable to read object header");
     }
@@ -5002,7 +5070,7 @@ H5T_isa(H5G_entry_t *ent)
  *-------------------------------------------------------------------------
  */
 H5T_t *
-H5T_open (H5G_entry_t *loc, const char *name)
+H5T_open (H5G_entry_t *loc, const char *name, hid_t dxpl_id)
 {
     H5T_t	*dt = NULL;
     H5G_entry_t	ent;
@@ -5015,11 +5083,11 @@ H5T_open (H5G_entry_t *loc, const char *name)
      * Find the named data type object header and read the data type message
      * from it.
      */
-    if (H5G_find (loc, name, NULL, &ent/*out*/)<0) {
+    if (H5G_find (loc, name, NULL, &ent/*out*/, dxpl_id)<0) {
 	HRETURN_ERROR (H5E_DATATYPE, H5E_NOTFOUND, NULL, "not found");
     }
     /* Open the datatype object */
-    if ((dt=H5T_open_oid(&ent)) ==NULL) {
+    if ((dt=H5T_open_oid(&ent, dxpl_id)) ==NULL) {
         HRETURN_ERROR(H5E_DATATYPE, H5E_NOTFOUND, NULL, "not found");
     }
 
@@ -5044,7 +5112,7 @@ H5T_open (H5G_entry_t *loc, const char *name)
  *-------------------------------------------------------------------------
  */
 H5T_t *
-H5T_open_oid (H5G_entry_t *ent)
+H5T_open_oid (H5G_entry_t *ent, hid_t dxpl_id)
 {
     H5T_t	*dt = NULL;
     
@@ -5055,7 +5123,7 @@ H5T_open_oid (H5G_entry_t *ent)
 	HRETURN_ERROR (H5E_DATATYPE, H5E_CANTOPENOBJ, NULL,
 		       "unable to open named data type");
     }
-    if (NULL==(dt=H5O_read (ent, H5O_DTYPE, 0, NULL))) {
+    if (NULL==(dt=H5O_read (ent, H5O_DTYPE, 0, NULL, dxpl_id))) {
 	H5O_close(ent);
 	HRETURN_ERROR (H5E_DATATYPE, H5E_CANTINIT, NULL,
 		       "unable to load type message from object header");
@@ -5296,7 +5364,7 @@ H5T_copy(const H5T_t *old_dt, H5T_copy_t method)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type)
+H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type, hid_t dxpl_id)
 {
     herr_t	ret_value = FAIL;
     H5F_t	*file = NULL;
@@ -5325,7 +5393,7 @@ H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type)
         HRETURN_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "datatype is not sensible");
 
     /* Find the insertion file */
-    if (NULL==(file=H5G_insertion_file(loc, name))) {
+    if (NULL==(file=H5G_insertion_file(loc, name, dxpl_id))) {
 	HRETURN_ERROR(H5E_SYM, H5E_CANTINIT, FAIL,
 		      "unable to find insertion point");
     }
@@ -5334,15 +5402,15 @@ H5T_commit (H5G_entry_t *loc, const char *name, H5T_t *type)
      * Create the object header and open it for write access. Insert the data
      * type message and then give the object header a name.
      */
-    if (H5O_create (file, 64, &(type->ent))<0) {
+    if (H5O_create (file, dxpl_id, 64, &(type->ent))<0) {
 	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		     "unable to create data type object header");
     }
-    if (H5O_modify (&(type->ent), H5O_DTYPE, 0, H5O_FLAG_CONSTANT, type)<0) {
+    if (H5O_modify (&(type->ent), H5O_DTYPE, 0, H5O_FLAG_CONSTANT, type, dxpl_id)<0) {
 	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		     "unable to update type header message");
     }
-    if (H5G_insert (loc, name, &(type->ent))<0) {
+    if (H5G_insert (loc, name, &(type->ent), dxpl_id)<0) {
 	HGOTO_ERROR (H5E_DATATYPE, H5E_CANTINIT, FAIL,
 		     "unable to name data type");
     }

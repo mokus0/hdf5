@@ -12,7 +12,7 @@
  * access to either file, you may request a copy from hdfhelp@ncsa.uiuc.edu. *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* $Id: H5Fprivate.h,v 1.117.2.9 2002/06/19 13:01:27 koziol Exp $ */
+/* $Id: H5Fprivate.h,v 1.117.2.11 2003/01/23 22:14:37 koziol Exp $ */
 
 /*
  * This file contains macros & information for file access
@@ -182,8 +182,8 @@ typedef struct H5F_t H5F_t;
 #define H5F_SIZEOF_ADDR(F)	(H5F_sizeof_addr(F))
 #define H5F_SIZEOF_SIZE(F)	(H5F_sizeof_size(F))
 #endif /* H5F_PACKAGE */
-__DLL__ size_t H5F_sizeof_addr(H5F_t *f);
-__DLL__ size_t H5F_sizeof_size(H5F_t *f);
+H5_DLL size_t H5F_sizeof_addr(H5F_t *f);
+H5_DLL size_t H5F_sizeof_size(H5F_t *f);
 
 /* Macros to encode/decode offset/length's for storing in the file */
 #ifdef NOT_YET
@@ -256,9 +256,9 @@ typedef struct H5F_mprop_t {
 } H5F_mprop_t;
 
 /* library variables */
-__DLLVAR__ const H5F_create_t H5F_create_dflt;
-__DLLVAR__ H5F_access_t H5F_access_dflt;
-__DLLVAR__ const H5F_mprop_t H5F_mount_dflt;
+H5_DLLVAR const H5F_create_t H5F_create_dflt;
+H5_DLLVAR H5F_access_t H5F_access_dflt;
+H5_DLLVAR const H5F_mprop_t H5F_mount_dflt;
 
 /* Forward declarations for prototypes arguments */
 struct H5O_layout_t;
@@ -269,15 +269,15 @@ struct H5G_entry_t;
 struct H5S_t;
 
 /* Private functions, not part of the publicly documented API */
-__DLL__ herr_t H5F_init(void);
-__DLL__ unsigned H5F_get_intent(H5F_t *f);
-__DLL__ hid_t H5F_get_driver_id(H5F_t *f);
-__DLL__ herr_t H5F_get_fileno(const H5F_t *f, unsigned long *filenum);
+H5_DLL herr_t H5F_init(void);
+H5_DLL unsigned H5F_get_intent(H5F_t *f);
+H5_DLL hid_t H5F_get_driver_id(H5F_t *f);
+H5_DLL herr_t H5F_get_fileno(const H5F_t *f, unsigned long *filenum);
 
 /* Functions that operate on array storage */
-__DLL__ herr_t H5F_arr_create(H5F_t *f,
+H5_DLL herr_t H5F_arr_create(H5F_t *f, hid_t dxpl_id,
 			      struct H5O_layout_t *layout /*in,out*/);
-__DLL__ herr_t H5F_arr_read (H5F_t *f, hid_t dxpl_id,
+H5_DLL herr_t H5F_arr_read (H5F_t *f, hid_t dxpl_id,
 			     const struct H5O_layout_t *layout,
 			     const struct H5O_pline_t *pline,
 			     const struct H5O_fill_t *fill,
@@ -286,7 +286,7 @@ __DLL__ herr_t H5F_arr_read (H5F_t *f, hid_t dxpl_id,
 			     const hsize_t mem_size[],
 			     const hssize_t mem_offset[],
 			     const hssize_t file_offset[], void *_buf/*out*/);
-__DLL__ herr_t H5F_arr_write (H5F_t *f, hid_t dxpl_id,
+H5_DLL herr_t H5F_arr_write (H5F_t *f, hid_t dxpl_id,
 			      const struct H5O_layout_t *layout,
 			      const struct H5O_pline_t *pline,
 			      const struct H5O_fill_t *fill,
@@ -297,18 +297,18 @@ __DLL__ herr_t H5F_arr_write (H5F_t *f, hid_t dxpl_id,
 			      const hssize_t file_offset[], const void *_buf);
 
 /* Functions that operate on blocks of bytes wrt boot block */
-__DLL__ herr_t H5F_block_read(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size,
+H5_DLL herr_t H5F_block_read(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size,
 			      hid_t dxpl_id, void *buf/*out*/);
-__DLL__ herr_t H5F_block_write(H5F_t *f, H5FD_mem_t type, haddr_t addr,
+H5_DLL herr_t H5F_block_write(H5F_t *f, H5FD_mem_t type, haddr_t addr,
                   hsize_t size, hid_t dxpl_id, const void *buf);
 
 /* Functions that operate on byte sequences */
-__DLL__ herr_t H5F_seq_read(H5F_t *f, hid_t dxpl_id,
+H5_DLL herr_t H5F_seq_read(H5F_t *f, hid_t dxpl_id,
         const struct H5O_layout_t *layout, const struct H5O_pline_t *pline,
         const struct H5O_fill_t *fill, const struct H5O_efl_t *efl,
         const struct H5S_t *file_space, size_t elmt_size, hsize_t seq_len,
         hsize_t file_offset, void *_buf/*out*/);
-__DLL__ herr_t H5F_seq_write (H5F_t *f, hid_t dxpl_id,
+H5_DLL herr_t H5F_seq_write (H5F_t *f, hid_t dxpl_id,
         const struct H5O_layout_t *layout, const struct H5O_pline_t *pline,
         const struct H5O_fill_t *fill, const struct H5O_efl_t *efl,
         const struct H5S_t *file_space, size_t elmt_size, hsize_t seq_len,
@@ -317,21 +317,21 @@ __DLL__ herr_t H5F_seq_write (H5F_t *f, hid_t dxpl_id,
 
 /* Functions that operate on indexed storage */
 #ifdef H5_HAVE_PARALLEL
-__DLL__ herr_t H5F_istore_allocate (H5F_t *f, hid_t dxpl_id,
+H5_DLL herr_t H5F_istore_allocate (H5F_t *f, hid_t dxpl_id,
 				    const struct H5O_layout_t *layout,
 				    const hsize_t *space_dim,
 				    const struct H5O_pline_t *pline,
 				    const struct H5O_fill_t *fill);
 #endif /* H5_HAVE_PARALLEL */
-__DLL__ hsize_t H5F_istore_allocated(H5F_t *f, unsigned ndims, haddr_t addr);
-__DLL__ herr_t H5F_istore_dump_btree(H5F_t *f, FILE *stream, unsigned ndims,
+H5_DLL hsize_t H5F_istore_allocated(H5F_t *f, hid_t dxpl_id, unsigned ndims, haddr_t addr);
+H5_DLL herr_t H5F_istore_dump_btree(H5F_t *f, hid_t dxpl_id, FILE *stream, unsigned ndims,
 				     haddr_t addr);
 
 /* Address-related functions */
-__DLL__ void H5F_addr_encode(H5F_t *, uint8_t** /*in,out*/, haddr_t);
-__DLL__ void H5F_addr_decode(H5F_t *, const uint8_t** /*in,out*/,
+H5_DLL void H5F_addr_encode(H5F_t *, uint8_t** /*in,out*/, haddr_t);
+H5_DLL void H5F_addr_decode(H5F_t *, const uint8_t** /*in,out*/,
 			     haddr_t* /*out*/);
-__DLL__ herr_t H5F_addr_pack(H5F_t UNUSED *f, haddr_t *addr_p /*out*/,
+H5_DLL herr_t H5F_addr_pack(H5F_t UNUSED *f, haddr_t *addr_p /*out*/,
 			     const unsigned long objno[2]);
 
 #endif

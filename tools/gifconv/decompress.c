@@ -138,9 +138,7 @@ static void AddToPixel(BYTE Index)
 
 /* Main routine.  Convert a GIF image to an HDF image */
 
-BYTE* Decompress(GifImageDesc , GifHead)
-GIFIMAGEDESC *GifImageDesc;
-GIFHEAD      *GifHead;
+BYTE* Decompress(GIFIMAGEDESC *GifImageDesc, GIFHEAD      *GifHead)
 {
 	int i;
 

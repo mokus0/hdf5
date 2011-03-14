@@ -53,13 +53,19 @@ TOOLTEST() {
    shift
 
    # Run test.
+   # Tflops interprets "$@" as "" when no parameter is given (e.g., the
+   # case of missing file name).  Changed it to use $@ till Tflops fixes it.
    TESTING $DUMPER $@
    (
       echo "#############################"
       echo "Expected output for '$DUMPER $@'" 
       echo "#############################"
       cd $srcdir/../testfiles
-      $RUNSERIAL $DUMPER_BIN "$@"
+      if [ "`uname -s`" = "TFLOPS O/S" ]; then
+        $RUNSERIAL $DUMPER_BIN $@
+      else
+        $RUNSERIAL $DUMPER_BIN "$@"
+      fi
    ) >$actual 2>$actual_err
    cat $actual_err >> $actual
     
@@ -144,6 +150,9 @@ TOOLTEST tvldtypes2.ddl tvldtypes2.h5
 TOOLTEST tvldtypes3.ddl tvldtypes3.h5
 TOOLTEST tvldtypes4.ddl tvldtypes4.h5
 
+#test for file with variable length string data
+TOOLTEST tvlstr.ddl tvlstr.h5
+
 # test for files with array data
 TOOLTEST tarray1.ddl tarray1.h5
 TOOLTEST tarray2.ddl tarray2.h5
@@ -172,6 +181,10 @@ TOOLTEST tall-4s.ddl --dataset=/g1/g1.1/dset1.1.1 --start=1,1 --stride=2,3 --cou
 TOOLTEST tall-5s.ddl -d "/g1/g1.1/dset1.1.2[0;2;10;]" tall.h5
 TOOLTEST tdset-3s.ddl -d "/dset1[1,1;;;]" tdset.h5
 TOOLTEST tdset2-1s.ddl -d "/dset1[;3,2;4,4;1,4]" tdset2.h5
+
+# test failure handling
+# Missing file name
+TOOLTEST tnofilename.ddl
 
 # test XML
 TOOLTEST tall.h5.xml --xml tall.h5
@@ -214,6 +227,7 @@ TOOLTEST tarray7.h5.xml --xml tarray7.h5
 TOOLTEST tvldtypes1.h5.xml --xml tvldtypes1.h5
 TOOLTEST tvldtypes2.h5.xml --xml tvldtypes2.h5
 TOOLTEST tvldtypes3.h5.xml --xml tvldtypes3.h5
+TOOLTEST tvlstr.h5.xml --xml tvlstr.h5
 TOOLTEST tsaf.h5.xml --xml tsaf.h5
 TOOLTEST tempty.h5.xml --xml tempty.h5
 

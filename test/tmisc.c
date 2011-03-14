@@ -305,6 +305,11 @@ unsigned m13_rdata[MISC13_DIM1][MISC13_DIM2];          /* Data read from dataset
 #define MISC28_SIZE             10
 #define MISC28_NSLOTS           10000
 
+/* Definitions for misc. test #29 */
+#define MISC29_ORIG_FILE        "specmetaread.h5"
+#define MISC29_COPY_FILE        "tmisc29.h5"
+#define MISC29_DSETNAME         "dset2"
+
 /****************************************************************
 **
 **  test_misc1(): test unlinking a dataset from a group and immediately
@@ -5118,6 +5123,39 @@ test_misc28(void)
     CHECK_I(ret, "H5Pclose");
 } /* end test_misc28() */
 
+
+/****************************************************************
+**
+**  test_misc29(): Ensure that speculative metadata reads don't
+**                 get raw data into the metadata accumulator.
+**
+****************************************************************/
+static void
+test_misc29(void)
+{
+    hid_t fid;              /* File ID */
+    herr_t  ret;            /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Speculative metadata reads\n"));
+
+    /* Make a copy of the data file from svn. */
+    ret = h5_make_local_copy(MISC29_ORIG_FILE, MISC29_COPY_FILE);
+    CHECK(ret, -1, "h5_make_local_copy");
+
+    /* Open the copied file */
+    fid = H5Fopen(MISC29_COPY_FILE, H5F_ACC_RDWR, H5P_DEFAULT); 
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Delete the last dataset */
+    ret = H5Ldelete(fid, MISC29_DSETNAME, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Ldelete");
+
+    /* Close the file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_misc29() */
+
 /****************************************************************
 **
 **  test_misc(): Main misc. test routine.
@@ -5161,6 +5199,7 @@ test_misc(void)
     test_misc26();      /* Test closing property lists with long filter pipelines */
     test_misc27();      /* Test opening file with object that has bad # of object header messages */
     test_misc28();      /* Test that chunks are cached appropriately */
+    test_misc29();      /* Test that speculative metadata reads are handled correctly */
 
 
 } /* test_misc() */
@@ -5216,5 +5255,6 @@ cleanup_misc(void)
     HDremove(MISC25C_FILE);
     HDremove(MISC26_FILE);
     HDremove(MISC28_FILE);
+    HDremove(MISC29_COPY_FILE);
 }
 

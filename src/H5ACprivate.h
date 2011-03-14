@@ -62,6 +62,7 @@ typedef enum {
     H5AC_FSPACE_SINFO_ID,/*free space sections			     */
     H5AC_SOHM_TABLE_ID, /*shared object header message master table  */
     H5AC_SOHM_LIST_ID,  /*shared message index stored as a list      */
+    H5AC_SUPERBLOCK_ID, /* file superblock                           */
     H5AC_TEST_ID,	/*test entry -- not used for actual files    */
     H5AC_NTYPES		/* Number of types, must be last             */
 } H5AC_type_t;
@@ -319,7 +320,7 @@ H5_DLL herr_t H5AC_unpin_entry(H5F_t * f,
 H5_DLL herr_t H5AC_unprotect(H5F_t *f, hid_t dxpl_id,
                              const H5AC_class_t *type, haddr_t addr,
 			     void *thing, unsigned flags);
-H5_DLL herr_t H5AC_flush(H5F_t *f, hid_t dxpl_id, unsigned flags);
+H5_DLL herr_t H5AC_flush(H5F_t *f, hid_t dxpl_id);
 H5_DLL herr_t H5AC_mark_pinned_entry_dirty(H5F_t * f,
 		                           void *  thing,
 					   hbool_t size_changed,

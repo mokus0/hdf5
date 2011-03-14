@@ -48,22 +48,26 @@
 /****************/
 
 /* Define default layout information */
-#define H5D_DEF_LAYOUT_COMPACT_INIT  {(hbool_t)FALSE, (size_t)0, NULL}
-#define H5D_DEF_LAYOUT_CONTIG_INIT   {HADDR_UNDEF, (hsize_t)0}
-#define H5D_DEF_LAYOUT_CHUNK_INIT    {H5D_CHUNK_BTREE, (unsigned)1, {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}, (uint32_t)0, NULL, {{HADDR_UNDEF, NULL}}}
+#define H5D_DEF_STORAGE_COMPACT_INIT  {(hbool_t)FALSE, (size_t)0, NULL}
+#define H5D_DEF_STORAGE_CONTIG_INIT   {HADDR_UNDEF, (hsize_t)0}
+#define H5D_DEF_STORAGE_CHUNK_INIT    {H5D_CHUNK_BTREE, HADDR_UNDEF,  NULL, {{NULL}}}
+#define H5D_DEF_LAYOUT_CHUNK_INIT    {(unsigned)1, {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}, (uint32_t)0, (hsize_t)0, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}
 #ifdef H5_HAVE_C99_DESIGNATED_INITIALIZER
-#define H5D_DEF_LAYOUT_COMPACT  {H5D_COMPACT, H5O_LAYOUT_VERSION_3, NULL, { .compact = H5D_DEF_LAYOUT_COMPACT_INIT }}
-#define H5D_DEF_LAYOUT_CONTIG   {H5D_CONTIGUOUS, H5O_LAYOUT_VERSION_3, NULL, { .contig = H5D_DEF_LAYOUT_CONTIG_INIT }}
-#define H5D_DEF_LAYOUT_CHUNK    {H5D_CHUNKED, H5O_LAYOUT_VERSION_3, NULL, { .chunk = H5D_DEF_LAYOUT_CHUNK_INIT }}
+#define H5D_DEF_STORAGE_COMPACT  {H5D_COMPACT, { .compact = H5D_DEF_STORAGE_COMPACT_INIT }}
+#define H5D_DEF_STORAGE_CONTIG   {H5D_CONTIGUOUS, { .contig = H5D_DEF_STORAGE_CONTIG_INIT }}
+#define H5D_DEF_STORAGE_CHUNK    {H5D_CHUNKED, { .chunk = H5D_DEF_STORAGE_CHUNK_INIT }}
+#define H5D_DEF_LAYOUT_COMPACT  {H5D_COMPACT, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CHUNK_INIT}, H5D_DEF_STORAGE_COMPACT}
+#define H5D_DEF_LAYOUT_CONTIG   {H5D_CONTIGUOUS, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CHUNK_INIT}, H5D_DEF_STORAGE_CONTIG}
+#define H5D_DEF_LAYOUT_CHUNK    {H5D_CHUNKED, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CHUNK_INIT}, H5D_DEF_STORAGE_CHUNK}
 #else /* H5_HAVE_C99_DESIGNATED_INITIALIZER */
 /* Note that the compact & chunked layout initialization values are using the
  *      contiguous layout initialization in the union, because the contiguous
  *      layout is first in the union.  These values are overridden in the
  *      H5P_init_def_layout() routine. -QAK
  */
-#define H5D_DEF_LAYOUT_COMPACT  {H5D_COMPACT, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CONTIG_INIT}}
-#define H5D_DEF_LAYOUT_CONTIG   {H5D_CONTIGUOUS, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CONTIG_INIT}}
-#define H5D_DEF_LAYOUT_CHUNK    {H5D_CHUNKED, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CONTIG_INIT}}
+#define H5D_DEF_LAYOUT_COMPACT  {H5D_COMPACT, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CHUNK_INIT}, {H5D_CONTIGUOUS, H5D_DEF_STORAGE_CONTIG_INIT}}
+#define H5D_DEF_LAYOUT_CONTIG   {H5D_CONTIGUOUS, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CHUNK_INIT}, {H5D_CONTIGUOUS, H5D_DEF_STORAGE_CONTIG_INIT}}
+#define H5D_DEF_LAYOUT_CHUNK    {H5D_CHUNKED, H5O_LAYOUT_VERSION_3, NULL, {H5D_DEF_LAYOUT_CHUNK_INIT}, {H5D_CONTIGUOUS, H5D_DEF_STORAGE_CONTIG_INIT}}
 #endif /* H5_HAVE_C99_DESIGNATED_INITIALIZER */
 
 /* ========  Dataset creation properties ======== */
@@ -264,13 +268,13 @@ H5P_dcrt_copy(hid_t dst_plist_id, hid_t src_plist_id, void UNUSED *copy_data)
     dst_layout.ops = NULL;
     switch(dst_layout.type) {
         case H5D_COMPACT:
-            dst_layout.u.compact.buf = H5MM_xfree(dst_layout.u.compact.buf);
-            HDmemset(&dst_layout.u.compact, 0, sizeof(dst_layout.u.compact));
+            dst_layout.storage.u.compact.buf = H5MM_xfree(dst_layout.storage.u.compact.buf);
+            HDmemset(&dst_layout.storage.u.compact, 0, sizeof(dst_layout.storage.u.compact));
             break;
 
         case H5D_CONTIGUOUS:
-            dst_layout.u.contig.addr = HADDR_UNDEF;
-            dst_layout.u.contig.size = 0;
+            dst_layout.storage.u.contig.addr = HADDR_UNDEF;
+            dst_layout.storage.u.contig.size = 0;
             break;
 
         case H5D_CHUNKED:
@@ -278,12 +282,13 @@ H5P_dcrt_copy(hid_t dst_plist_id, hid_t src_plist_id, void UNUSED *copy_data)
             dst_layout.u.chunk.size = 0;
 
             /* Reset index info, if the chunk ops are set */
-            if(dst_layout.u.chunk.ops)
-                if(H5D_chunk_idx_reset(&dst_layout) < 0)
+            if(dst_layout.storage.u.chunk.ops)
+		/* Reset address and pointer of the array struct for the chunked storage index */
+                if(H5D_chunk_idx_reset(&dst_layout.storage.u.chunk, TRUE) < 0)
                     HGOTO_ERROR(H5E_PLIST, H5E_CANTINIT, FAIL, "unable to reset chunked storage index in dest")
 
             /* Reset chunk index ops */
-            dst_layout.u.chunk.ops = NULL;
+            dst_layout.storage.u.chunk.ops = NULL;
             break;
 
         default:
@@ -761,14 +766,16 @@ done:
 static herr_t
 H5P_init_def_layout(void)
 {
-    const H5O_layout_compact_t def_compact = H5D_DEF_LAYOUT_COMPACT_INIT;
-    const H5O_layout_chunk_t def_chunk = H5D_DEF_LAYOUT_CHUNK_INIT;
+    const H5O_layout_chunk_t def_layout_chunk = H5D_DEF_LAYOUT_CHUNK_INIT;
+    const H5O_storage_compact_t def_store_compact = H5D_DEF_STORAGE_COMPACT_INIT;
+    const H5O_storage_chunk_t def_store_chunk = H5D_DEF_STORAGE_CHUNK_INIT;
 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5P_init_def_layout)
 
     /* Initialize the default layout info for non-contigous layouts */
-    H5D_def_layout_compact_g.u.compact = def_compact;
-    H5D_def_layout_chunk_g.u.chunk = def_chunk;
+    H5D_def_layout_compact_g.storage.u.compact = def_store_compact;
+    H5D_def_layout_chunk_g.u.chunk = def_layout_chunk;
+    H5D_def_layout_chunk_g.storage.u.chunk = def_store_chunk;
 
     /* Note that we've initialized the default values */
     H5P_dcrt_def_layout_init_g = TRUE;
@@ -1716,7 +1723,7 @@ H5P_get_filter_by_id(H5P_genplist_t *plist, H5Z_filter_t id, unsigned int *flags
 
     /* Get filter information */
     if(H5P_get_filter(filter, flags, cd_nelmts, cd_values, namelen, name, filter_config) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, H5Z_FILTER_ERROR, "can't get filter info")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get filter info")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -1784,7 +1791,7 @@ H5Pget_filter_by_id2(hid_t plist_id, H5Z_filter_t id, unsigned int *flags/*out*/
 
     /* Get filter info */
     if(H5P_get_filter_by_id(plist, id, flags, cd_nelmts, cd_values, namelen, name, filter_config) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, H5Z_FILTER_ERROR, "can't get filter info")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get filter info")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1866,13 +1873,13 @@ H5Premove_filter(hid_t plist_id, H5Z_filter_t filter)
 
     /* Get pipeline info */
     if(H5P_get(plist, H5D_CRT_DATA_PIPELINE_NAME, &pline) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, H5Z_FILTER_ERROR, "can't get pipeline")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get pipeline")
 
     /* Check if there are any filters */
     if (pline.filter) {
         /* Delete filter */
         if(H5Z_delete(&pline, filter) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, H5Z_FILTER_ERROR, "can't delete filter")
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't delete filter")
 
         /* Put the I/O pipeline information back into the property list */
         if(H5P_set(plist, H5D_CRT_DATA_PIPELINE_NAME, &pline) < 0)
@@ -2952,7 +2959,7 @@ H5Pget_filter_by_id1(hid_t plist_id, H5Z_filter_t id, unsigned int *flags/*out*/
 
     /* Get filter info */
     if(H5P_get_filter_by_id(plist, id, flags, cd_nelmts, cd_values, namelen, name, NULL) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, H5Z_FILTER_ERROR, "can't get filter info")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get filter info")
 
 done:
     FUNC_LEAVE_API(ret_value)

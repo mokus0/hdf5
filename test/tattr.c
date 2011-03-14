@@ -1796,12 +1796,8 @@ test_attr_duplicate_ids(hid_t fapl)
     hid_t		gid1, gid2;	/* Group ID			*/
     hid_t		sid1,sid2;	/* Dataspace ID			*/
     hid_t		attr, attr2;	    /* Attribute ID		*/
-    hsize_t             attr_size;  /* storage size for attribute       */
-    ssize_t             attr_name_size; /* size of attribute name       */
-    char                *attr_name=NULL;    /* name of attribute        */
     hsize_t		dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
     hsize_t		dims2[] = {ATTR1_DIM1};
-    hsize_t		dims3[] = {ATTR2_DIM1,ATTR2_DIM2};
     int                 read_data1[ATTR1_DIM1]={0}; /* Buffer for reading 1st attribute */
     int                 rewrite_data[ATTR1_DIM1]={1234, -423, 9907256}; /* Test data for rewrite */
     int                 i;
@@ -2081,7 +2077,7 @@ test_attr_dense_verify(hid_t loc_id, unsigned max_attr)
         name_len = H5Aget_name(attr, (size_t)ATTR_NAME_LEN, check_name);
         VERIFY(name_len, HDstrlen(attrname), "H5Aget_name");
         if(HDstrcmp(check_name, attrname))
-            TestErrPrintf("attribute name different: attr_name = '%s', should be '%s'\n", check_name, attrname);
+            TestErrPrintf("attribute name different: attrname = '%s', should be '%s'\n", check_name, attrname);
 
         /* Read data from the attribute */
         ret = H5Aread(attr, H5T_NATIVE_UINT, &value);
@@ -5297,13 +5293,13 @@ test_attr_corder_transition(hid_t fcpl, hid_t fapl)
     ret = H5Dclose(dset3);
     CHECK(ret, FAIL, "H5Dclose");
 
-    /* Close dataspace */
-    ret = H5Sclose(sid);
-    CHECK(ret, FAIL, "H5Sclose");
-
     /* Close file */
     ret = H5Fclose(fid);
     CHECK(ret, FAIL, "H5Fclose");
+
+    /* Close dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
 }   /* test_attr_corder_transition() */
 
 
@@ -10149,6 +10145,66 @@ test_attr_bug5(hid_t fcpl, hid_t fapl)
 
 /****************************************************************
 **
+**  test_attr_bug6(): Test basic H5A (attribute) code.
+**      Tests if reading an empty attribute is OK.
+**
+****************************************************************/
+static void
+test_attr_bug6(hid_t fcpl, hid_t fapl)
+{
+    hid_t   fid;            /* File ID */
+    hid_t   gid;            /* Group ID */
+    hid_t   aid1, aid2;     /* Attribute IDs */
+    hid_t   sid;            /* Dataspace ID */
+    hsize_t dims[ATTR1_RANK] = {ATTR1_DIM1};  /* Attribute dimensions */
+    int     intar[ATTR1_DIM1];       /* Data reading buffer */
+    herr_t  ret;            /* Generic return status */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing that empty attribute can be read\n"));
+
+    /* Create file */
+    fid = H5Fcreate(FILENAME, H5F_ACC_TRUNC, fcpl, fapl);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Open root group */
+    gid = H5Gopen2(fid, "/", H5P_DEFAULT);
+    CHECK(gid, FAIL, "H5Gopen2");
+
+    /* Create dataspace */
+    sid = H5Screate_simple(1, dims, NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    /* Create attribute on group */
+    aid1 = H5Acreate2(gid, ATTR1_NAME, H5T_NATIVE_INT, sid, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(aid1, FAIL, "H5Acreate2");
+
+    ret = H5Aclose(aid1);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Open the attribute again */
+    aid2 = H5Aopen(gid, ATTR1_NAME, H5P_DEFAULT);
+    CHECK(aid2, FAIL, "H5Aopen");
+
+    ret = H5Aread(aid2, H5T_NATIVE_INT, intar);
+    CHECK(ret, FAIL, "H5Aread");
+
+    /* Close IDs */
+    ret = H5Aclose(aid2);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    ret = H5Gclose(gid);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+}
+
+/****************************************************************
+**
 **  test_attr(): Main H5A (attribute) testing routine.
 **
 ****************************************************************/
@@ -10292,6 +10348,7 @@ test_attr(void)
                 test_attr_bug3(my_fcpl, my_fapl);               /* Test "self referential" attributes */
                 test_attr_bug4(my_fcpl, my_fapl);               /* Test attributes on named datatypes */
                 test_attr_bug5(my_fcpl, my_fapl);               /* Test opening/closing attributes through different file handles */
+                test_attr_bug6(my_fcpl, my_fapl);               /* Test reading empty attribute */ 
             } /* end for */
         } /* end if */
         else {
@@ -10315,6 +10372,7 @@ test_attr(void)
             test_attr_bug3(fcpl, my_fapl);                      /* Test "self referential" attributes */
             test_attr_bug4(fcpl, my_fapl);                      /* Test attributes on named datatypes */
             test_attr_bug5(fcpl, my_fapl);                      /* Test opening/closing attributes through different file handles */
+            test_attr_bug6(fcpl, my_fapl);                      /* Test reading empty attribute */ 
         } /* end else */
     } /* end for */
 

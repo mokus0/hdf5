@@ -184,7 +184,7 @@ H5_DLL herr_t H5S_write(H5F_t *f, hid_t dxpl_id, H5O_t *oh, unsigned update_flag
     H5S_t *ds);
 H5_DLL herr_t H5S_append(H5F_t *f, hid_t dxpl_id, struct H5O_t *oh, H5S_t *ds);
 H5_DLL H5S_t *H5S_read(const struct H5O_loc_t *loc, hid_t dxpl_id);
-H5_DLL int H5S_set_extent(H5S_t *space, const hsize_t *size);
+H5_DLL htri_t H5S_set_extent(H5S_t *space, const hsize_t *size);
 H5_DLL herr_t H5S_set_extent_real(H5S_t *space, const hsize_t *size);
 H5_DLL H5S_t *H5S_create(H5S_class_t type);
 H5_DLL H5S_t *H5S_create_simple(unsigned rank, const hsize_t dims[/*rank*/],
@@ -198,6 +198,7 @@ H5_DLL int H5S_extend(H5S_t *space, const hsize_t *size);
 
 /* Operations on dataspace extents */
 H5_DLL hsize_t H5S_extent_nelem(const H5S_extent_t *ext);
+H5_DLL int H5S_extent_get_dims(const H5S_extent_t *ext, hsize_t dims[], hsize_t max_dims[]);
 H5_DLL htri_t H5S_extent_equal(const H5S_t *ds1, const H5S_t *ds2);
 
 /* Operations on selections */

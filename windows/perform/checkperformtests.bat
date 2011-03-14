@@ -22,6 +22,8 @@ rem
 setlocal enabledelayedexpansion
 pushd %~dp0
 
+set /a nerrors=0
+
 rem Clean any variables starting with "HDF5_PERFTEST_", as we use these for our
 rem tests.  Also clear "HDF5_PERFTEST_TESTS", as we will be addding all of our tests
 rem to this variable.
@@ -61,12 +63,16 @@ rem     %2 - "dll" or nothing
         rem Only add our parameters for batch scripts.
         call !hdf5_perftest_%%a_test:.bat= %1 %2!
         rem Exit early if test fails.
-        if !errorlevel! neq 0 exit /b
+        if errorlevel 1 (
+            set /a nerrors=!nerrors!+1
+			echo.
+			echo.************************************
+			echo.  Testing %%a ^(%1 %2^)  FAILED
+			exit /b 1
+		)
     )
     
     rem If we get here, that means all of our tests passed.
-    echo.All performance tests passed.
-
     exit /b
 
 
@@ -79,11 +85,18 @@ rem on it for sending parameters.  --SJW 9/6/07
     call :add_test iopipe%2 ..\test\iopipe%2\%1
     call :add_test chunk%2 ..\test\chunk%2\%1
     call :add_test overhead%2 ..\test\overhead%2\%1
+    call :add_test perf_serial%2 ..\perform\perf_serial%2\%1
     
     
     rem Run the tests, passing in which version to run
     call :run_tests %*
+
+    if "%nerrors%"=="0" (
+		echo.All performance tests passed.
+	) else (
+        echo.** FAILED performance tests.
+    )
         
     popd
-    endlocal & exit /b
+    endlocal & exit /b %nerrors%
     

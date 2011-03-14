@@ -159,7 +159,7 @@ H5Dread(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
     else
         if(TRUE != H5P_isa_class(plist_id, H5P_DATASET_XFER))
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not xfer parms")
-    if(!buf && H5S_GET_SELECT_NPOINTS(file_space) != 0)
+    if(!buf && (NULL == file_space || H5S_GET_SELECT_NPOINTS(file_space) != 0))
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no output buffer")
 
     /* If the buffer is nil, and 0 element is selected, make a fake buffer.
@@ -251,7 +251,7 @@ H5Dwrite(hid_t dset_id, hid_t mem_type_id, hid_t mem_space_id,
     else
         if(TRUE != H5P_isa_class(plist_id, H5P_DATASET_XFER))
             HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not xfer parms")
-    if(!buf && H5S_GET_SELECT_NPOINTS(file_space) != 0)
+    if(!buf && (NULL == file_space || H5S_GET_SELECT_NPOINTS(file_space) != 0))
 	HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "no output buffer")
 
     /* If the buffer is nil, and 0 element is selected, make a fake buffer.
@@ -350,7 +350,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
      * has been overwritten.  So just proceed in reading.
      */
     if(nelmts > 0 && dataset->shared->dcpl_cache.efl.nused == 0 &&
-            !(*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout)) {
+            !(*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout.storage)) {
         H5D_fill_value_t fill_status;   /* Whether/How the fill value is defined */
 
         /* Retrieve dataset's fill-value properties */
@@ -384,7 +384,7 @@ H5D_read(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
     /* Sanity check that space is allocated, if there are elements */
     if(nelmts > 0)
-        HDassert((*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout)
+        HDassert((*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout.storage)
                 || dataset->shared->dcpl_cache.efl.nused > 0
                 || dataset->shared->layout.type == H5D_COMPACT);
 
@@ -534,7 +534,7 @@ H5D_write(H5D_t *dataset, hid_t mem_type_id, const H5S_t *mem_space,
 
     /* Allocate data space and initialize it if it hasn't been. */
     if(nelmts > 0 && dataset->shared->dcpl_cache.efl.nused == 0 &&
-            !(*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout)) {
+            !(*dataset->shared->layout.ops->is_space_alloc)(&dataset->shared->layout.storage)) {
         hssize_t file_nelmts;   /* Number of elements in file dataset's dataspace */
         hbool_t full_overwrite; /* Whether we are over-writing all the elements */
 

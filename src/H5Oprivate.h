@@ -321,6 +321,7 @@ typedef struct H5O_efl_t {
     H5O_efl_entry_t *slot;		/*array of external file entries     */
 } H5O_efl_t;
 
+
 /*
  * Data Layout Message.
  * (Data structure in file)
@@ -345,42 +346,56 @@ typedef struct H5O_efl_t {
 struct H5D_layout_ops_t;                /* Defined in H5Dpkg.h               */
 struct H5D_chunk_ops_t;                 /* Defined in H5Dpkg.h               */
 
-typedef struct H5O_layout_contig_t {
+typedef struct H5O_storage_contig_t {
     haddr_t	addr;			/* File address of data              */
     hsize_t     size;                   /* Size of data in bytes             */
-} H5O_layout_contig_t;
+} H5O_storage_contig_t;
 
-typedef struct H5O_layout_chunk_btree_t {
-    haddr_t	addr;			/* File address of B-tree            */
+typedef struct H5O_storage_chunk_btree_t {
     H5RC_t     *shared;			/* Ref-counted shared info for B-tree nodes */
-} H5O_layout_chunk_btree_t;
+} H5O_storage_chunk_btree_t;
 
-typedef struct H5O_layout_chunk_t {
+typedef struct H5O_storage_chunk_t {
     H5D_chunk_index_t idx_type;		/* Type of chunk index               */
-    unsigned	ndims;			/* Num dimensions in chunk           */
-    uint32_t	dim[H5O_LAYOUT_NDIMS];	/* Size of chunk in elements         */
-    uint32_t    size;                   /* Size of chunk in bytes            */
-    const struct H5D_chunk_ops_t *ops;  /* Pointer to chunked layout operations */
+    haddr_t	idx_addr;		/* File address of chunk index       */
+    const struct H5D_chunk_ops_t *ops;  /* Pointer to chunked storage operations */
     union {
-        H5O_layout_chunk_btree_t btree; /* Information for v1 B-tree index   */
+        H5O_storage_chunk_btree_t btree; /* Information for v1 B-tree index   */
     } u;
-} H5O_layout_chunk_t;
+} H5O_storage_chunk_t;
 
-typedef struct H5O_layout_compact_t {
+typedef struct H5O_storage_compact_t {
     hbool_t     dirty;                  /* Dirty flag for compact dataset    */
     size_t      size;                   /* Size of buffer in bytes           */
     void        *buf;                   /* Buffer for compact dataset        */
-} H5O_layout_compact_t;
+} H5O_storage_compact_t;
+
+typedef struct H5O_storage_t {
+    H5D_layout_t type;			/* Type of layout                    */
+    union {
+        H5O_storage_contig_t contig;    /* Information for contiguous storage */
+        H5O_storage_chunk_t chunk;      /* Information for chunked storage    */
+        H5O_storage_compact_t compact;  /* Information for compact storage    */
+    } u;
+} H5O_storage_t;
+
+typedef struct H5O_layout_chunk_t {
+    unsigned	ndims;			/* Num dimensions in chunk           */
+    uint32_t	dim[H5O_LAYOUT_NDIMS];	/* Size of chunk in elements         */
+    uint32_t    size;                   /* Size of chunk in bytes            */
+    hsize_t     nchunks;                /* Number of chunks in dataset	     */
+    hsize_t     chunks[H5O_LAYOUT_NDIMS]; /* # of chunks in dataset dimensions */
+    hsize_t    	down_chunks[H5O_LAYOUT_NDIMS];	/* "down" size of number of chunks in each dimension */
+} H5O_layout_chunk_t;
 
 typedef struct H5O_layout_t {
     H5D_layout_t type;			/* Type of layout                    */
     unsigned version;                   /* Version of message                */
     const struct H5D_layout_ops_t *ops; /* Pointer to data layout I/O operations */
     union {
-        H5O_layout_contig_t contig;     /* Information for contiguous layout */
         H5O_layout_chunk_t chunk;       /* Information for chunked layout    */
-        H5O_layout_compact_t compact;   /* Information for compact layout    */
     } u;
+    H5O_storage_t storage;              /* Information for storing dataset elements */
 } H5O_layout_t;
 
 /* Enable reading/writing "bogus" messages */
@@ -539,11 +554,13 @@ typedef herr_t (*H5O_lib_operator_t)(H5O_t *oh, H5O_mesg_t *mesg/*in,out*/,
     unsigned sequence, hbool_t *oh_modified/*out*/, void *operator_data/*in,out*/);
 
 /* Some syntactic sugar to make the compiler happy with two different kinds of iterator callbacks */
+typedef enum H5O_mesg_operator_type_t {
+    H5O_MESG_OP_APP,            /* Application callback */
+    H5O_MESG_OP_LIB             /* Library internal callback */
+} H5O_mesg_operator_type_t;
+
 typedef struct {
-    enum {
-        H5O_MESG_OP_APP,            /* Application callback */
-        H5O_MESG_OP_LIB             /* Library internal callback */
-    } op_type;
+    H5O_mesg_operator_type_t op_type;
     union {
         H5O_operator_t app_op;      /* Application callback for each message */
         H5O_lib_operator_t lib_op;  /* Library internal callback for each message */
@@ -569,8 +586,8 @@ H5_DLL herr_t H5O_open(H5O_loc_t *loc);
 H5_DLL herr_t H5O_close(H5O_loc_t *loc);
 H5_DLL int H5O_link(const H5O_loc_t *loc, int adjust, hid_t dxpl_id);
 H5_DLL int H5O_link_oh(H5F_t *f, int adjust, hid_t dxpl_id, H5O_t *oh, unsigned *oh_flags);
-H5_DLL H5O_t *H5O_protect(H5O_loc_t *loc, hid_t dxpl_id);
-H5_DLL herr_t H5O_unprotect(H5O_loc_t *loc, H5O_t *oh);
+H5_DLL H5O_t *H5O_pin(H5O_loc_t *loc, hid_t dxpl_id);
+H5_DLL herr_t H5O_unpin(H5O_loc_t *loc, H5O_t *oh);
 H5_DLL herr_t H5O_touch(H5O_loc_t *loc, hbool_t force, hid_t dxpl_id);
 H5_DLL herr_t H5O_touch_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
     hbool_t force);
@@ -578,7 +595,8 @@ H5_DLL herr_t H5O_touch_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
 H5_DLL herr_t H5O_bogus_oh(H5F_t *f, hid_t dxpl_id, H5O_t *oh, unsigned mesg_flags);
 #endif /* H5O_ENABLE_BOGUS */
 H5_DLL herr_t H5O_delete(H5F_t *f, hid_t dxpl_id, haddr_t addr);
-H5_DLL herr_t H5O_get_info(H5O_loc_t *oloc, hid_t dxpl_id, hbool_t want_ih_info,
+H5_DLL herr_t H5O_get_hdr_info(const H5O_loc_t *oloc, hid_t dxpl_id, H5O_hdr_info_t *hdr);
+H5_DLL herr_t H5O_get_info(const H5O_loc_t *oloc, hid_t dxpl_id, hbool_t want_ih_info,
     H5O_info_t *oinfo);
 H5_DLL herr_t H5O_obj_type(const H5O_loc_t *loc, H5O_type_t *obj_type, hid_t dxpl_id);
 H5_DLL herr_t H5O_get_create_plist(const H5O_loc_t *loc, hid_t dxpl_id, struct H5P_genplist_t *oc_plist);
@@ -651,9 +669,6 @@ H5_DLL herr_t H5O_loc_reset(H5O_loc_t *loc);
 H5_DLL herr_t H5O_loc_copy(H5O_loc_t *dst, const H5O_loc_t *src, H5_copy_depth_t depth);
 H5_DLL herr_t H5O_loc_hold_file(H5O_loc_t *loc);
 H5_DLL herr_t H5O_loc_free(H5O_loc_t *loc);
-
-/* Layout operators */
-H5_DLL size_t H5O_layout_meta_size(const H5F_t *f, const void *_mesg);
 
 /* EFL operators */
 H5_DLL hsize_t H5O_efl_total_size(H5O_efl_t *efl);

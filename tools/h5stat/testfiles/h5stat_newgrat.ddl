@@ -5,7 +5,7 @@ Filename: h5stat_newgrat.h5
 File information
 	# of unique groups: 35001
 	# of unique datasets: 1
-	# of unique named dataypes: 0
+	# of unique named datatypes: 0
 	# of unique links: 0
 	# of unique other: 0
 	Max. # of links to object: 1
@@ -13,6 +13,7 @@ File information
 Object header size: (total/unused)
 	Groups: 5145147/3220092
 	Datasets: 414/312
+	Datatypes: 0/0
 Storage information:
 	Groups:
 		B-tree/List: 470054

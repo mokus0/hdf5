@@ -27,13 +27,13 @@ include $(top_srcdir)/config/lt_vers.am
 # a long time to compile it with any optimization on.  H5detect is used
 # to generate H5Tinit.c once. So, optimization is not critical.
 noinst_PROGRAMS = H5detect
-H5detect_CFLAGS = -g
+H5detect_CFLAGS = -g $(AM_CFLAGS)
 
 # Our main target, the HDF5 library
 lib_LTLIBRARIES=libhdf5.la
 
 # Add libtool numbers to the HDF5 library (from config/lt_vers.am)
-libhdf5_la_LDFLAGS= -version-info $(LT_VERS_INTERFACE):$(LT_VERS_REVISION):$(LT_VERS_AGE)
+libhdf5_la_LDFLAGS= -version-info $(LT_VERS_INTERFACE):$(LT_VERS_REVISION):$(LT_VERS_AGE) $(AM_LDFLAGS)
 
 # H5Tinit.c is a generated file, and should be cleaned.
 MOSTLYCLEANFILES=H5Tinit.c
@@ -48,11 +48,11 @@ libhdf5_la_SOURCES= H5.c H5checksum.c H5dbg.c H5system.c H5timer.c H5trace.c \
         H5C.c H5CS.c \
         H5D.c H5Dbtree.c H5Dchunk.c H5Dcompact.c H5Dcontig.c H5Ddbg.c \
         H5Ddeprec.c H5Defl.c H5Dfill.c H5Dint.c \
-        H5Dio.c \
+        H5Dio.c H5Dlayout.c \
         H5Dmpio.c H5Doh.c H5Dscatgath.c H5Dselect.c H5Dtest.c \
         H5E.c H5Edeprec.c H5Eint.c \
         H5F.c H5Faccum.c H5Fdbg.c H5Ffake.c H5Fio.c H5Fmount.c H5Fmpi.c H5Fquery.c \
-        H5Fsfile.c H5Fsuper.c H5Ftest.c \
+        H5Fsfile.c H5Fsuper.c H5Fsuper_cache.c H5Ftest.c \
         H5FD.c H5FDcore.c  \
         H5FDdirect.c H5FDfamily.c H5FDint.c H5FDlog.c H5FDmpi.c H5FDmpio.c \
         H5FDmpiposix.c H5FDmulti.c H5FDsec2.c H5FDspace.c H5FDstdio.c \
@@ -101,7 +101,7 @@ libhdf5_la_SOURCES= H5.c H5checksum.c H5dbg.c H5system.c H5timer.c H5trace.c \
 
 
 # Public headers
-include_HEADERS = hdf5.h H5api_adpt.h H5pubconf.h H5public.h H5version.h \
+include_HEADERS = hdf5.h H5api_adpt.h H5overflow.h H5pubconf.h H5public.h H5version.h \
         H5Apublic.h H5ACpublic.h \
         H5Cpublic.h H5Dpublic.h \
         H5Epubgen.h H5Epublic.h H5Fpublic.h H5FDpublic.h H5FDcore.h H5FDdirect.h \
@@ -123,7 +123,7 @@ settings_DATA=libhdf5.settings
 H5Tinit.c: H5detect$(EXEEXT)
 	LD_LIBRARY_PATH="$$LD_LIBRARY_PATH`echo $(LDFLAGS) |                  \
 		sed -e 's/-L/:/g' -e 's/ //g'`"                               \
-	$(RUNSERIAL) ./H5detect > H5Tinit.c  ||                               \
+	$(RUNSERIAL) ./H5detect$(EXEEXT) > H5Tinit.c  ||                               \
 	    (test $$HDF5_Make_Ignore && echo "*** Error ignored") ||          \
 	    ($(RM) $@ ; exit 1)
 
@@ -138,6 +138,10 @@ $(top_srcdir)/src/H5Edefin.h: $(top_srcdir)/src/H5err.txt
 # API version macro generation
 $(top_srcdir)/src/H5version.h: $(top_srcdir)/src/H5vers.txt
 	perl $(top_srcdir)/bin/make_vers $?
+
+# Assignment overflow macro generation
+$(top_srcdir)/src/H5overflow.h: $(top_srcdir)/src/H5overflow.txt
+	perl $(top_srcdir)/bin/make_overflow $?
 
 # Add TRACE macros to library source files.  This is done via the trace script
 # in the hdf5/bin directory.  If the file contains HDF5 API macros, a "clean"

@@ -5,7 +5,7 @@ Filename: h5stat_filters.h5
 File information
 	# of unique groups: 1
 	# of unique datasets: 15
-	# of unique named dataypes: 1
+	# of unique named datatypes: 1
 	# of unique links: 0
 	# of unique other: 0
 	Max. # of links to object: 1
@@ -13,6 +13,7 @@ File information
 Object header size: (total/unused)
 	Groups: 48/8
 	Datasets: 4936/1344
+	Datatypes: 80/0
 Storage information:
 	Groups:
 		B-tree/List: 1200

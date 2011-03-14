@@ -266,6 +266,11 @@ struct H5O_t {
     /* File-specific information (not stored) */
     size_t      sizeof_size;            /* Size of file sizes 		     */
     size_t      sizeof_addr;            /* Size of file addresses	     */
+
+    /* Misc. information (not stored) */
+    unsigned    npins;                  /* Number of times the header is pinned */
+
+    /* Debugging information (not stored) */
 #ifdef H5O_ENABLE_BAD_MESG_COUNT
     hbool_t     store_bad_mesg_count;   /* Flag to indicate that a bad message count should be stored */
                                         /* (This is to simulate a bug in earlier
@@ -305,13 +310,6 @@ struct H5O_t {
     H5O_chunk_t *chunk;			/*array of chunks		     */
 };
 
-/* Callback information for copying dataset */
-typedef struct H5D_copy_file_ud_t {
-    struct H5S_extent_t *src_space_extent;     /* Copy of dataspace extent for dataset */
-    H5T_t *src_dtype;                   /* Copy of datatype for dataset */
-    H5O_pline_t *src_pline;             /* Copy of filter pipeline for dataet */
-} H5D_copy_file_ud_t;
-
 /* Class for types of objects in file */
 typedef struct H5O_obj_class_t {
     H5O_type_t	type;				/*object type on disk	     */
@@ -322,6 +320,7 @@ typedef struct H5O_obj_class_t {
     hid_t	(*open)(const H5G_loc_t *, hid_t, hid_t, hbool_t );	/*open an object of this class */
     void	*(*create)(H5F_t *, void *, H5G_loc_t *, hid_t );	/*create an object of this class */
     H5O_loc_t	*(*get_oloc)(hid_t );		/*get the object header location for an object */
+    herr_t      (*bh_info)(H5F_t *f, hid_t dxpl_id, H5O_t *oh, H5_ih_info_t *bh_info); /*get the index & heap info for an object */
 } H5O_obj_class_t;
 
 /* Node in skip list to map addresses from one file to another during object header copy */
@@ -338,9 +337,6 @@ H5_DLLVAR const H5AC_class_t H5AC_OHDR[1];
 
 /* Header message ID to class mapping */
 H5_DLLVAR const H5O_msg_class_t *const H5O_msg_class_g[H5O_MSG_TYPES];
-
-/* Header object ID to class mapping */
-H5_DLLVAR const H5O_obj_class_t *const H5O_obj_class_g[3];
 
 /* Declare external the free list for H5O_t's */
 H5FL_EXTERN(H5O_t);
@@ -499,10 +495,6 @@ H5_DLL herr_t H5O_msg_iterate_real(H5F_t *f, H5O_t *oh, const H5O_msg_class_t *t
     const H5O_mesg_operator_t *op, void *op_data, hid_t dxpl_id);
 
 /* Collect storage info for btree and heap */
-H5_DLL herr_t H5O_group_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
-    H5_ih_info_t *bh_info);
-H5_DLL herr_t H5O_dset_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
-    H5_ih_info_t *bh_info);
 H5_DLL herr_t H5O_attr_bh_info(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
     H5_ih_info_t *bh_info);
 

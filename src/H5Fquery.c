@@ -113,8 +113,6 @@ H5F_get_intent(const H5F_t *f)
  *
  * Programmer:	Vailin Choi, April 2, 2008
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 char *
@@ -263,8 +261,9 @@ H5F_sym_leaf_k(const H5F_t *f)
 
     HDassert(f);
     HDassert(f->shared);
+    HDassert(f->shared->sblock);
 
-    FUNC_LEAVE_NOAPI(f->shared->sym_leaf_k)
+    FUNC_LEAVE_NOAPI(f->shared->sblock->sym_leaf_k)
 } /* end H5F_sym_leaf_k() */
 
 
@@ -294,9 +293,10 @@ H5F_Kvalue(const H5F_t *f, const H5B_class_t *type)
 
     HDassert(f);
     HDassert(f->shared);
+    HDassert(f->shared->sblock);
     HDassert(type);
 
-    FUNC_LEAVE_NOAPI(f->shared->btree_k[type->id])
+    FUNC_LEAVE_NOAPI(f->shared->sblock->btree_k[type->id])
 } /* end H5F_Kvalue() */
 
 
@@ -415,8 +415,9 @@ H5F_get_base_addr(const H5F_t *f)
 
     HDassert(f);
     HDassert(f->shared);
+    HDassert(f->shared->sblock);
 
-    FUNC_LEAVE_NOAPI(f->shared->base_addr)
+    FUNC_LEAVE_NOAPI(f->shared->sblock->base_addr)
 } /* end H5F_get_base_addr() */
 
 
@@ -686,4 +687,60 @@ H5F_get_fileno(const H5F_t *f, unsigned long *filenum)
 done:
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5F_get_fileno() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5F_is_tmp_addr
+ *
+ * Purpose:	Quick and dirty routine to determine if an address is in
+ *		the 'temporary' file space.
+ *          (Mainly added to stop non-file routines from poking about in the
+ *          H5F_t data structure)
+ *
+ * Return:	TRUE/FALSE on success/abort on failure (shouldn't fail)
+ *
+ * Programmer:	Quincey Koziol <koziol@hdfgroup.org>
+ *		June 11, 2009
+ *
+ *-------------------------------------------------------------------------
+ */
+hbool_t
+H5F_is_tmp_addr(const H5F_t *f, haddr_t addr)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_is_tmp_addr)
+
+    HDassert(f);
+    HDassert(f->shared);
+
+    FUNC_LEAVE_NOAPI(H5F_addr_le(f->shared->tmp_addr, addr))
+} /* end H5F_is_tmp_addr() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:	H5F_use_tmp_space
+ *
+ * Purpose:	Quick and dirty routine to determine if using temporary
+ *		file space is allowed for this file.
+ *          (Mainly added to stop non-file routines from poking about in the
+ *          H5F_t data structure)
+ *
+ * Return:	TRUE/FALSE on success/abort on failure (shouldn't fail)
+ *
+ * Programmer:	Quincey Koziol <koziol@hdfgroup.org>
+ *		July  1, 2009
+ *
+ *-------------------------------------------------------------------------
+ */
+hbool_t
+H5F_use_tmp_space(const H5F_t *f)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_use_tmp_space)
+
+    HDassert(f);
+    HDassert(f->shared);
+
+    FUNC_LEAVE_NOAPI(f->shared->use_tmp_space)
+} /* end H5F_use_tmp_space() */
 

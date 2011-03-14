@@ -286,8 +286,9 @@ test_mpio_gb_file(char *filename)
 	VRFY((buf!=NULL), "malloc succeed");
 
 	/* open a new file. Remove it first in case it exists. */
-	if (MAINPROCESS)
-	    remove(filename);
+	/* Must delete because MPI_File_open does not have a Truncate mode. */
+	/* Don't care if it has error. */
+	MPI_File_delete(filename, MPI_INFO_NULL);
 	MPI_Barrier(MPI_COMM_WORLD);	/* prevent racing condition */
 
 	mrc = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_CREATE|MPI_MODE_RDWR,
@@ -490,6 +491,7 @@ test_mpio_1wMr(char *filename, int special_request)
     /* Must delete because MPI_File_open does not have a Truncate mode. */
     /* Don't care if it has error. */
     MPI_File_delete(filename, MPI_INFO_NULL);
+    MPI_Barrier(MPI_COMM_WORLD);	/* prevent racing condition */
 
     if ((mpi_err = MPI_File_open(MPI_COMM_WORLD, filename,
 	    MPI_MODE_RDWR | MPI_MODE_CREATE ,
@@ -847,7 +849,7 @@ static int test_mpio_derived_dtype(char *filename) {
 	    printf("Complicated derived datatype is NOT working at this platform\n");
 	    printf("Go back to hdf5/config and find the corresponding\n");
 	    printf("configure-specific file (for example, powerpc-ibm-aix5.x) and add\n");
-	    printf("hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype-works='no'}\n");
+	    printf("hdf5_cv_mpi_complex_derived_datatype_works=${hdf5_cv_mpi_complex_derived_datatype-works='no'}\n");
 	    printf(" at the end of the file.\n");
 	    printf(" Please report to hdfhelp@ncsa.uiuc.edu about this problem.\n");
 	}
@@ -860,7 +862,7 @@ static int test_mpio_derived_dtype(char *filename) {
 	    printf("Complicated derived datatype is WORKING at this platform\n");
 	    printf(" Go back to hdf5/config and find the corresponding \n");
 	    printf(" configure-specific file (for example, powerpc-ibm-aix5.x) and delete the line\n");
-	    printf("hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype-works='no'}\n");
+	    printf("hdf5_cv_mpi_complex_derived_datatype_works=${hdf5_cv_mpi_complex_derived_datatype-works='no'}\n");
 	    printf(" at the end of the file.\n");
 	    printf("Please report to hdfhelp@ncsa.uiuc.edu about this problem.\n");
 	}
@@ -1016,7 +1018,7 @@ test_mpio_special_collective(char *filename)
 	    printf("special collective IO is NOT working at this platform\n");
 	    printf("Go back to hdf5/config and find the corresponding\n");
 	    printf("configure-specific file (for example, powerpc-ibm-aix5.x) and add\n");
-	    printf("hdf5_mpi_special_collective_io_works=${hdf5_mpi_special_collective_io_works='no'}\n");
+	    printf("hdf5_cv_mpi_special_collective_io_works=${hdf5_cv_mpi_special_collective_io_works='no'}\n");
 	    printf(" at the end of the file.\n");
 	    printf(" Please report to hdfhelp@ncsa.uiuc.edu about this problem.\n");
 	}
@@ -1029,7 +1031,7 @@ test_mpio_special_collective(char *filename)
 	    printf("special collective IO is WORKING at this platform\n");
 	    printf(" Go back to hdf5/config and find the corresponding \n");
 	    printf(" configure-specific file (for example, powerpc-ibm-aix5.x) and delete the line\n");
-	    printf("hdf5_mpi_special_collective_io_works=${hdf5_mpi_special_collective_io_works='no'}\n");
+	    printf("hdf5_cv_mpi_special_collective_io_works=${hdf5_cv_mpi_special_collective_io_works='no'}\n");
 	    printf(" at the end of the file.\n");
 	    printf("Please report to hdfhelp@ncsa.uiuc.edu about this problem.\n");
 	}

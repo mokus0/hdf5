@@ -2798,6 +2798,7 @@ static herr_t H5C_epoch_marker_flush(H5F_t *f, hid_t dxpl_id, hbool_t dest,
 				     unsigned *flags_ptr);
 static herr_t H5C_epoch_marker_dest(H5F_t *f, void *thing);
 static herr_t H5C_epoch_marker_clear(H5F_t *f, void *thing, hbool_t dest);
+static herr_t H5C_epoch_marker_notify(H5C_notify_action_t action, void *thing);
 static herr_t H5C_epoch_marker_size(const H5F_t *f, const void *thing, size_t *size_ptr);
 
 const H5C_class_t epoch_marker_class =
@@ -2884,6 +2885,20 @@ H5C_epoch_marker_clear(H5F_t UNUSED * f,
 
 done:
 
+    FUNC_LEAVE_NOAPI(ret_value)
+}
+
+static herr_t
+H5C_epoch_marker_notify(H5C_notify_action_t UNUSED action,
+                       void UNUSED * thing)
+{
+    herr_t ret_value = FAIL;      /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5C_epoch_marker_notify)
+
+    HGOTO_ERROR(H5E_CACHE, H5E_SYSTEM, FAIL, "called unreachable fcn.")
+
+done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
 
@@ -3430,10 +3445,6 @@ H5C_def_auto_resize_rpt_fcn(H5C_t * cache_ptr,
  * Programmer:  John Mainzer
  *		6/2/04
  *
- * Modifications:
- *
- *              None.
- *
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -3446,21 +3457,20 @@ H5C_dest(H5F_t * f,
 
     FUNC_ENTER_NOAPI(H5C_dest, FAIL)
 
-    HDassert( cache_ptr );
-    HDassert( cache_ptr->magic == H5C__H5C_T_MAGIC );
-    HDassert( cache_ptr->skip_file_checks || f );
+    /* Sanity check */
+    HDassert(cache_ptr);
+    HDassert(cache_ptr->magic == H5C__H5C_T_MAGIC);
+    HDassert(cache_ptr->skip_file_checks || f);
 
-    if ( H5C_flush_cache(f, primary_dxpl_id, secondary_dxpl_id,
-                         cache_ptr, H5C__FLUSH_INVALIDATE_FLAG) < 0 ) {
-
+    /* Flush and invalidate all cache entries */
+    if(H5C_flush_invalidate_cache(f, primary_dxpl_id, secondary_dxpl_id,
+                cache_ptr, H5C__NO_FLAGS_SET) < 0 )
         HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, "unable to flush cache")
-    }
 
-    if ( cache_ptr->slist_ptr != NULL ) {
-
+    if(cache_ptr->slist_ptr != NULL) {
         H5SL_close(cache_ptr->slist_ptr);
         cache_ptr->slist_ptr = NULL;
-    }
+    } /* end if */
 
     cache_ptr->magic = 0;
 
@@ -3468,63 +3478,7 @@ H5C_dest(H5F_t * f,
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-
 } /* H5C_dest() */
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5C_dest_empty
- *
- * Purpose:     Destroy an empty cache.
- *
- *              This function fails if the cache is not empty on entry.
- *
- *		Note that *cache_ptr has been freed upon successful return.
- *
- * Return:      Non-negative on success/Negative on failure
- *
- * Programmer:  John Mainzer
- *		6/2/04
- *
- * Modifications:
- *
- *		None.
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5C_dest_empty(H5C_t * cache_ptr)
-{
-    herr_t ret_value=SUCCEED;      /* Return value */
-
-    FUNC_ENTER_NOAPI(H5C_dest_empty, FAIL)
-
-    /* This would normally be an assert, but we need to use an HGOTO_ERROR
-     * call to shut up the compiler.
-     */
-    if ( ( ! cache_ptr ) ||
-         ( cache_ptr->magic != H5C__H5C_T_MAGIC ) ||
-         ( cache_ptr->index_len != 0 ) ) {
-
-        HGOTO_ERROR(H5E_CACHE, H5E_SYSTEM, FAIL, \
-                    "Bad cache_ptr or non-empty cache on entry.")
-    }
-
-
-    if ( cache_ptr->slist_ptr != NULL ) {
-
-        H5SL_close(cache_ptr->slist_ptr);
-        cache_ptr->slist_ptr = NULL;
-    }
-
-    cache_ptr->magic = 0;
-
-    (void)H5FL_FREE(H5C_t, cache_ptr);
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-
-} /* H5C_dest_empty() */
 
 
 /*-------------------------------------------------------------------------
@@ -6186,6 +6140,10 @@ H5C_protect(H5F_t *	        f,
     H5C__SEARCH_INDEX(cache_ptr, addr, entry_ptr, NULL)
 
     if ( entry_ptr != NULL ) {
+
+        /* Check for trying to load the wrong type of entry from an address */
+        if(entry_ptr->type != type)
+            HGOTO_ERROR(H5E_CACHE, H5E_BADTYPE, NULL, "incorrect cache entry type")
 
         hit = TRUE;
         thing = (void *)entry_ptr;
@@ -9871,7 +9829,6 @@ H5C_flush_invalidate_cache(H5F_t *  f,
 {
     herr_t              status;
     herr_t		ret_value = SUCCEED;
-    hbool_t		done = FALSE;
     hbool_t		first_flush = TRUE;
     int32_t		protected_entries = 0;
     int32_t		i;
@@ -9947,7 +9904,7 @@ H5C_flush_invalidate_cache(H5F_t *  f,
     cur_pel_len = cache_ptr->pel_len;
     old_pel_len = cache_ptr->pel_len;
 
-    while ( ! done )
+    while ( cache_ptr->index_len > 0 )
     {
 	/* first, try to flush-destroy any dirty entries.   Do this by
 	 * making a scan through the slist.  Note that new dirty entries
@@ -10063,12 +10020,10 @@ H5C_flush_invalidate_cache(H5F_t *  f,
             /* increment node pointer now, before we delete its target
              * from the slist.
              */
-
             node_ptr = H5SL_next(node_ptr);
             if ( node_ptr != NULL ) {
 
                 next_entry_ptr = (H5C_cache_entry_t *)H5SL_item(node_ptr);
-
                 if ( next_entry_ptr == NULL ) {
                     HGOTO_ERROR(H5E_CACHE, H5E_SYSTEM, FAIL, \
                                 "next_entry_ptr == NULL 2 ?!?!");
@@ -10297,7 +10252,7 @@ H5C_flush_invalidate_cache(H5F_t *  f,
 	    */
 
             HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, \
-	                "Can't unpin all pinned entries 1.")
+	                "Pinned entry count not decreasing.")
 
         } else if ( ( cur_pel_len == 0 ) && ( old_pel_len == 0 ) ) {
 
@@ -10314,23 +10269,20 @@ H5C_flush_invalidate_cache(H5F_t *  f,
             HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, \
 	                "Maximum passes on flush exceeded.")
 	}
-
-	if ( cache_ptr->index_len <= 0 ) {
-
-	    done = TRUE;
-            HDassert( cache_ptr->index_size == 0 );
-            HDassert( cache_ptr->clean_index_size == 0 );
-            HDassert( cache_ptr->dirty_index_size == 0 );
-	    HDassert( cache_ptr->slist_len == 0 );
-	    HDassert( cache_ptr->slist_size == 0 );
-	    HDassert( cache_ptr->pel_len == 0 );
-	    HDassert( cache_ptr->pel_size == 0 );
-	    HDassert( cache_ptr->pl_len == 0 );
-	    HDassert( cache_ptr->pl_size == 0 );
-	    HDassert( cache_ptr->LRU_list_len == 0 );
-	    HDassert( cache_ptr->LRU_list_size == 0 );
-        }
     } /* main while loop */
+
+    /* Invariants, after destroying all entries in the hash table */
+    HDassert( cache_ptr->index_size == 0 );
+    HDassert( cache_ptr->clean_index_size == 0 );
+    HDassert( cache_ptr->dirty_index_size == 0 );
+    HDassert( cache_ptr->slist_len == 0 );
+    HDassert( cache_ptr->slist_size == 0 );
+    HDassert( cache_ptr->pel_len == 0 );
+    HDassert( cache_ptr->pel_size == 0 );
+    HDassert( cache_ptr->pl_len == 0 );
+    HDassert( cache_ptr->pl_size == 0 );
+    HDassert( cache_ptr->LRU_list_len == 0 );
+    HDassert( cache_ptr->LRU_list_size == 0 );
 
 
     HDassert( protected_entries <= cache_ptr->pl_len );
@@ -10343,7 +10295,7 @@ H5C_flush_invalidate_cache(H5F_t *  f,
     } else if ( cur_pel_len > 0 ) {
 
         HGOTO_ERROR(H5E_CACHE, H5E_CANTFLUSH, FAIL, \
-	            "Can't unpin all pinned entries 2.")
+	            "Can't unpin all pinned entries.")
 
     }
 
@@ -10578,7 +10530,7 @@ H5C_flush_single_entry(H5F_t *		   f,
             if ( NULL == (dxpl = H5I_object(primary_dxpl_id)) ) {
 
                 HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, \
-                            "not a dataset creation property list")
+                            "not a dataset transfer property list")
             }
 
             /* Get the transfer mode property */

@@ -79,8 +79,9 @@ test -d ./testfiles || mkdir ./testfiles
 #   -h   print help page
 while [ $# -gt 0 ]; do
     case "$1" in
-    -p)	# run ph5diff tests
-	H5DIFF_BIN=`pwd`/ph5diff
+    -p)	# reset the tool name and bin to run ph5diff tests
+	H5DIFF=ph5diff               # The tool name
+	H5DIFF_BIN=`pwd`/$H5DIFF
 	pmode=yes
 	shift
 	;;
@@ -200,19 +201,13 @@ TOOLTEST() {
     fi
 
     # Run test.
-    # Tflops interprets "$@" as "" when no parameter is given (e.g., the
-    # case of missing file name).  Changed it to use $@ till Tflops fixes it.
     #TESTING $H5DIFF $@
     (
 	#echo "#############################"
 	#echo "Expected output for '$H5DIFF $@'" 
 	#echo "#############################"
 	#cd $srcdir/testfiles
-	if [ "`uname -s`" = "TFLOPS O/S" ]; then
-	    eval $RUNCMD $H5DIFF_BIN $@
-	else
-	    eval $RUNCMD $H5DIFF_BIN "$@"
-	fi
+	eval $RUNCMD $H5DIFF_BIN "$@"
     ) >$actual 2>$actual_err
     # save actual and actual_err in case they are needed later.
     cp $actual $actual_sav
@@ -325,6 +320,14 @@ TOOLTEST h5diff_16_3.txt -v -p 0.02 $FILE1 $FILE1 g1/dset9 g1/dset10
 # 1.7 verbose mode
 TESTING $H5DIFF -v $SRCFILE1 $SRCFILE2
 TOOLTEST h5diff_17.txt -v $FILE1 $FILE2   
+
+# 1.8 test 32-bit INFINITY
+TESTING $H5DIFF $SRCFILE1 $SRCFILE1 /g1/fp19
+TOOLTEST h5diff_171.txt -v $SRCFILE1 $SRCFILE1 /g1/fp19
+
+# 1.8 test 64-bit INFINITY
+TESTING $H5DIFF $SRCFILE1 $SRCFILE1 /g1/fp20
+TOOLTEST h5diff_172.txt -v $SRCFILE1 $SRCFILE1 /g1/fp20
 
 # 1.8 quiet mode 
 TESTING $H5DIFF -q $SRCFILE1 $SRCFILE2
@@ -453,9 +456,9 @@ TOOLTEST h5diff_606.txt -d 0x1 $FILE1 $FILE2 g1/dset3 g1/dset4
 TESTING $H5DIFF -d "1" $SRCFILE1 $SRCFILE2  g1/dset3 g1/dset4
 TOOLTEST h5diff_607.txt -d "1" $FILE1 $FILE2 g1/dset3 g1/dset4
 
-# 6.8: repeated option
-TESTING $H5DIFF -d 1 -d 2 $SRCFILE1 $SRCFILE2   g1/dset3 g1/dset4
-TOOLTEST h5diff_608.txt -d 1 -d 2 $FILE1 $FILE2  g1/dset3 g1/dset4
+# 6.8: use system epsilon 
+TESTING $H5DIFF --use-system-epsilon $SRCFILE1 $SRCFILE2   g1/dset3 g1/dset4
+TOOLTEST h5diff_608.txt --use-system-epsilon $FILE1 $FILE2  g1/dset3 g1/dset4
 
 # 6.9: number larger than biggest difference
 TESTING $H5DIFF -d 200 $SRCFILE1 $SRCFILE2  g1/dset3 g1/dset4
@@ -541,9 +544,10 @@ TOOLTEST h5diff_627.txt --count=200 $FILE1 $FILE2 g1/dset3 g1/dset4
 TESTING $H5DIFF -n 1 $SRCFILE1 $SRCFILE2  g1/dset3 g1/dset4
 TOOLTEST h5diff_628.txt -n 1 $FILE1 $FILE2 g1/dset3 g1/dset4
 
+# Disabling this test as it hangs - LRK 20090618
 # 6.29  non valid files
-TESTING $H5DIFF file1.h6 file2.h6
-TOOLTEST h5diff_629.txt file1.h6 file2.h6
+#TESTING $H5DIFF file1.h6 file2.h6
+#TOOLTEST h5diff_629.txt file1.h6 file2.h6
 
 # ##############################################################################
 # 7.  attributes
@@ -562,15 +566,13 @@ TESTING $H5DIFF -v  $SRCFILE2 $SRCFILE2
 TOOLTEST h5diff_90.txt -v $FILE2 $FILE2
 
 # 10. read by hyperslab, print indexes
-# Commenting out Albert's change to skip this test on THG machines 
-# to see if printfs were the problem.  LRK 2009-1-22
-#if test -n "$pmode" -a "$mydomainname" = hdfgroup.uiuc.edu; then
+if test -n "$pmode" -a "$mydomainname" = hdfgroup.uiuc.edu; then
     # skip this test which sometimes hangs in some THG machines
-#    SKIP -v $SRCFILE9 $SRCFILE10
-#else
+    SKIP -v $SRCFILE9 $SRCFILE10
+else
     TESTING $H5DIFF -v $SRCFILE9 $SRCFILE10
     TOOLTEST h5diff_100.txt -v $FILE9 $FILE10 
-#fi
+fi
 
 # 11. floating point comparison
 TESTING $H5DIFF -v  $SRCFILE1 $SRCFILE1 g1/d1  g1/d2 

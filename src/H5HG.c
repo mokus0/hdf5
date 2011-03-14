@@ -186,20 +186,18 @@ H5HG_create (H5F_t *f, hid_t dxpl_id, size_t size)
     heap->addr = addr;
     heap->size = size;
 
-    if (NULL==(heap->chunk = H5FL_BLK_MALLOC (gheap_chunk,size)))
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF, \
-                     "memory allocation failed");
+    if(NULL == (heap->chunk = H5FL_BLK_MALLOC(gheap_chunk, size)))
+	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF, "memory allocation failed")
 #ifdef H5_CLEAR_MEMORY
 HDmemset(heap->chunk, 0, size);
 #endif /* H5_CLEAR_MEMORY */
-    heap->nalloc = H5HG_NOBJS (f, size);
+    heap->nalloc = H5HG_NOBJS(f, size);
     heap->nused = 1; /* account for index 0, which is used for the free object */
-    if (NULL==(heap->obj = H5FL_SEQ_MALLOC (H5HG_obj_t,heap->nalloc)))
-	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF, \
-                     "memory allocation failed");
+    if(NULL == (heap->obj = H5FL_SEQ_MALLOC(H5HG_obj_t, heap->nalloc)))
+	HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, HADDR_UNDEF, "memory allocation failed")
 
     /* Initialize the header */
-    HDmemcpy (heap->chunk, H5HG_MAGIC, (size_t)H5_SIZEOF_MAGIC);
+    HDmemcpy(heap->chunk, H5HG_MAGIC, (size_t)H5_SIZEOF_MAGIC);
     p = heap->chunk + H5_SIZEOF_MAGIC;
     *p++ = H5HG_VERSION;
     *p++ = 0; /*reserved*/
@@ -313,7 +311,7 @@ H5HG_alloc (H5F_t *f, H5HG_heap_t *heap, size_t size, unsigned * heap_flags_ptr)
      * Find an ID for the new object. ID zero is reserved for the free space
      * object.
      */
-    if(heap->nused<H5HG_MAXIDX)
+    if(heap->nused<=H5HG_MAXIDX)
         idx=heap->nused++;
     else {
         for (idx=1; idx<heap->nused; idx++)
@@ -321,23 +319,29 @@ H5HG_alloc (H5F_t *f, H5HG_heap_t *heap, size_t size, unsigned * heap_flags_ptr)
                 break;
     } /* end else */
 
+    HDassert(idx < heap->nused);
+
     /* Check if we need more room to store heap objects */
     if(idx>=heap->nalloc) {
         size_t new_alloc;       /* New allocation number */
         H5HG_obj_t *new_obj;	/* New array of object descriptions */
 
         /* Determine the new number of objects to index */
-        new_alloc=MAX(heap->nalloc*2,(idx+1));
-        assert(new_alloc<=(H5HG_MAXIDX+1));
+        /* nalloc is *not* guaranteed to be a power of 2! - NAF 10/26/09 */
+        new_alloc = MIN(MAX(heap->nalloc * 2, (idx + 1)), (H5HG_MAXIDX + 1));
+        HDassert(idx < new_alloc);
 
         /* Reallocate array of objects */
         if (NULL==(new_obj = H5FL_SEQ_REALLOC (H5HG_obj_t, heap->obj, new_alloc)))
             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, 0, "memory allocation failed")
 
+        /* Clear newly allocated space */
+        HDmemset(&new_obj[heap->nalloc], 0, (new_alloc - heap->nalloc) * sizeof(heap->obj[0]));
+
         /* Update heap information */
         heap->nalloc=new_alloc;
         heap->obj=new_obj;
-        assert(heap->nalloc>heap->nused);
+        HDassert(heap->nalloc>heap->nused);
     } /* end if */
 
     /* Initialize the new object */
@@ -677,13 +681,6 @@ done:
  *
  * Programmer:	Robb Matzke
  *              Monday, March 30, 1998
- *
- * Modifications:
- *
- *              John Mainzer, 6/8/05
- *              Modified the function to use the new dirtied parameter of
- *              of H5AC_unprotect() instead of modifying the is_dirty
- *              field of the cache info.
  *
  *-------------------------------------------------------------------------
  */

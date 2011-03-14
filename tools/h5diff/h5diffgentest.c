@@ -97,6 +97,9 @@ static int write_dset(hid_t loc_id,int rank,hsize_t *dims,const char *name,hid_t
 *-------------------------------------------------------------------------
 */
 
+/* module-scoped variables */
+int d_status = EXIT_SUCCESS;
+
 int main(void)
 {
     test_basic(FILE1, FILE2, FILE11);
@@ -328,7 +331,24 @@ int test_basic(const char *fname1, const char *fname2, const char *fname3)
 
         write_dset(gid1,1,dims1,"fp17",H5T_NATIVE_DOUBLE,data17);
         write_dset(gid1,1,dims1,"fp18",H5T_NATIVE_DOUBLE,data18);
+    }
 
+    /*------------------------------------------------------------------------
+     *            INFINITY values 
+     *------------------------------------------------------------------------
+     */
+    {
+        float  data19[6];
+        double data20[6];
+
+        data19[0] = data19[1] = data19[2] = log(0);
+        data19[3] = data19[4] = data19[5] = -log(0);
+
+        data20[0] = data20[1] = data20[2] = log(0);
+        data20[3] = data20[4] = data20[5] = -log(0);
+
+        write_dset(gid1,1,dims1,"fp19",H5T_NATIVE_FLOAT,data19);
+        write_dset(gid1,1,dims1,"fp20",H5T_NATIVE_DOUBLE,data20);
     }
 
     /*-------------------------------------------------------------------------

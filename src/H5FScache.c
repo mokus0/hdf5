@@ -201,7 +201,7 @@ HDfprintf(stderr, "%s: Load free space header, addr = %a\n", FUNC, addr);
 	HGOTO_ERROR(H5E_FSPACE, H5E_CANTLOAD, NULL, "wrong free space header version")
 
     /* Client ID */
-    fspace->client = *p++;
+    fspace->client = (H5FS_client_t)*p++;
     if(fspace->client >= H5FS_NUM_CLIENT_ID)
 	HGOTO_ERROR(H5E_FSPACE, H5E_CANTLOAD, NULL, "unknown client ID in free space header")
 
@@ -280,13 +280,6 @@ done:
  * Programmer:	Quincey Koziol
  *		koziol@ncsa.uiuc.edu
  *		May  2 2006
- *
- * Changes:     JRM -- 8/21/06
- *              Added the flags_ptr parameter.  This parameter exists to
- *              allow the flush routine to report to the cache if the
- *              entry is resized or renamed as a result of the flush.
- *              *flags_ptr is set to H5C_CALLBACK__NO_FLAGS_SET on entry.
- *
  *
  *-------------------------------------------------------------------------
  */

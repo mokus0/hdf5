@@ -2719,8 +2719,12 @@ test_compound_14(void)
     rdata1.c1 = rdata1.c2 = 0;
     if(rdata1.str) HDfree(rdata1.str);
 
-    rdata2.c1 = rdata2.c2 = rdata2.l1 = rdata2.l2 = rdata2.l3 = rdata2.l4 = 0;
-    if(rdata2.str) HDfree(rdata2.str);
+    rdata2.c1 = rdata2.c2 = 0;
+    rdata2.l1 = rdata2.l2 = rdata2.l3 = rdata2.l4 = 0;
+    if(rdata2.str) {
+        HDfree(rdata2.str);
+        rdata2.str = NULL;
+    } /* end if */
 
     if(H5Dread(dset1_id, cmpd_m1_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, &rdata1) < 0) {
         H5_FAILED(); AT();
@@ -3704,10 +3708,41 @@ test_named (hid_t fapl)
     if(H5Tclose(t3) < 0) goto error;
     if(H5Dclose(dset) < 0) goto error;
 
-    /* Clean up */
+    /* Close */
     if(H5Tclose(type) < 0) goto error;
     if(H5Sclose(space) < 0) goto error;
     if(H5Fclose(file) < 0) goto error;
+
+    /* Reopen file with read only access */
+    if ((file = H5Fopen(filename, H5F_ACC_RDONLY, fapl)) < 0)
+        goto error;
+
+    /* Verify that H5Tcommit2 returns an error */
+    if((type = H5Tcopy(H5T_NATIVE_INT)) < 0) goto error;
+    H5E_BEGIN_TRY {
+        status = H5Tcommit2(file, "test_named_3 (should not exist)", type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(status >= 0) {
+        H5_FAILED();
+        HDputs ("    Types should not be committable to a read-only file!");
+        goto error;
+    }
+
+    /* Verify that H5Tcommit_anon returns an error */
+    if((type = H5Tcopy(H5T_NATIVE_INT)) < 0) goto error;
+    H5E_BEGIN_TRY {
+        status = H5Tcommit_anon(file, type, H5P_DEFAULT, H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(status >= 0) {
+        H5_FAILED();
+        HDputs ("    Types should not be committable to a read-only file!");
+        goto error;
+    }
+
+    /* Close */
+    if(H5Tclose(type) < 0) goto error;
+    if(H5Fclose(file) < 0) goto error;
+
     PASSED();
     return 0;
 
@@ -4904,8 +4939,9 @@ opaque_funcs(void)
  * Programmer:  Raymond Lu
  *              July 14, 2004
  *
- * Modifications:
- *
+ * Modifications: Raymond Lu
+ *              July 13, 2009
+ *              Added the test for VL string types.
  *-------------------------------------------------------------------------
  */
 static int
@@ -4917,14 +4953,16 @@ test_encode(void)
         long   c;
         double d;
     };
-    hid_t       file=-1, tid1=-1, tid2=-1;
-    hid_t       decoded_tid1=-1, decoded_tid2=-1;
+    hid_t       file=-1, tid1=-1, tid2=-1, tid3=-1;
+    hid_t       decoded_tid1=-1, decoded_tid2=-1, decoded_tid3=-1;
     char        filename[1024];
     char        compnd_type[]="Compound_type", enum_type[]="Enum_type";
+    char        vlstr_type[]="VLstring_type";
     short       enum_val;
     size_t      cmpd_buf_size = 0;
     size_t      enum_buf_size = 0;
-    unsigned char       *cmpd_buf=NULL, *enum_buf=NULL;
+    size_t      vlstr_buf_size = 0;
+    unsigned char       *cmpd_buf=NULL, *enum_buf=NULL, *vlstr_buf=NULL;
     herr_t      ret;
 
     TESTING("functions of encoding and decoding datatypes");
@@ -4935,7 +4973,7 @@ test_encode(void)
         goto error;
 
     /*-----------------------------------------------------------------------
-     * Create compound and enumerate datatypes
+     * Create compound, enumerate, and VL string datatypes
      *-----------------------------------------------------------------------
      */
     /* Create a compound datatype */
@@ -4997,8 +5035,20 @@ test_encode(void)
         goto error;
     } /* end if */
 
+    /* Create a variable-length string type */
+    if((tid3 = H5Tcopy(H5T_C_S1)) < 0) {
+        H5_FAILED();
+        printf("Can't copy a string type\n");
+        goto error;
+    } /* end if */
+    if(H5Tset_size(tid3, H5T_VARIABLE) < 0) { 
+        H5_FAILED();
+        printf("Can't the string type to be variable-length\n");
+        goto error;
+    } /* end if */
+
     /*-----------------------------------------------------------------------
-     * Test encoding and decoding compound and enumerate datatypes
+     * Test encoding and decoding compound, enumerate, and VL string datatypes
      *-----------------------------------------------------------------------
      */
     /* Encode compound type in a buffer */
@@ -5093,8 +5143,44 @@ test_encode(void)
         goto error;
     } /* end if */
 
+
+    /* Encode VL string type in a buffer */
+    if(H5Tencode(tid3, NULL, &vlstr_buf_size) < 0) {
+        H5_FAILED();
+        printf("Can't encode VL string type\n");
+        goto error;
+    } /* end if */
+
+    if(vlstr_buf_size>0)
+        vlstr_buf = (unsigned char*)calloc(1, vlstr_buf_size);
+
+    if(H5Tencode(tid3, vlstr_buf, &vlstr_buf_size) < 0) {
+        H5_FAILED();
+        printf("Can't encode VL string type\n");
+        goto error;
+    } /* end if */
+
+    /* Decode from the VL string buffer and return an object handle */
+    if((decoded_tid3=H5Tdecode(vlstr_buf)) < 0) {
+        H5_FAILED();
+        printf("Can't decode VL string type\n");
+        goto error;
+    } /* end if */
+
+    /* Verify that the datatype was copied exactly */
+    if(H5Tequal(decoded_tid3, tid3)<=0) {
+        H5_FAILED();
+        printf("Datatype wasn't encoded & decoded identically\n");
+        goto error;
+    } /* end if */
+    if(!H5Tis_variable_str(decoded_tid3)) {
+        H5_FAILED();
+        printf("Datatype wasn't encoded & decoded identically\n");
+        goto error;
+    } /* end if */
+
     /*-----------------------------------------------------------------------
-     * Commit and reopen the compound and enumerate datatypes
+     * Commit and reopen the compound, enumerate, VL string datatypes
      *-----------------------------------------------------------------------
      */
     /* Commit compound datatype and close it */
@@ -5135,13 +5221,37 @@ test_encode(void)
     free(enum_buf);
     enum_buf_size = 0;
 
+    /* Commit enumeration datatype and close it */
+    if(H5Tcommit2(file, vlstr_type, tid3, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) {
+        H5_FAILED();
+        printf("Can't commit vl string datatype\n");
+        goto error;
+    } /* end if */
+    if(H5Tclose(tid3) < 0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+    if(H5Tclose(decoded_tid3) < 0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+    free(vlstr_buf);
+    vlstr_buf_size = 0;
+
     /* Open the dataytpe for query */
     if((tid1 = H5Topen2(file, compnd_type, H5P_DEFAULT)) < 0)
         FAIL_STACK_ERROR
     if((tid2 = H5Topen2(file, enum_type, H5P_DEFAULT)) < 0)
         FAIL_STACK_ERROR
+    if((tid3 = H5Topen2(file, vlstr_type, H5P_DEFAULT)) < 0)
+        FAIL_STACK_ERROR
 
-
+    /*-----------------------------------------------------------------------
+     * Test encoding and decoding compound, enumerate, and vl string datatypes
+     *-----------------------------------------------------------------------
+     */
     /* Encode compound type in a buffer */
     if(H5Tencode(tid1, NULL, &cmpd_buf_size) < 0) {
         H5_FAILED();
@@ -5181,10 +5291,6 @@ test_encode(void)
         goto error;
     } /* end if */
 
-    /*-----------------------------------------------------------------------
-     * Test encoding and decoding compound and enumerate datatypes
-     *-----------------------------------------------------------------------
-     */
     /* Encode enumerate type in a buffer */
     if(H5Tencode(tid2, NULL, &enum_buf_size) < 0) {
         H5_FAILED();
@@ -5227,6 +5333,41 @@ test_encode(void)
         goto error;
     } /* end if */
 
+    /* Encode VL string type in a buffer */
+    if(H5Tencode(tid3, NULL, &vlstr_buf_size) < 0) {
+        H5_FAILED();
+        printf("Can't encode VL string type\n");
+        goto error;
+    } /* end if */
+
+    if(vlstr_buf_size>0)
+        vlstr_buf = (unsigned char*)calloc(1, vlstr_buf_size);
+
+    if(H5Tencode(tid3, vlstr_buf, &vlstr_buf_size) < 0) {
+        H5_FAILED();
+        printf("Can't encode VL string type\n");
+        goto error;
+    } /* end if */
+
+    /* Decode from the VL string buffer and return an object handle */
+    if((decoded_tid3=H5Tdecode(vlstr_buf)) < 0) {
+        H5_FAILED();
+        printf("Can't decode VL string type\n");
+        goto error;
+    } /* end if */
+
+    /* Verify that the datatype was copied exactly */
+    if(H5Tequal(decoded_tid3, tid3)<=0) {
+        H5_FAILED();
+        printf("Datatype wasn't encoded & decoded identically\n");
+        goto error;
+    } /* end if */
+    if(!H5Tis_variable_str(decoded_tid3)) {
+        H5_FAILED();
+        printf("Datatype wasn't encoded & decoded identically\n");
+        goto error;
+    } /* end if */
+
     /*-----------------------------------------------------------------------
      * Close and release
      *-----------------------------------------------------------------------
@@ -5242,6 +5383,11 @@ test_encode(void)
         printf("Can't close datatype\n");
         goto error;
     } /* end if */
+    if(H5Tclose(tid3) < 0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
 
     if(H5Tclose(decoded_tid1) < 0) {
         H5_FAILED();
@@ -5249,6 +5395,11 @@ test_encode(void)
         goto error;
     } /* end if */
     if(H5Tclose(decoded_tid2) < 0) {
+        H5_FAILED();
+        printf("Can't close datatype\n");
+        goto error;
+    } /* end if */
+    if(H5Tclose(decoded_tid3) < 0) {
         H5_FAILED();
         printf("Can't close datatype\n");
         goto error;
@@ -5270,8 +5421,10 @@ test_encode(void)
     H5E_BEGIN_TRY {
         H5Tclose (tid1);
         H5Tclose (tid2);
+        H5Tclose (tid3);
         H5Tclose (decoded_tid1);
         H5Tclose (decoded_tid2);
+        H5Tclose (decoded_tid3);
         H5Fclose (file);
     } H5E_END_TRY;
     return 1;
@@ -5806,6 +5959,209 @@ error:
 
 
 /*-------------------------------------------------------------------------
+ * Function:	test_named_indirect_reopen
+ *
+ * Purpose:	Tests that open named datatypes can be reopened indirectly
+ *              through H5Dget_type without causing problems.
+ *
+ * Return:	Success:	0
+ *
+ *		Failure:	number of errors
+ *
+ * Programmer:	Neil Fortner
+ *              Thursday, June 4, 2009
+ *
+ * Modifications:
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_named_indirect_reopen(hid_t fapl)
+{
+    hid_t		file=-1, type=-1, reopened_type=-1, strtype=-1, dset=-1, space=-1;
+    static hsize_t	dims[1] = {3};
+    size_t              dt_size;
+    int                 enum_value;
+    const char          *tag = "opaque_tag";
+    char                *tag_ret = NULL;
+    char		filename[1024];
+
+    TESTING("indirectly reopening committed datatypes");
+
+    /* Create file, dataspace */
+    h5_fixname(FILENAME[1], fapl, filename, sizeof filename);
+    if ((file=H5Fcreate (filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0) TEST_ERROR
+    if ((space = H5Screate_simple (1, dims, dims)) < 0) TEST_ERROR
+
+    /*
+     * Compound
+     */
+
+    /* Create compound type */
+    if((strtype = H5Tcopy(H5T_C_S1)) < 0) TEST_ERROR
+    if(H5Tset_size(strtype, H5T_VARIABLE) < 0) TEST_ERROR
+    if((type = H5Tcreate(H5T_COMPOUND, sizeof(char *))) < 0) TEST_ERROR
+    if(H5Tinsert(type, "vlstr", 0, strtype) < 0) TEST_ERROR
+    if(H5Tclose(strtype) < 0) TEST_ERROR
+
+    /* Get size of compound type */
+    if((dt_size = H5Tget_size(type)) == 0) TEST_ERROR
+
+    /* Commit compound type and verify the size doesn't change */
+    if(H5Tcommit2(file, "cmpd_type", type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(type)) TEST_ERROR
+
+    /* Create dataset with compound type */
+    if((dset = H5Dcreate2(file, "cmpd_dset", type, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Indirectly reopen type and verify that the size doesn't change */
+    if((reopened_type = H5Dget_type(dset)) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(reopened_type)) TEST_ERROR
+
+    /* Close types and dataset */
+    if(H5Tclose(type) < 0) TEST_ERROR
+    if(H5Tclose(reopened_type) < 0) TEST_ERROR
+    if(H5Dclose(dset) < 0) TEST_ERROR
+
+    /*
+     * Enum
+     */
+
+    /* Create enum type */
+    if((type = H5Tenum_create(H5T_NATIVE_INT)) < 0) TEST_ERROR
+    enum_value = 0;
+    if(H5Tenum_insert(type, "val1", &enum_value) < 0) TEST_ERROR
+    enum_value = 1;
+    if(H5Tenum_insert(type, "val2", &enum_value) < 0) TEST_ERROR
+
+    /* Get size of enum type */
+    if((dt_size = H5Tget_size(type)) == 0) TEST_ERROR
+
+    /* Commit enum type and verify the size doesn't change */
+    if(H5Tcommit2(file, "enum_type", type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(type)) TEST_ERROR
+
+    /* Create dataset with enum type */
+    if((dset = H5Dcreate2(file, "enum_dset", type, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Indirectly reopen type and verify that the size doesn't change */
+    if((reopened_type = H5Dget_type(dset)) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(reopened_type)) TEST_ERROR
+
+    /* Close types and dataset */
+    if(H5Tclose(type) < 0) TEST_ERROR
+    if(H5Tclose(reopened_type) < 0) TEST_ERROR
+    if(H5Dclose(dset) < 0) TEST_ERROR
+
+    /*
+     * Vlen
+     */
+
+    /* Create vlen type */
+    if((type = H5Tvlen_create(H5T_NATIVE_INT)) < 0) TEST_ERROR
+
+    /* Get size of vlen type */
+    if((dt_size = H5Tget_size(type)) == 0) TEST_ERROR
+
+    /* Commit vlen type and verify the size doesn't change */
+    if(H5Tcommit2(file, "vlen_type", type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(type)) TEST_ERROR
+
+    /* Create dataset with vlen type */
+    if((dset = H5Dcreate2(file, "vlen_dset", type, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Indirectly reopen type and verify that the size doesn't change */
+    if((reopened_type = H5Dget_type(dset)) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(reopened_type)) TEST_ERROR
+
+    /* Close types and dataset */
+    if(H5Tclose(type) < 0) TEST_ERROR
+    if(H5Tclose(reopened_type) < 0) TEST_ERROR
+    if(H5Dclose(dset) < 0) TEST_ERROR
+
+    /*
+     * Opaque
+     */
+
+    /* Create opaque type */
+    if((type = H5Tcreate(H5T_OPAQUE, 13)) < 0) TEST_ERROR
+    if(H5Tset_tag(type, tag) < 0) TEST_ERROR
+
+    /* Get size of opaque type */
+    if((dt_size = H5Tget_size(type)) == 0) TEST_ERROR
+
+    /* Commit opaque type and verify the size and tag don't change */
+    if(H5Tcommit2(file, "opaque_type", type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(type)) TEST_ERROR
+    if(NULL == (tag_ret = H5Tget_tag(type))) TEST_ERROR
+    if(HDstrcmp(tag, tag_ret)) TEST_ERROR
+    HDfree(tag_ret);
+    tag_ret = NULL;
+
+    /* Create dataset with opaque type */
+    if((dset = H5Dcreate2(file, "opaque_dset", type, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Indirectly reopen type and verify that the size and tag don't change */
+    if((reopened_type = H5Dget_type(dset)) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(reopened_type)) TEST_ERROR
+    if(NULL == (tag_ret = H5Tget_tag(type))) TEST_ERROR
+    if(HDstrcmp(tag, tag_ret)) TEST_ERROR
+    HDfree(tag_ret);
+    tag_ret = NULL;
+
+    /* Close types and dataset */
+    if(H5Tclose(type) < 0) TEST_ERROR
+    if(H5Tclose(reopened_type) < 0) TEST_ERROR
+    if(H5Dclose(dset) < 0) TEST_ERROR
+
+    /*
+     * Array
+     */
+
+    /* Create array type */
+    if((type = H5Tarray_create2(H5T_NATIVE_INT, 1, dims)) < 0) TEST_ERROR
+
+    /* Get size of array type */
+    if((dt_size = H5Tget_size(type)) == 0) TEST_ERROR
+
+    /* Commit array type and verify the size doesn't change */
+    if(H5Tcommit2(file, "array_type", type, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(type)) TEST_ERROR
+
+    /* Create dataset with array type */
+    if((dset = H5Dcreate2(file, "array_dset", type, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Indirectly reopen type and verify that the size doesn't change */
+    if((reopened_type = H5Dget_type(dset)) < 0) TEST_ERROR
+    if(dt_size != H5Tget_size(reopened_type)) TEST_ERROR
+
+    /* Close types and dataset */
+    if(H5Tclose(type) < 0) TEST_ERROR
+    if(H5Tclose(reopened_type) < 0) TEST_ERROR
+    if(H5Dclose(dset) < 0) TEST_ERROR
+
+    /* Close file and dataspace */
+    if(H5Sclose(space) < 0) TEST_ERROR
+    if(H5Fclose(file) < 0) TEST_ERROR
+    PASSED();
+    return 0;
+
+error:
+    H5E_BEGIN_TRY {
+	H5Tclose(type);
+	H5Tclose(strtype);
+	H5Tclose(reopened_type);
+	H5Sclose(space);
+	H5Dclose(dset);
+	H5Fclose(file);
+    } H5E_END_TRY;
+    if(tag_ret)
+        HDfree(tag_ret);
+    return 1;
+} /* end test_named_indirect_reopen() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	test_deprec
  *
  * Purpose:	Tests deprecated API routines for datatypes.
@@ -5918,9 +6274,28 @@ test_deprec(hid_t fapl)
     if(!status)
 	FAIL_PUTS_ERROR("    Opened named types should be named types!")
 
-    /* Clean up */
+    /* Close */
     if(H5Tclose(type) < 0) FAIL_STACK_ERROR
     if(H5Fclose(file) < 0) FAIL_STACK_ERROR
+
+    /* Reopen file with read only access */
+    if ((file = H5Fopen(filename, H5F_ACC_RDONLY, fapl)) < 0)
+        goto error;
+
+    /* Verify that H5Tcommit2 returns an error */
+    if((type = H5Tcopy(H5T_NATIVE_INT)) < 0) goto error;
+    H5E_BEGIN_TRY {
+        status = H5Tcommit1(file, "test_named_3 (should not exist)", type);
+    } H5E_END_TRY;
+    if(status >= 0) {
+        H5_FAILED();
+        HDputs ("    Types should not be committable to a read-only file!");
+        goto error;
+    }
+
+    /* Close */
+    if(H5Tclose(type) < 0) goto error;
+    if(H5Fclose(file) < 0) goto error;
 
     PASSED();
     return 0;
@@ -5978,6 +6353,7 @@ main(void)
     nerrors += test_encode();
     nerrors += test_latest();
     nerrors += test_int_float_except();
+    nerrors += test_named_indirect_reopen(fapl);
 #ifndef H5_NO_DEPRECATED_SYMBOLS
     nerrors += test_deprec(fapl);
 #endif /* H5_NO_DEPRECATED_SYMBOLS */

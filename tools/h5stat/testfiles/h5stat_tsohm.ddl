@@ -5,7 +5,7 @@ Filename: h5stat_tsohm.h5
 File information
 	# of unique groups: 1
 	# of unique datasets: 3
-	# of unique named dataypes: 0
+	# of unique named datatypes: 0
 	# of unique links: 0
 	# of unique other: 0
 	Max. # of links to object: 1
@@ -13,6 +13,7 @@ File information
 Object header size: (total/unused)
 	Groups: 51/2
 	Datasets: 852/447
+	Datatypes: 0/0
 Storage information:
 	Groups:
 		B-tree/List: 872

@@ -92,6 +92,7 @@
 #define FILE62  "textlinktar.h5"
 #define FILE63  "textlinkfar.h5"
 #define FILE64  "tarray8.h5"
+#define FILE65  "tattrreg.h5"
 
 
 
@@ -144,7 +145,7 @@ return -1;
 
 const H5L_class_t UD_link_class[1] = {{
     H5L_LINK_CLASS_T_VERS,    /* H5L_class_t version       */
-    MY_LINKCLASS,             /* Link type id number            */
+    (H5L_type_t)MY_LINKCLASS, /* Link type id number            */
     "UD link class",          /* name for debugging             */
     NULL,                     /* Creation callback              */
     NULL,                     /* Move/rename callback           */
@@ -235,6 +236,13 @@ typedef struct s1_t {
 
 /* "File 51" macros */
 #define F51_MAX_NAME_LEN    ((64*1024)+1024)
+
+/* "File 64" macros */
+#define F64_FILE            "tarray8.h5"
+#define F64_DATASET         "DS1"
+#define F64_DIM0            1
+#define F64_ARRAY_BUF_LEN   (4*1024)
+#define F64_DIM1            (F64_ARRAY_BUF_LEN / sizeof(int) + 1)
 
 static void
 gent_group(void)
@@ -517,9 +525,9 @@ static void gent_udlink(void)
 
     /* This ud link will dangle, but that's okay */
     fid = H5Fcreate(FILE54, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    H5Lcreate_ud(fid, "udlink1", MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
+    H5Lcreate_ud(fid, "udlink1", (H5L_type_t)MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
     strcpy(buf, "foo");
-    H5Lcreate_ud(fid, "udlink2", MY_LINKCLASS, buf, 4, H5P_DEFAULT, H5P_DEFAULT);
+    H5Lcreate_ud(fid, "udlink2", (H5L_type_t)MY_LINKCLASS, buf, 4, H5P_DEFAULT, H5P_DEFAULT);
 
     H5Fclose(fid);
 }
@@ -1032,7 +1040,7 @@ static void gent_all(void)
 
     /* user-defined link */
     H5Lregister(UD_link_class);
-    H5Lcreate_ud(fid, "/g2/udlink", MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
+    H5Lcreate_ud(fid, "/g2/udlink", (H5L_type_t)MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
 
     H5Fclose(fid);
 }
@@ -1282,7 +1290,7 @@ static void gent_many(void)
   /* Create dangling external and UD links */
   H5Lcreate_external("somefile", "somepath", fid, "/g8/elink", H5P_DEFAULT, H5P_DEFAULT);
   H5Lregister(UD_link_class);
-  H5Lcreate_ud(fid, "/g8/udlink", MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
+  H5Lcreate_ud(fid, "/g8/udlink", (H5L_type_t)MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
 
   /* Create links to external and UD links */
   ret= H5Lcreate_soft("/g8/elink", fid, "/g7/slink5", H5P_DEFAULT, H5P_DEFAULT);
@@ -1828,6 +1836,126 @@ static void gent_datareg(void)
 
     /* Close disk dataspace */
     H5Sclose(sid1);
+
+    /* Close Dataset */
+    H5Dclose(dset1);
+
+    /* Close uint8 dataset dataspace */
+    H5Sclose(sid2);
+
+    /* Close file */
+    H5Fclose(fid1);
+
+    /* Free memory buffers */
+    free(wbuf);
+    free(rbuf);
+    free(dwbuf);
+    free(drbuf);
+}
+
+static void gent_attrreg(void)
+{
+    /*some code is taken from enum.c in the test dir */
+
+    hid_t  fid1;        /* HDF5 File IDs  */
+    hid_t  dset1;       /* Dataset ID   */
+    hid_t  dset2;       /* Dereferenced dataset ID */
+    hid_t  sid1;        /* Dataspace ID #1  */
+    hid_t  sid2;        /* Dataspace ID #2  */
+    hid_t  sid3;        /* Dataspace ID #3  */
+    hid_t  attr1;       /* Attribute ID  */
+    hsize_t  dims1[] = {SPACE1_DIM1};
+    hsize_t  dims2[] = {SPACE2_DIM1, SPACE2_DIM2};
+    hsize_t  start[SPACE2_RANK];     /* Starting location of hyperslab */
+    hsize_t  stride[SPACE2_RANK];    /* Stride of hyperslab */
+    hsize_t  count[SPACE2_RANK];     /* Element count of hyperslab */
+    hsize_t  block[SPACE2_RANK];     /* Block size of hyperslab */
+    hsize_t  coord1[POINT1_NPOINTS][SPACE2_RANK]; /* Coordinates for point selection */
+    hdset_reg_ref_t      *wbuf;      /* buffer to write to disk */
+    hdset_reg_ref_t      *rbuf;      /* buffer read from disk */
+    uint8_t    *dwbuf;      /* Buffer for writing numeric data to disk */
+    uint8_t    *drbuf;      /* Buffer for reading numeric data from disk */
+    uint8_t    *tu8;        /* Temporary pointer to uint8 data */
+    int        i;           /* counting variables */
+
+    /* Allocate write & read buffers */
+    wbuf=calloc(sizeof(hdset_reg_ref_t), SPACE1_DIM1);
+    rbuf=malloc(sizeof(hdset_reg_ref_t)*SPACE1_DIM1);
+    dwbuf=malloc(sizeof(uint8_t)*SPACE2_DIM1*SPACE2_DIM2);
+    drbuf=calloc(sizeof(uint8_t),SPACE2_DIM1*SPACE2_DIM2);
+
+    /* Create file */
+    fid1 = H5Fcreate(FILE65, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+    /* Create dataspace for datasets */
+    sid2 = H5Screate_simple(SPACE2_RANK, dims2, NULL);
+
+    /* Create a dataset */
+    dset2 = H5Dcreate2(fid1, "Dataset2", H5T_STD_U8BE, sid2, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    for(tu8 = dwbuf, i = 0; i < SPACE2_DIM1 * SPACE2_DIM2; i++)
+        *tu8++=i*3;
+
+    /* Write selection to disk */
+    H5Dwrite(dset2, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, dwbuf);
+
+    /* Close Dataset */
+    H5Dclose(dset2);
+
+    /*
+     * Create dataset with a null dataspace to serve as the parent for
+     * the attribute.
+     */
+    sid1 = H5Screate (H5S_NULL);
+    dset1 = H5Dcreate2 (fid1, "Dataset1", H5T_STD_I32LE, sid1, H5P_DEFAULT,
+                H5P_DEFAULT, H5P_DEFAULT);
+    H5Sclose (sid1);
+
+    /* Create references */
+
+    /* Select 6x6 hyperslab for first reference */
+    start[0] = 2; start[1] = 2;
+    stride[0] = 1; stride[1] = 1;
+    count[0] = 6; count[1] = 6;
+    block[0] = 1; block[1] = 1;
+    H5Sselect_hyperslab(sid2, H5S_SELECT_SET, start, stride, count, block);
+
+    H5Sget_select_npoints(sid2);
+
+    /* Store first dataset region */
+    H5Rcreate(&wbuf[0], fid1, "/Dataset2", H5R_DATASET_REGION, sid2);
+
+    /* Select sequence of ten points for second reference */
+    coord1[0][0]=6; coord1[0][1]=9;
+    coord1[1][0]=2; coord1[1][1]=2;
+    coord1[2][0]=8; coord1[2][1]=4;
+    coord1[3][0]=1; coord1[3][1]=6;
+    coord1[4][0]=2; coord1[4][1]=8;
+    coord1[5][0]=3; coord1[5][1]=2;
+    coord1[6][0]=0; coord1[6][1]=4;
+    coord1[7][0]=9; coord1[7][1]=0;
+    coord1[8][0]=7; coord1[8][1]=1;
+    coord1[9][0]=3; coord1[9][1]=3;
+    H5Sselect_elements(sid2,H5S_SELECT_SET,POINT1_NPOINTS,(hsize_t *)coord1);
+
+    H5Sget_select_npoints(sid2);
+
+    /* Store second dataset region */
+    H5Rcreate(&wbuf[1],fid1,"/Dataset2",H5R_DATASET_REGION,sid2);
+
+    /* Create dataspace for the attribute */
+    sid3 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
+
+    /* Create the attribute and write the region references to it. */
+    attr1 = H5Acreate2 (dset1, "Attribute1", H5T_STD_REF_DSETREG, sid3, H5P_DEFAULT,
+                    H5P_DEFAULT);
+    H5Awrite (attr1, H5T_STD_REF_DSETREG, wbuf);
+
+    /* Close attribute dataspace */
+    H5Sclose(sid3);
+
+    /* Close attribute */
+    H5Aclose (attr1);
 
     /* Close Dataset */
     H5Dclose(dset1);
@@ -2813,48 +2941,59 @@ static void gent_array7(void)
     assert(ret >= 0);
 }
 
+/* Test the boundary of the display output buffer at the reallocation event */
 static void gent_array8(void)
 {
-    int     *buf;                            /* information to write */
-    hid_t   fid;                             /* HDF5 File ID  */
-    hid_t   did;                             /* dataset ID   */
-    hid_t   sid;                             /* dataspace ID   */
-    hid_t   tid;                             /* datatype ID   */
-    size_t  size;
-    hsize_t sdims[] = {1};
-    hsize_t tdims[] = {H5TOOLS_BUFSIZE / sizeof(int) + 1};
-    int     i;                               
-    herr_t  ret;                             
+    hid_t       file = -1; /* Handles */
+    hid_t       filetype = -1; /* Handles */
+    hid_t       space = -1; /* Handles */
+    hid_t       dset = -1; /* Handles */
+    herr_t      status = -1;
+    hsize_t sdims[] = {F64_DIM0};
+    hsize_t tdims[] = {F64_DIM1};
+    int         wdata[(F64_DIM1) * sizeof(int)];      /* Write buffer */
+    int         ndims;
+    int     i;
 
-    size = ( H5TOOLS_BUFSIZE / sizeof(int) + 1 ) * sizeof(int);
-    buf = malloc( size );
+    /*
+     * Initialize data.  i is the element in the dataspace, j and k the
+     * elements within the array datatype.
+     */
+    for (i=0; i<F64_DIM1; i++)
+                wdata[i] = i;
 
-    for( i = 0; i < H5TOOLS_BUFSIZE / sizeof(int) + 1; i++)
-        buf[i] = i;
+    /*
+     * Create a new file using the default properties.
+     */
+    file = H5Fcreate (F64_FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-    /* create file */
-    fid = H5Fcreate(FILE64, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    /*
+     * Create array datatypes for file and memory.
+     */
+    filetype = H5Tarray_create2 (H5T_NATIVE_INT, 1, tdims);
 
-    /* create a type larger than H5TOOLS_BUFSIZE */
-    tid = H5Tarray_create2(H5T_NATIVE_INT, 1, tdims);
-    size = H5Tget_size(tid);
-    sid = H5Screate_simple(1, sdims, NULL);
-    did = H5Dcreate2(fid, "dset", tid, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    ret = H5Dwrite(did, tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
-    assert(ret >= 0);
+    /*
+     * Create dataspace.  Setting maximum size to NULL sets the maximum
+     * size to be the current size.
+     */
+    space = H5Screate_simple (1, sdims, NULL);
 
-
-    /* close */
-    ret = H5Dclose(did);
-    assert(ret >= 0);
-    ret = H5Tclose(tid);
-    assert(ret >= 0);
-    ret = H5Sclose(sid);
-    assert(ret >= 0);
-
-    ret = H5Fclose(fid);
-    assert(ret >= 0);
-    free( buf );
+    /*
+     * Create the dataset and write the array data to it.
+     */
+    if(file>=0 && filetype>=0 && space>=0) {
+        dset = H5Dcreate2 (file, F64_DATASET, filetype, space, H5P_DEFAULT, H5P_DEFAULT,
+                H5P_DEFAULT);
+        if(dset>=0)
+            status = H5Dwrite (dset, filetype, H5S_ALL, H5S_ALL, H5P_DEFAULT, wdata);
+    }
+    /*
+     * Close and release resources.
+     */
+    status = H5Dclose (dset);
+    status = H5Sclose (space);
+    status = H5Tclose (filetype);
+    status = H5Fclose (file);
 }
 
 static void gent_empty(void)
@@ -5096,7 +5235,7 @@ static void gent_fcontents(void)
     assert(ret >= 0);
 
     /* dangling udlink */
-    ret = H5Lcreate_ud(fid, "udlink", MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
+    ret = H5Lcreate_ud(fid, "udlink", (H5L_type_t)MY_LINKCLASS, NULL, 0, H5P_DEFAULT, H5P_DEFAULT);
     assert(ret >= 0);
 
     /*-------------------------------------------------------------------------
@@ -6333,6 +6472,7 @@ int main(void)
     gent_enum();
     gent_objref();
     gent_datareg();
+    gent_attrreg();
     gent_nestcomp();
     gent_opaque();
     gent_bitfields();
@@ -6348,6 +6488,7 @@ int main(void)
     gent_array5();
     gent_array6();
     gent_array7();
+    gent_array8();
     gent_empty();
     gent_group_comments();
     gent_split_file();

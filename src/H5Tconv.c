@@ -1935,51 +1935,48 @@ H5T_conv_struct_init(H5T_t *src, H5T_t *dst, H5T_cdata_t *cdata, hid_t dxpl_id)
         } /* end if */
     } /* end for */
 
-    /* Check if we need a background buffer */
-    if(H5T_detect_class(src, H5T_COMPOUND) == TRUE || H5T_detect_class(dst, H5T_COMPOUND) == TRUE) {
-        cdata->need_bkg = H5T_BKG_YES;
+    /* The compound conversion functions need a background buffer */
+    cdata->need_bkg = H5T_BKG_YES;
 
-        if(src_nmembs < dst_nmembs) {
-            priv->subset_info.subset = H5T_SUBSET_SRC;
-            for(i = 0; i < src_nmembs; i++) {
-                /* If any of source members doesn't have counterpart in the same
-                 * order or there's conversion between members, don't do the
-                 * optimization.
-                 */
-                if(src2dst[i] != i || (src->shared->u.compnd.memb[i].offset != dst->shared->u.compnd.memb[i].offset) || (priv->memb_path[i])->is_noop == FALSE) {
-                    priv->subset_info.subset = H5T_SUBSET_FALSE;
-                    break;
-                } /* end if */
-            } /* end for */
-            /* Compute the size of the data to be copied for each element.  It
-             * may be smaller than either src or dst if there is extra space at
-             * the end of src.
-             */
-            if(priv->subset_info.subset == H5T_SUBSET_SRC)
-                priv->subset_info.copy_size = src->shared->u.compnd.memb[src_nmembs-1].offset
-                    + src->shared->u.compnd.memb[src_nmembs-1].size;
-        } else if(dst_nmembs < src_nmembs) {
-            priv->subset_info.subset = H5T_SUBSET_DST;
-            for(i = 0; i < dst_nmembs; i++) {
-                /* If any of source members doesn't have counterpart in the same order or
-                 * there's conversion between members, don't do the optimization. */
-                if(src2dst[i] != i || (src->shared->u.compnd.memb[i].offset != dst->shared->u.compnd.memb[i].offset) || (priv->memb_path[i])->is_noop == FALSE) {
-                    priv->subset_info.subset = H5T_SUBSET_FALSE;
-                    break;
-                }
-            } /* end for */
-            /* Compute the size of the data to be copied for each element.  It
-             * may be smaller than either src or dst if there is extra space at
-             * the end of dst.
-             */
-            if(priv->subset_info.subset == H5T_SUBSET_DST)
-                priv->subset_info.copy_size = dst->shared->u.compnd.memb[dst_nmembs-1].offset
-                    + dst->shared->u.compnd.memb[dst_nmembs-1].size;
-        } else /* If the numbers of source and dest members are equal and no conversion is needed,
-                * the case should have been handled as noop earlier in H5Dio.c. */
-          ;
-
-    } /* end if */
+    if(src_nmembs < dst_nmembs) {
+        priv->subset_info.subset = H5T_SUBSET_SRC;
+        for(i = 0; i < src_nmembs; i++) {
+            /* If any of source members doesn't have counterpart in the same
+                * order or there's conversion between members, don't do the
+                * optimization.
+                */
+            if(src2dst[i] != i || (src->shared->u.compnd.memb[i].offset != dst->shared->u.compnd.memb[i].offset) || (priv->memb_path[i])->is_noop == FALSE) {
+                priv->subset_info.subset = H5T_SUBSET_FALSE;
+                break;
+            } /* end if */
+        } /* end for */
+        /* Compute the size of the data to be copied for each element.  It
+            * may be smaller than either src or dst if there is extra space at
+            * the end of src.
+            */
+        if(priv->subset_info.subset == H5T_SUBSET_SRC)
+            priv->subset_info.copy_size = src->shared->u.compnd.memb[src_nmembs-1].offset
+                + src->shared->u.compnd.memb[src_nmembs-1].size;
+    } else if(dst_nmembs < src_nmembs) {
+        priv->subset_info.subset = H5T_SUBSET_DST;
+        for(i = 0; i < dst_nmembs; i++) {
+            /* If any of source members doesn't have counterpart in the same order or
+                * there's conversion between members, don't do the optimization. */
+            if(src2dst[i] != i || (src->shared->u.compnd.memb[i].offset != dst->shared->u.compnd.memb[i].offset) || (priv->memb_path[i])->is_noop == FALSE) {
+                priv->subset_info.subset = H5T_SUBSET_FALSE;
+                break;
+            }
+        } /* end for */
+        /* Compute the size of the data to be copied for each element.  It
+            * may be smaller than either src or dst if there is extra space at
+            * the end of dst.
+            */
+        if(priv->subset_info.subset == H5T_SUBSET_DST)
+            priv->subset_info.copy_size = dst->shared->u.compnd.memb[dst_nmembs-1].offset
+                + dst->shared->u.compnd.memb[dst_nmembs-1].size;
+    } else /* If the numbers of source and dest members are equal and no conversion is needed,
+            * the case should have been handled as noop earlier in H5Dio.c. */
+        ;
 
     cdata->recalc = FALSE;
 
@@ -8417,7 +8414,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-#if H5T_CONV_INTERNAL_ULONG_FP
+#if H5T_CONV_INTERNAL_ULONG_FLT
 herr_t
 H5T_conv_ulong_float (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
 		       size_t nelmts, size_t buf_stride,
@@ -8433,7 +8430,7 @@ H5T_conv_ulong_float (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
 done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
-#endif /* H5T_CONV_INTERNAL_ULONG_FP */
+#endif /* H5T_CONV_INTERNAL_ULONG_FLT */
 
 
 /*-------------------------------------------------------------------------
@@ -8451,7 +8448,7 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-#if H5T_CONV_INTERNAL_ULONG_FP
+#if H5T_CONV_INTERNAL_ULONG_DBL
 herr_t
 H5T_conv_ulong_double (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
 		       size_t nelmts, size_t buf_stride,
@@ -8467,7 +8464,7 @@ H5T_conv_ulong_double (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
 done:
     FUNC_LEAVE_NOAPI(ret_value)
 }
-#endif /* H5T_CONV_INTERNAL_ULONG_FP */
+#endif /* H5T_CONV_INTERNAL_ULONG_DBL */
 
 
 /*-------------------------------------------------------------------------

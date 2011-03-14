@@ -367,11 +367,11 @@ test_genprop_class_iter(void)
 
 /****************************************************************
 **
-**  test_genprop_cls_cb1(): Property List callback for test_genprop_class_callback
+**  test_genprop_cls_*_cb1(): Property List callbacks for test_genprop_class_callback
 **
 ****************************************************************/
 static herr_t
-test_genprop_cls_cb1(hid_t list_id, void *create_data)
+test_genprop_cls_crt_cb1(hid_t list_id, void *create_data)
 {
     struct {                /* Struct for iterations */
         int count;
@@ -385,7 +385,21 @@ test_genprop_cls_cb1(hid_t list_id, void *create_data)
 }
 
 static herr_t
-test_genprop_cls_cb2(hid_t new_list_id, hid_t UNUSED old_list_id, void *create_data)
+test_genprop_cls_cpy_cb1(hid_t new_list_id, hid_t UNUSED old_list_id, void *copy_data)
+{
+    struct {                /* Struct for iterations */
+        int count;
+        hid_t id;
+    } *count_struct=copy_data;
+
+    count_struct->count++;
+    count_struct->id=new_list_id;
+
+    return(SUCCEED);
+}
+
+static herr_t
+test_genprop_cls_cls_cb1(hid_t list_id, void *create_data)
 {
     struct {                /* Struct for iterations */
         int count;
@@ -393,10 +407,11 @@ test_genprop_cls_cb2(hid_t new_list_id, hid_t UNUSED old_list_id, void *create_d
     } *count_struct=create_data;
 
     count_struct->count++;
-    count_struct->id=new_list_id;
+    count_struct->id=list_id;
 
     return(SUCCEED);
 }
+
 /****************************************************************
 **
 **  test_genprop_class_callback(): Test basic generic property list code.
@@ -407,20 +422,22 @@ static void
 test_genprop_class_callback(void)
 {
     hid_t	cid1;		/* Generic Property class ID */
+    hid_t	cid2;		/* Generic Property class ID */
     hid_t	lid1;		/* Generic Property list ID */
     hid_t	lid2;		/* Generic Property list ID */
+    hid_t	lid3;		/* Generic Property list ID */
     size_t	nprops;		/* Number of properties in class */
     struct {                    /* Struct for callbacks */
         int count;
         hid_t id;
-    } crt_cb_struct, cls_cb_struct;
+    } crt_cb_struct, cpy_cb_struct, cls_cb_struct;
     herr_t		ret;		/* Generic return value	*/
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Basic Generic Property List Class Callback Functionality\n"));
 
     /* Create a new generic class, derived from the root of the class hierarchy */
-    cid1 = H5Pcreate_class(H5P_ROOT,CLASS1_NAME,test_genprop_cls_cb1,&crt_cb_struct,NULL, NULL,test_genprop_cls_cb1,&cls_cb_struct);
+    cid1 = H5Pcreate_class(H5P_ROOT, CLASS1_NAME, test_genprop_cls_crt_cb1, &crt_cb_struct, test_genprop_cls_cpy_cb1, &cpy_cb_struct, test_genprop_cls_cls_cb1, &cls_cb_struct);
     CHECK_I(cid1, "H5Pcreate_class");
 
     /* Insert first property into class (with no callbacks) */
@@ -435,18 +452,16 @@ test_genprop_class_callback(void)
     ret = H5Pregister2(cid1, PROP3_NAME, PROP3_SIZE, PROP3_DEF_VALUE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     CHECK_I(ret, "H5Pregister2");
 
-    /* Insert fourth property into class (with no callbacks) */
-    ret = H5Pregister2(cid1, PROP4_NAME, PROP4_SIZE, PROP4_DEF_VALUE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    CHECK_I(ret, "H5Pregister2");
-
     /* Check the number of properties in class */
     ret = H5Pget_nprops(cid1,&nprops);
     CHECK_I(ret, "H5Pget_nprops");
-    VERIFY(nprops, 4, "H5Pget_nprops");
+    VERIFY(nprops, 3, "H5Pget_nprops");
 
     /* Initialize class callback structs */
     crt_cb_struct.count=0;
     crt_cb_struct.id=(-1);
+    cpy_cb_struct.count=0;
+    cpy_cb_struct.id=(-1);
     cls_cb_struct.count=0;
     cls_cb_struct.id=(-1);
 
@@ -461,7 +476,7 @@ test_genprop_class_callback(void)
     /* Check the number of properties in list */
     ret = H5Pget_nprops(lid1,&nprops);
     CHECK_I(ret, "H5Pget_nprops");
-    VERIFY(nprops, 4, "H5Pget_nprops");
+    VERIFY(nprops, 3, "H5Pget_nprops");
 
     /* Create another property list from the class */
     lid2 = H5Pcreate(cid1);
@@ -474,7 +489,20 @@ test_genprop_class_callback(void)
     /* Check the number of properties in list */
     ret = H5Pget_nprops(lid2,&nprops);
     CHECK_I(ret, "H5Pget_nprops");
-    VERIFY(nprops, 4, "H5Pget_nprops");
+    VERIFY(nprops, 3, "H5Pget_nprops");
+
+    /* Create another property list by copying an existing list */
+    lid3 = H5Pcopy(lid1);
+    CHECK_I(lid3, "H5Pcopy");
+
+    /* Verify that the copy callback occurred */
+    VERIFY(cpy_cb_struct.count, 1, "H5Pcopy");
+    VERIFY(cpy_cb_struct.id, lid3, "H5Pcopy");
+
+    /* Check the number of properties in list */
+    ret = H5Pget_nprops(lid3, &nprops);
+    CHECK_I(ret, "H5Pget_nprops");
+    VERIFY(nprops, 3, "H5Pget_nprops");
 
     /* Close first list */
     ret = H5Pclose(lid1);
@@ -492,8 +520,74 @@ test_genprop_class_callback(void)
     VERIFY(cls_cb_struct.count, 2, "H5Pclose");
     VERIFY(cls_cb_struct.id, lid2, "H5Pclose");
 
-    /* Close class */
+    /* Close third list */
+    ret = H5Pclose(lid3);
+    CHECK_I(ret, "H5Pclose");
+
+    /* Verify that the close callback occurred */
+    VERIFY(cls_cb_struct.count, 3, "H5Pclose");
+    VERIFY(cls_cb_struct.id, lid3, "H5Pclose");
+
+    /* Create another new generic class, derived from first class */
+    cid2 = H5Pcreate_class(cid1, CLASS2_NAME, test_genprop_cls_crt_cb1, &crt_cb_struct, test_genprop_cls_cpy_cb1, &cpy_cb_struct, test_genprop_cls_cls_cb1, &cls_cb_struct);
+    CHECK_I(cid2, "H5Pcreate_class");
+
+    /* Insert fourth property into class (with no callbacks) */
+    ret = H5Pregister2(cid2, PROP4_NAME, PROP4_SIZE, PROP4_DEF_VALUE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    CHECK_I(ret, "H5Pregister2");
+
+    /* Check the number of properties in class */
+    /* (only reports the number of properties in 2nd class) */
+    ret = H5Pget_nprops(cid2, &nprops);
+    CHECK_I(ret, "H5Pget_nprops");
+    VERIFY(nprops, 1, "H5Pget_nprops");
+
+    /* Create a property list from the 2nd class */
+    lid1 = H5Pcreate(cid2);
+    CHECK_I(lid1, "H5Pcreate");
+
+    /* Verify that both of the creation callbacks occurred */
+    VERIFY(crt_cb_struct.count, 4, "H5Pcreate");
+    VERIFY(crt_cb_struct.id, lid1, "H5Pcreate");
+
+    /* Check the number of properties in list */
+    ret = H5Pget_nprops(lid1, &nprops);
+    CHECK_I(ret, "H5Pget_nprops");
+    VERIFY(nprops, 4, "H5Pget_nprops");
+
+    /* Create another property list by copying existing list */
+    lid2 = H5Pcopy(lid1);
+    CHECK_I(lid2, "H5Pcopy");
+
+    /* Verify that both of the copy callbacks occurred */
+    VERIFY(cpy_cb_struct.count, 3, "H5Pcopy");
+    VERIFY(cpy_cb_struct.id, lid2, "H5Pcopy");
+
+    /* Check the number of properties in list */
+    ret = H5Pget_nprops(lid2, &nprops);
+    CHECK_I(ret, "H5Pget_nprops");
+    VERIFY(nprops, 4, "H5Pget_nprops");
+
+    /* Close first list */
+    ret = H5Pclose(lid1);
+    CHECK_I(ret, "H5Pclose");
+
+    /* Verify that both of the close callbacks occurred */
+    VERIFY(cls_cb_struct.count, 5, "H5Pclose");
+    VERIFY(cls_cb_struct.id, lid1, "H5Pclose");
+
+    /* Close second list */
+    ret = H5Pclose(lid2);
+    CHECK_I(ret, "H5Pclose");
+
+    /* Verify that both of the close callbacks occurred */
+    VERIFY(cls_cb_struct.count, 7, "H5Pclose");
+    VERIFY(cls_cb_struct.id, lid2, "H5Pclose");
+
+    /* Close classes */
     ret = H5Pclose_class(cid1);
+    CHECK_I(ret, "H5Pclose_class");
+    ret = H5Pclose_class(cid2);
     CHECK_I(ret, "H5Pclose_class");
 } /* end test_genprop_class_callback() */
 
@@ -891,6 +985,26 @@ typedef struct {
 /* Global variables for Callback information */
 prop_cb_info prop1_cb_info;     /* Callback statistics for property #1 */
 prop_cb_info prop2_cb_info;     /* Callback statistics for property #2 */
+prop_cb_info prop3_cb_info;     /* Callback statistics for property #3 */
+
+/****************************************************************
+**
+**  test_genprop_cls_cpy_cb2(): Property Class callback for test_genprop_list_callback
+**
+****************************************************************/
+static herr_t
+test_genprop_cls_cpy_cb2(hid_t new_list_id, hid_t UNUSED old_list_id, void *create_data)
+{
+    struct {                /* Struct for iterations */
+        int count;
+        hid_t id;
+    } *count_struct=create_data;
+
+    count_struct->count++;
+    count_struct->id=new_list_id;
+
+    return(SUCCEED);
+}
 
 /****************************************************************
 **
@@ -974,12 +1088,26 @@ test_genprop_prop_cop_cb1(const char *name, size_t size, void *value)
 **
 ****************************************************************/
 static int
-test_genprop_prop_cmp_cb1(const void UNUSED *value1, const void UNUSED *value2, size_t UNUSED size)
+test_genprop_prop_cmp_cb1(const void *value1, const void *value2, size_t size)
 {
     /* Set the information from the comparison call */
     prop1_cb_info.cmp_count++;
 
-    return(0);
+    return(HDmemcmp(value1, value2, size));
+}
+
+/****************************************************************
+**
+**  test_genprop_prop_cmp_cb3(): Property comparison callback for test_genprop_list_callback
+**
+****************************************************************/
+static int
+test_genprop_prop_cmp_cb3(const void *value1, const void *value2, size_t size)
+{
+    /* Set the information from the comparison call */
+    prop3_cb_info.cmp_count++;
+
+    return(HDmemcmp(value1, value2, size));
 }
 
 /****************************************************************
@@ -1036,6 +1164,7 @@ test_genprop_list_callback(void)
     int         prop1_new_value=20;   /* Property #1 new value */
     float       prop2_value;    /* Value for property #2 */
     char        prop3_value[10];/* Property #3 value */
+    char        prop3_new_value[10]="10 chairs";    /* Property #3 new value */
     double      prop4_value;    /* Property #4 value */
     struct {                    /* Struct for callbacks */
         int count;
@@ -1047,7 +1176,7 @@ test_genprop_list_callback(void)
     MESSAGE(5, ("Testing Basic Generic Property List Property Callback Functionality\n"));
 
     /* Create a new generic class, derived from the root of the class hierarchy */
-    cid1 = H5Pcreate_class(H5P_ROOT,CLASS1_NAME, NULL, NULL,test_genprop_cls_cb2,&cop_cb_struct,NULL, NULL);
+    cid1 = H5Pcreate_class(H5P_ROOT,CLASS1_NAME, NULL, NULL,test_genprop_cls_cpy_cb2,&cop_cb_struct,NULL, NULL);
     CHECK_I(cid1, "H5Pcreate_class");
 
     /* Insert first property into class (with callbacks) */
@@ -1058,8 +1187,8 @@ test_genprop_list_callback(void)
     ret = H5Pregister2(cid1, PROP2_NAME, PROP2_SIZE, PROP2_DEF_VALUE, NULL, NULL, NULL,test_genprop_prop_del_cb2,NULL, NULL, NULL);
     CHECK_I(ret, "H5Pregister2");
 
-    /* Insert third property into class (with no callbacks) */
-    ret = H5Pregister2(cid1, PROP3_NAME, PROP3_SIZE, PROP3_DEF_VALUE, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    /* Insert third property into class (with only compare callback) */
+    ret = H5Pregister2(cid1, PROP3_NAME, PROP3_SIZE, PROP3_DEF_VALUE, NULL, NULL, NULL, NULL, NULL, test_genprop_prop_cmp_cb3, NULL);
     CHECK_I(ret, "H5Pregister2");
 
     /* Insert fourth property into class (with no callbacks) */
@@ -1078,10 +1207,18 @@ test_genprop_list_callback(void)
     /* Initialize callback information for properties tracked */
     HDmemset(&prop1_cb_info,0,sizeof(prop_cb_info));
     HDmemset(&prop2_cb_info,0,sizeof(prop_cb_info));
+    HDmemset(&prop3_cb_info,0,sizeof(prop_cb_info));
 
     /* Create a property list from the class */
     lid1 = H5Pcreate(cid1);
     CHECK_I(lid1, "H5Pcreate");
+
+    /* The compare callback should have been called once on property 1 (to check
+     * if the create callback modified the value) */
+    VERIFY(prop1_cb_info.cmp_count, 1, "H5Pequal");
+    /* The compare callback should not have been called on property 3, as there
+     * is no create callback */
+    VERIFY(prop3_cb_info.cmp_count, 0, "H5Pequal");
 
     /* Verify creation callback information for properties tracked */
     VERIFY(prop1_cb_info.crt_count, 1, "H5Pcreate");
@@ -1094,6 +1231,9 @@ test_genprop_list_callback(void)
     ret = H5Pget(lid1, PROP1_NAME,&prop1_value);
     CHECK_I(ret, "H5Pget");
     VERIFY(prop1_value, *PROP1_DEF_VALUE, "H5Pget");
+    /* The compare callback should have been called once (to check if the get
+     * callback modified the value) */
+    VERIFY(prop1_cb_info.cmp_count, 2, "H5Pequal");
     ret = H5Pget(lid1, PROP2_NAME,&prop2_value);
     CHECK_I(ret, "H5Pget");
     /* Verify the floating-poing value in this way to avoid compiler warning. */
@@ -1106,6 +1246,9 @@ test_genprop_list_callback(void)
     CHECK_I(ret, "H5Pget");
     if(HDmemcmp(&prop3_value, PROP3_DEF_VALUE, PROP3_SIZE)!=0)
         TestErrPrintf("Property #3 doesn't match!, line=%d\n",__LINE__);
+    /* The compare callback should not have been called, as there is no get
+     * callback for this property */
+    VERIFY(prop3_cb_info.cmp_count, 0, "H5Pequal");
     ret = H5Pget(lid1, PROP4_NAME,&prop4_value);
     CHECK_I(ret, "H5Pget");
     /* Verify the floating-poing value in this way to avoid compiler warning. */
@@ -1132,6 +1275,18 @@ test_genprop_list_callback(void)
         TestErrPrintf("Property #1 name doesn't match!, line=%d\n",__LINE__);
     if(HDmemcmp(prop1_cb_info.set_value,&prop1_new_value, PROP1_SIZE)!=0)
         TestErrPrintf("Property #1 value doesn't match!, line=%d\n",__LINE__);
+
+    /* The compare callback should have been called once (to check if the new
+     * value needed to be copied onto the property list) */
+    VERIFY(prop1_cb_info.cmp_count, 3, "H5Pequal");
+
+    /* Set value of property #3 to different value */
+    ret = H5Pset(lid1, PROP3_NAME,prop3_new_value);
+    CHECK_I(ret, "H5Pset");
+
+    /* The compare callback should have been called once (to check if the new
+     * value needed to be copied onto the property list) */
+    VERIFY(prop3_cb_info.cmp_count, 1, "H5Pequal");
 
     /* Check new value of tracked properties */
     ret = H5Pget(lid1, PROP1_NAME,&prop1_value);
@@ -1178,7 +1333,8 @@ test_genprop_list_callback(void)
     VERIFY(ret, 1, "H5Pequal");
 
     /* Verify compare callback information for properties tracked */
-    VERIFY(prop1_cb_info.cmp_count, 1, "H5Pequal");
+    VERIFY(prop1_cb_info.cmp_count, 4, "H5Pequal");
+    VERIFY(prop3_cb_info.cmp_count, 2, "H5Pequal");
 
     /* Close first list */
     ret = H5Pclose(lid1);

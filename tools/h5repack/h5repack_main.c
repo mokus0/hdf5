@@ -69,7 +69,9 @@ static struct long_options l_opts[] = {
  *
  * Purpose: h5repack main program
  *
- * Return: 1, error, 0, no error
+ * Return: Success: EXIT_SUCCESS(0)
+ *
+ * Failure: EXIT_FAILURE(1)
  *
  * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
  *
@@ -187,60 +189,60 @@ static void usage(const char *prog)
 
  printf("\n");
 
- printf("  M - is an integer greater than 1, size of dataset in bytes (default is 1024) \n");
- printf("  E - is a filename.\n");
- printf("  S - is an integer\n");
- printf("  U - is a filename.\n");
- printf("  T - is an integer\n");
- printf("  A - is an integer greater than zero\n");
- printf("  B - is the user block size, any value that is 512 or greater and is\n");
+ printf("    M - is an integer greater than 1, size of dataset in bytes (default is 1024) \n");
+ printf("    E - is a filename.\n");
+ printf("    S - is an integer\n");
+ printf("    U - is a filename.\n");
+ printf("    T - is an integer\n");
+ printf("    A - is an integer greater than zero\n");
+ printf("    B - is the user block size, any value that is 512 or greater and is\n");
  printf("        a power of 2 (1024 default)\n");
- printf("  F - is the shared object header message type, any of <dspace|dtype|fill|\n");
+ printf("    F - is the shared object header message type, any of <dspace|dtype|fill|\n");
  printf("        pline|attr>. If F is not specified, S applies to all messages\n");
 
  printf("\n");
 
- printf("  FILT - is a string with the format:\n");
+ printf("    FILT - is a string with the format:\n");
  printf("\n");
- printf("    <list of objects>:<name of filter>=<filter parameters>\n");
+ printf("      <list of objects>:<name of filter>=<filter parameters>\n");
  printf("\n");
- printf("    <list of objects> is a comma separated list of object names, meaning apply\n");
- printf("      compression only to those objects. If no names are specified, the filter\n");
- printf("      is applied to all objects\n");
- printf("    <name of filter> can be:\n");
- printf("      GZIP, to apply the HDF5 GZIP filter (GZIP compression)\n");
- printf("      SZIP, to apply the HDF5 SZIP filter (SZIP compression)\n");
- printf("      SHUF, to apply the HDF5 shuffle filter\n");
- printf("      FLET, to apply the HDF5 checksum filter\n");
- printf("      NBIT, to apply the HDF5 NBIT filter (NBIT compression)\n");
- printf("      SOFF, to apply the HDF5 Scale/Offset filter\n");
- printf("      NONE, to remove all filters\n");
- printf("    <filter parameters> is optional filter parameter information\n");
- printf("      GZIP=<deflation level> from 1-9\n");
- printf("      SZIP=<pixels per block,coding> pixels per block is a even number in\n");
+ printf("      <list of objects> is a comma separated list of object names, meaning apply\n");
+ printf("        compression only to those objects. If no names are specified, the filter\n");
+ printf("        is applied to all objects\n");
+ printf("      <name of filter> can be:\n");
+ printf("        GZIP, to apply the HDF5 GZIP filter (GZIP compression)\n");
+ printf("        SZIP, to apply the HDF5 SZIP filter (SZIP compression)\n");
+ printf("        SHUF, to apply the HDF5 shuffle filter\n");
+ printf("        FLET, to apply the HDF5 checksum filter\n");
+ printf("        NBIT, to apply the HDF5 NBIT filter (NBIT compression)\n");
+ printf("        SOFF, to apply the HDF5 Scale/Offset filter\n");
+ printf("        NONE, to remove all filters\n");
+ printf("      <filter parameters> is optional filter parameter information\n");
+ printf("        GZIP=<deflation level> from 1-9\n");
+ printf("        SZIP=<pixels per block,coding> pixels per block is a even number in\n");
  printf("            2-32 and coding method is either EC or NN\n");
- printf("      SHUF (no parameter)\n");
- printf("      FLET (no parameter)\n");
- printf("      NBIT (no parameter)\n");
- printf("      SOFF=<scale_factor,scale_type> scale_factor is an integer and scale_type\n");
+ printf("        SHUF (no parameter)\n");
+ printf("        FLET (no parameter)\n");
+ printf("        NBIT (no parameter)\n");
+ printf("        SOFF=<scale_factor,scale_type> scale_factor is an integer and scale_type\n");
  printf("            is either IN or DS\n");
- printf("      NONE (no parameter)\n");
+ printf("        NONE (no parameter)\n");
  printf("\n");
- printf("  LAYT - is a string with the format:\n");
+ printf("    LAYT - is a string with the format:\n");
  printf("\n");
- printf("    <list of objects>:<layout type>=<layout parameters>\n");
+ printf("      <list of objects>:<layout type>=<layout parameters>\n");
  printf("\n");
- printf("    <list of objects> is a comma separated list of object names, meaning that\n");
- printf("      layout information is supplied for those objects. If no names are\n");
- printf("      specified, the layout type is applied to all objects\n");
- printf("    <layout type> can be:\n");
- printf("      CHUNK, to apply chunking layout\n");
- printf("      COMPA, to apply compact layout\n");
- printf("      CONTI, to apply continuous layout\n");
- printf("    <layout parameters> is optional layout information\n");
- printf("      CHUNK=DIM[xDIM...xDIM], the chunk size of each dimension\n");
- printf("      COMPA (no parameter)\n");
- printf("      CONTI (no parameter)\n");
+ printf("      <list of objects> is a comma separated list of object names, meaning that\n");
+ printf("        layout information is supplied for those objects. If no names are\n");
+ printf("        specified, the layout type is applied to all objects\n");
+ printf("      <layout type> can be:\n");
+ printf("        CHUNK, to apply chunking layout\n");
+ printf("        COMPA, to apply compact layout\n");
+ printf("        CONTI, to apply continuous layout\n");
+ printf("      <layout parameters> is optional layout information\n");
+ printf("        CHUNK=DIM[xDIM...xDIM], the chunk size of each dimension\n");
+ printf("        COMPA (no parameter)\n");
+ printf("        CONTI (no parameter)\n");
  printf("\n");
  printf("Examples of use:\n");
  printf("\n");
@@ -415,13 +417,12 @@ void parse_command_line(int argc, const char **argv, pack_opt_t* options)
 
         case 'b':
 
-            options->ublock_size = atol( opt_arg );
+            options->ublock_size = (hsize_t)atol( opt_arg );
             break;
 
         case 't':
 
-            options->threshold = atol( opt_arg );
-          
+            options->threshold = (hsize_t)atol( opt_arg );
             break;
 
         case 'a':
@@ -489,7 +490,7 @@ void read_info(const char *filename,
 
     if ((fp = fopen(data_file, "r")) == (FILE *)NULL) {
         error_msg(progname, "cannot open options file %s\n", filename);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* cycle until end of file reached */
@@ -526,7 +527,7 @@ void read_info(const char *filename,
 
             if (h5repack_addfilter(comp_info,options)==-1){
                 error_msg(progname, "could not add compression option\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         /*-------------------------------------------------------------------------
@@ -556,7 +557,7 @@ void read_info(const char *filename,
 
             if (h5repack_addlayout(comp_info,options)==-1){
                 error_msg(progname, "could not add chunck option\n");
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
         /*-------------------------------------------------------------------------
@@ -565,7 +566,7 @@ void read_info(const char *filename,
         */
         else {
             error_msg(progname, "bad file format for %s", filename);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 

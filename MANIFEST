@@ -707,11 +707,14 @@
 
 ./doc/html/ed_libs/Dependencies
 ./doc/html/ed_libs/Footer.lbi
+./doc/html/ed_libs/Footer_Null.lbi        _DO_NOT_DISTRIBUTE_
 ./doc/html/ed_libs/Makefile.in
 ./doc/html/ed_libs/NavBar_ADevG.lbi
+./doc/html/ed_libs/NavBar_ADevG_Null.lbi  _DO_NOT_DISTRIBUTE_
 ./doc/html/ed_libs/NavBar_Common.lbi
 ./doc/html/ed_libs/NavBar_Intro.lbi
 ./doc/html/ed_libs/NavBar_RM.lbi
+./doc/html/ed_libs/NavBar_RM_Null.lbi     _DO_NOT_DISTRIBUTE_
 ./doc/html/ed_libs/NavBar_TechN.lbi
 ./doc/html/ed_libs/NavBar_UG.lbi
 ./doc/html/ed_libs/copyright-html.lbi
@@ -1195,8 +1198,6 @@
 ./src/H5FDsrb.h
 ./src/H5FDstdio.c
 ./src/H5FDstdio.h
-./src/H5FDstream.c
-./src/H5FDstream.h
 ./src/H5FL.c
 ./src/H5FLprivate.h
 ./src/H5FO.c
@@ -1387,12 +1388,13 @@
 ./test/srb_read.c
 ./test/srb_write.c
 ./test/stab.c
-./test/stream_test.c
 ./test/tarray.c
 ./test/tarrold.h5
 ./test/tattr.c
+./test/tbad_msg_count.h5
 ./test/tbogus.h5
 ./test/tconfig.c
+./test/tcoords.c
 ./test/testframe.c
 ./test/testhdf5.c
 ./test/testhdf5.h

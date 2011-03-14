@@ -30,6 +30,7 @@ HDF5/H5E API Specification
 
 
 <!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+
 <hr>
 <center>
 <table border=0 width=98%>
@@ -66,6 +67,8 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </table>
 </center>
 <hr>
+
+
 <!-- #EndLibraryItem --><center>
 <h1>H5E: Error Interface</h1>
 </center>
@@ -205,8 +208,6 @@ errors within the H5E package.
         The stack is also cleared whenever an API function is called, 
 	  with certain exceptions (for instance, <code>H5Eprint</code>).
         <p>
-        <code>H5Eclear</code> can fail if there are problems initializing 
-        the library.
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr><td valign="top">None</td></tr>
@@ -603,8 +604,6 @@ END SUBROUTINE h5eset_auto_f
             </dl>
         </dir>
         <p>
-        <code>H5Ewalk</code> can fail if there are problems initializing 
-        the library.
 <dt><strong>Parameters:</strong>
     <ul><table>
         <tr>
@@ -705,6 +704,7 @@ SUBROUTINE
 </dl>
 
 <!-- #BeginLibraryItem "/ed_libs/NavBar_RM.lbi" -->
+
 <hr>
 <center>
 <table border=0 width=98%>
@@ -741,12 +741,17 @@ of complete manual formatted as print volume)&nbsp;&nbsp;&nbsp;</small></i>
 </table>
 </center>
 <hr>
+
+
 <!-- #EndLibraryItem --><!-- #BeginLibraryItem "/ed_libs/Footer.lbi" -->
+
 <address>
 THG Help Desk: <img src="Graphics/help.png" align=top height=16>
 <br>
-Describes HDF5 Release 1.6.6, August 2007 
+Describes HDF5 Release 1.6.7, January 2008 
 </address>
+
+
 <!-- #EndLibraryItem --><SCRIPT LANGUAGE="JAVASCRIPT">
 <!--
 document.writeln("Last modified: 16 October 2003");

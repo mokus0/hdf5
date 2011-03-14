@@ -28,7 +28,7 @@ CPPFLAGS=-I. -I$(srcdir) -I../src -I$(top_srcdir)/src @CPPFLAGS@
 TEST_PROGS=testhdf5 lheap ohdr stab gheap cache hyperslab istore bittests    \
     dtypes dsets cmpd_dset extend external links unlink big mtime fillval    \
     mount flush1 flush2 enum gass_write gass_read gass_append set_extent     \
-    srb_write srb_append srb_read ttsafe stream_test getname file_handle     \
+    srb_write srb_append srb_read ttsafe getname file_handle     \
     ntypes dangle reserved
 
 TIMINGS=testmeta
@@ -51,7 +51,7 @@ MOSTLYCLEAN=cmpd_dset.h5 compact_dataset.h5 dataset.h5 extend.h5 istore.h5   \
             tfile[1-3].h5 th5s1.h5 th5s3.h5 lheap.h5 ohdr.h5 stab[1-2].h5 \
             extern_[1-3].h5 extern_[1-4][ab].raw gheap[0-4].h5      \
             links.h5 links[1-3].h5 big.data big[0-9][0-9][0-9][0-9][0-9].h5  \
-            sec2.h5 stdio.h5 dtypes[1-7].h5 tattr.h5          \
+            sec2.h5 stdio.h5 dtypes[1-7].h5 tattr.h5 coord.h5         \
             tselect.h5 mtime.h5 unlink.h5 fillval_[0-9].h5 fillval.raw       \
             mount_[0-9].h5 testmeta.h5 ttime.h5 trefer[1-3].h5 tvltypes.h5   \
             tvlstr.h5 tvlstr2.h5 flush.h5 enum1.h5 titerate.h5 ttsafe.h5     \
@@ -74,12 +74,12 @@ CLEAN=$(TIMINGS)
 TEST_SRC=big.c bittests.c cache.c cmpd_dset.c dsets.c dtypes.c extend.c      \
     external.c fillval.c flush1.c flush2.c gheap.c h5test.c hyperslab.c      \
     istore.c lheap.c links.c mount.c mtime.c ohdr.c stab.c tarray.c          \
-    tattr.c tconfig.c testhdf5.c testmeta.c tfile.c                          \
+    tattr.c tconfig.c tcoords.c testhdf5.c testmeta.c tfile.c                \
     tgenprop.c th5s.c theap.c titerate.c tmeta.c tmisc.c trefer.c trefstr.c  \
     tselect.c tskiplist.c ttime.c ttst.c tvltypes.c tvlstr.c                 \
     unlink.c enum.c ttsafe.c ttsafe_dcreate.c ttsafe_error.c                 \
     ttsafe_cancel.c ttsafe_acreate.c gass_write.c gass_read.c                \
-    gass_append.c srb_read.c srb_write.c srb_append.c stream_test.c          \
+    gass_append.c srb_read.c srb_write.c srb_append.c \
     set_extent.c getname.c file_handle.c ntypes.c dangle.c reserved.c
 
 TEST_OBJ=$(TEST_SRC:.c=.lo)
@@ -107,7 +107,7 @@ check test _test: $(TEST_PROGS)
 $(TEST_PROGS): $(LIB) $(LIBHDF5)
 
 TESTHDF5_OBJ=testhdf5.lo tarray.lo tattr.lo tconfig.lo tfile.lo               \
-    tgenprop.lo th5s.lo theap.lo titerate.lo tmeta.lo tmisc.lo                \
+    tgenprop.lo th5s.lo tcoords.lo theap.lo titerate.lo tmeta.lo tmisc.lo     \
     trefer.lo trefstr.lo tselect.lo tskiplist.lo ttime.lo ttst.lo             \
     tvltypes.lo tvlstr.lo
 
@@ -206,9 +206,6 @@ srb_write: srb_write.lo
 
 srb_append: srb_append.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ srb_append.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
-
-stream_test: stream_test.lo
-	@$(LT_LINK_EXE) $(CFLAGS) -o $@ stream_test.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)
 
 testmeta: testmeta.lo
 	@$(LT_LINK_EXE) $(CFLAGS) -o $@ testmeta.lo $(LIB) $(LIBHDF5) $(LDFLAGS) $(LIBS)

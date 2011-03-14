@@ -75,10 +75,10 @@ extern "C" {
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	6	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	6	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	7	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
-#define H5_VERS_INFO    "HDF5 library version: 1.6.6"      /* Full version string */
+#define H5_VERS_INFO    "HDF5 library version: 1.6.7"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)
@@ -210,6 +210,14 @@ typedef ssize_t			hssize_t;
 #   error "nothing appropriate for H5_PRINTF_HADDR_FMT"
 #endif
 #define HADDR_MAX		(HADDR_UNDEF-1)
+
+/* Iteration callback values */
+/* (Actually, any postive value will cause the iterator to stop and pass back
+ *      that positive value to the function that called the iterator)
+ */
+#define H5_ITER_ERROR   (-1)
+#define H5_ITER_CONT    (0)
+#define H5_ITER_STOP    (1)
 
 /* Functions in H5.c */
 H5_DLL herr_t H5open(void);

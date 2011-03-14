@@ -13,7 +13,6 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-
 /*
  *
  * Data and structure definitions for h5import
@@ -81,7 +80,7 @@ struct path_info
 struct Input
 {
   struct path_info path;
-  int inputClass; /* 0 to 7, read string from configuration file, translated to int   */
+  int inputClass;
   int inputSize;
   int rank;
   hsize_t* sizeOfDimension;

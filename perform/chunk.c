@@ -84,7 +84,9 @@ counter (unsigned UNUSED flags, size_t cd_nelmts,
 
 /* This message derives from H5Z */
 const H5Z_class_t H5Z_COUNTER[1] = {{
+    H5Z_CLASS_T_VERS,		/* H5Z_class_t version		*/
     FILTER_COUNTER,		/* Filter id number		*/
+    1, 1,			/* Encoding and decoding enabled */
     "counter",			/* Filter name for debugging	*/
     NULL,                       /* The "can apply" callback     */
     NULL,                       /* The "set local" callback     */
@@ -147,33 +149,29 @@ create_dataset (void)
 
     /* The data space */
     size[0] = size[1] = DS_SIZE * CH_SIZE;
-    space = H5Screate_simple (2, size, size);
+    space = H5Screate_simple(2, size, size);
 
     /* The storage layout and compression */
-    dcpl = H5Pcreate (H5P_DATASET_CREATE);
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
     size[0] = size[1] = CH_SIZE;
-    H5Pset_chunk (dcpl, 2, size);
-#ifdef H5_WANT_H5_V1_4_COMPAT
-    H5Zregister (FILTER_COUNTER, "counter", counter);
-#else /* H5_WANT_H5_V1_4_COMPAT */
-    H5Zregister (H5Z_COUNTER);
-#endif /* H5_WANT_H5_V1_4_COMPAT */
-    H5Pset_filter (dcpl, FILTER_COUNTER, 0, 0, NULL);
+    H5Pset_chunk(dcpl, 2, size);
+    H5Zregister(H5Z_COUNTER);
+    H5Pset_filter(dcpl, FILTER_COUNTER, 0, 0, NULL);
 
     /* The dataset */
-    dset = H5Dcreate (file, "dset", H5T_NATIVE_SCHAR, space, dcpl);
-    assert (dset>=0);
+    dset = H5Dcreate2(file, "dset", H5T_NATIVE_SCHAR, space, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+    assert(dset>=0);
 
     /* The data */
-    buf = calloc (1, SQUARE (DS_SIZE*CH_SIZE));
-    H5Dwrite (dset, H5T_NATIVE_SCHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
-    free (buf);
+    buf = calloc(1, SQUARE (DS_SIZE*CH_SIZE));
+    H5Dwrite(dset, H5T_NATIVE_SCHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    free(buf);
 
     /* Close */
-    H5Dclose (dset);
-    H5Sclose (space);
-    H5Pclose (dcpl);
-    H5Fclose (file);
+    H5Dclose(dset);
+    H5Sclose(space);
+    H5Pclose(dcpl);
+    H5Fclose(file);
 }
 
 
@@ -199,12 +197,8 @@ test_rowmaj (int op, size_t cache_size, size_t io_size)
     signed char	*buf = calloc (1, (size_t)(SQUARE(io_size)));
     hsize_t	i, j, hs_size[2];
     hsize_t	hs_offset[2];
-#ifdef H5_WANT_H5_V1_4_COMPAT
-    int		mdc_nelmts, rdcc_nelmts;
-#else /* H5_WANT_H5_V1_4_COMPAT */
     int		mdc_nelmts;
     size_t	rdcc_nelmts;
-#endif /* H5_WANT_H5_V1_4_COMPAT */
     double	w0;
 
     H5Pget_cache (fapl_g, &mdc_nelmts, &rdcc_nelmts, NULL, &w0);
@@ -216,9 +210,9 @@ test_rowmaj (int op, size_t cache_size, size_t io_size)
 #endif
     H5Pset_cache (fapl_g, mdc_nelmts, rdcc_nelmts,
 		  cache_size*SQUARE (CH_SIZE), w0);
-    file = H5Fopen (FILE_NAME, H5F_ACC_RDWR, fapl_g);
-    dset = H5Dopen (file, "dset");
-    file_space = H5Dget_space (dset);
+    file = H5Fopen(FILE_NAME, H5F_ACC_RDWR, fapl_g);
+    dset = H5Dopen2(file, "dset", H5P_DEFAULT);
+    file_space = H5Dget_space(dset);
     nio_g = 0;
 
     for (i=0; i<CH_SIZE*DS_SIZE; i+=io_size) {
@@ -280,12 +274,8 @@ test_diag (int op, size_t cache_size, size_t io_size, size_t offset)
     hsize_t	nio = 0;
     hsize_t	hs_offset[2];
     signed char	*buf = calloc (1, (size_t)(SQUARE (io_size)));
-#ifdef H5_WANT_H5_V1_4_COMPAT
-    int		mdc_nelmts, rdcc_nelmts;
-#else /* H5_WANT_H5_V1_4_COMPAT */
     int		mdc_nelmts;
     size_t	rdcc_nelmts;
-#endif /* H5_WANT_H5_V1_4_COMPAT */
     double	w0;
 
     H5Pget_cache (fapl_g, &mdc_nelmts, &rdcc_nelmts, NULL, &w0);
@@ -297,9 +287,9 @@ test_diag (int op, size_t cache_size, size_t io_size, size_t offset)
 #endif
     H5Pset_cache (fapl_g, mdc_nelmts, rdcc_nelmts,
 		  cache_size*SQUARE (CH_SIZE), w0);
-    file = H5Fopen (FILE_NAME, H5F_ACC_RDWR, fapl_g);
-    dset = H5Dopen (file, "dset");
-    file_space = H5Dget_space (dset);
+    file = H5Fopen(FILE_NAME, H5F_ACC_RDWR, fapl_g);
+    dset = H5Dopen2(file, "dset", H5P_DEFAULT);
+    file_space = H5Dget_space(dset);
     nio_g = 0;
 
     for (i=0, hs_size[0]=io_size; hs_size[0]==io_size; i+=offset) {

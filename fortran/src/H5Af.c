@@ -20,7 +20,7 @@
 
 /*----------------------------------------------------------------------------
  * Name:        h5acreate_c
- * Purpose:     Call H5Acreate to create an attribute
+ * Purpose:     Call H5Acreate2 to create an attribute
  * Inputs:      obj_id - object identifier
  *              name - name of the attribute
  *              namelen - name length
@@ -34,31 +34,33 @@
  * Modifications:
  *---------------------------------------------------------------------------*/
 int_f
-nh5acreate_c (hid_t_f *obj_id, _fcd name, size_t_f *namelen, hid_t_f *type_id, hid_t_f *space_id, hid_t_f *crt_prp,  hid_t_f *attr_id)
+nh5acreate_c(hid_t_f *obj_id, _fcd name, size_t_f *namelen, hid_t_f *type_id,
+    hid_t_f *space_id, hid_t_f *crt_prp, hid_t_f *attr_id)
 {
-    char *c_name=NULL;          /* Buffer to hold C string */
-    int_f ret_value=0;          /* Return value */
+    char *c_name = NULL;        /* Buffer to hold C string */
+    int_f ret_value = 0;        /* Return value */
 
      /*
       * Convert FORTRAN name to C name
       */
-    if ((c_name = HD5f2cstring(name, (size_t)*namelen)) == NULL)
+    if(NULL == (c_name = HD5f2cstring(name, (size_t)*namelen)))
         HGOTO_DONE(FAIL);
 
      /*
-      * Call H5Acreate function.
+      * Call H5Acreate2 function.
       */
-    if((*attr_id = (hid_t_f)H5Acreate((hid_t)*obj_id, c_name, (hid_t)*type_id, (hid_t)*space_id, (hid_t)*crt_prp))<0)
+    if((*attr_id = (hid_t_f)H5Acreate2((hid_t)*obj_id, c_name, (hid_t)*type_id, (hid_t)*space_id, (hid_t)*crt_prp, H5P_DEFAULT)) < 0)
         HGOTO_DONE(FAIL);
 
 done:
-    if(c_name) HDfree(c_name);
+    if(c_name)
+        HDfree(c_name);
     return ret_value;
 }
 
 /*----------------------------------------------------------------------------
  * Name:        h5aopen_name _c
- * Purpose:     Call H5Aopen_name to open an attribute
+ * Purpose:     Call H5Aopen to open an attribute
  * Inputs:      obj_id - object identifier
  *              name - name of the attribute
  *              namelen - name length
@@ -71,23 +73,24 @@ done:
 int_f
 nh5aopen_name_c (hid_t_f *obj_id, _fcd name, size_t_f *namelen, hid_t_f *attr_id)
 {
-    char *c_name=NULL;          /* Buffer to hold C string */
-    int_f ret_value=0;          /* Return value */
+    char *c_name = NULL;          /* Buffer to hold C string */
+    int_f ret_value = 0;          /* Return value */
 
      /*
       * Convert FORTRAN name to C name
       */
-     if ((c_name = HD5f2cstring(name, (size_t)*namelen)) == NULL)
+     if((c_name = HD5f2cstring(name, (size_t)*namelen)) == NULL)
         HGOTO_DONE(FAIL);
 
      /*
       * Call H5Aopen function.
       */
-     if ((*attr_id = (hid_t_f)H5Aopen_name((hid_t)*obj_id, c_name)) < 0)
+     if((*attr_id = (hid_t_f)H5Aopen((hid_t)*obj_id, c_name, H5P_DEFAULT)) < 0)
          HGOTO_DONE(FAIL);
 
 done:
-    if(c_name) HDfree(c_name);
+    if(c_name)
+        HDfree(c_name);
     return ret_value;
 }
 
@@ -822,30 +825,32 @@ done:
 int_f
 nh5adelete_c (hid_t_f *obj_id, _fcd name, size_t_f *namelen)
 {
-    char *c_name=NULL;          /* Buffer to hold C string */
-    int_f ret_value=0;          /* Return value */
+    char *c_name = NULL;        /* Buffer to hold C string */
+    int_f ret_value = 0;        /* Return value */
 
      /*
       * Convert FORTRAN name to C name
       */
-     if ((c_name = HD5f2cstring(name, (size_t)*namelen)) == NULL)
+     if((c_name = HD5f2cstring(name, (size_t)*namelen)) == NULL)
         HGOTO_DONE(FAIL);
 
      /*
       * Call H5Adelete function.
       */
-     if (H5Adelete((hid_t)*obj_id, c_name) < 0)
+     if(H5Adelete((hid_t)*obj_id, c_name) < 0)
          HGOTO_DONE(FAIL);
 
 done:
-    if(c_name) HDfree(c_name);
+    if(c_name)
+        HDfree(c_name);
+
     return ret_value;
 }
 
 
 /*----------------------------------------------------------------------------
  * Name:        h5aopen_idx_c
- * Purpose:     Call H5Aopen_idx to open an attribute
+ * Purpose:     Call H5Aopen_by_idx to open an attribute
  * Inputs:      obj_id - object identifier
  *              idx    - attribute index ( zero based)
  * Outputs:     attr_id - attribute identifier
@@ -857,12 +862,12 @@ done:
 int_f
 nh5aopen_idx_c (hid_t_f *obj_id, int_f *idx, hid_t_f *attr_id)
 {
-    int_f ret_value=0;          /* Return value */
+    int_f ret_value = 0;          /* Return value */
 
      /*
-      * Call H5Aopen_idx function.
+      * Call H5Aopen_by_idx function.
       */
-     if ((*attr_id = (hid_t_f)H5Aopen_idx((hid_t)*obj_id, (unsigned)*idx)) < 0)
+     if((*attr_id = (hid_t_f)H5Aopen_by_idx((hid_t)*obj_id, ".", H5_INDEX_CRT_ORDER, H5_ITER_INC, (hsize_t)*idx, H5P_DEFAULT, H5P_DEFAULT)) < 0)
         HGOTO_DONE(FAIL);
 
 done:
@@ -922,7 +927,7 @@ done:
 
 /*----------------------------------------------------------------------------
  * Name:        h5aget_num_attrs_c
- * Purpose:     Call H5Aget_num_attrs to determine number of
+ * Purpose:     Call H5Oget_info to determine number of
  *              attributes of an object
  * Inputs:      obj_id - object identifier
  *              attr_num - number of attributes
@@ -934,13 +939,17 @@ done:
 int_f
 nh5aget_num_attrs_c (hid_t_f *obj_id, int_f *attr_num)
 {
-    int_f ret_value=0;          /* Return value */
+    H5O_info_t oinfo;           /* Object info */
+    int_f ret_value = 0;        /* Return value */
 
-     /*
-      * Call H5Aget_num_attrs function.
-      */
-     if ((*attr_num = (int_f)H5Aget_num_attrs((hid_t)*obj_id)) < 0)
-         HGOTO_DONE(FAIL);
+    /*
+     * Call H5Oget_info function.
+     */
+    if(H5Oget_info((hid_t)*obj_id, &oinfo) < 0)
+        HGOTO_DONE(FAIL);
+
+    /* Set number of attributes */
+    *attr_num = (int_f)oinfo.num_attrs;
 
 done:
      return ret_value;

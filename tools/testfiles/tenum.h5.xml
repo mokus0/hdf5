@@ -2,9 +2,9 @@
 Expected output for 'h5dump --xml tenum.h5'
 #############################
 <?xml version="1.0" encoding="UTF-8"?>
-<hdf5:HDF5-File xmlns:hdf5="http://hdfgroup.org/DTDs/HDF5-File" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://hdfgroup.org/DTDs/HDF5-File http://www.hdfgroup.org/DTDs/HDF5-File.xsd">
-<hdf5:RootGroup OBJ-XID="xid_928-0" H5Path="/">
-   <hdf5:NamedDataType Name="enum normal" OBJ-XID="xid_976-0" H5Path="/enum normal" Parents="xid_928-0" H5ParentPaths="/">
+<hdf5:HDF5-File xmlns:hdf5="http://hdfgroup.org/DTDs/HDF5-File" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://hdfgroup.org/DTDs/HDF5File http://hdfgroup.org/DTDs/HDF5-File.xsd">
+<hdf5:RootGroup OBJ-XID="xid_928" H5Path="/">
+   <hdf5:NamedDataType Name="enum normal" OBJ-XID="xid_976" H5Path="/enum normal" Parents="xid_928" H5ParentPaths="/">
       <hdf5:DataType>
          <hdf5:AtomicType>
             <hdf5:EnumType Nelems="5">
@@ -48,7 +48,7 @@ green
          </hdf5:AtomicType>
       </hdf5:DataType>
    </hdf5:NamedDataType>
-   <hdf5:Dataset Name="table" OBJ-XID="xid_1384-0" H5Path= "/table" Parents="xid_928-0" H5ParentPaths="/">
+   <hdf5:Dataset Name="table" OBJ-XID="xid_1384" H5Path= "/table" Parents="xid_928" H5ParentPaths="/">
       <hdf5:StorageLayout>
          <hdf5:ContiguousLayout/>
       </hdf5:StorageLayout>
@@ -62,7 +62,7 @@ green
             <hdf5:Dimension  DimSize="20" MaxDimSize="20"/>
          </hdf5:SimpleDataspace>
       </hdf5:Dataspace>
-      <hdf5:NamedDataTypePtr OBJ-XID="xid_976-0" H5Path="/enum normal" />
+      <hdf5:NamedDataTypePtr OBJ-XID="xid_976" H5Path="/enum normal" />
       <hdf5:Data>
          <hdf5:DataFromFile>
          RED GREEN\ngreen BLUE blue GREEN\ngreen WHITE \"white\" WHITE \"white\"

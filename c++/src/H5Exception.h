@@ -36,11 +36,11 @@ class H5_DLLCPP Exception {
 
 	// Returns a character string that describes the error specified by
 	// a major error number.
-	H5std_string getMajorString( H5E_major_t major_num ) const;
+	H5std_string getMajorString( hid_t err_major_id ) const;
 
 	// Returns a character string that describes the error specified by
 	// a minor error number.
-	H5std_string getMinorString( H5E_minor_t minor_num ) const;
+	H5std_string getMinorString( hid_t err_minor_id ) const;
 
 	// Returns the detailed message set at the time the exception is thrown
 	H5std_string getDetailMsg() const;
@@ -49,14 +49,14 @@ class H5_DLLCPP Exception {
 	const char* getCFuncName() const;	// function name as a char string
 
 	// Turns on the automatic error printing.
-	static void setAutoPrint( H5E_auto_t& func, void* client_data);
+	static void setAutoPrint( H5E_auto2_t& func, void* client_data);
 
 	// Turns off the automatic error printing.
 	static void dontPrint();
 
 	// Retrieves the current settings for the automatic error stack
 	// traversal function and its data.
-	static void getAutoPrint( H5E_auto_t& func, void** client_data);
+	static void getAutoPrint( H5E_auto2_t& func, void** client_data);
 
 	// Clears the error stack for the current thread.
 	static void clearErrorStack();
@@ -64,7 +64,7 @@ class H5_DLLCPP Exception {
 	// Walks the error stack for the current thread, calling the
 	// specified function.
 	static void walkErrorStack( H5E_direction_t direction,
-				H5E_walk_t func, void* client_data);
+				H5E_walk2_t func, void* client_data);
 
 	// Prints the error stack in a default manner.
 	virtual void printError( FILE* stream = NULL ) const;
@@ -82,7 +82,7 @@ class H5_DLLCPP Exception {
 // Because 'string' is not instantiated at compilation time, this
 // warning is displayed when building DLL; but the class is exported
 // so the warning is harmless
-#if defined(WIN32)
+#if defined(_WIN32)
 #pragma warning(disable: 4251)
 #endif
 	H5std_string detail_message;

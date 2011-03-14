@@ -12,6 +12,7 @@
  * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 #include "hdf5.h"
 #include "H5private.h"
 #include <stdio.h>
@@ -41,15 +42,19 @@ int main(int argc, char *argv[])
     const char *err8 = "Invalid size of data - %s.\n";
     const char *err9 = "Cannot specify more than 30 input files in one call to h5import.\n";
 
-  (void) HDsetvbuf(stderr, (char *) NULL, _IOLBF, 0);
-  (void) HDsetvbuf(stdout, (char *) NULL, _IOLBF, 0);
+   (void)HDsetvbuf(stderr, (char *) NULL, _IOLBF, 0);
+   (void)HDsetvbuf(stdout, (char *) NULL, _IOLBF, 0);
 
-  if ( argv[1] && (strcmp("-V",argv[1])==0) )
-  {
-      print_version("h5import");
-      exit(EXIT_SUCCESS);
-      
-  }
+#if defined __MWERKS__
+    argc = ccommand(&argv);
+#endif
+
+    if ( argv[1] && (strcmp("-V",argv[1])==0) )
+    {
+        print_version("h5import");
+        exit(EXIT_SUCCESS);
+        
+    }
 
  /*
   * validate the number of command line arguments
@@ -189,10 +194,10 @@ int main(int argc, char *argv[])
   if (process(&opt) == -1)
     goto err;
 
-  return(EXIT_SUCCESS);
+  return(0);
   err:
     (void) fprintf(stderr, err4);
-    return(EXIT_FAILURE);
+    return(-1);
 }
 
 static int
@@ -258,6 +263,8 @@ gtoken(char *s)
   return (token);
 }
 
+
+
 /*-------------------------------------------------------------------------
  * Function:    processDataFile
  *
@@ -268,7 +275,7 @@ gtoken(char *s)
  * Programmer:  pkmat
  *
  * Modifications: pvn
- *  2/19/2008. Added support for STR type, extra parameter FILE_ID
+ *  7/23/2007. Added support for STR type
  *
  *-------------------------------------------------------------------------
  */
@@ -286,49 +293,10 @@ processDataFile(char *infile, struct Input *in, FILE **strm, hid_t file_id)
   const char *err10 = "Unrecognized input class type.\n";
   const char *err11 = "Error in reading string data.\n";
 
- /*-------------------------------------------------------------------------
-  * special case for opening binary classes in WIN32
-  * "FP" denotes a floating point binary file,
-  * "IN" denotes a signed integer binary file, 
-  * "UIN" denotes an unsigned integer binary file,
-  *-------------------------------------------------------------------------
-  */
-  if ( in->inputClass == 4 /* "IN" */ ||
-       in->inputClass == 3 /* "FP" */ ||
-       in->inputClass == 7 /* "UIN" */ 
-      
-      )
+  if ((*strm = fopen(infile, "r")) == NULL)
   {
-
-#ifdef WIN32
-      
-      if ((*strm = fopen(infile, "rb")) == NULL)
-      {
-          (void) fprintf(stderr, err1, infile);
-          return(-1);
-      }
-#else
-
-      if ((*strm = fopen(infile, "r")) == NULL)
-      {
-          (void) fprintf(stderr, err1, infile);
-          return(-1);
-      }
-
-#endif
-
-  }
- /*-------------------------------------------------------------------------
-  * if the input class is not binary, just use "r"
-  *-------------------------------------------------------------------------
-  */
-  else
-  {
-      if ((*strm = fopen(infile, "r")) == NULL)
-      {
-          (void) fprintf(stderr, err1, infile);
-          return(-1);
-      }
+      (void) fprintf(stderr, err1, infile);
+      return(-1);
   }
 
   switch(in->inputClass)
@@ -366,16 +334,16 @@ processDataFile(char *infile, struct Input *in, FILE **strm, hid_t file_id)
     break;
 
     case 5: /*  STR  */
-        
+
         if (processStrData(strm, in, file_id) == -1)
         {
             (void) fprintf(stderr, err11, infile);
             return(-1);
         }
-        
-        
-        
-        break;
+
+
+
+    break;
 
     case 6: /* TEXTUIN */
     case 7: /* UIN */
@@ -404,7 +372,7 @@ readIntegerData(FILE **strm, struct Input *in)
   H5DT_INT8 *in08;
   H5DT_INT16 *in16, temp;
   H5DT_INT32 *in32;
-#ifndef WIN32
+#ifndef _WIN32
   H5DT_INT64 *in64;
   char buffer[256];
 #endif
@@ -520,7 +488,7 @@ readIntegerData(FILE **strm, struct Input *in)
       }
     break;
 
-#ifndef WIN32
+#ifndef _WIN32
     case 64:
       in64 = (H5DT_INT64 *) in->data;
       switch(in->inputClass)
@@ -553,7 +521,7 @@ readIntegerData(FILE **strm, struct Input *in)
           return (-1);
       }
   	  break;
-#endif /* ifndef WIN32 */
+#endif /* ifndef _WIN32 */
 
     default:
       (void) fprintf(stderr, err3);
@@ -568,7 +536,7 @@ readUIntegerData(FILE **strm, struct Input *in)
   H5DT_UINT8 *in08;
   H5DT_UINT16 *in16, temp;
   H5DT_UINT32 *in32;
-#ifndef WIN32
+#ifndef _WIN32
   H5DT_UINT64 *in64;
   char buffer[256];
 #endif
@@ -682,7 +650,7 @@ readUIntegerData(FILE **strm, struct Input *in)
       }
     break;
 
-#ifndef WIN32
+#ifndef _WIN32
     case 64:
       in64 = (H5DT_UINT64 *) in->data;
       switch(in->inputClass)
@@ -715,7 +683,7 @@ readUIntegerData(FILE **strm, struct Input *in)
           return (-1);
       }
     break;
-#endif /* ifndef WIN32 */
+#endif /* ifndef _WIN32 */
 
     default:
       (void) fprintf(stderr, err3);
@@ -759,20 +727,8 @@ readFloatData(FILE **strm, struct Input *in)
           fp32 = (H5DT_FLOAT32 *) in->data;
         break;
 
-        /* same as TEXTFP */
         case 2: /*TEXTFPE */
-            
-            for (i = 0; i < len; i++, fp32++)
-            {
-                if (fscanf(*strm, "%f", fp32) != 1)
-                {
-                    (void) fprintf(stderr, err1);
-                    return (-1);
-                }
-            }
-            
-            fp32 = (H5DT_FLOAT32 *) in->data;
-            break;
+        break;
 
         case 3: /* FP */
           for (i = 0; i < len; i++, fp32++)
@@ -808,20 +764,8 @@ readFloatData(FILE **strm, struct Input *in)
           fp64 = (H5DT_FLOAT64 *) in->data;
         break;
 
-        /* same as TEXTFP */
         case 2: /*TEXTFPE */
-            
-            for (i = 0; i < len; i++, fp64++)
-            {
-                if (fscanf(*strm, "%lf", fp64) != 1)
-                {
-                    (void) fprintf(stderr, err1);
-                    return (-1);
-                }
-            }
-            
-            fp64 = (H5DT_FLOAT64 *) in->data;
-            break;
+        break;
 
         case 3: /* FP */
           for (i = 0; i < len; i++, fp64++)
@@ -846,6 +790,7 @@ readFloatData(FILE **strm, struct Input *in)
   }
   return(0);
 }
+
 
 
 /*-------------------------------------------------------------------------
@@ -916,10 +861,10 @@ processStrData(FILE **strm, struct Input *in, hid_t file_id)
             j = 0;
             handle = file_id;
             while(j < in->path.count - 1) {
-                if((group_id = H5Gopen(handle, in->path.group[j])) < 0) {
-                    group_id = H5Gcreate(handle, in->path.group[j++], 0);
+                if((group_id = H5Gopen2(handle, in->path.group[j], H5P_DEFAULT)) < 0) {
+                    group_id = H5Gcreate2(handle, in->path.group[j++], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
                     for(; j < in->path.count - 1; j++)
-                        group_id = H5Gcreate(group_id, in->path.group[j], 0);
+                        group_id = H5Gcreate2(group_id, in->path.group[j], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
                     handle = group_id;
                     break;
                 }
@@ -941,7 +886,7 @@ processStrData(FILE **strm, struct Input *in, hid_t file_id)
     if((mspace_id = H5Screate(H5S_SCALAR)) < 0)
         goto out;
 
-    if((dset_id = H5Dcreate(handle, in->path.group[j], type_id, space_id, H5P_DEFAULT)) < 0)
+    if((dset_id = H5Dcreate2(handle, in->path.group[j], type_id, space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0)
         goto out;
 
     line = 0;
@@ -995,7 +940,6 @@ out:
 
     return (-1);
 }
-
 
 
 static int
@@ -1432,6 +1376,7 @@ processConfigurationFile(char *infile, struct Input *in, FILE **strm)
         if (in->configOptionVector[COMPRESS] == 0)
           in->compressionType = 0;
 
+        in->configOptionVector[COMPRESS] = 1;
       break;
 
       case 12: /* EXTERNAL-STORAGE */
@@ -1496,11 +1441,11 @@ validateConfigurationParameters(struct Input * in)
   const char *err4a = "OUTPUT-ARCHITECTURE cannot be STD if OUTPUT-CLASS is floating point (FP).\n";
   const char *err4b = "OUTPUT-ARCHITECTURE cannot be IEEE if OUTPUT-CLASS is integer (IN).\n";
   const char *err5 = "For OUTPUT-CLASS FP, valid values for OUTPUT-SIZE are (32, 64) .\n";
-#ifdef WIN32
+#ifdef _WIN32
   const char *err6 = "No support for reading 64-bit integer (INPUT-CLASS: IN, TEXTIN, UIN, TEXTUIN files\n";
 #endif
 
-    /* for class STR other parameters are ignored */
+   /* for class STR other parameters are ignored */
   if (in->inputClass == 5) /* STR */
       return (0);
 
@@ -1557,7 +1502,7 @@ validateConfigurationParameters(struct Input * in)
       return (-1);
     }
 
-#ifdef WIN32
+#ifdef _WIN32
   if (in->inputSize == 64 && (in->inputClass == 0 || in->inputClass == 4 || in->inputClass == 6 || in->inputClass == 7) )
 	{
 	  (void) fprintf(stderr, err6);
@@ -1984,7 +1929,7 @@ getCompressionType(struct Input *in, FILE** strm)
     return (-1);
   }
 
-  in->compressionType = kindex;
+  in->outputByteOrder = kindex;
   return (0);
 
 }
@@ -2502,31 +2447,26 @@ process(struct Options *opt)
 
     /* disable error reporting */
     H5E_BEGIN_TRY {
-
-    /* create parent groups */
-    if (in->path.count > 1)
-    {
-      j = 0;
-      handle = file_id;
-      while (j<in->path.count-1)
-      {
-        if ((group_id = H5Gopen(handle, in->path.group[j])) < 0)
-        {
-          group_id = H5Gcreate(handle, in->path.group[j++], 0);
-          for (; j<in->path.count-1; j++)
-            group_id = H5Gcreate(group_id, in->path.group[j], 0);
-          handle = group_id;
-          break;
+        /* create parent groups */
+        if(in->path.count > 1) {
+            j = 0;
+            handle = file_id;
+            while(j < in->path.count - 1) {
+                if((group_id = H5Gopen2(handle, in->path.group[j], H5P_DEFAULT)) < 0) {
+                  group_id = H5Gcreate2(handle, in->path.group[j++], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                  for (; j < in->path.count - 1; j++)
+                    group_id = H5Gcreate2(group_id, in->path.group[j], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                  handle = group_id;
+                  break;
+                }
+                handle = group_id;
+                j++;
+            }
         }
-        handle = group_id;
-        j++;
-      }
-    }
-    else
-    {
-      handle = file_id;
-      j=0;
-    }
+        else {
+          handle = file_id;
+          j=0;
+        }
 
     /*enable error reporting */
     } H5E_END_TRY;
@@ -2565,21 +2505,16 @@ process(struct Options *opt)
     }
 
     /* create dataspace */
-    if (in->configOptionVector[EXTEND] == 1)
-    {
+    if(in->configOptionVector[EXTEND] == 1)
       dataspace = H5Screate_simple(in->rank, in->sizeOfDimension, in->maxsizeOfDimension);
-    }
     else
-    {
       dataspace = H5Screate_simple(in->rank, in->sizeOfDimension, NULL);
-    }
 
     /* disable error reporting */
     H5E_BEGIN_TRY {
     /* create data set */
-    if ((dataset = H5Dcreate(handle, in->path.group[j], outtype, dataspace, proplist)) < 0)
-    {
-      (void) fprintf(stderr, err5);
+    if((dataset = H5Dcreate2(handle, in->path.group[j], outtype, dataspace, H5P_DEFAULT, proplist, H5P_DEFAULT)) < 0) {
+      (void)fprintf(stderr, err5);
       H5Pclose(proplist);
       H5Sclose(dataspace);
       H5Fclose(file_id);
@@ -2590,8 +2525,7 @@ process(struct Options *opt)
     } H5E_END_TRY;
 
      /* write dataset */
-    if (H5Dwrite(dataset, intype, H5S_ALL, H5S_ALL, H5P_DEFAULT, (VOIDP)in->data) < 0)
-    {
+    if(H5Dwrite(dataset, intype, H5S_ALL, H5S_ALL, H5P_DEFAULT, (VOIDP)in->data) < 0) {
       (void) fprintf(stderr, err6);
       H5Dclose(dataset);
       H5Pclose(proplist);
@@ -2762,7 +2696,7 @@ help(char *name)
   (void) fprintf(stdout, "\t					  to be created.\n\n");
   (void) fprintf(stdout, "\t               INPUT-CLASS:\n");
   (void) fprintf(stdout, "\t			String denoting the type of input data.\n");
-  (void) fprintf(stdout, "\t			(\"TEXTIN\", \"TEXTFP\", \"FP\", \"IN\", \n");
+  (void) fprintf(stdout, "\t			(\"TEXTIN\", \"TEXTFP\", \"TEXTFPE\", \"FP\", \"IN\", \n");
   (void) fprintf(stdout, "\t			\"STR\", \"TEXTUIN\", \"UIN\"). \n");
   (void) fprintf(stdout, "\t			INPUT-CLASS \"TEXTIN\" denotes an ASCII text \n");
   (void) fprintf(stdout, "\t			file with signed integer data in ASCII form,\n");
@@ -2771,6 +2705,9 @@ help(char *name)
   (void) fprintf(stdout, "\t			\"TEXTFP\" denotes an ASCII text file containing\n");
   (void) fprintf(stdout, "\t			floating point data in the fixed notation\n");
   (void) fprintf(stdout, "\t			(325.34),\n");
+  (void) fprintf(stdout, "\t			\"TEXTFPE\" denotes an ASCII text file containing\n");
+  (void) fprintf(stdout, "\t			floating point data in the scientific notation\n");
+  (void) fprintf(stdout, "\t			(3.2534E+02),\n");
   (void) fprintf(stdout, "\t			\"FP\" denotes a floating point binary file,\n");
   (void) fprintf(stdout, "\t			\"IN\" denotes a signed integer binary file,\n");
   (void) fprintf(stdout, "\t			\"UIN\" denotes an unsigned integer binary file,\n");
@@ -2910,5 +2847,4 @@ usage(char *name)
   [<infile> -c[config] <configfile>...] -o[utfile] <outfile> \n\n", name);
   return;
 }
-
 

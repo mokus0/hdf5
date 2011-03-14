@@ -101,3 +101,50 @@ if test X = "X$cc_flags_set"; then
     cc_vendor=
     cc_version=
 fi
+
+# The default Fortran 90 compiler
+
+if test "X-" = "X-$FC"; then
+  FC=f90
+fi
+
+if test "X-" = "X-$f9x_flags_set"; then
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS -Olimit 2048 -std1"
+  DEBUG_FCFLAGS="-Olimit 2048 -std1"
+  PROD_FCFLAGS="-Olimit 2048 -std1"
+  PROFILE_FCFLAGS="-Olimit 2048 -std1"
+  f9x_flags_set=yes
+fi
+
+# The default C++ compiler
+
+if test -z "$CXX"; then
+    CXX=cxx
+    CXX_BASENAME=cxx
+fi
+
+
+case $CXX_BASENAME in
+    g++)
+	CXXFLAGS="$CXXFLAGS -Wsign-compare" #Only works for some versions
+	DEBUG_CXXFLAGS="-g -fverbose-asm"
+	DEBUG_CPPFLAGS=
+	PROD_CXXFLAGS="-O3 -fomit-frame-pointer"
+	PROD_CPPFLAGS=
+	PROFILE_CXXFLAGS="-pg"
+	PROFILE_CPPFLAGS=
+	;;
+
+    *)
+	CXXFLAGS="$CXXFLAGS -tlocal -D__USE_STD_IOSTREAM"
+	DEBUG_CXXFLAGS="-g"
+	DEBUG_CPPFLAGS=
+	PROD_CXXFLAGS="-O"
+	PROD_CPPFLAGS=
+	PROFILE_CXXFLAGS="-pg"
+	PROFILE_CPPFLAGS=
+	;;
+esac
+

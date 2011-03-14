@@ -150,3 +150,21 @@ esac
 # long'.  For instance, if the format would be `%lld' then set it to
 # `ll' or if the format would be `%qd' set it to `q'.
 #hdf5_cv_printf_ll=${hdf5_cv_printf_ll='ll'}
+
+# The default Fortran 90 compiler
+
+if test "X-" = "X-$FC"; then
+  FC=f90
+fi
+
+if test "X-" = "X-$f9x_flags_set"; then
+  # -Wl passes flags to the linker and -M# will ignore warnings with
+  # number #. Warning 405 was stopping the executable from being built.
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS -dp -Wl-M405"
+  DEBUG_FCFLAGS=""
+  PROD_FCFLAGS=""
+  PROFILE_FCFLAGS=""
+  f9x_flags_set=yes
+fi

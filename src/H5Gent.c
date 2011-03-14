@@ -28,89 +28,18 @@
 #include "H5FLprivate.h"	/* Free Lists                           */
 #include "H5Gpkg.h"		/* Groups		  		*/
 #include "H5HLprivate.h"	/* Local Heaps				*/
+#include "H5Iprivate.h"		/* IDs			  		*/
+#include "H5MMprivate.h"        /* Memory Management                    */
+
+/* Private macros */
 
 /* Private prototypes */
-#ifdef NOT_YET
-static herr_t H5G_ent_modified(H5G_entry_t *ent, H5G_type_t cache_type);
-#endif /* NOT_YET */
+static herr_t H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent);
+static herr_t H5G_ent_decode(H5F_t *f, const uint8_t **pp,
+			      H5G_entry_t *ent/*out*/);
 
 /* Declare extern the PQ free list for the wrapped strings */
 H5FL_BLK_EXTERN(str_buf);
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5G_ent_cache
- *
- * Purpose:     Returns a pointer to the cache associated with the symbol
- *              table entry.  You should modify the cache directly, then call
- *              H5G_ent_modified() with the new cache type (even if the type is
- *              still the same).
- *
- * Return:      Success:        Ptr to the cache in the symbol table entry.
- *
- *              Failure:        NULL
- *
- * Programmer:  Robb Matzke
- *              Friday, September 19, 1997
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-const H5G_cache_t *
-H5G_ent_cache(const H5G_entry_t *ent, H5G_type_t *cache_type)
-{
-    const H5G_cache_t *ret_value;     /* Return value */
-
-    FUNC_ENTER_NOAPI(H5G_ent_cache, NULL);
-
-    if (!ent)
-        HGOTO_ERROR(H5E_SYM, H5E_BADVALUE, NULL, "no entry");
-    if (cache_type)
-        *cache_type = ent->type;
-
-    /* Set return value */
-    ret_value=(const H5G_cache_t *)&(ent->cache);
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value);
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5G_ent_modified
- *
- * Purpose:     This function should be called after you make any
- *              modifications to a symbol table entry cache.  Supply the new
- *              type for the cache.  If CACHE_TYPE is the constant
- *              H5G_NO_CHANGE then the cache type isn't changed--just the
- *              dirty bit is set.
- *
- * Return:      Non-negative on success/Negative on failure
- *
- * Programmer:  Robb Matzke
- *              Friday, September 19, 1997
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-#ifdef NOT_YET
-static herr_t
-H5G_ent_modified(H5G_entry_t *ent, H5G_type_t cache_type)
-{
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_modified)
-
-    HDassert(ent);
-
-    /* Update cache type, if requested */
-    if (H5G_NO_CHANGE != cache_type)
-        ent->type = cache_type;
-    ent->dirty = TRUE;
-
-    FUNC_LEAVE_NOAPI(SUCCEED)
-} /* end H5G_ent_modified */
-#endif /* NOT_YET */
 
 
 /*-------------------------------------------------------------------------
@@ -180,13 +109,13 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-herr_t
+static herr_t
 H5G_ent_decode(H5F_t *f, const uint8_t **pp, H5G_entry_t *ent)
 {
     const uint8_t	*p_ret = *pp;
     uint32_t		tmp;
 
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_decode);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_ent_decode)
 
     /* check arguments */
     HDassert(f);
@@ -200,7 +129,7 @@ H5G_ent_decode(H5F_t *f, const uint8_t **pp, H5G_entry_t *ent)
     H5F_addr_decode(f, pp, &(ent->header));
     UINT32DECODE(*pp, tmp);
     *pp += 4; /*reserved*/
-    ent->type=(H5G_type_t)tmp;
+    ent->type=(H5G_cache_type_t)tmp;
 
     /* decode scratch-pad */
     switch (ent->type) {
@@ -298,12 +227,12 @@ done:
  *
  *-------------------------------------------------------------------------
  */
-herr_t
+static herr_t
 H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent)
 {
     uint8_t		*p_ret = *pp + H5G_SIZEOF_ENTRY(f);
 
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_encode);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5G_ent_encode);
 
     /* check arguments */
     assert(f);
@@ -332,7 +261,7 @@ H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent)
                 break;
 
             default:
-                /* Error or unknown type. Bail out. */
+                /* Unknown cached type. Bail out. */
                 return -1;
         }
     } else {
@@ -364,53 +293,33 @@ H5G_ent_encode(H5F_t *f, uint8_t **pp, const H5G_entry_t *ent)
  *
  * Notes:       'depth' parameter determines how much of the group entry
  *              structure we want to copy.  The values are:
- *                  H5_COPY_NULL - Copy all the fields from the
- *                      source to the destination, but set the destination's
- *                      paths to NULL.
- *                  H5_COPY_LIMITED - Copy all the fields from the
- *                      source to the destination, except for the paths
- *                      keeping them the same as their
- *                      previous value in the destination.
  *                  H5_COPY_SHALLOW - Copy all the fields from the source
- *                      to the destination, including the paths.
- *                      (Destination "takes ownership" of paths)
+ *                      to the destination, including the user path and
+ *                      canonical path. (Destination "takes ownership" of
+ *                      user and canonical paths)
  *                  H5_COPY_DEEP - Copy all the fields from the source to
- *                      the destination, deep copying the paths.
+ *                      the destination, deep copying the user and canonical
+ *                      paths.
  *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5G_ent_copy(H5G_entry_t *dst, const H5G_entry_t *src, H5_copy_depth_t depth)
 {
-    H5RS_str_t *old_full_path_r = NULL;   /* String pointer for dst entry's full path */
-    H5RS_str_t *old_user_path_r = NULL;   /* String pointer for dst entry's user path */
-
     FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_copy)
 
     /* Check arguments */
     HDassert(src);
     HDassert(dst);
-    HDassert(depth >= H5_COPY_NULL || depth <= H5_COPY_DEEP);
-
-    /* If the depth is "limited", keep the old entry's paths */
-    if(depth == H5_COPY_LIMITED) {
-        old_full_path_r = dst->full_path_r;
-        old_user_path_r = dst->user_path_r;
-    } /* end if */
+    HDassert(depth == H5_COPY_SHALLOW || depth == H5_COPY_DEEP);
 
     /* Copy the top level information */
     HDmemcpy(dst, src, sizeof(H5G_entry_t));
 
     /* Deep copy the names */
     if(depth == H5_COPY_DEEP) {
-        dst->full_path_r = H5RS_dup(src->full_path_r);
-        dst->user_path_r = H5RS_dup(src->user_path_r);
-    } else if(depth == H5_COPY_LIMITED) {
-        dst->full_path_r = old_full_path_r;
-        dst->user_path_r = old_user_path_r;
-    } else if(depth == H5_COPY_NULL) {
-        dst->full_path_r = NULL;
-        dst->user_path_r = NULL;
+        /* Nothing currently */
+        ;
     } else if(depth == H5_COPY_SHALLOW) {
         /* Discarding 'const' qualifier OK - QAK */
         H5G_ent_reset((H5G_entry_t *)src);
@@ -450,6 +359,79 @@ H5G_ent_reset(H5G_entry_t *ent)
 
 
 /*-------------------------------------------------------------------------
+ * Function:    H5G_ent_convert
+ *
+ * Purpose:     Convert a link to a symbol table entry
+ *
+ * Return:	Success:	Non-negative
+ *		Failure:	Negative
+ *
+ * Programmer:  Quincey Koziol
+ *              koziol@ncsa.uiuc.edu
+ *              Sep 20 2005
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5G_ent_convert(H5F_t *f, hid_t dxpl_id, H5HL_t *heap, const char *name,
+    const H5O_link_t *lnk, H5G_entry_t *ent)
+{
+    size_t	name_offset;            /* Offset of name in heap */
+    herr_t      ret_value = SUCCEED;    /* Return value */
+
+    FUNC_ENTER_NOAPI(H5G_ent_convert, FAIL)
+
+    /* check arguments */
+    HDassert(f);
+    HDassert(heap);
+    HDassert(name);
+    HDassert(lnk);
+
+    /* Reset the new entry */
+    H5G_ent_reset(ent);
+
+    /*
+     * Add the new name to the heap.
+     */
+    name_offset = H5HL_insert(f, dxpl_id, heap, HDstrlen(name) + 1, name);
+    if(0 == name_offset || (size_t)(-1) == name_offset)
+	HGOTO_ERROR(H5E_SYM, H5E_CANTINSERT, H5B_INS_ERROR, "unable to insert symbol name into heap")
+    ent->name_off = name_offset;
+
+    /* Build correct information for symbol table entry based on link type */
+    switch(lnk->type) {
+        case H5L_TYPE_HARD:
+            ent->type = H5G_NOTHING_CACHED;
+            ent->header = lnk->u.hard.addr;
+            break;
+
+        case H5L_TYPE_SOFT:
+            {
+                size_t	lnk_offset;		/* Offset to sym-link value	*/
+
+                /* Insert link value into local heap */
+                if((size_t)(-1) == (lnk_offset = H5HL_insert(f, dxpl_id, heap,
+                        HDstrlen(lnk->u.soft.name) + 1, lnk->u.soft.name)))
+                    HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to write link value to local heap")
+
+                ent->type = H5G_CACHED_SLINK;
+                ent->cache.slink.lval_offset = lnk_offset;
+            } /* end case */
+            break;
+
+        default:
+          HGOTO_ERROR(H5E_SYM, H5E_BADVALUE, FAIL, "unrecognized link type")
+    } /* end switch */
+
+    /* Set the file for the entry */
+    ent->file = f;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5G_ent_convert() */
+
+
+/*-------------------------------------------------------------------------
  * Function:    H5G_ent_debug
  *
  * Purpose:     Prints debugging information about a symbol table entry.
@@ -463,17 +445,17 @@ H5G_ent_reset(H5G_entry_t *ent)
  *-------------------------------------------------------------------------
  */
 herr_t
-H5G_ent_debug(H5F_t UNUSED *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * stream,
-	      int indent, int fwidth, haddr_t heap)
+H5G_ent_debug(H5F_t UNUSED *f, const H5G_entry_t *ent, FILE *stream,
+    int indent, int fwidth, H5HL_t *heap)
 {
     const char		*lval = NULL;
     int nested_indent, nested_fwidth;
 
-    FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_debug);
+    FUNC_ENTER_NOAPI_NOFUNC(H5G_ent_debug)
 
     /* Calculate the indent & field width values for nested information */
-    nested_indent=indent+3;
-    nested_fwidth=MAX(0,fwidth-3);
+    nested_indent = indent + 3;
+    nested_fwidth = MAX(0, fwidth - 3);
 
     HDfprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
 	      "Name offset into private heap:",
@@ -487,7 +469,7 @@ H5G_ent_debug(H5F_t UNUSED *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * str
 	      ent->dirty ? "Yes" : "No");
     HDfprintf(stream, "%*s%-*s ", indent, "", fwidth,
 	      "Cache info type:");
-    switch (ent->type) {
+    switch(ent->type) {
         case H5G_NOTHING_CACHED:
             HDfprintf(stream, "Nothing Cached\n");
             break;
@@ -505,22 +487,18 @@ H5G_ent_debug(H5F_t UNUSED *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * str
             break;
 
         case H5G_CACHED_SLINK:
-            HDfprintf (stream, "Symbolic Link\n");
+            HDfprintf(stream, "Symbolic Link\n");
             HDfprintf(stream, "%*s%-*s\n", indent, "", fwidth,
                       "Cached information:");
-            HDfprintf (stream, "%*s%-*s %lu\n", nested_indent, "", nested_fwidth,
+            HDfprintf(stream, "%*s%-*s %lu\n", nested_indent, "", nested_fwidth,
                        "Link value offset:",
                        (unsigned long)(ent->cache.slink.lval_offset));
-            if (heap>0 && H5F_addr_defined(heap)) {
-                const H5HL_t *heap_ptr;
-
-                heap_ptr = H5HL_protect(ent->file, dxpl_id, heap);
-                lval = H5HL_offset_into(ent->file, heap_ptr, ent->cache.slink.lval_offset);
-                HDfprintf (stream, "%*s%-*s %s\n", nested_indent, "", nested_fwidth,
+            if(heap) {
+                lval = H5HL_offset_into(ent->file, heap, ent->cache.slink.lval_offset);
+                HDfprintf(stream, "%*s%-*s %s\n", nested_indent, "", nested_fwidth,
                            "Link value:",
                            lval);
-                H5HL_unprotect(ent->file, dxpl_id, heap_ptr, heap);
-            }
+            } /* end if */
             else
                 HDfprintf(stream, "%*s%-*s\n", nested_indent, "", nested_fwidth, "Warning: Invalid heap address given, name not displayed!");
             break;
@@ -528,7 +506,8 @@ H5G_ent_debug(H5F_t UNUSED *f, hid_t dxpl_id, const H5G_entry_t *ent, FILE * str
         default:
             HDfprintf(stream, "*** Unknown symbol type %d\n", ent->type);
             break;
-    }
+    } /* end switch */
 
-    FUNC_LEAVE_NOAPI(SUCCEED);
-}
+    FUNC_LEAVE_NOAPI(SUCCEED)
+} /* end H5G_ent_debug() */
+

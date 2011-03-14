@@ -28,7 +28,6 @@
 
 #define MAX_PAL 768
 
-
 /* typedef H5T_NATIVE_UINT8  BYTE; */
 typedef unsigned char BYTE;
 

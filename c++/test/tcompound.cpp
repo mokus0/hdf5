@@ -65,7 +65,7 @@ typedef struct complex_t {
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_1(void)
+static void test_compound_1()
 {
     // Output message about test being performed
     SUBTEST("Compound Data Types");
@@ -80,7 +80,8 @@ static void test_compound_1(void)
     }   // end of try block
 
     catch (Exception E) {
-        issue_fail_msg("test_compound_1", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_1 in catch" << endl;
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_1()
 
@@ -101,7 +102,7 @@ static void test_compound_1(void)
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_2(void)
+static void test_compound_2()
 {
     typedef struct {
 	int a, b, c[4], d, e;
@@ -186,7 +187,7 @@ static void test_compound_2(void)
 		     << s_ptr->c[2] << "," << s_ptr->c[3] << ", d=" 
 		     << s_ptr->d << ", e=" << s_ptr->e << "}" << endl;
 	    }
-	}
+    	}
 	// Release resources
 	free(buf);
 	free(bkg);
@@ -199,7 +200,8 @@ static void test_compound_2(void)
     }   // end of try block
 
     catch (Exception E) {
-        issue_fail_msg("test_compound_2", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_2 in catch" << endl;
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_2()
 
@@ -220,7 +222,7 @@ static void test_compound_2(void)
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_3(void)
+static void test_compound_3()
 {
     typedef struct {
 	int a, b, c[4], d, e;
@@ -239,7 +241,7 @@ static void test_compound_3(void)
     // Output message about test being performed
     SUBTEST("Compound Datatype Subset Conversions");
     try {
-	// Initialize
+	/* Initialize */
 	buf = (unsigned char*)malloc(nelmts * MAX(sizeof(src_typ_t), sizeof(dst_typ_t)));
 	bkg = (unsigned char*)malloc(nelmts * sizeof(dst_typ_t));
 	orig = (unsigned char*)malloc(nelmts * sizeof(src_typ_t));
@@ -256,7 +258,7 @@ static void test_compound_3(void)
 	}
 	memcpy(buf, orig, nelmts*sizeof(src_typ_t));
 
-	// Build hdf5 datatypes
+	/* Build hdf5 datatypes */
 	ArrayType* array_dt = new ArrayType(PredType::NATIVE_INT, 1, &four);
 
 	// Create an empty compound datatype
@@ -277,10 +279,10 @@ static void test_compound_3(void)
 	dt.insertMember("e", HOFFSET(dst_typ_t, e), PredType::NATIVE_INT);
 	array_dt->close();
 
-	// Perform the conversion
+	/* Perform the conversion */
 	st.convert(dt, (size_t)nelmts, buf, bkg);
 
-	// Compare results
+	/* Compare results */
 	for (i=0; i<nelmts; i++) {
 	    s_ptr = ((src_typ_t*)orig) + i;
 	    d_ptr = ((dst_typ_t*)buf)  + i;
@@ -303,7 +305,7 @@ static void test_compound_3(void)
 	    } // if
 	} // for
 
-	// Release resources
+	/* Release resources */
 	free(buf);
 	free(bkg);
 	free(orig);
@@ -315,7 +317,8 @@ static void test_compound_3(void)
     }   // end of try block
 
     catch (Exception E) {
-	issue_fail_msg("test_compound_3", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_3 in catch" << endl;
+	issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_3()
 
@@ -336,7 +339,7 @@ static void test_compound_3(void)
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_4(void)
+static void test_compound_4()
 {
 
     typedef struct {
@@ -360,7 +363,7 @@ static void test_compound_4(void)
     // Output message about test being performed
     SUBTEST("Compound Element Shrinking & Reordering");
     try {
-	// Sizes should be the same, but be careful just in case
+	/* Sizes should be the same, but be careful just in case */
 	buf = (unsigned char*)malloc(nelmts * MAX(sizeof(src_typ_t), sizeof(dst_typ_t)));
 	bkg = (unsigned char*)malloc(nelmts * sizeof(dst_typ_t));
 	orig = (unsigned char*)malloc(nelmts * sizeof(src_typ_t));
@@ -377,7 +380,7 @@ static void test_compound_4(void)
 	}
 	memcpy(buf, orig, nelmts*sizeof(src_typ_t));
 
-	// Build hdf5 datatypes
+	/* Build hdf5 datatypes */
 	ArrayType* array_dt = new ArrayType(PredType::NATIVE_INT, 1, &four);
 
 	// Create an empty compound datatype
@@ -400,10 +403,10 @@ static void test_compound_4(void)
 	dt.insertMember("e", HOFFSET(dst_typ_t, e), PredType::NATIVE_INT);
 	array_dt->close();
     
-	// Perform the conversion
+	/* Perform the conversion */
 	st.convert(dt, (size_t)nelmts, buf, bkg);
 
-	// Compare results
+	/* Compare results */
 	for (i=0; i<nelmts; i++) {
 	    s_ptr = ((src_typ_t*)orig) + i;
 	    d_ptr = ((dst_typ_t*)buf)  + i;
@@ -429,7 +432,7 @@ static void test_compound_4(void)
 	    } // if
 	} // for
     
-	// Release resources
+	/* Release resources */
 	free(buf);
 	free(bkg);
 	free(orig);
@@ -441,7 +444,8 @@ static void test_compound_4(void)
     }   // end of try block
 
     catch (Exception E) {
-        issue_fail_msg("test_compound_4", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_4 in catch" << endl;
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_4()
 
@@ -463,7 +467,7 @@ static void test_compound_4(void)
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_5(void)
+static void test_compound_5()
 {
     typedef struct {
         char    name[16];
@@ -487,7 +491,8 @@ static void test_compound_5(void)
     // Output message about test being performed
     SUBTEST("Optimized Struct Converter");
     try {
-	// Build datatypes
+
+	/* Build datatypes */
 	ArrayType* array_dt = new ArrayType(PredType::NATIVE_SHORT, 1, dims);	
 	CompType short_array(4*sizeof(short));
 	short_array.insertMember("_", 0, *array_dt);
@@ -509,19 +514,19 @@ static void test_compound_5(void)
 	dst_type.insertMember("tdim", HOFFSET(dst_typ_t, tdim), PredType::NATIVE_SHORT);
 	dst_type.insertMember("coll_ids", HOFFSET(dst_typ_t, coll_ids), int_array);
 
-	// Convert data
+	/* Convert data */
 	memcpy(buf, src, sizeof(src));
 	src_type.convert(dst_type, (size_t)2, buf, bkg);
 	dst = (dst_typ_t*)buf;
 
-	// Cleanup
+	/* Cleanup */
 	src_type.close();
 	dst_type.close();
 	strg.close();
 	short_array.close();
 	int_array.close();
 
-	// Check results
+	/* Check results */
 	if (memcmp(src[1].name, dst[1].name, sizeof(src[1].name)) ||
 	    src[1].tdim!=dst[1].tdim ||
 	    src[1].coll_ids[0]!=dst[1].coll_ids[0] ||
@@ -530,7 +535,7 @@ static void test_compound_5(void)
 	    src[1].coll_ids[3]!=dst[1].coll_ids[3]) 
 	{ H5_FAILED(); }
 
-	// Free memory buffers
+	/* Free memory buffers */
 	free(buf);
 	free(bkg);
 	dst = NULL;
@@ -538,7 +543,8 @@ static void test_compound_5(void)
     }   // end of try block
 
     catch (Exception E) {
-        issue_fail_msg("test_compound_5", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_5 in catch" << endl;
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_5()
 
@@ -559,7 +565,7 @@ static void test_compound_5(void)
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_6(void)
+static void test_compound_6()
 {
     typedef struct {
 	short b;
@@ -580,7 +586,7 @@ static void test_compound_6(void)
     // Output message about test being performed
     SUBTEST("Compound Element Growing");
     try {
-	// Sizes should be the same, but be careful just in case
+	/* Sizes should be the same, but be careful just in case */
 	buf = (unsigned char*)malloc(nelmts * MAX(sizeof(src_typ_t), sizeof(dst_typ_t)));
 	bkg = (unsigned char*)malloc(nelmts * sizeof(dst_typ_t));
 	orig = (unsigned char*)malloc(nelmts * sizeof(src_typ_t));
@@ -591,7 +597,7 @@ static void test_compound_6(void)
 	}
 	memcpy(buf, orig, nelmts*sizeof(src_typ_t));
 
-	// Build hdf5 datatypes
+	/* Build hdf5 datatypes */
 	CompType st(sizeof(src_typ_t));
 	st.insertMember("b", HOFFSET(src_typ_t, b), PredType::NATIVE_SHORT);
 	st.insertMember("d", HOFFSET(src_typ_t, d), PredType::NATIVE_SHORT);
@@ -600,10 +606,10 @@ static void test_compound_6(void)
 	dt.insertMember("b", HOFFSET(dst_typ_t, b), PredType::NATIVE_LONG);
 	dt.insertMember("d", HOFFSET(dst_typ_t, d), PredType::NATIVE_LONG);
 
-	// Perform the conversion
+	/* Perform the conversion */
 	st.convert(dt, (size_t)nelmts, buf, bkg);
 
-	// Compare results
+	/* Compare results */
 	for (i=0; i<nelmts; i++) {
 	    s_ptr = ((src_typ_t*)orig) + i;
 	    d_ptr = ((dst_typ_t*)buf)  + i;
@@ -619,7 +625,7 @@ static void test_compound_6(void)
 	    } // if
 	} // for
     
-	// Release resources
+	/* Release resources */
 	free(buf);
 	free(bkg);
 	free(orig);
@@ -631,7 +637,8 @@ static void test_compound_6(void)
     }   // end of try block
 
     catch (Exception E) {
-        issue_fail_msg("test_compound_6", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_6 in catch" << endl;
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_6()
 
@@ -650,7 +657,7 @@ static void test_compound_6(void)
  *
  *-------------------------------------------------------------------------
  */
-static void test_compound_7(void)
+static void test_compound_7()
 {
     typedef struct {
 	int a;
@@ -683,21 +690,22 @@ static void test_compound_7(void)
 	type_size = tid2.getSize();
 	verify_val_noteq(type_size, sizeof(s2_typ_t), "DataType::getSize", __LINE__, __FILE__);
 
-	// Should not be able to insert field past end of compound datatype
+	/* Should not be able to insert field past end of compound datatype */
 	try {
 	    tid2.insertMember("d", HOFFSET(s2_typ_t, d), PredType::NATIVE_DOUBLE);
 	    // Should FAIL but didn't, so throw an invalid action exception
 	    throw InvalidActionException("CompType::insertMember", "Attempted to insert field past end of compound data type.");
 	} catch (DataTypeIException err) {}
 
-	// Release resources
+	/* Release resources */
 	tid1.close();
 	tid2.close();
 	PASSED();
     }   // end of try block
 
     catch (Exception E) {
-        issue_fail_msg("test_compound_7", __LINE__, __FILE__, E.getCDetailMsg());
+cerr << "test_compound_7 in catch" << endl;
+        issue_fail_msg(E.getCFuncName(), __LINE__, __FILE__, E.getCDetailMsg());
     }
 }   // test_compound_7()
 
@@ -719,7 +727,7 @@ static void test_compound_7(void)
 #ifdef __cplusplus
 extern "C"
 #endif
-void test_compound(void)
+void test_compound()
 {
     // Output message about test being performed
     MESSAGE(5, ("Testing Compound Data Type operations\n"));
@@ -748,6 +756,6 @@ void test_compound(void)
 #ifdef __cplusplus
 extern "C"
 #endif
-void cleanup_compound(void)
+void cleanup_compound()
 {
 }   // cleanup_file

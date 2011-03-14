@@ -39,13 +39,32 @@
 #include "H5Fprivate.h"		/* File access				*/
 #include "H5Cprivate.h"		/* cache				*/
 
+#ifdef H5_METADATA_TRACE_FILE
+#define H5AC__TRACE_FILE_ENABLED	1
+#else /* H5_METADATA_TRACE_FILE */
+#define H5AC__TRACE_FILE_ENABLED	0
+#endif /* H5_METADATA_TRACE_FILE */
 
-#define H5AC_BT_ID	0	/*B-tree nodes				     */
-#define H5AC_SNODE_ID	1	/*symbol table nodes			     */
-#define H5AC_LHEAP_ID	2	/*local heap				     */
-#define H5AC_GHEAP_ID	3	/*global heap				     */
-#define H5AC_OHDR_ID	4	/*object header				     */
-#define H5AC_NTYPES	5
+/* Types of metadata objects cached */
+typedef enum {
+    H5AC_BT_ID = 0, 	/*B-tree nodes				     */
+    H5AC_SNODE_ID,	/*symbol table nodes			     */
+    H5AC_LHEAP_ID,	/*local heap				     */
+    H5AC_GHEAP_ID,	/*global heap				     */
+    H5AC_OHDR_ID,	/*object header				     */
+    H5AC_BT2_HDR_ID,	/*v2 B-tree header			     */
+    H5AC_BT2_INT_ID,	/*v2 B-tree internal node		     */
+    H5AC_BT2_LEAF_ID,	/*v2 B-tree leaf node			     */
+    H5AC_FHEAP_HDR_ID,	/*fractal heap header			     */
+    H5AC_FHEAP_DBLOCK_ID, /*fractal heap direct block		     */
+    H5AC_FHEAP_IBLOCK_ID, /*fractal heap indirect block		     */
+    H5AC_FSPACE_HDR_ID,	/*free space header			     */
+    H5AC_FSPACE_SINFO_ID,/*free space sections			     */
+    H5AC_SOHM_TABLE_ID, /*shared object header message master table  */
+    H5AC_SOHM_LIST_ID,  /*shared message index stored as a list      */
+    H5AC_TEST_ID,	/*test entry -- not used for actual files    */
+    H5AC_NTYPES		/* Number of types, must be last             */
+} H5AC_type_t;
 
 /* H5AC_DUMP_STATS_ON_CLOSE should always be FALSE when
  * H5C_COLLECT_CACHE_STATS is FALSE.
@@ -65,6 +84,14 @@
 #define H5AC_DUMP_STATS_ON_CLOSE	0
 
 #endif /* H5C_COLLECT_CACHE_STATS */
+
+/* Default max metadata cache size and min clean size are give here.
+ * At present, these are the same as those given in H5Cprivate.h.
+ */
+
+#define H5AC__DEFAULT_MAX_CACHE_SIZE	H5C__DEFAULT_MAX_CACHE_SIZE
+#define H5AC__DEFAULT_MIN_CLEAN_SIZE	H5C__DEFAULT_MIN_CLEAN_SIZE
+
 
 /*
  * Class methods pertaining to caching.	 Each type of cached object will
@@ -89,6 +116,10 @@
  * SIZE:	Report the size (on disk) of the specified cache object.
  *		Note that the space allocated on disk may not be contiguous.
  */
+
+#define H5AC_CALLBACK__NO_FLAGS_SET             H5C_CALLBACK__NO_FLAGS_SET
+#define H5AC_CALLBACK__SIZE_CHANGED_FLAG	H5C_CALLBACK__SIZE_CHANGED_FLAG
+#define H5AC_CALLBACK__RENAMED_FLAG             H5C_CALLBACK__RENAMED_FLAG
 
 typedef H5C_load_func_t		H5AC_load_func_t;
 typedef H5C_flush_func_t	H5AC_flush_func_t;
@@ -133,7 +164,7 @@ typedef enum H5AC_protect_t {
 } H5AC_protect_t;
 
 
-/* Typedef for metadata cache (defined in H5C.c) */
+/* Typedef for metadata cache (defined in H5Cpkg.h) */
 typedef H5C_t	H5AC_t;
 
 /* Metadata specific properties for FAPL */
@@ -160,23 +191,138 @@ extern hid_t H5AC_dxpl_id;
 /* (Global variable declaration, definition is in H5AC.c) */
 extern hid_t H5AC_ind_dxpl_id;
 
+
+/* Default cache configuration. */
+
+#define H5AC__DEFAULT_CACHE_CONFIG                                            \
+{                                                                             \
+  /* int         version                = */ H5C__CURR_AUTO_SIZE_CTL_VER,     \
+  /* hbool_t     rpt_fcn_enabled        = */ FALSE,                           \
+  /* hbool_t     open_trace_file        = */ FALSE,                           \
+  /* hbool_t     close_trace_file       = */ FALSE,                           \
+  /* char        trace_file_name[]      = */ "",                              \
+  /* hbool_t     evictions_enabled      = */ TRUE,                            \
+  /* hbool_t     set_initial_size       = */ TRUE,                            \
+  /* size_t      initial_size           = */ ( 1 * 1024 * 1024),              \
+  /* double      min_clean_fraction     = */ 0.5,                             \
+  /* size_t      max_size               = */ (16 * 1024 * 1024),              \
+  /* size_t      min_size               = */ ( 1 * 1024 * 1024),              \
+  /* long int    epoch_length           = */ 50000,                           \
+  /* enum H5C_cache_incr_mode incr_mode = */ H5C_incr__threshold,             \
+  /* double      lower_hr_threshold     = */ 0.9,                             \
+  /* double      increment              = */ 2.0,                             \
+  /* hbool_t     apply_max_increment    = */ TRUE,                            \
+  /* size_t      max_increment          = */ (4 * 1024 * 1024),               \
+  /* enum H5C_cache_flash_incr_mode       */                                  \
+  /*                    flash_incr_mode = */ H5C_flash_incr__add_space,       \
+  /* double      flash_multiple         = */ 1.0,                             \
+  /* double      flash_threshold        = */ 0.25,                            \
+  /* enum H5C_cache_decr_mode decr_mode = */ H5C_decr__age_out_with_threshold,\
+  /* double      upper_hr_threshold     = */ 0.999,                           \
+  /* double      decrement              = */ 0.9,                             \
+  /* hbool_t     apply_max_decrement    = */ TRUE,                            \
+  /* size_t      max_decrement          = */ (1 * 1024 * 1024),               \
+  /* int         epochs_before_eviction = */ 3,                               \
+  /* hbool_t     apply_empty_reserve    = */ TRUE,                            \
+  /* double      empty_reserve          = */ 0.1,                             \
+  /* int	 dirty_bytes_threshold  = */ (256 * 1024)                     \
+}
+
+
 /*
  * Library prototypes.
  */
+
+/* #defines of flags used in the flags parameters in some of the
+ * following function calls.  Note that they are just copies of
+ * the equivalent flags from H5Cprivate.h.
+ */
+
+#define H5AC__NO_FLAGS_SET		  H5C__NO_FLAGS_SET
+#define H5AC__SET_FLUSH_MARKER_FLAG	  H5C__SET_FLUSH_MARKER_FLAG
+#define H5AC__DELETED_FLAG		  H5C__DELETED_FLAG
+#define H5AC__DIRTIED_FLAG		  H5C__DIRTIED_FLAG
+#define H5AC__SIZE_CHANGED_FLAG		  H5C__SIZE_CHANGED_FLAG
+#define H5AC__PIN_ENTRY_FLAG		  H5C__PIN_ENTRY_FLAG
+#define H5AC__UNPIN_ENTRY_FLAG		  H5C__UNPIN_ENTRY_FLAG
+#define H5AC__FLUSH_INVALIDATE_FLAG	  H5C__FLUSH_INVALIDATE_FLAG
+#define H5AC__FLUSH_CLEAR_ONLY_FLAG	  H5C__FLUSH_CLEAR_ONLY_FLAG
+#define H5AC__FLUSH_MARKED_ENTRIES_FLAG   H5C__FLUSH_MARKED_ENTRIES_FLAG
+#define H5AC__FLUSH_IGNORE_PROTECTED_FLAG H5C__FLUSH_IGNORE_PROTECTED_FLAG
+
+
+/* #defines of flags used to report entry status in the
+ * H5AC_get_entry_status() call.
+ */
+
+#define H5AC_ES__IN_CACHE	0x0001
+#define H5AC_ES__IS_DIRTY	0x0002
+#define H5AC_ES__IS_PROTECTED	0x0004
+#define H5AC_ES__IS_PINNED	0x0008
+
+
+/* external function declarations: */
+
 H5_DLL herr_t H5AC_init(void);
-H5_DLL herr_t H5AC_create(const H5F_t *f, int size_hint);
-H5_DLL herr_t H5AC_set(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type, haddr_t addr,
-			void *thing);
-H5_DLL void *H5AC_protect(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type,
-                          haddr_t addr, const void *udata1, void *udata2,
-                          H5AC_protect_t rw);
-H5_DLL herr_t H5AC_unprotect(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type, haddr_t addr,
-			     void *thing, hbool_t deleted);
+H5_DLL herr_t H5AC_create(const H5F_t *f, H5AC_cache_config_t *config_ptr);
+H5_DLL herr_t H5AC_get_entry_status(H5F_t * f, haddr_t addr,
+				    unsigned * status_ptr);
+H5_DLL herr_t H5AC_set(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type,
+                       haddr_t addr, void *thing, unsigned int flags);
+H5_DLL herr_t H5AC_pin_protected_entry(H5F_t * f, void *  thing);
+H5_DLL void * H5AC_protect(H5F_t *f, hid_t dxpl_id, const H5AC_class_t *type,
+                           haddr_t addr, const void *udata1, void *udata2,
+                           H5AC_protect_t rw);
+H5_DLL herr_t H5AC_resize_pinned_entry(H5F_t * f,
+                                       void *  thing,
+                                       size_t  new_size);
+H5_DLL herr_t H5AC_unpin_entry(H5F_t * f,
+		               void *  thing);
+H5_DLL herr_t H5AC_unprotect(H5F_t *f, hid_t dxpl_id,
+                             const H5AC_class_t *type, haddr_t addr,
+			     void *thing, unsigned flags);
 H5_DLL herr_t H5AC_flush(H5F_t *f, hid_t dxpl_id, unsigned flags);
+H5_DLL herr_t H5AC_mark_pinned_entry_dirty(H5F_t * f,
+		                           void *  thing,
+					   hbool_t size_changed,
+                                           size_t  new_size);
+H5_DLL herr_t H5AC_mark_pinned_or_protected_entry_dirty(H5F_t * f,
+		                                        void *  thing);
 H5_DLL herr_t H5AC_rename(H5F_t *f, const H5AC_class_t *type,
 			   haddr_t old_addr, haddr_t new_addr);
+
 H5_DLL herr_t H5AC_dest(H5F_t *f, hid_t dxpl_id);
+
+H5_DLL herr_t H5AC_expunge_entry(H5F_t *f, hid_t dxpl_id,
+                                 const H5AC_class_t *type, haddr_t addr);
+
+H5_DLL herr_t H5AC_set_write_done_callback(H5C_t * cache_ptr,
+                                           void (* write_done)(void));
 H5_DLL herr_t H5AC_stats(const H5F_t *f);
+
+H5_DLL herr_t H5AC_get_cache_auto_resize_config(H5AC_t * cache_ptr,
+                                               H5AC_cache_config_t *config_ptr);
+
+H5_DLL herr_t H5AC_get_cache_size(H5AC_t * cache_ptr,
+                                  size_t * max_size_ptr,
+                                  size_t * min_clean_size_ptr,
+                                  size_t * cur_size_ptr,
+                                  int32_t * cur_num_entries_ptr);
+
+H5_DLL herr_t H5AC_get_cache_hit_rate(H5AC_t * cache_ptr,
+                                      double * hit_rate_ptr);
+
+H5_DLL herr_t H5AC_reset_cache_hit_rate_stats(H5AC_t * cache_ptr);
+
+H5_DLL herr_t H5AC_set_cache_auto_resize_config(H5AC_t * cache_ptr,
+                                               H5AC_cache_config_t *config_ptr);
+
+H5_DLL herr_t H5AC_validate_config(H5AC_cache_config_t * config_ptr);
+
+H5_DLL herr_t H5AC_close_trace_file( H5AC_t * cache_ptr);
+
+H5_DLL herr_t H5AC_open_trace_file(H5AC_t * cache_ptr,
+		                   const char * trace_file_name);
 
 #endif /* !_H5ACprivate_H */
 

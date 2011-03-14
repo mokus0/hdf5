@@ -2,9 +2,9 @@
 Expected output for 'h5dump --xml -X thing: tempty.h5'
 #############################
 <?xml version="1.0" encoding="UTF-8"?>
-<thing:HDF5-File xmlns:thing="http://hdfgroup.org/DTDs/HDF5-File" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://hdfgroup.org/DTDs/HDF5-File http://www.hdfgroup.org/DTDs/HDF5-File.xsd">
-<thing:RootGroup OBJ-XID="xid_928-0" H5Path="/">
-   <thing:Dataset Name="Dataset1.0" OBJ-XID="xid_976-0" H5Path= "/Dataset1.0" Parents="xid_928-0" H5ParentPaths="/">
+<thing:HDF5-File xmlns:thing="http://hdfgroup.org/DTDs/HDF5-File" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://hdfgroup.org/DTDs/HDF5File http://hdfgroup.org/DTDs/HDF5-File.xsd">
+<thing:RootGroup OBJ-XID="xid_928" H5Path="/">
+   <thing:Dataset Name="Dataset1.0" OBJ-XID="xid_976" H5Path= "/Dataset1.0" Parents="xid_928" H5ParentPaths="/">
       <thing:StorageLayout>
          <thing:ContiguousLayout/>
       </thing:StorageLayout>
@@ -34,7 +34,7 @@ Expected output for 'h5dump --xml -X thing: tempty.h5'
          </thing:DataFromFile>
       </thing:Data>
    </thing:Dataset>
-   <thing:Dataset Name="Dataset2.0" OBJ-XID="xid_1576-0" H5Path= "/Dataset2.0" Parents="xid_928-0" H5ParentPaths="/">
+   <thing:Dataset Name="Dataset2.0" OBJ-XID="xid_1576" H5Path= "/Dataset2.0" Parents="xid_928" H5ParentPaths="/">
       <thing:StorageLayout>
          <thing:ContiguousLayout/>
       </thing:StorageLayout>
@@ -59,7 +59,7 @@ Expected output for 'h5dump --xml -X thing: tempty.h5'
          </thing:DataFromFile>
       </thing:Data>
    </thing:Dataset>
-   <thing:Dataset Name="Dataset3.0" OBJ-XID="xid_2128-0" H5Path= "/Dataset3.0" Parents="xid_928-0" H5ParentPaths="/">
+   <thing:Dataset Name="Dataset3.0" OBJ-XID="xid_2128" H5Path= "/Dataset3.0" Parents="xid_928" H5ParentPaths="/">
       <thing:StorageLayout>
          <thing:ContiguousLayout/>
       </thing:StorageLayout>
@@ -84,7 +84,7 @@ Expected output for 'h5dump --xml -X thing: tempty.h5'
          </thing:DataFromFile>
       </thing:Data>
    </thing:Dataset>
-   <thing:Dataset Name="Dataset4.0" OBJ-XID="xid_2400-0" H5Path= "/Dataset4.0" Parents="xid_928-0" H5ParentPaths="/">
+   <thing:Dataset Name="Dataset4.0" OBJ-XID="xid_2400" H5Path= "/Dataset4.0" Parents="xid_928" H5ParentPaths="/">
       <thing:StorageLayout>
          <thing:ContiguousLayout/>
       </thing:StorageLayout>
@@ -100,7 +100,7 @@ Expected output for 'h5dump --xml -X thing: tempty.h5'
       </thing:Dataspace>
       <thing:DataType>
          <thing:ArrayType Ndims="1">
-            <thing:ArrayDimension DimSize="4" DimPerm="0"/>
+            <thing:ArrayDimension DimSize="4"/>
             <thing:DataType>
                <thing:AtomicType>
                   <thing:IntegerType ByteOrder="LE" Sign="true" Size="4" />
@@ -114,7 +114,7 @@ Expected output for 'h5dump --xml -X thing: tempty.h5'
          </thing:DataFromFile>
       </thing:Data>
    </thing:Dataset>
-   <thing:Dataset Name="Dataset5.0" OBJ-XID="xid_2672-0" H5Path= "/Dataset5.0" Parents="xid_928-0" H5ParentPaths="/">
+   <thing:Dataset Name="Dataset5.0" OBJ-XID="xid_2672" H5Path= "/Dataset5.0" Parents="xid_928" H5ParentPaths="/">
       <thing:StorageLayout>
          <thing:ContiguousLayout/>
       </thing:StorageLayout>

@@ -66,16 +66,20 @@ typedef struct H5FD_sec2_t {
     haddr_t	eof;			/*end of file; current file size*/
     haddr_t	pos;			/*current file I/O position	*/
     int		op;			/*last operation		*/
-#ifndef WIN32
+#ifndef _WIN32
     /*
      * On most systems the combination of device and i-node number uniquely
      * identify a file.
      */
     dev_t	device;			/*file device number		*/
+#ifdef H5_VMS
+    ino_t	inode[3];		/*file i-node number		*/
+#else
     ino_t	inode;			/*file i-node number		*/
+#endif /*H5_VMS*/
 #else
     /*
-     * On WIN32 the low-order word of a unique identifier associated with the
+     * On _WIN32 the low-order word of a unique identifier associated with the
      * file and the volume serial number uniquely identify a file. This number
      * (which, both? -rpm) may change when the system is restarted or when the
      * file is opened. After a process opens a file, the identifier is
@@ -106,7 +110,7 @@ typedef struct H5FD_sec2_t {
 #   define file_offset_t	off64_t
 #   define file_seek		lseek64
 #   define file_truncate	ftruncate64
-#elif defined (WIN32) && !defined(__MWERKS__)
+#elif defined (_WIN32) && !defined(__MWERKS__)
 # /*MSVC*/
 #   define file_offset_t __int64
 #   define file_seek _lseeki64
@@ -146,9 +150,9 @@ static H5FD_t *H5FD_sec2_open(const char *name, unsigned flags, hid_t fapl_id,
 static herr_t H5FD_sec2_close(H5FD_t *_file);
 static int H5FD_sec2_cmp(const H5FD_t *_f1, const H5FD_t *_f2);
 static herr_t H5FD_sec2_query(const H5FD_t *_f1, unsigned long *flags);
-static haddr_t H5FD_sec2_get_eoa(H5FD_t *_file);
-static herr_t H5FD_sec2_set_eoa(H5FD_t *_file, haddr_t addr);
-static haddr_t H5FD_sec2_get_eof(H5FD_t *_file);
+static haddr_t H5FD_sec2_get_eoa(const H5FD_t *_file, H5FD_mem_t type);
+static herr_t H5FD_sec2_set_eoa(H5FD_t *_file, H5FD_mem_t type, haddr_t addr);
+static haddr_t H5FD_sec2_get_eof(const H5FD_t *_file);
 static herr_t  H5FD_sec2_get_handle(H5FD_t *_file, hid_t fapl, void** file_handle);
 static herr_t H5FD_sec2_read(H5FD_t *_file, H5FD_mem_t type, hid_t fapl_id, haddr_t addr,
 			     size_t size, void *buf);
@@ -221,13 +225,10 @@ H5FD_sec2_init_interface(void)
  *		library.
  *
  * Return:	Success:	The driver ID for the sec2 driver.
- *
  *		Failure:	Negative.
  *
  * Programmer:	Robb Matzke
  *              Thursday, July 29, 1999
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -238,15 +239,15 @@ H5FD_sec2_init(void)
 
     FUNC_ENTER_NOAPI(H5FD_sec2_init, FAIL)
 
-    if (H5I_VFL!=H5I_get_type(H5FD_SEC2_g))
-        H5FD_SEC2_g = H5FD_register(&H5FD_sec2_g,sizeof(H5FD_class_t));
+    if(H5I_VFL != H5I_get_type(H5FD_SEC2_g))
+        H5FD_SEC2_g = H5FD_register(&H5FD_sec2_g, sizeof(H5FD_class_t));
 
     /* Set return value */
-    ret_value=H5FD_SEC2_g;
+    ret_value = H5FD_SEC2_g;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5FD_sec2_init() */
 
 
 /*---------------------------------------------------------------------------
@@ -298,7 +299,7 @@ H5Pset_fapl_sec2(hid_t fapl_id)
     herr_t ret_value;
 
     FUNC_ENTER_API(H5Pset_fapl_sec2, FAIL)
-    H5TRACE1("e","i",fapl_id);
+    H5TRACE1("e", "i", fapl_id);
 
     if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access property list")
@@ -336,7 +337,7 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
     int	o_flags;
     int		fd=(-1);
     H5FD_sec2_t	*file=NULL;
-#ifdef WIN32
+#ifdef _WIN32
     HFILE filehandle;
     struct _BY_HANDLE_FILE_INFORMATION fileinfo;
 #endif
@@ -376,14 +377,21 @@ H5FD_sec2_open(const char *name, unsigned flags, hid_t UNUSED fapl_id,
     H5_ASSIGN_OVERFLOW(file->eof,sb.st_size,h5_stat_size_t,haddr_t);
     file->pos = HADDR_UNDEF;
     file->op = OP_UNKNOWN;
-#ifdef WIN32
+#ifdef _WIN32
     filehandle = _get_osfhandle(fd);
     (void)GetFileInformationByHandle((HANDLE)filehandle, &fileinfo);
     file->fileindexhi = fileinfo.nFileIndexHigh;
     file->fileindexlo = fileinfo.nFileIndexLow;
 #else
     file->device = sb.st_dev;
+#ifdef H5_VMS
+    file->inode[0] = sb.st_ino[0];
+    file->inode[1] = sb.st_ino[1];
+    file->inode[2] = sb.st_ino[2];
+#else
     file->inode = sb.st_ino;
+#endif /*H5_VMS*/
+
 #endif
 
     /* Set return value */
@@ -460,7 +468,7 @@ H5FD_sec2_cmp(const H5FD_t *_f1, const H5FD_t *_f2)
 
     FUNC_ENTER_NOAPI(H5FD_sec2_cmp, H5FD_VFD_DEFAULT)
 
-#ifdef WIN32
+#ifdef _WIN32
     if (f1->fileindexhi < f2->fileindexhi) HGOTO_DONE(-1)
     if (f1->fileindexhi > f2->fileindexhi) HGOTO_DONE(1)
 
@@ -480,8 +488,14 @@ H5FD_sec2_cmp(const H5FD_t *_f1, const H5FD_t *_f2)
     if(HDmemcmp(&(f1->device),&(f2->device),sizeof(dev_t))>0) HGOTO_DONE(1)
 #endif /* H5_DEV_T_IS_SCALAR */
 
+#ifndef H5_VMS
     if (f1->inode < f2->inode) HGOTO_DONE(-1)
     if (f1->inode > f2->inode) HGOTO_DONE(1)
+#else
+    if(HDmemcmp(&(f1->inode),&(f2->inode),3*sizeof(ino_t))<0) HGOTO_DONE(-1)
+    if(HDmemcmp(&(f1->inode),&(f2->inode),3*sizeof(ino_t))>0) HGOTO_DONE(1)
+#endif /*H5_VMS*/
+
 #endif
 
 done:
@@ -543,13 +557,16 @@ done:
  *              Monday, August  2, 1999
  *
  * Modifications:
+ *              Raymond Lu
+ *              21 Dec. 2006
+ *              Added the parameter TYPE.  It's only used for MULTI driver.
  *
  *-------------------------------------------------------------------------
  */
 static haddr_t
-H5FD_sec2_get_eoa(H5FD_t *_file)
+H5FD_sec2_get_eoa(const H5FD_t *_file, H5FD_mem_t UNUSED type)
 {
-    H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
+    const H5FD_sec2_t	*file = (const H5FD_sec2_t*)_file;
     haddr_t ret_value;  /* Return value */
 
     FUNC_ENTER_NOAPI(H5FD_sec2_get_eoa, HADDR_UNDEF)
@@ -577,11 +594,14 @@ done:
  *              Thursday, July 29, 1999
  *
  * Modifications:
+ *              Raymond Lu
+ *              21 Dec. 2006
+ *              Added the parameter TYPE.  It's only used for MULTI driver.
  *
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_sec2_set_eoa(H5FD_t *_file, haddr_t addr)
+H5FD_sec2_set_eoa(H5FD_t *_file, H5FD_mem_t UNUSED type, haddr_t addr)
 {
     H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
     herr_t ret_value=SUCCEED;   /* Return value */
@@ -616,9 +636,9 @@ done:
  *-------------------------------------------------------------------------
  */
 static haddr_t
-H5FD_sec2_get_eof(H5FD_t *_file)
+H5FD_sec2_get_eof(const H5FD_t *_file)
 {
-    H5FD_sec2_t	*file = (H5FD_sec2_t*)_file;
+    const H5FD_sec2_t	*file = (const H5FD_sec2_t*)_file;
     haddr_t ret_value;  /* Return value */
 
     FUNC_ENTER_NOAPI(H5FD_sec2_get_eof, HADDR_UNDEF)
@@ -859,7 +879,7 @@ H5FD_sec2_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned UNUSED closing)
 
     /* Extend the file to make sure it's large enough */
     if (file->eoa!=file->eof) {
-#ifdef WIN32
+#ifdef _WIN32
         HFILE filehandle;   /* Windows file handle */
         LARGE_INTEGER li;   /* 64-bit integer for SetFilePointer() call */
 
@@ -872,10 +892,10 @@ H5FD_sec2_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned UNUSED closing)
         (void)SetFilePointer((HANDLE)filehandle,li.LowPart,&li.HighPart,FILE_BEGIN);
         if(SetEndOfFile((HANDLE)filehandle)==0)
             HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly")
-#else /* WIN32 */
+#else /* _WIN32 */
         if (-1==file_truncate(file->fd, (file_offset_t)file->eoa))
             HSYS_GOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly")
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
         /* Update the eof value */
         file->eof = file->eoa;

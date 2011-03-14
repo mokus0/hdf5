@@ -119,13 +119,13 @@ parse_command_line (int argc, const char *argv[])
       switch ((char) opt)
 	{
 	case 'o':
-	  output_file = HDstrdup (opt_arg);
+	  output_file = strdup (opt_arg);
 	  break;
 	case 'i':
-	  input_file = HDstrdup (opt_arg);
+	  input_file = strdup (opt_arg);
 	  break;
 	case 'u':
-	  ub_file = HDstrdup (opt_arg);
+	  ub_file = strdup (opt_arg);
 	  break;
 	case 'c':
 	  do_clobber = TRUE;
@@ -165,7 +165,7 @@ main (int argc, const char *argv[])
   int h5fid;
   int ofid;
   void *edata;
-  H5E_auto_t func; 
+  H5E_auto2_t func;
   hid_t ifile;
   hid_t plist;
   herr_t status;
@@ -181,8 +181,8 @@ main (int argc, const char *argv[])
   int res;
 
   /* Disable error reporting */
-  H5Eget_auto (&func, &edata);
-  H5Eset_auto (NULL, NULL);
+  H5Eget_auto2(H5E_DEFAULT, &func, &edata);
+  H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
 
   parse_command_line (argc, argv);
 
@@ -342,9 +342,9 @@ main (int argc, const char *argv[])
   where = write_pad (ofid, where);
 
 
-  HDclose (ufid);
-  HDclose (h5fid);
-  HDclose (ofid);
+  close (ufid);
+  close (h5fid);
+  close (ofid);
 
   return d_status;
 }

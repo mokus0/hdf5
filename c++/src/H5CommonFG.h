@@ -63,8 +63,8 @@ class H5_DLLCPP CommonFG {
 	void setComment(const H5std_string& name, const H5std_string& comment) const;
 
 	// Returns the name of the HDF5 object that the symbolic link points to.
-	H5std_string getLinkval(const char* name, size_t size=0) const;
-	H5std_string getLinkval(const H5std_string& name, size_t size=0) const;
+	H5std_string getLinkval(const char* name, size_t size) const;
+	H5std_string getLinkval(const H5std_string& name, size_t size) const;
 
 	// Returns the number of objects in this group.
 	hsize_t getNumObjs() const;
@@ -74,6 +74,7 @@ class H5_DLLCPP CommonFG {
 	ssize_t getObjnameByIdx(hsize_t idx, H5std_string& name, size_t size) const;
 	H5std_string getObjnameByIdx(hsize_t idx) const;
 
+#ifndef H5_NO_DEPRECATED_SYMBOLS
 	// Returns the type of an object in this group, given the
 	// object's index.
 	H5G_obj_t getObjTypeByIdx(hsize_t idx) const;
@@ -90,11 +91,12 @@ class H5_DLLCPP CommonFG {
 	// C++ style yet.
 	int iterateElems(const char* name, int *idx, H5G_iterate_t op, void *op_data);
 	int iterateElems(const H5std_string& name, int *idx, H5G_iterate_t op, void *op_data);
+#endif /* H5_NO_DEPRECATED_SYMBOLS */
 
 	// Creates a link of the specified type from new_name to current_name;
 	// both names are interpreted relative to the specified location id.
-	void link(H5G_link_t link_type, const char* curr_name, const char* new_name) const;
-	void link(H5G_link_t link_type, const H5std_string& curr_name, const H5std_string& new_name) const;
+	void link(H5L_type_t link_type, const char* curr_name, const char* new_name) const;
+	void link(H5L_type_t link_type, const H5std_string& curr_name, const H5std_string& new_name) const;
 
 	// Removes the specified name at this location.
 	void unlink(const char* name) const;

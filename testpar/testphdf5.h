@@ -13,88 +13,29 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* common definitions used by all parallel hdf5 test programs. */
+
 #ifndef PHDF5TEST_H
 #define PHDF5TEST_H
 
-#include "h5test.h"
+#include "testpar.h"
+
+enum H5TEST_COLL_CHUNK_API {API_NONE=0,API_LINK_HARD,
+	                    API_MULTI_HARD,API_LINK_TRUE,API_LINK_FALSE,
+                            API_MULTI_COLL,API_MULTI_IND};
+
+#ifndef FALSE
+#define FALSE   0
+#endif
 
 #ifndef TRUE
 #define TRUE    1
-#endif  /* !TRUE */
+#endif
 
-#ifndef FALSE
-#define FALSE   (!TRUE)
-#endif  /* !FALSE */
-
-/* Define some handy debugging shorthands, routines, ... */
-/* debugging tools */
-
-#define MESG(x)                                                         \
-	if (VERBOSE_MED) printf("%s\n", x);                                 \
-
-#define VRFY(val, mesg) do {                                            \
-    if (val) {                                                          \
-        if (*mesg != '\0') {                                            \
-            MESG(mesg);                                                 \
-        }                                                               \
-    } else {                                                            \
-        printf("Proc %d: ", mpi_rank);                                  \
-        printf("*** PHDF5 ERROR ***\n");                                \
-        printf("        Assertion (%s) failed at line %4d in %s\n",     \
-               mesg, (int)__LINE__, __FILE__);                          \
-        ++nerrors;                                                      \
-        fflush(stdout);                                                 \
-        if (!VERBOSE_MED) {                                                 \
-            printf("aborting MPI process\n");                           \
-            MPI_Finalize();                                             \
-            exit(nerrors);                                              \
-        }                                                               \
-    }                                                                   \
-} while(0)
-
-/*
- * Checking for information purpose.
- * If val is false, print mesg; else nothing.
- * Either case, no error setting.
- */
-#define INFO(val, mesg) do {                                            \
-    if (val) {                                                          \
-        if (*mesg != '\0') {                                            \
-            MESG(mesg);                                                 \
-        }                                                               \
-    } else {                                                            \
-        printf("Proc %d: ", mpi_rank);                                  \
-        printf("*** PHDF5 REMARK (not an error) ***\n");                \
-        printf("        Condition (%s) failed at line %4d in %s\n",     \
-               mesg, (int)__LINE__, __FILE__);                          \
-        fflush(stdout);                                                 \
-    }                                                                   \
-} while(0)
-
-#define MPI_BANNER(mesg) do {                                           \
-    if (VERBOSE_MED || MAINPROCESS){                                    \
-	printf("--------------------------------\n");                   \
-	printf("Proc %d: ", mpi_rank);                                  \
-	printf("*** %s\n", mesg);                                       \
-	printf("--------------------------------\n");                   \
-    }                                                                   \
-} while(0)
-
-#define MAINPROCESS     (!mpi_rank) /* define process 0 as main process */
-
-#define SYNC(comm) do {                                                 \
-    MPI_BANNER("doing a SYNC");                                         \
-    MPI_Barrier(comm);                                                  \
-    MPI_BANNER("SYNC DONE");                                            \
-} while(0)
-
-/* End of Define some handy debugging shorthands, routines, ... */
 
 /* Constants definitions */
 #define DIM0		600 	/* Default dataset sizes. */
 #define DIM1		1200	/* Values are from a monitor pixel sizes */
-#define ROW_FACTOR      8       /* Nominal row factor for dataset size */
-#define COL_FACTOR      16      /* Nominal column factor for dataset size */
 #define RANK		2
 #define DATASETNAME1	"Data1"
 #define DATASETNAME2	"Data2"
@@ -106,7 +47,6 @@
 #define BYCOL           2       /* divide into blocks of columns */
 #define ZROW            3       /* same as BYCOL except process 0 gets 0 rows */
 #define ZCOL            4       /* same as BYCOL except process 0 gets 0 columns */
-#define MAX_ERR_REPORT  10      /* Maximum number of errors reported */
 
 /* File_Access_type bits */
 #define FACC_DEFAULT    0x0     /* default */
@@ -115,11 +55,29 @@
 #define FACC_MULTI      0x4     /* Multi File */
 #define FACC_MPIPOSIX   0x8     /* MPIPOSIX */
 
+#define DXFER_COLLECTIVE_IO 0x1  /* Collective IO*/
+#define DXFER_INDEPENDENT_IO 0x2 /* Independent IO collectively */
 /*Constants for collective chunk definitions */
-#define SPACE_DIM1 24 
-#define SPACE_DIM2 4 
+#define SPACE_DIM1 24
+#define SPACE_DIM2 4
 #define BYROW_CONT 1
 #define BYROW_DISCONT 2
+#define BYROW_SELECTNONE 3
+#define BYROW_SELECTUNBALANCE 4
+#define BYROW_SELECTINCHUNK 5
+
+#define DIMO_NUM_CHUNK 4
+#define DIM1_NUM_CHUNK 2
+#define LINK_TRUE_NUM_CHUNK 2
+#define LINK_FALSE_NUM_CHUNK 6
+#define MULTI_TRUE_PERCENT 50
+#define LINK_TRUE_CHUNK_NAME "h5_link_chunk_true"
+#define LINK_FALSE_CHUNK_NAME "h5_link_chunk_false"
+#define LINK_HARD_CHUNK_NAME "h5_link_chunk_hard"
+#define MULTI_HARD_CHUNK_NAME "h5_multi_chunk_hard"
+#define MULTI_COLL_CHUNK_NAME "h5_multi_chunk_coll"
+#define MULTI_INDP_CHUNK_NAME "h5_multi_chunk_indp"
+
 #define DSET_COLLECTIVE_CHUNK_NAME "coll_chunk_name"
 
 
@@ -230,9 +188,10 @@ typedef int DATATYPE;
 extern int dim0, dim1;				/*Dataset dimensions */
 extern int chunkdim0, chunkdim1;		/*Chunk dimensions */
 extern int nerrors;				/*errors count */
-extern H5E_auto_t old_func;			/* previous error handler */
+extern H5E_auto2_t old_func;			/* previous error handler */
 extern void *old_client_data;			/*previous error handler arg.*/
 extern int facc_type;				/*Test file access type */
+extern int dxfer_coll_type;
 
 /* Test program prototypes */
 void multiple_dset_write(void);
@@ -256,12 +215,19 @@ void none_selection_chunk(void);
 void test_chunk_alloc(void);
 void test_filter_read(void);
 void compact_dataset(void);
+void null_dataset(void);
 void big_dataset(void);
 void dataset_fillvalue(void);
 void coll_chunk1(void);
 void coll_chunk2(void);
 void coll_chunk3(void);
 void coll_chunk4(void);
+void coll_chunk5(void);
+void coll_chunk6(void);
+void coll_chunk7(void);
+void coll_chunk8(void);
+void coll_chunk9(void);
+void coll_chunk10(void);
 void coll_irregular_cont_read(void);
 void coll_irregular_cont_write(void);
 void coll_irregular_simple_chunk_read(void);
@@ -275,6 +241,7 @@ void compress_readAll(void);
 
 /* commonly used prototypes */
 hid_t create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type, hbool_t use_gpfs);
+MPI_Offset h5_mpi_get_file_size(const char *filename, MPI_Comm comm, MPI_Info info);
 int dataset_vrfy(hsize_t start[], hsize_t count[], hsize_t stride[],
                  hsize_t block[], DATATYPE *dataset, DATATYPE *original);
 

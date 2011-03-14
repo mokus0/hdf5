@@ -19,25 +19,31 @@
  * Purpose:     Messages related to data layout.
  */
 
-#define H5O_PACKAGE	/*suppress error about including H5Opkg	  */
-
+#define H5D_PACKAGE		/*suppress error about including H5Dpkg	  */
+#define H5O_PACKAGE		/*suppress error about including H5Opkg	  */
 
 #include "H5private.h"		/* Generic Functions			*/
-#include "H5Dprivate.h"		/* Dataset functions			*/
+#include "H5Dpkg.h"		/* Dataset functions			*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5FLprivate.h"	/* Free Lists                           */
 #include "H5MFprivate.h"	/* File space management		*/
 #include "H5MMprivate.h"	/* Memory management			*/
 #include "H5Opkg.h"             /* Object headers			*/
+#include "H5Pprivate.h"		/* Property lists			*/
+
 
 /* PRIVATE PROTOTYPES */
-static void *H5O_layout_decode(H5F_t *f, hid_t dxpl_id, const uint8_t *p);
-static herr_t H5O_layout_encode(H5F_t *f, uint8_t *p, const void *_mesg);
-static void *H5O_layout_copy(const void *_mesg, void *_dest, unsigned update_flags);
-static size_t H5O_layout_size(const H5F_t *f, const void *_mesg);
+static void *H5O_layout_decode(H5F_t *f, hid_t dxpl_id, unsigned mesg_flags, const uint8_t *p);
+static herr_t H5O_layout_encode(H5F_t *f, hbool_t disable_shared, uint8_t *p, const void *_mesg);
+static void *H5O_layout_copy(const void *_mesg, void *_dest);
+static size_t H5O_layout_size(const H5F_t *f, hbool_t disable_shared, const void *_mesg);
 static herr_t H5O_layout_reset(void *_mesg);
 static herr_t H5O_layout_free(void *_mesg);
-static herr_t H5O_layout_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t adj_link);
+static herr_t H5O_layout_delete(H5F_t *f, hid_t dxpl_id, H5O_t *open_oh,
+    void *_mesg);
+static void *H5O_layout_copy_file(H5F_t *file_src, void *mesg_src,
+    H5F_t *file_dst, hbool_t *recompute_size, H5O_copy_t *cpy_info,
+    void *udata, hid_t dxpl_id);
 static herr_t H5O_layout_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			       int indent, int fwidth);
 
@@ -46,6 +52,7 @@ const H5O_msg_class_t H5O_MSG_LAYOUT[1] = {{
     H5O_LAYOUT_ID,          	/*message id number             */
     "layout",               	/*message name for debugging    */
     sizeof(H5O_layout_t),   	/*native message size           */
+    0,				/* messages are sharable?       */
     H5O_layout_decode,      	/*decode message                */
     H5O_layout_encode,      	/*encode message                */
     H5O_layout_copy,        	/*copy the native value         */
@@ -54,13 +61,18 @@ const H5O_msg_class_t H5O_MSG_LAYOUT[1] = {{
     H5O_layout_free,        	/*free the struct		*/
     H5O_layout_delete,	        /* file delete method		*/
     NULL,			/* link method			*/
-    NULL,		    	/*get share method		*/
     NULL,			/*set share method		*/
+    NULL,		    	/*can share method		*/
+    NULL,			/* pre copy native value to file */
+    H5O_layout_copy_file,       /* copy native value to file    */
+    NULL,		        /* post copy native value to file    */
+    NULL,			/* get creation index		*/
+    NULL,			/* set creation index		*/
     H5O_layout_debug       	/*debug the message             */
 }};
 
 /* For forward and backward compatibility.  Version is 1 when space is
- * allocated; 2 when space is delayed for allocation; 3
+ * allocated; 2 when space is delayed for allocation; 3 is default now and
  * is revised to just store information needed for each storage type. */
 #define H5O_LAYOUT_VERSION_1	1
 #define H5O_LAYOUT_VERSION_2	2
@@ -83,45 +95,38 @@ H5FL_DEFINE(H5O_layout_t);
  * Programmer:  Robb Matzke
  *              Wednesday, October  8, 1997
  *
- * Modifications:
- * 	Robb Matzke, 1998-07-20
- *	Rearranged the message to add a version number at the beginning.
- *
- *      Raymond Lu, 2002-2-26
- *      Added version number 2 case depends on if space has been allocated
- *      at the moment when layout header message is updated.
- *
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
+H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, unsigned UNUSED mesg_flags,
+    const uint8_t *p)
 {
     H5O_layout_t           *mesg = NULL;
     unsigned               u;
     void                   *ret_value;          /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_decode);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_decode)
 
     /* check args */
-    assert(f);
-    assert(p);
+    HDassert(f);
+    HDassert(p);
 
     /* decode */
-    if (NULL==(mesg = H5FL_CALLOC(H5O_layout_t)))
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    if(NULL == (mesg = H5FL_CALLOC(H5O_layout_t)))
+        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
 
     /* Version. 1 when space allocated; 2 when space allocation is delayed */
     mesg->version = *p++;
-    if (mesg->version<H5O_LAYOUT_VERSION_1 || mesg->version>H5O_LAYOUT_VERSION_3)
-        HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "bad version number for layout message");
+    if(mesg->version < H5O_LAYOUT_VERSION_1 || mesg->version > H5O_LAYOUT_VERSION_3)
+        HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "bad version number for layout message")
 
     if(mesg->version < H5O_LAYOUT_VERSION_3) {
         unsigned	ndims;			/* Num dimensions in chunk           */
 
         /* Dimensionality */
         ndims = *p++;
-        if (ndims>H5O_LAYOUT_NDIMS)
-            HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "dimensionality is too large");
+        if(ndims > H5O_LAYOUT_NDIMS)
+            HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "dimensionality is too large")
 
         /* Layout class */
         mesg->type = (H5D_layout_t)*p++;
@@ -131,44 +136,40 @@ H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
         p += 5;
 
         /* Address */
-        if(mesg->type==H5D_CONTIGUOUS)
+        if(mesg->type == H5D_CONTIGUOUS)
             H5F_addr_decode(f, &p, &(mesg->u.contig.addr));
-        else if(mesg->type==H5D_CHUNKED)
+        else if(mesg->type == H5D_CHUNKED)
             H5F_addr_decode(f, &p, &(mesg->u.chunk.addr));
 
         /* Read the size */
-        if(mesg->type!=H5D_CHUNKED) {
-	    mesg->unused.ndims=ndims;
-
-            for (u = 0; u < ndims; u++)
-                UINT32DECODE(p, mesg->unused.dim[u]);
-
+        if(mesg->type != H5D_CHUNKED) {
             /* Don't compute size of contiguous storage here, due to possible
              * truncation of the dimension sizes when they were stored in this
              * version of the layout message.  Compute the contiguous storage
              * size in the dataset code, where we've got the dataspace
              * information available also.  - QAK 5/26/04
              */
+            p += ndims * 4;     /* Skip over dimension sizes (32-bit quantities) */
         } /* end if */
         else {
             mesg->u.chunk.ndims=ndims;
-            for (u = 0; u < ndims; u++)
+            for(u = 0; u < ndims; u++)
                 UINT32DECODE(p, mesg->u.chunk.dim[u]);
 
             /* Compute chunk size */
-            for (u=1, mesg->u.chunk.size=mesg->u.chunk.dim[0]; u<ndims; u++)
+            for(u = 1, mesg->u.chunk.size = mesg->u.chunk.dim[0]; u < ndims; u++)
                 mesg->u.chunk.size *= mesg->u.chunk.dim[u];
         } /* end if */
 
         if(mesg->type == H5D_COMPACT) {
             UINT32DECODE(p, mesg->u.compact.size);
             if(mesg->u.compact.size > 0) {
-                if(NULL==(mesg->u.compact.buf=H5MM_malloc(mesg->u.compact.size)))
-                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for compact data buffer");
+                if(NULL == (mesg->u.compact.buf = H5MM_malloc(mesg->u.compact.size)))
+                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for compact data buffer")
                 HDmemcpy(mesg->u.compact.buf, p, mesg->u.compact.size);
                 p += mesg->u.compact.size;
-            }
-        }
+            } /* end if */
+        } /* end if */
     } /* end if */
     else {
         /* Layout class */
@@ -176,6 +177,16 @@ H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
 
         /* Interpret the rest of the message according to the layout class */
         switch(mesg->type) {
+            case H5D_COMPACT:
+                UINT16DECODE(p, mesg->u.compact.size);
+                if(mesg->u.compact.size > 0) {
+                    if(NULL == (mesg->u.compact.buf = H5MM_malloc(mesg->u.compact.size)))
+                        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for compact data buffer")
+                    HDmemcpy(mesg->u.compact.buf, p, mesg->u.compact.size);
+                    p += mesg->u.compact.size;
+                } /* end if */
+                break;
+
             case H5D_CONTIGUOUS:
                 H5F_addr_decode(f, &p, &(mesg->u.contig.addr));
                 H5F_DECODE_LENGTH(f, p, mesg->u.contig.size);
@@ -184,46 +195,36 @@ H5O_layout_decode(H5F_t *f, hid_t UNUSED dxpl_id, const uint8_t *p)
             case H5D_CHUNKED:
                 /* Dimensionality */
                 mesg->u.chunk.ndims = *p++;
-                if (mesg->u.chunk.ndims>H5O_LAYOUT_NDIMS)
-                    HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "dimensionality is too large");
+                if(mesg->u.chunk.ndims > H5O_LAYOUT_NDIMS)
+                    HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "dimensionality is too large")
 
                 /* B-tree address */
                 H5F_addr_decode(f, &p, &(mesg->u.chunk.addr));
 
                 /* Chunk dimensions */
-                for (u = 0; u < mesg->u.chunk.ndims; u++)
+                for(u = 0; u < mesg->u.chunk.ndims; u++)
                     UINT32DECODE(p, mesg->u.chunk.dim[u]);
 
                 /* Compute chunk size */
-                for (u=1, mesg->u.chunk.size=mesg->u.chunk.dim[0]; u<mesg->u.chunk.ndims; u++)
+                for(u = 1, mesg->u.chunk.size = mesg->u.chunk.dim[0]; u < mesg->u.chunk.ndims; u++)
                     mesg->u.chunk.size *= mesg->u.chunk.dim[u];
                 break;
 
-            case H5D_COMPACT:
-                UINT16DECODE(p, mesg->u.compact.size);
-                if(mesg->u.compact.size > 0) {
-                    if(NULL==(mesg->u.compact.buf=H5MM_malloc(mesg->u.compact.size)))
-                        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed for compact data buffer");
-                    HDmemcpy(mesg->u.compact.buf, p, mesg->u.compact.size);
-                    p += mesg->u.compact.size;
-                } /* end if */
-                break;
-
             default:
-                HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "Invalid layout class");
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "Invalid layout class")
         } /* end switch */
     } /* end else */
 
     /* Set return value */
-    ret_value=mesg;
+    ret_value = mesg;
 
 done:
-    if(ret_value==NULL) {
+    if(ret_value == NULL)
         if(mesg)
-            H5FL_FREE(H5O_layout_t,mesg);
-    } /* end if */
-    FUNC_LEAVE_NOAPI(ret_value);
-}
+            H5FL_FREE(H5O_layout_t, mesg);
+
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_layout_decode() */
 
 
 /*-------------------------------------------------------------------------
@@ -236,6 +237,10 @@ done:
  * Programmer:  Robb Matzke
  *              Wednesday, October  8, 1997
  *
+ * Note:
+ *      Quincey Koziol, 2004-5-21
+ *      We write out version 3 messages by default now.
+ *
  * Modifications:
  * 	Robb Matzke, 1998-07-20
  *	Rearranged the message to add a version number at the beginning.
@@ -244,110 +249,75 @@ done:
  *	Added version number 2 case depends on if space has been allocated
  *	at the moment when layout header message is updated.
  *
+ *      Quincey Koziol, 2004-5-21
+ *      Added version number 3 case to straighten out problems with contiguous
+ *      layout's sizes (was encoding them as 4-byte values when they were
+ *      really n-byte values (where n usually is 8)) and additionally clean up
+ *      the information written out.
+ *
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_layout_encode(H5F_t *f, uint8_t *p, const void *_mesg)
+H5O_layout_encode(H5F_t *f, hbool_t UNUSED disable_shared, uint8_t *p, const void *_mesg)
 {
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     unsigned               u;
-    herr_t ret_value=SUCCEED;   /* Return value */
+    herr_t ret_value = SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_encode);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_encode)
 
     /* check args */
-    assert(f);
-    assert(mesg);
-    assert(mesg->version>0);
-    assert(p);
+    HDassert(f);
+    HDassert(mesg);
+    HDassert(p);
 
-    /* Version */
-    *p++ = mesg->version;
+    /* Version 3 by default now. */
+    *p++ = H5O_LAYOUT_VERSION_3;
 
-    /* Check for which information to write */
-    if(mesg->version<3) {
-        /* number of dimensions */
-        if(mesg->type!=H5D_CHUNKED) {
-            assert(mesg->unused.ndims > 0 && mesg->unused.ndims <= H5O_LAYOUT_NDIMS);
-            *p++ = mesg->unused.ndims;
-        } /* end if */
-        else {
-            assert(mesg->u.chunk.ndims > 0 && mesg->u.chunk.ndims <= H5O_LAYOUT_NDIMS);
-            *p++ = mesg->u.chunk.ndims;
-        } /* end else */
+    /* Layout class */
+    *p++ = mesg->type;
 
-        /* layout class */
-        *p++ = mesg->type;
+    /* Write out layout class specific information */
+    switch(mesg->type) {
+        case H5D_COMPACT:
+            /* Size of raw data */
+            UINT16ENCODE(p, mesg->u.compact.size);
 
-        /* reserved bytes should be zero */
-        for (u=0; u<5; u++)
-            *p++ = 0;
+            /* Raw data */
+            if(mesg->u.compact.size > 0) {
+                if(mesg->u.compact.buf)
+                    HDmemcpy(p, mesg->u.compact.buf, mesg->u.compact.size);
+                else
+                    HDmemset(p, 0, mesg->u.compact.size);
+                p += mesg->u.compact.size;
+            } /* end if */
+            break;
 
-        /* data or B-tree address */
-        if(mesg->type==H5D_CONTIGUOUS)
+        case H5D_CONTIGUOUS:
             H5F_addr_encode(f, &p, mesg->u.contig.addr);
-        else if(mesg->type==H5D_CHUNKED)
+            H5F_ENCODE_LENGTH(f, p, mesg->u.contig.size);
+            break;
+
+        case H5D_CHUNKED:
+            /* Number of dimensions */
+            HDassert(mesg->u.chunk.ndims > 0 && mesg->u.chunk.ndims <= H5O_LAYOUT_NDIMS);
+            *p++ = mesg->u.chunk.ndims;
+
+            /* B-tree address */
             H5F_addr_encode(f, &p, mesg->u.chunk.addr);
 
-        /* Dimension sizes */
-        if(mesg->type!=H5D_CHUNKED)
-            for (u = 0; u < mesg->unused.ndims; u++)
-                UINT32ENCODE(p, mesg->unused.dim[u])
-        else
-            for (u = 0; u < mesg->u.chunk.ndims; u++)
+            /* Dimension sizes */
+            for(u = 0; u < mesg->u.chunk.ndims; u++)
                 UINT32ENCODE(p, mesg->u.chunk.dim[u]);
+            break;
 
-        if(mesg->type==H5D_COMPACT) {
-            UINT32ENCODE(p, mesg->u.compact.size);
-            if(mesg->u.compact.size>0 && mesg->u.compact.buf) {
-                HDmemcpy(p, mesg->u.compact.buf, mesg->u.compact.size);
-                p += mesg->u.compact.size;
-            }
-        }
-    } /* end if */
-    else {
-        /* Layout class */
-        *p++ = mesg->type;
-
-        /* Write out layout class specific information */
-        switch(mesg->type) {
-            case H5D_CONTIGUOUS:
-                H5F_addr_encode(f, &p, mesg->u.contig.addr);
-                H5F_ENCODE_LENGTH(f, p, mesg->u.contig.size);
-                break;
-
-            case H5D_CHUNKED:
-                /* Number of dimensions */
-                assert(mesg->u.chunk.ndims > 0 && mesg->u.chunk.ndims <= H5O_LAYOUT_NDIMS);
-                *p++ = mesg->u.chunk.ndims;
-
-                /* B-tree address */
-                H5F_addr_encode(f, &p, mesg->u.chunk.addr);
-
-                /* Dimension sizes */
-                for (u = 0; u < mesg->u.chunk.ndims; u++)
-                    UINT32ENCODE(p, mesg->u.chunk.dim[u]);
-                break;
-
-            case H5D_COMPACT:
-                /* Size of raw data */
-                UINT16ENCODE(p, mesg->u.compact.size);
-
-                /* Raw data */
-                if(mesg->u.compact.size>0 && mesg->u.compact.buf) {
-                    HDmemcpy(p, mesg->u.compact.buf, mesg->u.compact.size);
-                    p += mesg->u.compact.size;
-                } /* end if */
-                break;
-
-            default:
-                HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, FAIL, "Invalid layout class");
-        } /* end switch */
-    } /* end else */
+        default:
+            HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, FAIL, "Invalid layout class")
+    } /* end switch */
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
-}
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_layout_encode() */
 
 
 /*-------------------------------------------------------------------------
@@ -363,43 +333,41 @@ done:
  * Programmer:  Robb Matzke
  *              Wednesday, October  8, 1997
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 static void *
-H5O_layout_copy(const void *_mesg, void *_dest, unsigned UNUSED update_flags)
+H5O_layout_copy(const void *_mesg, void *_dest)
 {
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     H5O_layout_t           *dest = (H5O_layout_t *) _dest;
     void                   *ret_value;          /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_copy);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_copy)
 
     /* check args */
-    assert(mesg);
-    if (!dest && NULL==(dest=H5FL_MALLOC(H5O_layout_t)))
-        HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed");
+    HDassert(mesg);
+    if(!dest && NULL == (dest = H5FL_MALLOC(H5O_layout_t)))
+        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
 
     /* copy */
     *dest = *mesg;
 
     /* Deep copy the buffer for compact datasets also */
-    if(mesg->type==H5D_COMPACT) {
+    if(mesg->type == H5D_COMPACT) {
         /* Allocate memory for the raw data */
-        if (NULL==(dest->u.compact.buf=H5MM_malloc(dest->u.compact.size)))
-            HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, NULL, "unable to allocate memory for compact dataset");
+        if(NULL == (dest->u.compact.buf = H5MM_malloc(dest->u.compact.size)))
+            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "unable to allocate memory for compact dataset")
 
         /* Copy over the raw data */
-        HDmemcpy(dest->u.compact.buf,mesg->u.compact.buf,dest->u.compact.size);
+        HDmemcpy(dest->u.compact.buf, mesg->u.compact.buf, dest->u.compact.size);
     } /* end if */
 
     /* Set return value */
-    ret_value=dest;
+    ret_value = dest;
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
-}
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_layout_copy() */
 
 
 /*-------------------------------------------------------------------------
@@ -416,99 +384,53 @@ done:
  * Programmer:  Raymond Lu
  *              August 14, 2002
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 size_t
 H5O_layout_meta_size(const H5F_t *f, const void *_mesg)
 {
-    /* Casting away const OK - QAK */
-    H5O_layout_t      *mesg = (H5O_layout_t *) _mesg;
+    const H5O_layout_t      *mesg = (const H5O_layout_t *) _mesg;
     size_t                  ret_value;
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_meta_size);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_meta_size)
 
     /* check args */
-    assert(f);
-    assert(mesg);
+    HDassert(f);
+    HDassert(mesg);
 
-    /* Check version information for new datasets */
-    if(mesg->version==0) {
-        unsigned               u;
+    ret_value = 1 +                     /* Version number                       */
+                1;                      /* layout class type                    */
 
-        /* Check for dimension that would be truncated */
-        assert(mesg->unused.ndims > 0 && mesg->unused.ndims <= H5O_LAYOUT_NDIMS);
-        for (u = 0; u < mesg->unused.ndims; u++)
-            if(mesg->unused.dim[u]!=(0xffffffff&mesg->unused.dim[u])) {
-                /* Make certain the message is encoded with the new version */
-                mesg->version=3;
-                break;
-            } /* end if */
+    switch(mesg->type) {
+        case H5D_COMPACT:
+            /* Size of raw data */
+            ret_value += 2;
+            break;
 
-        /* If the message doesn't _have_ to be encoded with the new version */
-        if(mesg->version==0) {
-            /* Version: 1 when space allocated; 2 when space allocation is delayed */
-            if(mesg->type==H5D_CONTIGUOUS) {
-                if(mesg->u.contig.addr==HADDR_UNDEF)
-                    mesg->version = H5O_LAYOUT_VERSION_2;
-                else
-                    mesg->version = H5O_LAYOUT_VERSION_1;
-            } else if(mesg->type==H5D_COMPACT) {
-                mesg->version = H5O_LAYOUT_VERSION_2;
-            } else
-                mesg->version = H5O_LAYOUT_VERSION_1;
-        } /* end if */
-    } /* end if */
-    assert(mesg->version>0);
+        case H5D_CONTIGUOUS:
+            ret_value += H5F_SIZEOF_ADDR(f);    /* Address of data */
+            ret_value += H5F_SIZEOF_SIZE(f);    /* Length of data */
+            break;
 
-    if(mesg->version<H5O_LAYOUT_VERSION_3) {
-        ret_value = 1 +                     /* Version number                       */
-                    1 +                     /* layout class type                    */
-                    1 +                     /* dimensionality                       */
-                    5 +                     /* reserved bytes                       */
-                    mesg->unused.ndims * 4;        /* size of each dimension               */
+        case H5D_CHUNKED:
+            /* Number of dimensions (1 byte) */
+            assert(mesg->u.chunk.ndims > 0 && mesg->u.chunk.ndims <= H5O_LAYOUT_NDIMS);
+            ret_value++;
 
-        if(mesg->type==H5D_COMPACT)
-            ret_value += 4;        /* size field for compact dataset       */
-        else
-            ret_value += H5F_SIZEOF_ADDR(f); /* file address of data or B-tree for chunked dataset */
-    } /* end if */
-    else {
-        ret_value = 1 +                     /* Version number                       */
-                    1;                      /* layout class type                    */
+            /* B-tree address */
+            ret_value += H5F_SIZEOF_ADDR(f);    /* Address of data */
 
-        switch(mesg->type) {
-            case H5D_CONTIGUOUS:
-                ret_value += H5F_SIZEOF_ADDR(f);    /* Address of data */
-                ret_value += H5F_SIZEOF_SIZE(f);    /* Length of data */
-                break;
+            /* Dimension sizes */
+            ret_value += mesg->u.chunk.ndims * 4;
+            break;
 
-            case H5D_CHUNKED:
-                /* Number of dimensions (1 byte) */
-                assert(mesg->u.chunk.ndims > 0 && mesg->u.chunk.ndims <= H5O_LAYOUT_NDIMS);
-                ret_value++;
-
-                /* B-tree address */
-                ret_value += H5F_SIZEOF_ADDR(f);    /* Address of data */
-
-                /* Dimension sizes */
-                ret_value += mesg->u.chunk.ndims*4;
-                break;
-
-            case H5D_COMPACT:
-                /* Size of raw data */
-                ret_value+=2;
-                break;
-
-            default:
-                HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, 0, "Invalid layout class")
-        } /* end switch */
-    } /* end else */
+        default:
+            HGOTO_ERROR(H5E_OHDR, H5E_CANTENCODE, 0, "Invalid layout class")
+    } /* end switch */
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
-}
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_layout_meta_size() */
 
 
 /*-------------------------------------------------------------------------
@@ -525,28 +447,26 @@ done:
  * Programmer:  Robb Matzke
  *              Wednesday, October  8, 1997
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 static size_t
-H5O_layout_size(const H5F_t *f, const void *_mesg)
+H5O_layout_size(const H5F_t *f, hbool_t UNUSED disable_shared, const void *_mesg)
 {
     const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
     size_t                  ret_value;
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_size);
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_size)
 
     /* check args */
-    assert(f);
-    assert(mesg);
+    HDassert(f);
+    HDassert(mesg);
 
     ret_value = H5O_layout_meta_size(f, mesg);
-    if(mesg->type==H5D_COMPACT)
+    if(mesg->type == H5D_COMPACT)
         ret_value += mesg->u.compact.size;/* data for compact dataset             */
 
-    FUNC_LEAVE_NOAPI(ret_value);
-}
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_layout_size() */
 
 
 /*-------------------------------------------------------------------------
@@ -578,7 +498,6 @@ H5O_layout_reset (void *_mesg)
 
         /* Reset the message */
         mesg->type=H5D_CONTIGUOUS;
-        mesg->version=0;
     } /* end if */
 
     FUNC_LEAVE_NOAPI(SUCCEED);
@@ -633,16 +552,16 @@ H5O_layout_free (void *_mesg)
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5O_layout_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t UNUSED adj_link)
+H5O_layout_delete(H5F_t *f, hid_t dxpl_id, H5O_t UNUSED *open_oh, void *_mesg)
 {
-    const H5O_layout_t     *mesg = (const H5O_layout_t *) _mesg;
-    herr_t ret_value=SUCCEED;   /* Return value */
+    H5O_layout_t *mesg = (H5O_layout_t *) _mesg;
+    herr_t ret_value = SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_delete);
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_delete)
 
     /* check args */
-    assert(f);
-    assert(mesg);
+    HDassert(f);
+    HDassert(mesg);
 
     /* Perform different actions, depending on the type of storage */
     switch(mesg->type) {
@@ -652,23 +571,127 @@ H5O_layout_delete(H5F_t *f, hid_t dxpl_id, const void *_mesg, hbool_t UNUSED adj
 
         case H5D_CONTIGUOUS:    /* Contiguous block on disk */
             /* Free the file space for the raw data */
-            if (H5D_contig_delete(f, dxpl_id, mesg)<0)
-                HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free raw data");
+            if(H5D_contig_delete(f, dxpl_id, mesg) < 0)
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free raw data")
             break;
 
         case H5D_CHUNKED:       /* Chunked blocks on disk */
             /* Free the file space for the raw data */
-            if (H5D_istore_delete(f, dxpl_id, mesg)<0)
-                HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free raw data");
+            if(H5D_istore_delete(f, dxpl_id, mesg) < 0)
+                HGOTO_ERROR(H5E_OHDR, H5E_CANTFREE, FAIL, "unable to free raw data")
             break;
 
         default:
-            HGOTO_ERROR (H5E_OHDR, H5E_BADTYPE, FAIL, "not valid storage type");
+            HGOTO_ERROR(H5E_OHDR, H5E_BADTYPE, FAIL, "not valid storage type")
     } /* end switch */
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
+    FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5O_layout_delete() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5O_layout_copy_file
+ *
+ * Purpose:     Copies a message from _MESG to _DEST in file
+ *
+ * Return:      Success:        Ptr to _DEST
+ *
+ *              Failure:        NULL
+ *
+ * Programmer:  Peter Cao
+ *              July 23, 2005
+ *
+ *-------------------------------------------------------------------------
+ */
+static void *
+H5O_layout_copy_file(H5F_t *file_src, void *mesg_src, H5F_t *file_dst,
+    hbool_t UNUSED *recompute_size, H5O_copy_t *cpy_info, void *_udata,
+    hid_t dxpl_id)
+{
+    H5D_copy_file_ud_t *udata = (H5D_copy_file_ud_t *)_udata;   /* Dataset copying user data */
+    H5O_layout_t       *layout_src = (H5O_layout_t *) mesg_src;
+    H5O_layout_t       *layout_dst = NULL;
+    void               *ret_value;                              /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5O_layout_copy_file)
+
+    /* check args */
+    HDassert(layout_src);
+    HDassert(file_dst);
+
+    /* Allocate space for the destination layout */
+    if(NULL == (layout_dst = H5FL_MALLOC(H5O_layout_t)))
+        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+
+    /* Copy the "top level" information */
+    HDmemcpy(layout_dst, layout_src, sizeof(H5O_layout_t));
+
+    /* Copy the layout type specific information */
+    switch(layout_src->type) {
+        case H5D_COMPACT:
+	    if(layout_src->u.compact.buf) {
+            	if(NULL == (layout_dst->u.compact.buf = H5MM_malloc(layout_src->u.compact.size)))
+                    HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "unable to allocate memory for compact dataset")
+
+                /* copy compact raw data */
+                if(H5D_compact_copy(file_src, layout_src, file_dst, layout_dst, udata->src_dtype, cpy_info, dxpl_id) < 0)
+                    HGOTO_ERROR(H5E_IO, H5E_CANTINIT, NULL, "unable to copy chunked storage")
+
+            	layout_dst->u.compact.dirty = TRUE;
+
+                /* Freed by copy routine */
+                udata->src_dtype = NULL;
+	    } /* end if */
+            break;
+
+        case H5D_CONTIGUOUS:
+            /* Compute the size of the contiguous storage for versions of the
+             * layout message less than version 3 because versions 1 & 2 would
+             * truncate the dimension sizes to 32-bits of information. - QAK 5/26/04
+             */
+            if(layout_src->version < 3)
+                layout_dst->u.contig.size = H5S_extent_nelem(udata->src_space_extent) *
+                                        H5T_get_size(udata->src_dtype);
+
+            if(H5F_addr_defined(layout_src->u.contig.addr)) {
+                /* create contig layout */
+                if(H5D_contig_copy(file_src, layout_src, file_dst, layout_dst, udata->src_dtype, cpy_info, dxpl_id) < 0)
+                    HGOTO_ERROR(H5E_IO, H5E_CANTINIT, NULL, "unable to copy contiguous storage")
+
+                /* Freed by copy routine */
+                udata->src_dtype = NULL;
+            } /*  if ( H5F_addr_defined(layout_src->u.contig.addr)) */
+            break;
+
+        case H5D_CHUNKED:
+            if(H5F_addr_defined(layout_src->u.chunk.addr)) {
+                /* layout is not created in the destination file, undef btree address */
+                layout_dst->u.chunk.addr = HADDR_UNDEF;
+
+                /* create chunked layout */
+                if(H5D_istore_copy(file_src, layout_src, file_dst, layout_dst, udata->src_dtype, cpy_info, udata->src_pline, dxpl_id) < 0)
+                    HGOTO_ERROR(H5E_IO, H5E_CANTINIT, NULL, "unable to copy chunked storage")
+
+                /* Freed by copy routine */
+                udata->src_dtype = NULL;
+            } /* if ( H5F_addr_defined(layout_srct->u.chunk.addr)) */
+            break;
+
+        default:
+            HGOTO_ERROR(H5E_OHDR, H5E_CANTLOAD, NULL, "Invalid layout class")
+    } /* end switch */
+
+    /* Set return value */
+    ret_value = layout_dst;
+
+done:
+    if(!ret_value)
+	if(layout_dst)
+	    H5FL_FREE(H5O_layout_t, layout_dst);
+
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5O_layout_copy_file() */
 
 
 /*-------------------------------------------------------------------------
@@ -695,13 +718,17 @@ H5O_layout_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE 
     FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_layout_debug);
 
     /* check args */
-    assert(f);
-    assert(mesg);
-    assert(stream);
-    assert(indent >= 0);
-    assert(fwidth >= 0);
+    HDassert(f);
+    HDassert(mesg);
+    HDassert(stream);
+    HDassert(indent >= 0);
+    HDassert(fwidth >= 0);
 
+    HDfprintf(stream, "%*s%-*s %u\n", indent, "", fwidth,
+              "Version:", mesg->version);
     if(mesg->type==H5D_CHUNKED) {
+        HDfprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
+                  "Type:", "Chunked");
         HDfprintf(stream, "%*s%-*s %a\n", indent, "", fwidth,
                   "B-tree address:", mesg->u.chunk.addr);
         HDfprintf(stream, "%*s%-*s %lu\n", indent, "", fwidth,
@@ -716,12 +743,16 @@ H5O_layout_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE 
         HDfprintf(stream, "}\n");
     } /* end if */
     else if(mesg->type==H5D_CONTIGUOUS) {
+        HDfprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
+                  "Type:", "Contiguous");
         HDfprintf(stream, "%*s%-*s %a\n", indent, "", fwidth,
                   "Data address:", mesg->u.contig.addr);
         HDfprintf(stream, "%*s%-*s %Hu\n", indent, "", fwidth,
                   "Data Size:", mesg->u.contig.size);
     } /* end if */
     else {
+        HDfprintf(stream, "%*s%-*s %s\n", indent, "", fwidth,
+                  "Type:", "Compact");
         HDfprintf(stream, "%*s%-*s %Zu\n", indent, "", fwidth,
                   "Data Size:", mesg->u.compact.size);
     } /* end else */

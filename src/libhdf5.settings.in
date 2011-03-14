@@ -17,3 +17,4 @@ Archiver:		@AR@
 Ranlib:			@RANLIB@
 Debugged Packages:	@DEBUG_PKG@
 API Tracing:		@TRACE_API@
+File addresses:		@HSIZET@

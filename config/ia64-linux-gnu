@@ -18,16 +18,21 @@
 # after configure starts and defines, among other things, flags for
 # the various compile modes.
 
-# Use Intel C compiler by default (if it is available).
-# Use mpicc for parallel by default (if it is available).
+# Use Intel C compiler by default (if it's available).
+# Use mpicc for parallel by default.
 if test "X$CC" = "X"; then
-    if test "X-$enable_parallel" = "X-yes" && which mpicc > /dev/null; then
-        CC=mpicc
-        CC_BASENAME=mpicc
+    if test "X-$enable_parallel" = "X-yes"; then
+	CC=mpicc
+	CC_BASENAME=mpicc
     elif which icc > /dev/null; then
-        CC=icc
-        CC_BASENAME=icc
+	CC=icc
+	CC_BASENAME=icc
     fi
+fi
+
+# Define RUNPARALLEL if parallel mode is enabled or a parallel compiler used.
+if test "X-$enable_parallel" = "X-yes" -o X-$CC_BASENAME = X-mpicc; then
+    RUNPARALLEL=${RUNPARALLEL="mpirun -np \$\${NPROCS:=3}"}
 fi
 
 #----------------------------------------------------------------------------
@@ -55,14 +60,94 @@ case $CC_BASENAME in
 	;;
 esac
 
+# The default Fortran 90 compiler
+
+# Use Intel Fortran compiler by default.
+if test X-$enable_fortran = X-yes -a "X-$FC" = "X-"; then
+    if test "X-$enable_parallel" = "X-yes"; then
+	FC=mpif90
+    else
+	FC="ifort"
+    fi
+fi
+
+case $FC in
+  *efc|*ifort)
+    # this is for efc v7.  Older efc do not work with these.
+    # -Vaxlib is for non-standard fortran calls like exit().
+    MORE_FCFLAGS='-fpp -DDEC$=DEC_ -DMS$=MS_ -Vaxlib'
+    FCFLAGS="$FCFLAGS $MORE_FCFLAGS"
+    f9x_flags_set=yes
+    ;;
+
+  *)
+    f9x_flags_set=yes
+    ;;
+esac
+
+# The following is not right and need work.
+if test "X$f9x_flags_set" = "X"; then
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS"
+  DEBUG_FCFLAGS=""
+  PROD_FCFLAGS=""
+  PROFILE_FCFLAGS=""
+  f9x_flags_set=yes
+fi
+
+# The Default settings for C++
+# Intel changed C++ compiler's name from "icc" to "icpc" in version 8.1
+if test -z "$CXX"; then
+    CXX=icpc
+    CXX_BASENAME=icpc
+fi
+
+# A patch to make g++ getting the default settings.
+# CXX_BASENAME should have been set in configure.
+if test "X$CXX" = "Xg++"; then
+    CXX_BASENAME=g++
+fi
+
+
+case $CXX_BASENAME in
+    ecc|icc)	# Intel compilers
+	# Default to C99 standard.
+	CXXFLAGS="${CXXFLAGS:--std=c99}"
+	DEBUG_CXXFLAGS="-g -w2 -Wall"
+	DEBUG_CPPFLAGS=
+	PROD_CXXFLAGS=""     #Default optimization O2 is used
+	PROD_CPPFLAGS=
+	PROFILE_CXXFLAGS="-pg"
+	PROFILE_CPPFLAGS=
+	;;
+    g++)
+	CXXFLAGS="$CXXFLAGS -Wsign-compare" #Only works for some versions
+	DEBUG_CXXFLAGS="-g -fverbose-asm"
+	DEBUG_CPPFLAGS=
+	PROD_CXXFLAGS="-O3 -fomit-frame-pointer"
+	PROD_CPPFLAGS=
+	PROFILE_CXXFLAGS="-pg"
+	PROFILE_CPPFLAGS=
+	;;
+
+    *)
+	# Default to C99 standard.
+	CXXFLAGS="${CXXFLAGS:--std=c99}"
+	DEBUG_CXXFLAGS="-g"
+	DEBUG_CPPFLAGS=
+	PROD_CXXFLAGS="-O"
+	PROD_CPPFLAGS=
+	PROFILE_CXXFLAGS="-pg"
+	PROFILE_CPPFLAGS=
+	;;
+esac
+
 # Check MPICH settings
 . $srcdir/config/mpich
-
 #Uncomment the next line if your system doesn't support MPI complex derived datatype.
 #hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype_works='no'}
 #Comment out the following line if your system supports collective IO when some processes
 #don't have any contributions to IOs.
 hdf5_mpi_special_collective_io_works=${hdf5_mpi_special_collective_io_works='no'}
-hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype-works='no'}
-
 

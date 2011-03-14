@@ -104,7 +104,7 @@ case $CC_BASENAME in
   gcc)
     CFLAGS="$CFLAGS -Wsign-compare" #Only works for some versions
     DEBUG_CFLAGS="-g -fverbose-asm"
-    DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+    DEBUG_CPPFLAGS=
     PROD_CFLAGS="-O3 -fomit-frame-pointer"
     PROD_CPPFLAGS=
     PROFILE_CFLAGS="-pg"
@@ -114,7 +114,7 @@ case $CC_BASENAME in
   cc)
     CFLAGS="$CFLAGS"
     DEBUG_CFLAGS="-g -h zero -h scalar0"
-    DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+    DEBUG_CPPFLAGS=
     PROD_CFLAGS="-O2 -h scalar0"
     PROD_CPPFLAGS=
     PROFILE_CFLAGS="-pg"
@@ -124,7 +124,7 @@ case $CC_BASENAME in
   *)
     CFLAGS="$CFLAGS -ansi"
     DEBUG_CFLAGS="-g"
-    DEBUG_CPPFLAGS="-DH5F_OPT_SEEK=0 -DH5F_LOW_DFLT=H5F_LOW_SEC2"
+    DEBUG_CPPFLAGS=
     PROD_CFLAGS="-O"
     PROD_CPPFLAGS=
     PROFILE_CFLAGS="-pg"
@@ -147,3 +147,19 @@ ac_cv_c_bigendian=${ac_cv_c_bigendian='yes'}
 # long'.  For instance, if the format would be `%lld' then set it to
 # `ll' or if the format would be `%qd' set it to `q'.
 #hdf5_cv_printf_ll=${hdf5_cv_printf_ll='ll'}
+
+# The default Fortran 90 compiler
+
+if test "X-" = "X-$FC"; then
+  FC=f90
+fi
+
+if test "X-" = "X-$f9x_flags_set"; then
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS -dp"
+  DEBUG_FCFLAGS="-dp"
+  PROD_FCFLAGS="-dp"
+  PROFILE_FCFLAGS="-dp"
+  f9x_flags_set=yes
+fi

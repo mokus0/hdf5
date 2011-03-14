@@ -26,7 +26,7 @@
 /*
  * Definitions for the testing structure.
  */
-#define MAXNUMOFTESTS   40
+#define MAXNUMOFTESTS   45
 #define MAXTESTNAME     16
 #define MAXTESTDESC     64
 
@@ -48,6 +48,7 @@ static int num_errs = 0;        /* Total number of errors during testing */
 static int Verbosity = VERBO_DEF;       /* Default Verbosity is Low */
 static int Summary = 0;		/* Show test summary. Default is no. */
 static int CleanUp = 1;		/* Do cleanup or not. Default is yes. */
+static int TestExpress = -1;	/* Do TestExpress or not. -1 means not set yet. */
 static TestStruct Test[MAXNUMOFTESTS];
 static int    Index = 0;
 static const void *Test_parameters = NULL;
@@ -134,7 +135,7 @@ void TestInit(const char *ProgName, void (*private_usage)(void), int (*private_p
      * half the functions this test calls are private, so automatic error
      * reporting wouldn't do much good since it's triggered at the API layer.
      */
-    H5Eset_auto(NULL, NULL);
+    H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
 
     /*
      * Record the program name and private routines if provided.
@@ -373,6 +374,71 @@ int SetTestVerbosity(int newval)
 
     oldval = Verbosity;
     Verbosity = newval;
+    return(oldval);
+}
+
+/*
+ * Retrieve the TestExpress mode for the testing framework
+ Values:
+ 0: Exhaustive run
+    Tests should take as long as necessary
+ 1: Full run.  Default if HDF5TestExpress is not defined
+    Tests should take no more than 30 minutes
+ 2: Quick run
+    Tests should take no more than 10 minutes
+ 3: Smoke test.  Default if HDF5TestExpress is set to a value other than 0-3
+    Tests should take less than 1 minute
+
+ Design:
+ If the environment variable $HDF5TestExpress is defined,
+ then test programs should skip some tests so that they
+ complete sooner.
+
+ Terms:
+ A "test" is a single executable, even if it contains multiple
+ sub-tests.
+ The standard system for test times is a Linux machine running in
+ NFS space (to catch tests that involve a great deal of disk I/O).
+
+ Implementation:
+ I think this can be easily implemented in the test library (libh5test.a)
+ so that all tests can just call it to check the status of $HDF5TestExpress.
+ */
+int GetTestExpress(void)
+{
+    char * env_val;
+
+    /* set it here for now.  Should be done in something like h5test_init(). */
+    if(TestExpress==-1)
+    {
+       env_val = getenv("HDF5TestExpress");
+
+       if(env_val == NULL)
+         SetTestExpress(1);
+       else if(strcmp(env_val, "0") == 0)
+         SetTestExpress(0);
+       else if(strcmp(env_val, "1") == 0)
+         SetTestExpress(1);
+       else if(strcmp(env_val, "2") == 0)
+         SetTestExpress(2);
+       else
+         SetTestExpress(3);
+    }
+
+    return(TestExpress);
+}
+
+/*
+ * Set the TestExpress mode for the testing framework.
+ * Return previous TestExpress mode.
+ * Values: non-zero means TestExpress mode is on, 0 means off.
+ */
+int SetTestExpress(int newval)
+{
+    int oldval;
+
+    oldval = TestExpress;
+    TestExpress = newval;
     return(oldval);
 }
 

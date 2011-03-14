@@ -45,6 +45,12 @@
  *
  *              Robb Matzke, LLNL, 2003-06-05
  *              The size does not include the object header, just the data.
+ *
+ *              John Mainzer, 6/17/05
+ *              Modified the function to use the new dirtied parameter of
+ *              of H5AC_unprotect() instead of modifying the is_dirty
+ *              field of the cache info.
+ *
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -126,7 +132,7 @@ H5HG_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE *stream, int indent,
     }
 
 done:
-    if (h && H5AC_unprotect(f, dxpl_id, H5AC_GHEAP, addr, h, FALSE) != SUCCEED)
+    if (h && H5AC_unprotect(f, dxpl_id, H5AC_GHEAP, addr, h, H5AC__NO_FLAGS_SET) != SUCCEED)
         HDONE_ERROR(H5E_HEAP, H5E_PROTECT, FAIL, "unable to release object header");
 
     FUNC_LEAVE_NOAPI(ret_value);

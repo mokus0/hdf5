@@ -18,8 +18,8 @@
 #include "h5tools_utils.h"
 
 extern char  *progname;
-static int verify_layout(hid_t pid, pack_info_t *obj);
-static int verify_filters(hid_t pid, hid_t tid, int nfilters, filter_info_t *filter);
+static int has_layout(hid_t pid, pack_info_t *obj);
+static int has_filters(hid_t pid, hid_t tid, unsigned nfilters, filter_info_t *filter);
 
 
 /*-------------------------------------------------------------------------
@@ -69,7 +69,7 @@ int h5repack_verify(const char *fname,
         * open
         *-------------------------------------------------------------------------
         */
-        if((did = H5Dopen(fid, name)) < 0)
+        if((did = H5Dopen2(fid, name, H5P_DEFAULT)) < 0)
             goto error;
         if((sid = H5Dget_space(did)) < 0)
             goto error;
@@ -82,7 +82,7 @@ int h5repack_verify(const char *fname,
         * filter check
         *-------------------------------------------------------------------------
         */
-        if(verify_filters(pid, tid, obj->nfilters, obj->filter) <= 0)
+        if(has_filters(pid, tid, obj->nfilters, obj->filter) <= 0)
                 ok = 0;
 
        
@@ -90,7 +90,7 @@ int h5repack_verify(const char *fname,
         * layout check
         *-------------------------------------------------------------------------
         */
-        if((obj->layout != -1) && (verify_layout(pid, obj) == 0))
+        if((obj->layout != -1) && (has_layout(pid, obj) == 0))
             ok = 0;
         
        /*-------------------------------------------------------------------------
@@ -128,14 +128,14 @@ int h5repack_verify(const char *fname,
         {
             char *name = travt->objs[i].name;
             
-            if(travt->objs[i].type == H5G_DATASET) 
+            if(travt->objs[i].type == H5TRAV_TYPE_DATASET) 
             {
                 
                /*-------------------------------------------------------------------------
                 * open
                 *-------------------------------------------------------------------------
                 */
-                if((did = H5Dopen(fid, name)) < 0)
+                if((did = H5Dopen2(fid, name, H5P_DEFAULT)) < 0)
                     goto error;
                 if((sid = H5Dget_space(did)) < 0)
                     goto error;
@@ -151,7 +151,7 @@ int h5repack_verify(const char *fname,
                 if(options->all_filter == 1)
                 {
                     
-                    if(verify_filters(pid, tid, options->n_filter_g, options->filter_g) <= 0)
+                    if(has_filters(pid, tid, options->n_filter_g, options->filter_g) <= 0)
                         ok = 0;
                 }
                 
@@ -165,7 +165,7 @@ int h5repack_verify(const char *fname,
                     init_packobject(&pack);
                     pack.layout = options->layout_g;
                     pack.chunk = options->chunk_g;
-                    if(verify_layout(pid, &pack) == 0)
+                    if(has_layout(pid, &pack) == 0)
                         ok = 0;
                 }
                 
@@ -215,7 +215,7 @@ error:
 
 
 /*-------------------------------------------------------------------------
- * Function: verify_layout
+ * Function: has_layout
  *
  * Purpose: verify which layout is present in the property list DCPL_ID
  *
@@ -232,7 +232,7 @@ error:
  *-------------------------------------------------------------------------
  */
 
-int verify_layout(hid_t pid,
+int has_layout(hid_t pid,
                pack_info_t *obj)
 {
     hsize_t      chsize[64];     /* chunk size in elements */
@@ -240,14 +240,18 @@ int verify_layout(hid_t pid,
     int          nfilters;       /* number of filters */
     int          rank;           /* rank */
     int          i;              /* index */
-     
+    
+    /* if no information about the input layout is requested return exit */
+    if (obj==NULL)
+        return 1;
+    
     /* check if we have filters in the input object */
     if ((nfilters = H5Pget_nfilters(pid)) < 0)
         return -1;
     
-    /* a non chunked layout was requested on a filtered object */
+    /* a non chunked layout was requested on a filtered object; avoid the test */
     if (nfilters && obj->layout!=H5D_CHUNKED)
-        return 0;
+        return 1;
     
     /* get layout */
     if ((layout = H5Pget_layout(pid)) < 0)
@@ -341,11 +345,11 @@ int h5repack_cmpdcpl(const char *fname1,
     
     for(i = 0; i < travt1->nobjs; i++) 
     {
-        if(travt1->objs[i].type == H5G_DATASET) 
+        if(travt1->objs[i].type == H5TRAV_TYPE_DATASET) 
         {
-            if((dset1 = H5Dopen(fid1, travt1->objs[i].name)) < 0)
+            if((dset1 = H5Dopen2(fid1, travt1->objs[i].name, H5P_DEFAULT)) < 0)
                 goto error;
-            if((dset2 = H5Dopen(fid2, travt1->objs[i].name)) < 0)
+            if((dset2 = H5Dopen2(fid2, travt1->objs[i].name, H5P_DEFAULT)) < 0)
                 goto error;
             if((dcpl1 = H5Dget_create_plist(dset1)) < 0)
                 goto error;
@@ -420,7 +424,7 @@ error:
 
 
 /*-------------------------------------------------------------------------
- * Function: verify_filters
+ * Function: has_filters
  *
  * Purpose: verify if all requested filters in the array FILTER obtained
  *  from user input are present in the property list PID obtained from
@@ -438,18 +442,16 @@ error:
  *-------------------------------------------------------------------------
  */
 
-static 
-int verify_filters(hid_t pid, hid_t tid, int nfilters, filter_info_t *filter)
+static int has_filters(hid_t pid, hid_t tid, unsigned nfilters, filter_info_t *filter)
 {
-    int           nfilters_dcpl;  /* number of filters in DCPL*/
+    unsigned      nfilters_dcpl;  /* number of filters in DCPL*/
     unsigned      filt_flags;     /* filter flags */
     H5Z_filter_t  filtn;          /* filter identification number */
     unsigned      cd_values[20];  /* filter client data values */
     size_t        cd_nelmts;      /* filter client number of values */
     char          f_name[256];    /* filter name */
     size_t        size;           /* type size */
-    int           i;              /* index */
-    unsigned      j;              /* index */
+    unsigned      i, j;           /* index */
   
     /* get information about filters */
     if((nfilters_dcpl = H5Pget_nfilters(pid)) < 0)
@@ -473,16 +475,8 @@ int verify_filters(hid_t pid, hid_t tid, int nfilters, filter_info_t *filter)
     for( i = 0; i < nfilters_dcpl; i++) 
     {
         cd_nelmts = NELMTS(cd_values);
-       
-
-        filtn = H5Pget_filter(pid,
-            (unsigned)i,
-            &filt_flags,
-            &cd_nelmts,
-            cd_values,
-            sizeof(f_name),
-            f_name);
-
+        filtn = H5Pget_filter2(pid, i, &filt_flags, &cd_nelmts,
+            cd_values, sizeof(f_name), f_name, NULL);
       
         /* filter ID */
         if (filtn != filter[i].filtn)
@@ -522,9 +516,30 @@ int verify_filters(hid_t pid, hid_t tid, int nfilters, filter_info_t *filter)
             
             break;
             
-      
+        case H5Z_FILTER_NBIT:
+           
+            /* only client data values number of values checked */
+            if ( H5Z_NBIT_USER_NPARMS != filter[i].cd_nelmts)
+                return 0;
+           
             
-        
+            
+            break;
+            
+        case H5Z_FILTER_SCALEOFFSET:
+
+            /* only client data values checked */
+            for( j = 0; j < H5Z_SCALEOFFSET_USER_NPARMS; j++) 
+            {
+                if (cd_values[j] != filter[i].cd_values[j])
+                {
+                    return 0; 
+                }
+                
+            }
+                
+            
+            break;
             
         /* for these filters values must match, no local values set in DCPL */
         case H5Z_FILTER_FLETCHER32:
@@ -554,5 +569,4 @@ int verify_filters(hid_t pid, hid_t tid, int nfilters, filter_info_t *filter)
  
     return 1;
 }
-
 

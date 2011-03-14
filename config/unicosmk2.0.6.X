@@ -154,3 +154,50 @@ esac
 # Hard set the flag to indicate that converting denormalized floating-point
 # values doesn't work.
 hdf5_cv_convert_denormal_float=${hdf5_cv_convert_denormal_float='no'}
+
+# The default Fortran 90 compiler
+
+if test "X-" = "X-$FC"; then
+  FC=f90
+fi
+
+if test "X-" = "X-$f9x_flags_set"; then
+  # -Wl passes flags to the linker and -M# will ignore warnings with
+  # number #. Warning 405 and 412 were stopping the executable from being built.
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS -dp -Wl-M405,412"
+  DEBUG_FCFLAGS=""
+  PROD_FCFLAGS=""
+  PROFILE_FCFLAGS=""
+  f9x_flags_set=yes
+fi
+
+# The default C++ compiler
+
+if test -z "$CXX"; then
+  CXX="CC"
+  CXX_BASENAME=CC
+fi
+
+case $CXX_BASENAME in
+  g++)
+    CXXFLAGS="$CXXFLAGS -Wsign-compare" #Only works for some versions
+    DEBUG_CXXFLAGS="-g -fverbose-asm"
+    DEBUG_CPPFLAGS=
+    PROD_CXXFLAGS="-O3 -fomit-frame-pointer"
+    PROD_CPPFLAGS=
+    PROFILE_CXXFLAGS="-pg"
+    PROFILE_CPPFLAGS=
+    ;;
+
+  *)
+    CXXFLAGS="$CXXFLAGS -h instantiate=used"
+    DEBUG_CXXFLAGS="-g"
+    DEBUG_CPPFLAGS=
+    PROD_CXXFLAGS="-O"
+    PROD_CPPFLAGS=
+    PROFILE_CXXFLAGS="-pg"
+    PROFILE_CPPFLAGS=
+    ;;
+esac

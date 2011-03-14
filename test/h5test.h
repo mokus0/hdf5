@@ -78,7 +78,7 @@
  * This contains the filename prefix specificied as command line option for
  * the parallel test files.
  */
-extern char *paraprefix;
+H5_DLLVAR char *paraprefix;
 #ifdef H5_HAVE_PARALLEL
 extern MPI_Info h5_io_info_g;         /* MPI INFO object for IO */
 #endif
@@ -101,8 +101,13 @@ extern MPI_Info h5_io_info_g;         /* MPI INFO object for IO */
 #define TESTING(WHAT)	{printf("Testing %-62s",WHAT); fflush(stdout);}
 #define PASSED()	{puts(" PASSED");fflush(stdout);}
 #define H5_FAILED()	{puts("*FAILED*");fflush(stdout);}
+#define H5_WARNING()	{puts("*WARNING*");fflush(stdout);}
 #define SKIPPED()	{puts(" -SKIP-");fflush(stdout);}
 #define TEST_ERROR      {H5_FAILED(); AT(); goto error;}
+#define STACK_ERROR     {H5Eprint2(H5E_DEFAULT, stdout); goto error;}
+#define FAIL_STACK_ERROR {H5_FAILED(); AT(); H5Eprint2(H5E_DEFAULT, stdout); \
+    goto error;}
+#define FAIL_PUTS_ERROR(s) {H5_FAILED(); AT(); puts(s); goto error;}
 
 /*
  * Alarm definitions to wait up (terminate) a test that runs too long.
@@ -112,6 +117,24 @@ extern MPI_Info h5_io_info_g;         /* MPI INFO object for IO */
 #define ALARM_OFF	HDalarm(0)
 /* set alarms to N seconds if N > 0, else use default alarm_seconds. */
 #define ALARM_SET(N)	HDalarm((N)>0 ? N : alarm_seconds)
+
+/*
+ * The methods to compare the equality of floating-point values:
+ *    1. XXX_ABS_EQUAL - check if the difference is smaller than the 
+ *       Epsilon value.  The Epsilon values, FLT_EPSILON, DBL_EPSILON,
+ *       and LDBL_EPSILON, are defined by compiler in float.h.
+ *    2. XXX_REL_EQUAL - check if the relative difference is smaller than a
+ *       predefined value M.  See if two values are relatively equal.
+ *       It's the test's responsibility not to pass in the value 0, which 
+ *       may cause the equation to fail.
+ */
+#define FLT_ABS_EQUAL(X,Y)	((float)fabs(X-Y)<FLT_EPSILON)
+#define DBL_ABS_EQUAL(X,Y)	(fabs(X-Y)<DBL_EPSILON)
+#define LDBL_ABS_EQUAL(X,Y)	(fabsl(X-Y)<LDBL_EPSILON)
+
+#define FLT_REL_EQUAL(X,Y,M)    (fabsf((Y-X)/X<M)
+#define DBL_REL_EQUAL(X,Y,M)    (fabs((Y-X)/X)<M)
+#define LDBL_REL_EQUAL(X,Y,M)    (fabsl((Y-X)/X)<M)
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,7 +146,7 @@ H5TEST_DLL char *h5_fixname(const char *base_name, hid_t fapl, char *fullname,
 		 size_t size);
 H5TEST_DLL hid_t h5_fileaccess(void);
 H5TEST_DLL void h5_no_hwconv(void);
-H5TEST_DLL char *h5_rmprefix(const char *filename);
+H5TEST_DLL const char *h5_rmprefix(const char *filename);
 H5TEST_DLL void h5_reset(void);
 H5TEST_DLL void h5_show_hostname(void);
 H5TEST_DLL h5_stat_size_t h5_get_file_size(const char *filename);
@@ -145,13 +168,14 @@ H5TEST_DLL int  SetTestVerbosity(int newval);
 H5TEST_DLL int  GetTestSummary(void);
 H5TEST_DLL int  GetTestCleanup(void);
 H5TEST_DLL int  SetTestNoCleanup(void);
+H5TEST_DLL int  GetTestExpress(void);
+H5TEST_DLL int  SetTestExpress(int newval);
 H5TEST_DLL void ParseTestVerbosity(char *argv);
 H5TEST_DLL int  GetTestNumErrs(void);
 H5TEST_DLL void  IncTestNumErrs(void);
 H5TEST_DLL const void *GetTestParameters(void);
 H5TEST_DLL int  TestErrPrintf(const char *format, ...);
 H5TEST_DLL void SetTest(const char *testname, int action);
-
 
 #ifdef H5_HAVE_FILTER_SZIP
 H5TEST_DLL int h5_szip_can_encode(void);

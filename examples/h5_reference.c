@@ -35,6 +35,7 @@ main(void) {
    hid_t gid_a;                       /* and  dataspaces identifiers   */
    hid_t did_b, sid_b, tid_b;
    hid_t did_r, tid_r, sid_r;
+   H5O_type_t obj_type;
    herr_t status;
 
    hobj_ref_t *wbuf; /* buffer to write to disk */
@@ -52,7 +53,7 @@ main(void) {
    /*
     *  Create  group "A" in the file.
     */
-   gid_a = H5Gcreate(fid, "A", 0);
+   gid_a = H5Gcreate2(fid, "A", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
   /*
    *  Create dataset "B" in the file.
@@ -60,7 +61,7 @@ main(void) {
    dim_b[0] = 2;
    dim_b[1] = 6;
    sid_b = H5Screate_simple(2, dim_b, NULL);
-   did_b = H5Dcreate(fid, "B", H5T_NATIVE_FLOAT, sid_b, H5P_DEFAULT);
+   did_b = H5Dcreate2(fid, "B", H5T_NATIVE_FLOAT, sid_b, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
    /*
     *  Create dataset "R" to store references to the objects "A" and "B".
@@ -68,13 +69,13 @@ main(void) {
    dim_r[0] = 2;
    sid_r = H5Screate_simple(1, dim_r, NULL);
    tid_r = H5Tcopy(H5T_STD_REF_OBJ);
-   did_r = H5Dcreate(fid, "R", tid_r, sid_r, H5P_DEFAULT );
+   did_r = H5Dcreate2(fid, "R", tid_r, sid_r, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
    /*
     *  Allocate write and read buffers.
     */
-   wbuf = (hobj_ref_t *)malloc(sizeof(hobj_ref_t)*2);
-   rbuf = (hobj_ref_t *)malloc(sizeof(hobj_ref_t)*2);
+   wbuf = (hobj_ref_t *)malloc(sizeof(hobj_ref_t) * 2);
+   rbuf = (hobj_ref_t *)malloc(sizeof(hobj_ref_t) * 2);
 
    /*
     *  Create references to the group "A" and dataset "B"
@@ -86,8 +87,7 @@ main(void) {
    /*
     *  Write dataset R using default transfer properties.
     */
-   status = H5Dwrite(did_r, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL,
-		     H5P_DEFAULT, wbuf);
+   status = H5Dwrite(did_r, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, wbuf);
 
    /*
     *  Close all objects.
@@ -111,20 +111,20 @@ main(void) {
    /*
     *  Open and read dataset "R".
     */
-   did_r  = H5Dopen(fid, "R");
-   status = H5Dread(did_r, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, rbuf);
+   did_r  = H5Dopen2(fid, "R", H5P_DEFAULT);
+   status = H5Dread(did_r, H5T_STD_REF_OBJ, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf);
 
    /*
     * Find the type of referenced objects.
     */
-    status = H5Rget_obj_type(did_r, H5R_OBJECT, &rbuf[0]);
-    if ( status == H5G_GROUP )
-    printf("First dereferenced object is a group. \n");
+    status = H5Rget_obj_type2(did_r, H5R_OBJECT, &rbuf[0], &obj_type);
+    if(obj_type == H5O_TYPE_GROUP)
+        printf("First dereferenced object is a group. \n");
 
-    status = H5Rget_obj_type(did_r, H5R_OBJECT, &rbuf[1]);
-    if ( status == H5G_DATASET )
-    printf("Second dereferenced object is a dataset. \n");
+    status = H5Rget_obj_type2(did_r, H5R_OBJECT, &rbuf[1], &obj_type);
+    if(obj_type == H5O_TYPE_DATASET)
+        printf("Second dereferenced object is a dataset. \n");
+
    /*
     *  Get datatype of the dataset "B"
     */
@@ -143,9 +143,7 @@ main(void) {
    H5Fclose(fid);
    free(rbuf);
    free(wbuf);
+
    return 0;
-
  }
-
-
 

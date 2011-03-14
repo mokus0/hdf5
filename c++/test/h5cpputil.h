@@ -96,13 +96,13 @@ template <class Type1, class Type2>
     if (GetTestVerbosity()>=VERBO_HI)
     {
 	cerr << endl;
-	cerr << "   Call to routine: " << where << " at line " << line
+        cerr << "   Call to routine: " << where << " at line " << line
 	     << " in " << file_name <<  " had value " << x << endl;
     }
     if (x == value)
     {
 	cerr << endl;
-	cerr << "*** UNEXPECTED VALUE from " << where << " should not be "
+        cerr << "*** UNEXPECTED VALUE from " << where << " should not be "
 	     << value << " at line " << line << " in " << file_name << endl;
 	IncTestNumErrs();
 	throw TestFailedException(where, "");
@@ -113,27 +113,25 @@ template <class Type1, class Type2>
 #ifdef __cplusplus
 extern "C" {
 #endif
-void test_attr();
-void test_compound();
-void test_file();
-void test_filters();
-void test_links();
-void test_h5s();
-void test_reference();
-void test_types();
-void test_vlstrings();
+void test_attr(void);
+void test_compound(void);
+void test_file(void);
+void test_filters(void);
+void test_h5s(void);
+void test_reference(void);
+void test_types(void);
+void test_vlstrings(void);
 
 /* Prototypes for the cleanup routines */
-void cleanup_attr();
-void cleanup_compound();
-void cleanup_dsets();
-void cleanup_file();
-void cleanup_filters();
-void cleanup_links();
-void cleanup_h5s();
-void cleanup_reference();
-void cleanup_types();
-void cleanup_vlstrings();
+void cleanup_attr(void);
+void cleanup_compound(void);
+void cleanup_dsets(void);
+void cleanup_file(void);
+void cleanup_filters(void);
+void cleanup_h5s(void);
+void cleanup_reference(void);
+void cleanup_types(void);
+void cleanup_vlstrings(void);
 
 #ifdef __cplusplus
 }

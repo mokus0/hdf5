@@ -271,12 +271,12 @@ phdf5writeInd(char *filename)
     MESG("H5Pset_fapl_mpio succeed");
 
     /* create the file collectively */
-    fid1=H5Fcreate(filename,H5F_ACC_TRUNC,H5P_DEFAULT,acc_tpl1);
+    fid1 = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, acc_tpl1);
     assert(fid1 != FAIL);
     MESG("H5Fcreate succeed");
 
     /* Release file-access template */
-    ret=H5Pclose(acc_tpl1);
+    ret = H5Pclose(acc_tpl1);
     assert(ret != FAIL);
 
 
@@ -285,22 +285,22 @@ phdf5writeInd(char *filename)
      * and the slabs local to the MPI process.
      * ------------------------- */
     /* setup dimensionality object */
-    sid1 = H5Screate_simple (SPACE1_RANK, dims1, NULL);
+    sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
     assert (sid1 != FAIL);
     MESG("H5Screate_simple succeed");
 
 
     /* create a dataset collectively */
-    dataset1 = H5Dcreate(fid1, DATASETNAME1, H5T_NATIVE_INT, sid1,
-			H5P_DEFAULT);
+    dataset1 = H5Dcreate2(fid1, DATASETNAME1, H5T_NATIVE_INT, sid1,
+			H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     assert(dataset1 != FAIL);
-    MESG("H5Dcreate succeed");
+    MESG("H5Dcreate2 succeed");
 
     /* create another dataset collectively */
-    dataset2 = H5Dcreate(fid1, DATASETNAME2, H5T_NATIVE_INT, sid1,
-			H5P_DEFAULT);
+    dataset2 = H5Dcreate2(fid1, DATASETNAME2, H5T_NATIVE_INT, sid1,
+			H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     assert(dataset2 != FAIL);
-    MESG("H5Dcreate succeed");
+    MESG("H5Dcreate2 succeed");
 
 
 
@@ -404,11 +404,11 @@ phdf5readInd(char *filename)
     assert(ret != FAIL);
 
     /* open the dataset1 collectively */
-    dataset1 = H5Dopen(fid1, DATASETNAME1);
+    dataset1 = H5Dopen2(fid1, DATASETNAME1, H5P_DEFAULT);
     assert(dataset1 != FAIL);
 
     /* open another dataset collectively */
-    dataset2 = H5Dopen(fid1, DATASETNAME1);
+    dataset2 = H5Dopen2(fid1, DATASETNAME1, H5P_DEFAULT);
     assert(dataset2 != FAIL);
 
 
@@ -538,14 +538,14 @@ phdf5writeAll(char *filename)
 
 
     /* create a dataset collectively */
-    dataset1 = H5Dcreate(fid1, DATASETNAME1, H5T_NATIVE_INT, sid1, H5P_DEFAULT);
+    dataset1 = H5Dcreate2(fid1, DATASETNAME1, H5T_NATIVE_INT, sid1, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     assert(dataset1 != FAIL);
-    MESG("H5Dcreate succeed");
+    MESG("H5Dcreate2 succeed");
 
     /* create another dataset collectively */
-    dataset2 = H5Dcreate(fid1, DATASETNAME2, H5T_NATIVE_INT, sid1, H5P_DEFAULT);
+    dataset2 = H5Dcreate2(fid1, DATASETNAME2, H5T_NATIVE_INT, sid1, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     assert(dataset2 != FAIL);
-    MESG("H5Dcreate 2 succeed");
+    MESG("H5Dcreate2 2 succeed");
 
     /*
      * Set up dimensions of the slab this process accesses.
@@ -731,14 +731,14 @@ phdf5readAll(char *filename)
      * Open the datasets in it
      * ------------------------- */
     /* open the dataset1 collectively */
-    dataset1 = H5Dopen(fid1, DATASETNAME1);
+    dataset1 = H5Dopen2(fid1, DATASETNAME1, H5P_DEFAULT);
     assert(dataset1 != FAIL);
-    MESG("H5Dopen succeed");
+    MESG("H5Dopen2 succeed");
 
     /* open another dataset collectively */
-    dataset2 = H5Dopen(fid1, DATASETNAME1);
+    dataset2 = H5Dopen2(fid1, DATASETNAME1, H5P_DEFAULT);
     assert(dataset2 != FAIL);
-    MESG("H5Dopen 2 succeed");
+    MESG("H5Dopen2 2 succeed");
 
     /*
      * Set up dimensions of the slab this process accesses.

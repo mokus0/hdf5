@@ -35,12 +35,97 @@ fi
 # Figure out Intel C compiler flags
 . $srcdir/config/intel-flags
 
+# Use default Fortran 90 compiler according to what C compiler is used.
+if test "X-" = "X-$FC"; then
+    case $CC_BASENAME in
+        gcc*)
+            FC=g95
+            FC_BASENAME=g95
+            ;;
+	pgcc*)
+            FC=pgf90
+            FC_BASENAME=pgf90
+            ;;
+        icc*)
+            FC=ifort
+            FC_BASENAME=ifort
+            ;;
+        mpicc*)
+            FC=mpif90
+            FC_BASENAME=mpif90
+            ;;
+    esac
+else
+    case $FC in
+        # The PGI and Intel compilers are automatically detected below
+        ifc*|ifort*|pgf90*)
+            ;;
+
+        *)
+            # Figure out which compiler we are using: pgf90 or Absoft f95
+            RM='rm -f'
+            tmpfile=/tmp/cmpver.$$
+            $FC -V >$tmpfile
+            if test -s "$tmpfile"; then 
+                if( grep -s 'Absoft' $tmpfile > /dev/null) then
+                    FC_BASENAME=f95
+                fi 
+                if( grep -s 'pgf90' $tmpfile > /dev/null) then
+                    FC_BASENAME=pgf90
+                fi 
+            fi
+            $RM $tmpfile
+            ;;
+    esac
+fi
+
+# Figure out PGI F90 compiler flags
+. $srcdir/config/pgi-fflags
+
+# Figure out Intel F90 compiler flags
+. $srcdir/config/intel-fflags
+
+case $FC_BASENAME in
+    #
+    # Absoft compiler
+    #
+    f95)
+        # Set required flag for compiling C stubs
+        H5_CFLAGS="$H5_CFLAGS" 
+
+        F9XSUFFIXFLAG=""
+# We force compiler to use upper case for external names 
+# (just in case since this should be a default EIP)
+        H5_FCFLAGS="$H5_FCFLAGS"
+        FSEARCH_DIRS=""
+        DEBUG_FCFLAGS="-g"
+        PROD_FCFLAGS="-O"
+        PROFILE_FCFLAGS="-g -pg"
+        f9x_flags_set=yes
+        ;;
+
+esac  
+
+# The default C++ compiler
+
+# The default compiler is `g++'.
+if test -z "$CXX"; then
+  CXX=g++
+  CXX_BASENAME=g++
+fi
+
 # Check MPICH settings
 . $srcdir/config/mpich
-#Unomment out the next line if your system doesn't support MPI complex derived data type.
-hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype_works='no'}
+
+# The ChaMPIon on NCSA tungsten doesn't work correctly for either of the following
+# cases:
+#     1. collective I/O when some processes don't have any contributions;
+#     2. complex derived MPI data type.
+if test $CC_BASENAME = cmpicc; then
+  hdf5_mpi_special_collective_io_works=${hdf5_mpi_special_collective_io_works='no'}
+  hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype_works='no'}
+fi
+
 #Comment out the following line if your system supports collective IO when some processes
 #don't have any contributions to IOs.
-hdf5_mpi_special_collective_io_works=${hdf5_mpi_special_collective_io_works='no'}
-hdf5_mpi_complex_derived_datatype_works=${hdf5_mpi_complex_derived_datatype-works='no'}
-
+#hdf5_mpi_special_collective_io_works=${hdf5_mpi_special_collective_io_works='no'}

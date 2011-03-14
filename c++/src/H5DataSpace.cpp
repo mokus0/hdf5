@@ -47,7 +47,7 @@ const DataSpace DataSpace::ALL( H5S_ALL );
 ///\exception	H5::DataSpaceIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSpace::DataSpace( H5S_class_t type ) : IdComponent()
+DataSpace::DataSpace( H5S_class_t type ) : IdComponent(0)
 {
    id = H5Screate( type );
    if( id < 0 )
@@ -65,7 +65,7 @@ DataSpace::DataSpace( H5S_class_t type ) : IdComponent()
 ///\exception	H5::DataSpaceIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSpace::DataSpace( int rank, const hsize_t * dims, const hsize_t * maxdims) : IdComponent()
+DataSpace::DataSpace( int rank, const hsize_t * dims, const hsize_t * maxdims) : IdComponent(0)
 {
    id = H5Screate_simple( rank, dims, maxdims );
    if( id < 0 )
@@ -82,7 +82,7 @@ DataSpace::DataSpace( int rank, const hsize_t * dims, const hsize_t * maxdims) :
 ///\exception	H5::DataSpaceIException
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSpace::DataSpace(const hid_t existing_id) : IdComponent(), id(existing_id) {}
+DataSpace::DataSpace(const hid_t existing_id) : IdComponent(existing_id) {}
 
 //--------------------------------------------------------------------------
 // Function:	DataSpace copy constructor
@@ -90,11 +90,7 @@ DataSpace::DataSpace(const hid_t existing_id) : IdComponent(), id(existing_id) {
 ///\param	original - IN: DataSpace object to copy
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-DataSpace::DataSpace(const DataSpace& original) : IdComponent(original)
-{
-    id = original.getId();
-    incRefCount(); // increment number of references to this id
-}
+DataSpace::DataSpace( const DataSpace& original ) : IdComponent( original ) {}
 
 //--------------------------------------------------------------------------
 // Function:	DataSpace::copy
@@ -104,7 +100,7 @@ DataSpace::DataSpace(const DataSpace& original) : IdComponent(original)
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
 //		- Replaced resetIdComponent() with decRefCount() to use C
-//		library ID reference counting mechanism - BMR, Feb 20, 2005
+//		library ID reference counting mechanism - BMR, Jun 1, 2004
 //		- Replaced decRefCount with close() to let the C library
 //		handle the reference counting - BMR, Jun 1, 2006
 //--------------------------------------------------------------------------
@@ -141,7 +137,7 @@ void DataSpace::copy( const DataSpace& like_space )
 DataSpace& DataSpace::operator=( const DataSpace& rhs )
 {
     if (this != &rhs)
-	copy(rhs);
+        copy(rhs);
     return(*this);
 }
 
@@ -405,7 +401,7 @@ hssize_t DataSpace::getSelectElemNpoints () const
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// <A HREF="../RM_H5S.html#Dataspace-SelectElemPointList">../RM_H5S.html#Dataspace-SelectElemPointList</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectElemPointList
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::getSelectElemPointlist ( hsize_t startpoint, hsize_t numpoints, hsize_t *buf ) const
@@ -429,7 +425,7 @@ void DataSpace::getSelectElemPointlist ( hsize_t startpoint, hsize_t numpoints, 
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// <A HREF="../RM_H5S.html#Dataspace-SelectBounds">../RM_H5S.html#Dataspace-SelectBounds</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectBounds
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::getSelectBounds ( hsize_t* start, hsize_t* end ) const
@@ -455,7 +451,7 @@ void DataSpace::getSelectBounds ( hsize_t* start, hsize_t* end ) const
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// <A HREF="../RM_H5S.html#Dataspace-SelectElements">../RM_H5S.html#Dataspace-SelectElements</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectElements
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::selectElements ( H5S_seloper_t op, const size_t num_elements, const hsize_t *coord) const
@@ -537,7 +533,7 @@ bool DataSpace::selectValid () const
 ///\par Description
 ///		For more information, please refer to the C layer Reference
 ///		Manual at:
-/// <A HREF="../RM_H5S.html#Dataspace-SelectHyperslab">../RM_H5S.html#Dataspace-SelectHyperslab</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5S.html#Dataspace-SelectHyperslab
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void DataSpace::selectHyperslab( H5S_seloper_t op, const hsize_t *count, const hsize_t *start, const hsize_t *stride, const hsize_t *block ) const
@@ -549,47 +545,6 @@ void DataSpace::selectHyperslab( H5S_seloper_t op, const hsize_t *count, const h
       throw DataSpaceIException("DataSpace::selectHyperslab",
 		"H5Sselect_hyperslab failed");
    }
-}
-
-//--------------------------------------------------------------------------
-// Function:	DataSpace::getId
-// Purpose:	Get the id of this dataspace
-// Modification:
-//	May 2008 - BMR
-//		Class hierarchy is revised to address bugzilla 1068.  Class
-//		AbstractDS and Attribute are moved out of H5Object.  In
-//		addition, member IdComponent::id is moved into subclasses, and
-//		IdComponent::getId now becomes pure virtual function.
-// Programmer	Binh-Minh Ribler - May, 2008
-//--------------------------------------------------------------------------
-hid_t DataSpace::getId() const
-{
-   return(id);
-}
-
-//--------------------------------------------------------------------------
-// Function:	DataSpace::p_setId
-///\brief	Sets the identifier of this dataspace to a new value.
-///
-///\exception	H5::IdComponentException when the attempt to close the 
-///		currently open dataspace fails
-// Description:
-//		The underlaying reference counting in the C library ensures
-//		that the current valid id of this object is properly closed.
-//		Then the object's id is reset to the new id.
-// Programmer	Binh-Minh Ribler - 2000
-//--------------------------------------------------------------------------
-void DataSpace::p_setId(const hid_t new_id)
-{
-    // handling references to this old id
-    try {
-	close();
-    }
-    catch (Exception close_error) {
-	throw GroupIException("DataSpace::p_setId", close_error.getDetailMsg());
-    }
-    // reset object's id to the given id
-    id = new_id;
 }
 
 //--------------------------------------------------------------------------
@@ -609,10 +564,8 @@ void DataSpace::close()
 	{
 	    throw DataSpaceIException("DataSpace::close", "H5Sclose failed");
 	}
-	// reset the id when the dataspace that it represents is no longer
-	// referenced
-	if (getCounter() == 0)
-	    id = 0;
+	// reset the id because the dataspace that it represents is now closed
+	id = 0;
     }
 }
 
@@ -622,7 +575,7 @@ void DataSpace::close()
 // Programmer	Binh-Minh Ribler - 2000
 // Modification
 //		- Replaced resetIdComponent() with decRefCount() to use C
-//		library ID reference counting mechanism - BMR, Feb 20, 2005
+//		library ID reference counting mechanism - BMR, Jun 1, 2004
 //		- Replaced decRefCount with close() to let the C library
 //		handle the reference counting - BMR, Jun 1, 2006
 //--------------------------------------------------------------------------

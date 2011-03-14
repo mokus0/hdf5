@@ -1,4 +1,4 @@
-HDF5 version 1.6.10 released on Tue Nov 10 12:11:39 CST 2009
+HDF5 version 1.8.0 released on Tue Feb 12 20:41:19 CST 2008
 Please refer to the release_docs/INSTALL file for installation instructions.
 ------------------------------------------------------------------------------
 
@@ -36,7 +36,6 @@ Periodic code snapshots are provided at the following URL:
 Please read the README.txt file in that directory before working with a 
 library snapshot.
 
-The HDF5 website is located at http://hdfgroup.org/products/hdf5/.
+The HDF5 website is located at http://hdfgroup.org/HDF5/
 
 Bugs should be reported to help@hdfgroup.org.
-

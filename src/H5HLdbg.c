@@ -43,14 +43,19 @@
  * Modifications:
  *		Robb Matzke, 1999-07-28
  *		The ADDR argument is passed by value.
+ *
+ *              John Mainzer, 6/17/05
+ *              Modified the function to use the new dirtied parameter of
+ *              of H5AC_unprotect() instead of modifying the is_dirty
+ *              field of the cache info.
+ *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5HL_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream, int indent, int fwidth)
 {
     H5HL_t		*h = NULL;
-    int			i, j, overlap, free_block;
-    uint8_t		c;
+    int			i, overlap, free_block;
     H5HL_free_t		*freelist = NULL;
     uint8_t		*marker = NULL;
     size_t		amount_free = 0;
@@ -79,17 +84,14 @@ H5HL_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream, int indent, int
 	      "Address of heap data:",
 	      h->addr);
     HDfprintf(stream, "%*s%-*s %Zu\n", indent, "", fwidth,
-	    "Data bytes allocated on disk:",
-            h->disk_alloc);
-    HDfprintf(stream, "%*s%-*s %Zu\n", indent, "", fwidth,
-	    "Data bytes allocated in core:",
-            h->mem_alloc);
+	    "Data bytes allocated for heap:",
+            h->heap_alloc);
 
     /*
      * Traverse the free list and check that all free blocks fall within
      * the heap and that no two free blocks point to the same region of
      * the heap.  */
-    if (NULL==(marker = H5MM_calloc(h->mem_alloc)))
+    if (NULL==(marker = H5MM_calloc(h->heap_alloc)))
 	HGOTO_ERROR (H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed");
 
     fprintf(stream, "%*sFree Blocks (offset, size):\n", indent, "");
@@ -101,7 +103,7 @@ H5HL_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream, int indent, int
 	HDfprintf(stream, "%*s%-*s %8Zu, %8Zu\n", indent+3, "", MAX(0,fwidth-9),
 		temp_str,
 		freelist->offset, freelist->size);
-	if (freelist->offset + freelist->size > h->mem_alloc) {
+	if (freelist->offset + freelist->size > h->heap_alloc) {
 	    fprintf(stream, "***THAT FREE BLOCK IS OUT OF BOUNDS!\n");
 	} else {
 	    for (i=overlap=0; i<(int)(freelist->size); i++) {
@@ -118,49 +120,16 @@ H5HL_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream, int indent, int
 	}
     }
 
-    if (h->mem_alloc) {
+    if (h->heap_alloc) {
 	fprintf(stream, "%*s%-*s %.2f%%\n", indent, "", fwidth,
 		"Percent of heap used:",
-		(100.0 * (double)(h->mem_alloc - amount_free) / (double)h->mem_alloc));
+		(100.0 * (double)(h->heap_alloc - amount_free) / (double)h->heap_alloc));
     }
+
     /*
      * Print the data in a VMS-style octal dump.
      */
-    fprintf(stream, "%*sData follows (`__' indicates free region)...\n",
-	    indent, "");
-    for (i=0; i<(int)(h->disk_alloc); i+=16) {
-	fprintf(stream, "%*s %8d: ", indent, "", i);
-	for (j = 0; j < 16; j++) {
-	    if (i+j<(int)(h->disk_alloc)) {
-		if (marker[i + j]) {
-		    fprintf(stream, "__ ");
-		} else {
-		    c = h->chunk[H5HL_SIZEOF_HDR(f) + i + j];
-		    fprintf(stream, "%02x ", c);
-		}
-	    } else {
-		fprintf(stream, "   ");
-	    }
-	    if (7 == j)
-		HDfputc(' ', stream);
-	}
-
-	for (j = 0; j < 16; j++) {
-	    if (i+j < (int)(h->disk_alloc)) {
-		if (marker[i + j]) {
-		    HDfputc(' ', stream);
-		} else {
-		    c = h->chunk[H5HL_SIZEOF_HDR(f) + i + j];
-		    if (c > ' ' && c < '~')
-			HDfputc(c, stream);
-		    else
-			HDfputc('.', stream);
-		}
-	    }
-	}
-
-	HDfputc('\n', stream);
-    }
+    H5_buffer_dump(stream, indent, h->chunk, marker, H5HL_SIZEOF_HDR(f), h->heap_alloc);
 
 done:
     if (h && H5AC_unprotect(f, dxpl_id, H5AC_LHEAP, addr, h, FALSE) != SUCCEED)

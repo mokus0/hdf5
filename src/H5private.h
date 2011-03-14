@@ -140,12 +140,12 @@
 #endif
 
 
-#ifdef WIN32
+#ifdef _WIN32
 
 #define VC_EXTRALEAN		/*Exclude rarely-used stuff from Windows headers */
 #include <windows.h>
 
-#endif /*WIN32*/
+#endif /*_WIN32*/
 
 /* H5_inline */
 #ifndef H5_inline
@@ -161,12 +161,65 @@
 
 /*
  * MPE Instrumentation support
- * Do not #if the following header file because it contains
- * the needed null definitions for the H5-MPE macros when MPE
- * support is not configured.
- *
  */
-#include "H5MPprivate.h"
+#ifdef H5_HAVE_MPE
+/*------------------------------------------------------------------------
+ * Purpose:    Begin to collect MPE log information for a function. It should
+ *             be ahead of the actual function's process.
+ *
+ * Programmer: Long Wang
+ *
+ *------------------------------------------------------------------------
+ */
+#include "mpe.h"
+/*
+ * #define eventa(func_name)   h5_mpe_ ## func_name ## _a
+ * #define eventb(func_name)   h5_mpe_ ## func_name ## _b
+ */
+#define eventa(func_name)   h5_mpe_eventa
+#define eventb(func_name)   h5_mpe_eventb
+#define MPE_LOG_VARS(func_name)                                               \
+    static int eventa(func_name) = -1;                                        \
+    static int eventb(func_name) = -1;                                        \
+    const char* p_end_funcname = #func_name;                                  \
+    const char* p_event_start = "start" #func_name;
+
+/* Hardwire the color to "red", since that's what all the routines are using
+ * now.  In the future, if we want to change that color for a given routine,
+ * we should define a "FUNC_ENTER_API_COLOR" macro which takes an extra 'color'
+ * parameter and then make additional FUNC_ENTER_<foo>_COLOR macros to get that
+ * color information down to the BEGIN_MPE_LOG macro (which should have a new
+ * BEGIN_MPE_LOG_COLOR variant). -QAK
+ */
+#define BEGIN_MPE_LOG(func_name)                                              \
+  if (H5_MPEinit_g){							      \
+    if (eventa(func_name) == -1 && eventb(func_name) == -1) {		      \
+	const char* p_color = "red";					      \
+         eventa(func_name)=MPE_Log_get_event_number();                        \
+         eventb(func_name)=MPE_Log_get_event_number();                        \
+         MPE_Describe_state(eventa(func_name), eventb(func_name), (char *)p_end_funcname, (char *)p_color); \
+    }                                                                         \
+    MPE_Log_event(eventa(func_name), 0, (char *)p_event_start); 	              \
+  }
+
+
+/*------------------------------------------------------------------------
+ * Purpose:   Finish the collection of MPE log information for a function.
+ *            It should be after the actual function's process.
+ *
+ * Programmer: Long Wang
+ */
+#define FINISH_MPE_LOG                                                       \
+    if (H5_MPEinit_g) {                                                      \
+        MPE_Log_event(eventb(func_name), 0, (char *)p_end_funcname);                 \
+    }
+
+#else /* H5_HAVE_MPE */
+#define MPE_LOG_VARS(func_name) /* void */
+#define BEGIN_MPE_LOG(func_name) /* void */
+#define FINISH_MPE_LOG   /* void */
+
+#endif /* H5_HAVE_MPE */
 
 /*
  * dmalloc (debugging malloc) support
@@ -210,23 +263,6 @@
 #ifndef H5_HAVE_FUNCTION
 #   define __FUNCTION__	 "NoFunctionName"
 #endif
-
-/* Version #'s of the major components of the file format */
-#define HDF5_SUPERBLOCK_VERSION_DEF	0	/* The default super block format	  */
-#define HDF5_SUPERBLOCK_VERSION_MAX	1	/* The maximum super block format	  */
-#define HDF5_FREESPACE_VERSION	0	/* of the Free-Space Info	  */
-#define HDF5_OBJECTDIR_VERSION	0	/* of the Object Directory format */
-#define HDF5_SHAREDHEADER_VERSION 0	/* of the Shared-Header Info	  */
-#define HDF5_DRIVERINFO_VERSION	0	/* of the Driver Information Block*/
-
-/* B-tree internal 'K' values */
-#define HDF5_BTREE_SNODE_IK_DEF         16
-#define HDF5_BTREE_ISTORE_IK_DEF        32      /* Note! this value is assumed
-                                                    to be 32 for older versions
-                                                    of the superblock (<1) and
-                                                    if it is changed, the code
-                                                    must compensate. -QAK
-                                                 */
 
 /*
  * Status return values for the `herr_t' type.
@@ -273,6 +309,10 @@
 #   define SIGN(a)		((a)>0 ? 1 : (a)<0 ? -1 : 0)
 #endif
 
+/* test for number that is a power of 2 */
+/* (from: http://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2) */
+#  define POWER_OF_TWO(n)	(!(n & (n - 1)) && n)
+
 /*
  * HDF Boolean type.
  */
@@ -281,24 +321,6 @@
 #endif
 #ifndef TRUE
 #   define TRUE 1
-#endif
-
-/*
- * Although `long long' is part of the revised ANSI-C some compilers don't
- * support it yet.  We define `long_long' as the longest integral integer type
- * supported by the compiler, usually 64 bits.	It must be legal to qualify
- * `long_long' with `unsigned'.
- */
-#if H5_SIZEOF_LONG_LONG>0
-#   define long_long	long long
-#elif H5_SIZEOF___INT64>0
-#   define long_long	__int64	/*Win32*/
-#   undef H5_SIZEOF_LONG_LONG
-#   define H5_SIZEOF_LONG_LONG H5_SIZEOF___INT64
-#else
-#   define long_long	long int
-#   undef H5_SIZEOF_LONG_LONG
-#   define H5_SIZEOF_LONG_LONG H5_SIZEOF_LONG
 #endif
 
 /*
@@ -369,56 +391,10 @@
 #   error "nothing appropriate for int32_t"
 #endif
 
-#if H5_SIZEOF_UINT32_T>=4
-#elif H5_SIZEOF_SHORT>=4
-    typedef short uint32_t;
-#   undef H5_SIZEOF_UINT32_T
-#   define H5_SIZEOF_UINT32_T H5_SIZEOF_SHORT
-#elif H5_SIZEOF_INT>=4
-    typedef unsigned int uint32_t;
-#   undef H5_SIZEOF_UINT32_T
-#   define H5_SIZEOF_UINT32_T H5_SIZEOF_INT
-#elif H5_SIZEOF_LONG>=4
-    typedef unsigned long uint32_t;
-#   undef H5_SIZEOF_UINT32_T
-#   define H5_SIZEOF_UINT32_T H5_SIZEOF_LONG
-#else
-#   error "nothing appropriate for uint32_t"
-#endif
+/* Definition of uint32_t was moved to H5public.h */
 
-#if H5_SIZEOF_INT64_T>=8
-#elif H5_SIZEOF_INT>=8
-    typedef int int64_t;
-#   undef H5_SIZEOF_INT64_T
-#   define H5_SIZEOF_INT64_T H5_SIZEOF_INT
-#elif H5_SIZEOF_LONG>=8
-    typedef long int64_t;
-#   undef H5_SIZEOF_INT64_T
-#   define H5_SIZEOF_INT64_T H5_SIZEOF_LONG
-#elif H5_SIZEOF_LONG_LONG>=8
-    typedef long_long int64_t;
-#   undef H5_SIZEOF_INT64_T
-#   define H5_SIZEOF_INT64_T H5_SIZEOF_LONG_LONG
-#else
-#   error "nothing appropriate for int64_t"
-#endif
-
-#if H5_SIZEOF_UINT64_T>=8
-#elif H5_SIZEOF_INT>=8
-    typedef unsigned uint64_t;
-#   undef H5_SIZEOF_UINT64_T
-#   define H5_SIZEOF_UINT64_T H5_SIZEOF_INT
-#elif H5_SIZEOF_LONG>=8
-    typedef unsigned long uint64_t;
-#   undef H5_SIZEOF_UINT64_T
-#   define H5_SIZEOF_UINT64_T H5_SIZEOF_LONG
-#elif H5_SIZEOF_LONG_LONG>=8
-    typedef unsigned long_long uint64_t;
-#   undef H5_SIZEOF_UINT64_T
-#   define H5_SIZEOF_UINT64_T H5_SIZEOF_LONG_LONG
-#else
-#   error "nothing appropriate for uint64_t"
-#endif
+/* Definition of int64_t was moved to H5public.h */
+/* Definition of uint64_t was moved to H5public.h */
 
 /*
  * Maximum and minimum values.	These should be defined in <limits.h> for the
@@ -436,6 +412,10 @@
 #   define SIZET_MAX	((size_t)(ssize_t)(-1))
 #   define SSIZET_MAX	((ssize_t)(((size_t)1<<(8*sizeof(ssize_t)-1))-1))
 #endif
+
+/*
+ * Maximum & minimum values for our typedefs.
+ */
 #define	HSIZET_MAX	((hsize_t)ULLONG_MAX)
 #define	HSSIZET_MAX	((hssize_t)LLONG_MAX)
 #define HSSIZET_MIN	(~(HSSIZET_MAX))
@@ -458,29 +438,29 @@
  * A macro for detecting over/under-flow when casting between types
  */
 #ifndef NDEBUG
-#define H5_CHECK_OVERFLOW(var,vartype,casttype) \
-{                                               \
-    casttype _tmp_overflow=(casttype)(var);     \
-    assert((var)==(vartype)_tmp_overflow);      \
+#define H5_CHECK_OVERFLOW(var, vartype, casttype) \
+{                                                 \
+    casttype _tmp_overflow = (casttype)(var);     \
+    assert((var) == (vartype)_tmp_overflow);      \
 }
 #else /* NDEBUG */
-#define H5_CHECK_OVERFLOW(var,vartype,casttype)
+#define H5_CHECK_OVERFLOW(var, vartype, casttype)
 #endif /* NDEBUG */
 
 /*
  * A macro for detecting over/under-flow when assigning between types
  */
 #ifndef NDEBUG
-#define H5_ASSIGN_OVERFLOW(var,expr,exprtype,vartype)   \
+#define H5_ASSIGN_OVERFLOW(dst, src, srctype, dsttype)  \
 {                                                       \
-    exprtype _tmp_overflow=(exprtype)(expr);              \
-    vartype _tmp_overflow2=(vartype)(_tmp_overflow);  \
-    assert((vartype)_tmp_overflow==_tmp_overflow2);    \
-    (var)=_tmp_overflow2;                               \
+    srctype _tmp_overflow = (srctype)(src);             \
+    dsttype _tmp_overflow2 = (dsttype)(_tmp_overflow);  \
+    assert((dsttype)_tmp_overflow == _tmp_overflow2);   \
+    (dst) = _tmp_overflow2;                             \
 }
 #else /* NDEBUG */
-#define H5_ASSIGN_OVERFLOW(var,expr,exprtype,vartype)   \
-    (var)=(vartype)(expr);
+#define H5_ASSIGN_OVERFLOW(dst, src, srctype, dsttype)  \
+    (dst) = (dsttype)(src);
 #endif /* NDEBUG */
 
 /*
@@ -497,14 +477,19 @@ H5_DLL void H5_timer_begin (H5_timer_t *timer);
 H5_DLL void H5_timer_end (H5_timer_t *sum/*in,out*/,
 			   H5_timer_t *timer/*in,out*/);
 H5_DLL void H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds);
+H5_DLL time_t H5_now(void);
 
 /* Depth of object copy */
 typedef enum {
-    H5_COPY_NULL,       /* Null destination names */
-    H5_COPY_LIMITED,    /* Limited copy from source to destination, omitting path fields */
     H5_COPY_SHALLOW,    /* Shallow copy from source to destination, just copy field pointers */
     H5_COPY_DEEP        /* Deep copy from source to destination, including duplicating fields pointed to */
 } H5_copy_depth_t;
+
+/* Unique object "position" */
+typedef struct {
+    unsigned long fileno;       /* The unique identifier for the file of the object */
+    haddr_t addr;               /* The unique address of the object's header in that file */
+} H5_obj_t;
 
 /*
  * Redefine all the POSIX functions.  We should never see a POSIX
@@ -584,11 +569,11 @@ typedef enum {
 #define HDfgetc(F)		fgetc(F)
 #define HDfgetpos(F,P)		fgetpos(F,P)
 #define HDfgets(S,N,F)		fgets(S,N,F)
-#ifdef WIN32
+#ifdef _WIN32
 #define HDfileno(F)		_fileno(F)
-#else /* WIN32 */
+#else /* _WIN32 */
 #define HDfileno(F)		fileno(F)
-#endif /* WIN32 */
+#endif /* _WIN32 */
 #define HDfloor(X)		floor(X)
 #define HDfmod(X,Y)		fmod(X,Y)
 #define HDfopen(S,M)		fopen(S,M)
@@ -619,21 +604,33 @@ H5_DLL int HDfprintf (FILE *stream, const char *fmt, ...);
      #define HDfseek(F,O,W)	fseek(F,O,W)
 #endif
 #define HDfsetpos(F,P)		fsetpos(F,P)
-/* definitions related to the file stat utilities */
-#ifdef WIN32
-     #ifdef __MWERKS__
-     #define HDfstat(F,B)               fstat(F,B)
-     typedef struct stat		h5_stat_t;
-     typedef off_t                      h5_stat_size_t;
-     #else /*MSVC*/
-     #define HDfstat(F,B)		_fstati64(F,B)
-     typedef struct _stati64		h5_stat_t;
-     typedef __int64                    h5_stat_size_t;
-     #endif
+/* definitions related to the file stat utilities.
+ * Windows have its own function names.
+ * For Unix, if off_t is not 64bit big, try use the pseudo-standard
+ * xxx64 versions if available.
+ */
+#ifdef _WIN32
+    #ifdef __MWERKS__
+    #define HDfstat(F,B)        fstat(F,B)
+    #define HDstat(S,B)   	stat(S,B)
+    typedef struct stat		h5_stat_t;
+    typedef off_t               h5_stat_size_t;
+    #else /*MSVC*/
+    #define HDfstat(F,B)	_fstati64(F,B)
+    #define HDstat(S,B)		_stati64(S,B)
+    typedef struct _stati64	h5_stat_t;
+    typedef __int64             h5_stat_size_t;
+    #endif
+#elif H5_SIZEOF_OFF_T!=8 && H5_SIZEOF_OFF64_T==8 && defined(H5_HAVE_STAT64)
+    #define HDfstat(F,B)        fstat64(F,B)
+    #define HDstat(S,B)  	stat64(S,B)
+    typedef struct stat64       h5_stat_t;
+    typedef off64_t             h5_stat_size_t;
 #else
-#define HDfstat(F,B)            fstat(F,B)
-typedef struct stat		h5_stat_t;
-typedef off_t                   h5_stat_size_t;
+    #define HDfstat(F,B)        fstat(F,B)
+    #define HDstat(S,B)  	stat(S,B)
+    typedef struct stat         h5_stat_t;
+    typedef off_t               h5_stat_size_t;
 #endif
 
 #define HDftell(F)		ftell(F)
@@ -682,7 +679,7 @@ typedef off_t                   h5_stat_size_t;
 #define HDlog(X)		log(X)
 #define HDlog10(X)		log10(X)
 #define HDlongjmp(J,N)		longjmp(J,N)
-#ifdef WIN32
+#ifdef _WIN32
      #ifdef __MWERKS__
         #define HDlseek(F,O,W)  lseek(F,O,W)
      #else /*MSVS */
@@ -696,6 +693,7 @@ typedef off_t                   h5_stat_size_t;
      #endif
 #endif
 #define HDmalloc(Z)		malloc(Z)
+#define HDposix_memalign(P,A,Z) posix_memalign(P,A,Z)
 #define HDmblen(S,N)		mblen(S,N)
 #define HDmbstowcs(P,S,Z)	mbstowcs(P,S,Z)
 #define HDmbtowc(P,S,Z)		mbtowc(P,S,Z)
@@ -708,18 +706,18 @@ typedef off_t                   h5_stat_size_t;
 #define HDmemcpy(X,Y,Z)		memcpy((char*)(X),(const char*)(Y),Z)
 #define HDmemmove(X,Y,Z)	memmove((char*)(X),(const char*)(Y),Z)
 /*
- * The (void*) cast just avoids a compiler warning in WIN32
+ * The (void*) cast just avoids a compiler warning in _WIN32
  */
-#ifdef WIN32
+#ifdef _WIN32
 #define HDmemset(X,C,Z)		memset((void*)(X),C,Z)
-#else /* WIN32 */
+#else /* _WIN32 */
 #define HDmemset(X,C,Z)		memset(X,C,Z)
-#endif /* WIN32 */
-#ifdef WIN32
+#endif /* _WIN32 */
+#ifdef _WIN32
 #define HDmkdir(S,M)		_mkdir(S)
-#else /* WIN32 */
+#else /* _WIN32 */
 #define HDmkdir(S,M)		mkdir(S,M)
-#endif /* WIN32 */
+#endif /* _WIN32 */
 #define HDmkfifo(S,M)		mkfifo(S,M)
 #define HDmktime(T)		mktime(T)
 #define HDmodf(X,Y)		modf(X,Y)
@@ -740,16 +738,33 @@ typedef off_t                   h5_stat_size_t;
 #define HDputs(S)		puts(S)
 #define HDqsort(M,N,Z,F)	qsort(M,N,Z,F)
 #define HDraise(N)		raise(N)
-#define HDrand()		rand()
-#ifdef  WIN32
-#define HDrandom()		rand()
+
+#ifdef H5_HAVE_RAND_R
+#define HDrandom()		HDrand()
+H5_DLL int HDrand(void);
+#elif H5_HAVE_RANDOM
+#define HDrand()		random()
+#define HDrandom()		random()
 #else
-#define HDrandom()              random()
+#define HDrand()		rand()
+#define HDrandom()		rand()
 #endif
+
 #define HDread(F,M,Z)		read(F,M,Z)
 #define HDreaddir(D)		readdir(D)
 #define HDrealloc(M,Z)		realloc(M,Z)
+#ifdef H5_VMS
+#ifdef __cplusplus
+extern "C" {
+#endif
+int HDremove_all(const char * fname);
+#ifdef __cplusplus
+}
+#endif
+#define HDremove(S) 		HDremove_all(S)
+#else
 #define HDremove(S)		remove(S)
+#endif /*H5_VMS*/
 #define HDrename(OLD,NEW)	rename(OLD,NEW)
 #define HDrewind(F)		rewind(F)
 #define HDrewinddir(D)		rewinddir(D)
@@ -762,8 +777,12 @@ typedef off_t                   h5_stat_size_t;
 #define HDsetpgid(P,PG)		setpgid(P,PG)
 #define HDsetsid()		setsid()
 #define HDsetuid(U)		setuid(U)
-#ifndef WIN32
+/* Windows does not permit setting the buffer size to values
+   less than 2.  */
+#ifndef _WIN32
 #define HDsetvbuf(F,S,M,Z)	setvbuf(F,S,M,Z)
+#else
+#define HDsetvbuf(F,S,M,Z)  setvbuf(F,S,M,(Z>1?Z:2))
 #endif
 #define HDsigaction(N,A)	sigaction(N,A)
 #define HDsigaddset(S,N)	sigaddset(S,N)
@@ -780,29 +799,24 @@ typedef off_t                   h5_stat_size_t;
 #define HDsin(X)		sin(X)
 #define HDsinh(X)		sinh(X)
 #define HDsleep(N)		sleep(N)
-#ifdef H5_HAVE_SNPRINTF
-#   define HDsnprintf		snprintf /*varargs*/
+#ifdef _WIN32
+#define HDsnprintf              _snprintf /*varargs*/
+#else
+#define HDsnprintf		snprintf /*varargs*/
 #endif
 /* sprintf() variable arguments */
 #define HDsqrt(X)		sqrt(X)
-#define HDsrand(N)		srand(N)
-#ifdef WIN32
-#define HDsrandom(N)            srand(N)
+#ifdef H5_HAVE_RAND_R
+H5_DLL void HDsrand(unsigned int seed);
+#define HDsrandom(S)		HDsrand(S)
+#elif H5_HAVE_RANDOM
+#define HDsrand(S)		srandom(S)
+#define HDsrandom(S)		srandom(S)
 #else
-#define HDsrandom(N)		srandom(N)
+#define HDsrand(S)		srand(S)
+#define HDsrandom(S)		srand(S)
 #endif
 /* sscanf() variable arguments */
-
-
-#ifdef WIN32
-     #ifdef __MWERKS__
-     #define HDstat(S,B)   stat(S,B)
-     #else /*MSVC*/
-     #define HDstat(S,B)		_stati64(S,B)
-     #endif
-#else
-#define HDstat(S,B)  stat(S,B)
-#endif
 
 #define HDstrcat(X,Y)		strcat(X,Y)
 #define HDstrchr(S,C)		strchr(S,C)
@@ -849,7 +863,7 @@ H5_DLL int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDumask(N)		umask(N)
 #define HDuname(S)		uname(S)
 #define HDungetc(C,F)		ungetc(C,F)
-#ifdef WIN32
+#ifdef _WIN32
 #define HDunlink(S)             _unlink(S)
 #else
 #define HDunlink(S)		unlink(S)
@@ -858,11 +872,12 @@ H5_DLL int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDva_arg(A,T)		va_arg(A,T)
 #define HDva_end(A)		va_end(A)
 #define HDva_start(A,P)		va_start(A,P)
+#define HDvasprintf(RET,FMT,A)  vasprintf(RET,FMT,A)
 #define HDvfprintf(F,FMT,A)	vfprintf(F,FMT,A)
 #define HDvprintf(FMT,A)	vprintf(FMT,A)
 #define HDvsprintf(S,FMT,A)	vsprintf(S,FMT,A)
-#ifdef WIN32
-#define HDvsnprintf(S,N,FMT,A) _vsnprintf(S,N,FMT,A)
+#ifdef _WIN32
+#   define HDvsnprintf(S,N,FMT,A) _vsnprintf(S,N,FMT,A)
 #else
 #   define HDvsnprintf(S,N,FMT,A) vsnprintf(S,N,FMT,A)
 #endif
@@ -884,9 +899,9 @@ H5_DLL int64_t HDstrtoll (const char *s, const char **rest, int base);
  * And now for a couple non-Posix functions...  Watch out for systems that
  * define these in terms of macros.
  */
-#ifdef WIN32
+#ifdef _WIN32
 #define HDstrdup(S)    _strdup(S)
-#else /* WIN32 */
+#else /* _WIN32 */
 
 #if !defined strdup && !defined H5_HAVE_STRDUP
 extern char *strdup(const char *s);
@@ -894,15 +909,8 @@ extern char *strdup(const char *s);
 
 #define HDstrdup(S)     strdup(S)
 
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
-
-#ifndef H5_HAVE_SNPRINTF
-H5_DLL int HDsnprintf(char *buf, size_t size, const char *fmt, ...);
-#endif
-#ifndef H5_HAVE_VSNPRINTF
-H5_DLL int HDvsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
-#endif
 
 /*
  * These macros check whether debugging has been requested for a certain
@@ -948,7 +956,6 @@ typedef struct H5_debug_t {
 
 extern H5_debug_t		H5_debug_g;
 #define H5DEBUG(X)		(H5_debug_g.pkg[H5_PKG_##X].stream)
-extern char H5libhdf5_settings[];	/* embedded library information */
 
 /*-------------------------------------------------------------------------
  * Purpose:	These macros are inserted automatically just after the
@@ -1109,17 +1116,17 @@ extern hbool_t H5_libinit_g;    /* Has the library been initialized? */
 
 #endif /* H5_HAVE_THREADSAFE */
 
-#ifdef H5_HAVE_FUNCSTACK
+#ifdef H5_HAVE_CODESTACK
 
 /* Include required function stack header */
-#include "H5FSprivate.h"
+#include "H5CSprivate.h"
 
-#define H5_PUSH_FUNC(func_name) H5FS_push(#func_name)
-#define H5_POP_FUNC             H5FS_pop()
-#else /* H5_HAVE_FUNCSTACK */
+#define H5_PUSH_FUNC(func_name) H5CS_push(#func_name)
+#define H5_POP_FUNC             H5CS_pop()
+#else /* H5_HAVE_CODESTACK */
 #define H5_PUSH_FUNC(func_name) /* void */
 #define H5_POP_FUNC             /* void */
-#endif /* H5_HAVE_FUNCSTACK */
+#endif /* H5_HAVE_CODESTACK */
 
 #ifdef H5_HAVE_MPE
 extern hbool_t H5_MPEinit_g;   /* Has the MPE Library been initialized? */
@@ -1153,12 +1160,23 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
 #endif /* H5_INTERFACE_INIT_FUNC */
 
 
+#ifndef NDEBUG
 #define FUNC_ENTER_COMMON_NOFUNC(func_name,asrt)                              \
-   /* Check API status */               				      \
-   assert(asrt);				                              \
+    static hbool_t func_check = FALSE;          			      \
 									      \
-   /* Check function name */               				      \
-   H5_CHECK_FUNCNAME(func_name);
+    if(!func_check) {			   				      \
+        /* Check API status */               				      \
+        HDassert(asrt);				                              \
+									      \
+        /* Check function name */               			      \
+        H5_CHECK_FUNCNAME(func_name);					      \
+									      \
+        /* Don't check again */                 			      \
+        func_check = TRUE;						      \
+    } /* end if */
+#else /* NDEBUG */
+#define FUNC_ENTER_COMMON_NOFUNC(func_name,asrt)
+#endif /* NDEBUG */
 
 #define FUNC_ENTER_COMMON(func_name,asrt)                                     \
     static const char FUNC[]=#func_name;                                      \
@@ -1190,7 +1208,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
     FUNC_ENTER_API_THREADSAFE;                                                \
     FUNC_ENTER_API_COMMON(func_name,err);		                      \
     /* Clear thread error stack entering public functions */		      \
-    H5E_clear();						              \
+    H5E_clear_stack(NULL);				                      \
     {
 
 /*
@@ -1207,7 +1225,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
 /*
  * Use this macro for API functions that shouldn't perform _any_ initialization
  *      of the library or an interface, just perform tracing, etc.  Examples
- *      are: H5check_version, H5Eget_major, H5Eget_minor, etc.
+ *      are: H5check_version, etc.
  *
  */
 #define FUNC_ENTER_API_NOINIT(func_name) {{                                   \
@@ -1222,7 +1240,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
  * Use this macro for API functions that shouldn't perform _any_ initialization
  *      of the library or an interface or push themselves on the function
  *      stack, just perform tracing, etc.  Examples
- *      are: H5close, etc.
+ *      are: H5close, H5check_version, etc.
  *
  */
 #define FUNC_ENTER_API_NOINIT_NOFS(func_name) {{                              \
@@ -1277,7 +1295,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
 /*
  * Use this macro for non-API functions which fall into these categories:
  *      - functions which shouldn't push their name on the function stack
- *              (so far, just the H5FS routines themselves)
+ *              (so far, just the H5CS routines themselves)
  *
  * This macro is used for functions which fit the above categories _and_
  * also don't use the 'FUNC' variable (i.e. don't push errors on the error stack)
@@ -1304,6 +1322,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
                                                                               \
    BEGIN_MPE_LOG(func_name)
 
+/* Note: this macro only works when there's _no_ interface initialization routine for the module */
 #define FUNC_ENTER_NOAPI_INIT(func_name,err)			       	      \
    /* Initialize the interface, if appropriate */		              \
    H5_INTERFACE_INIT(err)						      \
@@ -1323,7 +1342,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
  *	The pablo mask comes from the constant PABLO_MASK defined on a
  *	per-file basis.	 The pablo_func_id comes from an auto variable
  *	defined by FUNC_ENTER.
- *      PABLO was removed on January 20, 2005 EIP
+ *      PABLO was deleted on January 21, 2005 EIP
  *
  *-------------------------------------------------------------------------
  */
@@ -1359,7 +1378,7 @@ static herr_t		H5_INTERFACE_INIT_FUNC(void);
 /*
  * Use this macro for non-API functions which fall into these categories:
  *      - functions which didn't push their name on the function stack
- *              (so far, just the H5FS routines themselves)
+ *              (so far, just the H5CS routines themselves)
  */
 #define FUNC_LEAVE_NOAPI_NOFS(ret_value)                                      \
         return (ret_value);						      \
@@ -1379,14 +1398,28 @@ H5_DLL void H5_term_library(void);
 H5_DLL int H5A_term_interface(void);
 H5_DLL int H5AC_term_interface(void);
 H5_DLL int H5D_term_interface(void);
+H5_DLL int H5E_term_interface(void);
 H5_DLL int H5F_term_interface(void);
+H5_DLL int H5FS_term_interface(void);
 H5_DLL int H5G_term_interface(void);
 H5_DLL int H5I_term_interface(void);
+H5_DLL int H5L_term_interface(void);
 H5_DLL int H5P_term_interface(void);
 H5_DLL int H5R_term_interface(void);
 H5_DLL int H5S_term_interface(void);
 H5_DLL int H5T_term_interface(void);
 H5_DLL int H5Z_term_interface(void);
 
-#endif
+/* Checksum functions */
+H5_DLL uint32_t H5_checksum_fletcher32(const void *data, size_t len);
+H5_DLL uint32_t H5_checksum_crc(const void *data, size_t len);
+H5_DLL uint32_t H5_checksum_lookup3(const void *data, size_t len, uint32_t initval);
+H5_DLL uint32_t H5_checksum_metadata(const void *data, size_t len, uint32_t initval);
+H5_DLL uint32_t H5_hash_string(const char *str);
+
+/* Functions for debugging */
+H5_DLL herr_t H5_buffer_dump(FILE *stream, int indent, uint8_t *buf,
+    uint8_t *marker, size_t buf_offset, size_t buf_size);
+
+#endif /* _H5private_H */
 

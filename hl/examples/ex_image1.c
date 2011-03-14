@@ -13,10 +13,11 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "H5IM.h"
+#include "hdf5.h"
+#include "hdf5_hl.h"
 
-#define WIDTH         (hsize_t)400
-#define HEIGHT        (hsize_t)200
+#define WIDTH         400
+#define HEIGHT        200
 #define PAL_ENTRIES   9
 unsigned char buf [ WIDTH*HEIGHT ];
 
@@ -25,7 +26,7 @@ int main( void )
  hid_t         file_id;
  herr_t        status;
  hsize_t       pal_dims[] = {PAL_ENTRIES,3};
- size_t       i, j;
+ size_t        i, j;
  int           n, space;
  unsigned char pal[PAL_ENTRIES*3] = {  /* create a palette with 9 colors */
  0,0,168,      /* dark blue */
@@ -37,7 +38,7 @@ int main( void )
  252,252,84,   /* yellow */
  252,168,0,    /* orange */
  252,0,0};     /* red */
- 
+
  /* create an image of 9 values divided evenly by the array */
  space = WIDTH*HEIGHT / PAL_ENTRIES;
  for (i=0, j=0, n=0; i < WIDTH*HEIGHT; i++, j++ )
@@ -50,22 +51,22 @@ int main( void )
   }
   if (n>PAL_ENTRIES-1) n=0;
  }
- 
+
  /* create a new HDF5 file using default properties. */
  file_id = H5Fcreate( "ex_image1.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT );
- 
+
  /* make the image */
- status = H5IMmake_image_8bit( file_id, "image1", WIDTH, HEIGHT, buf );
- 
+ status = H5IMmake_image_8bit( file_id, "image1", (hsize_t)WIDTH, (hsize_t)HEIGHT, buf );
+
  /* make a palette */
  status = H5IMmake_palette( file_id, "pallete", pal_dims, pal );
- 
+
  /* attach the palette to the image */
  status = H5IMlink_palette( file_id, "image1", "pallete" );
- 
+
  /* close the file. */
  status = H5Fclose( file_id );
- 
+
  return 0;
- 
+
 }

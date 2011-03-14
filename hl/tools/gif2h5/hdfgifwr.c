@@ -172,7 +172,7 @@ static unsigned long cur_accum = 0;
 static int           cur_bits = 0;
 
 #define MAXCODE(n_bits)     ( (1 << (n_bits)) - 1)
-#ifndef WIN32
+#ifndef _WIN32
 #define min(a,b)        ((a>b) ? b : a)
 #endif
 #define XV_BITS 12    /* BITS was already defined on some systems */
@@ -516,7 +516,7 @@ flush_char(void)
 {
     if (a_count > 0) {
         fputc( a_count, g_outfile );
-        fwrite( accum, 1, (size_t)a_count, g_outfile);
+        fwrite( accum, (size_t)1, (size_t)a_count, g_outfile);
         a_count = 0;
     }
 }

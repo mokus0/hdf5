@@ -30,27 +30,11 @@
 #include "H5Iprivate.h"
 #include "H5Pprivate.h"
 
-/* Macros for printing error messages in loops.  These print up to
- * GHEAP_REPEATED_ERR_LIM errors, and suppress the rest */
-#define GHEAP_REPEATED_ERR_LIM 20
-
-#define GHEAP_REPEATED_ERR(MSG)                                                \
-{                                                                              \
-    nerrors++;                                                                 \
-    if(nerrors <= GHEAP_REPEATED_ERR_LIM) {                                    \
-        H5_FAILED();                                                           \
-        puts(MSG);                                                             \
-        if(nerrors == GHEAP_REPEATED_ERR_LIM)                                  \
-            puts("    Suppressing further errors...");                         \
-    } /* end if */                                                             \
-} /* end GHEAP_REPEATED_ERR */
-
 const char *FILENAME[] = {
     "gheap1",
     "gheap2",
     "gheap3",
     "gheap4",
-    "gheapooo",
     NULL
 };
 
@@ -106,7 +90,7 @@ test_1 (hid_t fapl)
     for (i=0; i<1024; i++) {
 	size = i+1;
 	memset (out, 'A'+i%26, size);
-	H5Eclear ();
+	H5Eclear2(H5E_DEFAULT);
 	status = H5HG_insert (f, H5P_DATASET_XFER_DEFAULT, size, out, obj+i);
 	if (status<0) {
 	    H5_FAILED();
@@ -125,8 +109,8 @@ test_1 (hid_t fapl)
     for (i=0; i<1024; i++) {
 	size = i+1;
 	memset (out, 'A'+i%26, size);
-	H5Eclear ();
-	if (NULL==H5HG_read (f, H5P_DATASET_XFER_DEFAULT, obj+i, in)) {
+	H5Eclear2(H5E_DEFAULT);
+	if (NULL==H5HG_read (f, H5P_DATASET_XFER_DEFAULT, obj+i, in, NULL)) {
 	    H5_FAILED();
 	    puts("    Unable to read object");
 	    nerrors++;
@@ -198,7 +182,7 @@ test_2 (hid_t fapl)
     for (i=0; i<1024; i++) {
 	size = 1024-i;
 	memset (out, 'A'+i%26, size);
-	H5Eclear ();
+	H5Eclear2(H5E_DEFAULT);
 	if (H5HG_insert (f, H5P_DATASET_XFER_DEFAULT, size, out, obj+i)<0) {
 	    H5_FAILED();
 	    puts("    Unable to insert object into global heap");
@@ -212,8 +196,8 @@ test_2 (hid_t fapl)
     for (i=0; i<1024; i++) {
 	size = 1024-i;
 	memset (out, 'A'+i%26, size);
-	H5Eclear ();
-	if (NULL==H5HG_read (f, H5P_DATASET_XFER_DEFAULT, obj+i, in)) {
+	H5Eclear2(H5E_DEFAULT);
+	if (NULL==H5HG_read (f, H5P_DATASET_XFER_DEFAULT, obj+i, in, NULL)) {
 	    H5_FAILED();
 	    puts("    Unable to read object");
 	    nerrors++;
@@ -283,7 +267,7 @@ test_3 (hid_t fapl)
     for (i=0; i<1024; i++) {
 	size = i%30+100;
 	memset (out, 'A'+i%26, size);
-	H5Eclear ();
+	H5Eclear2(H5E_DEFAULT);
 	status = H5HG_insert (f, H5P_DATASET_XFER_DEFAULT, size, out, obj+i);
 	if (status<0) {
 	    H5_FAILED();
@@ -362,7 +346,7 @@ test_4 (hid_t fapl)
 	/* Insert */
 	size = i%30+100;
 	memset (out, 'A'+i%26, size);
-	H5Eclear ();
+	H5Eclear2(H5E_DEFAULT);
 	status = H5HG_insert (f, H5P_DATASET_XFER_DEFAULT, size, out, obj+i);
 	if (status<0) {
 	    H5_FAILED();
@@ -376,7 +360,7 @@ test_4 (hid_t fapl)
 	 * remove B, insert D, E, F; remove E; etc.
 	 */
 	if (1==i%3) {
-	    H5Eclear ();
+	    H5Eclear2(H5E_DEFAULT);
 	    status = H5HG_remove (f, H5P_DATASET_XFER_DEFAULT, obj+i-1);
 	    if (status<0) {
 		H5_FAILED();
@@ -398,120 +382,6 @@ test_4 (hid_t fapl)
     } H5E_END_TRY;
     return MAX(1, nerrors);
 }
-
-
-/*-------------------------------------------------------------------------
- * Function:	test_ooo_indices
- *
- * Purpose:	Tests that indices can be stored out of order.  This can
- *              happen when the indices "wrap around" due to many
- *              insertions and deletions (for example, from rewriting a
- *              VL dataset).
- *
- * Return:	Success:	0
- *
- *		Failure:	number of errors
- *
- * Programmer:	Neil Fortner
- *              Monday, October 26, 2009
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static int
-test_ooo_indices(hid_t fapl)
-{
-    hid_t	file = -1;
-    H5F_t 	*f = NULL;
-    unsigned	i, j;
-    H5HG_t	*obj = NULL;
-    herr_t	status;
-    int		nerrors=0;
-    char	filename[1024];
-
-    TESTING("out of order indices");
-
-    if(NULL == (obj = (H5HG_t *)HDmalloc(2000 * sizeof(*obj))))
-        goto error;
-
-    /* Open a clean file */
-    h5_fixname(FILENAME[4], fapl, filename, sizeof filename);
-    if((file = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0)
-        goto error;
-    if(NULL == (f = (H5F_t *)H5I_object(file))) {
-        H5_FAILED();
-        puts("    Unable to create file");
-        goto error;
-    } /* end if */
-
-    /* Alternately insert 1000 entries and remove the previous group of 1000
-     * entries, until the indices wrap around */
-    for(i=0; i<66; i++) {
-        /* Insert 1000 entries.  The index into the obj array will alternate up
-         * and down by 1000 so the previous set of insertions is preserved and
-         * can be deleted. */
-        for(j=1000*((~i&1)); j<1000*((~i&1)+1); j++) {
-            H5Eclear();
-            status = H5HG_insert(f, H5P_DATASET_XFER_DEFAULT, sizeof(j), &j, &obj[j]);
-            if (status<0)
-                GHEAP_REPEATED_ERR("    Unable to insert object into global heap")
-
-            /* Check that the index is as expected */
-            if(obj[j].idx != ((1000 * i) + j - (1000 * ((~i & 1)))) % ((1u << 16) - 1) + 1)
-                GHEAP_REPEATED_ERR("    Unexpected global heap index");
-        } /* end for */
-
-        /* Remove the previous 1000 entries */
-        if(i>0)
-            for(j=1000*(i&1); j<1000*((i&1)+1); j++) {
-                H5Eclear();
-                status = H5HG_remove(f, H5P_DATASET_XFER_DEFAULT, &obj[j]);
-                if (status<0)
-                    GHEAP_REPEATED_ERR("    Unable to remove object from global heap");
-            } /* end for */
-    } /* end for */
-
-    /* The indices should have "wrapped around" on the last iteration */
-    HDassert(obj[534].idx == 65535);
-    HDassert(obj[535].idx == 1);
-
-    /* Reopen the file */
-    if (H5Fclose(file)<0) goto error;
-    if((file = H5Fopen(filename, H5F_ACC_RDWR, fapl)) < 0)
-        goto error;
-    if(NULL == (f = (H5F_t *)H5I_object(file))) {
-        H5_FAILED();
-        puts("    Unable to open file");
-        goto error;
-    } /* end if */
-
-    /* Read the objects to make sure the heap is still readable */
-    for(i=0; i<1000; i++) {
-        if(NULL == H5HG_read(f, H5P_DATASET_XFER_DEFAULT, &obj[i], &j))
-            goto error;
-        if(i != j) {
-            H5_FAILED();
-            puts("    Incorrect read value");
-            goto error;
-        } /* end if */
-    } /* end for */
-
-    if (H5Fclose(file)<0) goto error;
-    if (nerrors) goto error;
-    HDfree(obj);
-    obj = NULL;
-    PASSED();
-    return 0;
-
- error:
-    H5E_BEGIN_TRY {
-	H5Fclose(file);
-    } H5E_END_TRY;
-    if(obj)
-        HDfree(obj);
-    return MAX(1, nerrors);
-} /* end test_ooo_indices */
 
 
 /*-------------------------------------------------------------------------
@@ -543,7 +413,6 @@ main (void)
     nerrors += test_2(fapl);
     nerrors += test_3(fapl);
     nerrors += test_4(fapl);
-    nerrors += test_ooo_indices(fapl);
     if (nerrors) goto error;
 
     puts("All global heap tests passed.");

@@ -18,31 +18,317 @@
 #include "H5private.h"
 
 /*-------------------------------------------------------------------------
+ * local typedefs
+ *-------------------------------------------------------------------------
+ */
+typedef struct trav_addr_t {
+    size_t      nalloc;
+    size_t      nused;
+    struct {
+        haddr_t addr;
+        char *path;
+    } *objs;
+} trav_addr_t;
+
+typedef struct {
+    h5trav_obj_func_t visit_obj;        /* Callback for visiting objects */
+    h5trav_lnk_func_t visit_lnk;        /* Callback for visiting links */
+    void *udata;                /* User data to pass to callbacks */
+} trav_visitor_t;
+
+typedef struct {
+    trav_addr_t *seen;              /* List of addresses seen already */
+    const trav_visitor_t *visitor;  /* Information for visiting each link/object */
+} trav_ud_traverse_t;
+
+typedef struct {
+    hid_t fid;                      /* File ID being traversed */
+} trav_print_udata_t;
+
+/*-------------------------------------------------------------------------
  * local functions
  *-------------------------------------------------------------------------
  */
-static int traverse( hid_t loc_id,
-                     const char *group_name,
-                     trav_table_t *table,
-                     trav_info_t *info,
-                     int *idx,
-                     int print);
+static void trav_table_add(trav_table_t *table,
+                        const char *objname,
+                        const H5O_info_t *oinfo);
 
-static hssize_t get_nnames( hid_t loc_id,
-                            const char *group_name );
-
-static herr_t get_name_type( hid_t loc_id,
-                             const char *group_name,
-                             int idx,
-                             char **name,
-                             H5G_obj_t1 *type );
-
+static void trav_table_addlink(trav_table_t *table,
+                        haddr_t objno,
+                        const char *path);
 
 /*-------------------------------------------------------------------------
  * "h5trav info" public functions. used in h5diff
  *-------------------------------------------------------------------------
  */
 
+
+/*-------------------------------------------------------------------------
+ * Function: trav_addr_add
+ *
+ * Purpose: Add a hardlink address to visited data structure
+ *
+ * Return: void
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static void
+trav_addr_add(trav_addr_t *visited, haddr_t addr, const char *path)
+{
+    size_t idx;         /* Index of address to use */
+
+    /* Allocate space if necessary */
+    if(visited->nused == visited->nalloc) {
+        visited->nalloc = MAX(1, visited->nalloc * 2);;
+        visited->objs = HDrealloc(visited->objs, visited->nalloc * sizeof(visited->objs[0]));
+    } /* end if */
+
+    /* Append it */
+    idx = visited->nused++;
+    visited->objs[idx].addr = addr;
+    visited->objs[idx].path = HDstrdup(path);
+} /* end trav_addr_add() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_addr_visited
+ *
+ * Purpose: Check if an address has already been visited
+ *
+ * Return: TRUE/FALSE
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static const char *
+trav_addr_visited(trav_addr_t *visited, haddr_t addr)
+{
+    size_t u;           /* Local index variable */
+
+    /* Look for address */
+    for(u = 0; u < visited->nused; u++)
+        /* Check for address already in array */
+        if(visited->objs[u].addr == addr)
+            return(visited->objs[u].path);
+
+    /* Didn't find address */
+    return(NULL);
+} /* end trav_addr_visited() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: traverse_cb
+ *
+ * Purpose: Iterator callback for traversing objects in file
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static herr_t
+traverse_cb(hid_t loc_id, const char *path, const H5L_info_t *linfo,
+    void *_udata)
+{
+    trav_ud_traverse_t *udata = (trav_ud_traverse_t *)_udata;     /* User data */
+    char *full_name;
+    const char *already_visited = NULL; /* Whether the link/object was already visited */
+
+    /* Create the full path name for the link */
+    full_name = HDmalloc(HDstrlen(path) + 2);
+    *full_name = '/';
+    HDstrcpy(full_name + 1, path);
+
+    /* Perform the correct action for different types of links */
+    if(linfo->type == H5L_TYPE_HARD) {
+        H5O_info_t oinfo;
+
+        /* Get information about the object */
+        if(H5Oget_info_by_name(loc_id, path, &oinfo, H5P_DEFAULT) < 0)
+            return(H5_ITER_ERROR);
+
+        /* If the object has multiple links, add it to the list of addresses
+         *  already visited, if it isn't there already
+         */
+        if(oinfo.rc > 1)
+            if(NULL == (already_visited = trav_addr_visited(udata->seen, oinfo.addr)))
+                trav_addr_add(udata->seen, oinfo.addr, full_name);
+
+        /* Make 'visit object' callback */
+        if(udata->visitor->visit_obj)
+            (*udata->visitor->visit_obj)(full_name, &oinfo, already_visited, udata->visitor->udata);
+    } /* end if */
+    else {
+        /* Make 'visit link' callback */
+        if(udata->visitor->visit_lnk)
+            (*udata->visitor->visit_lnk)(full_name, linfo, udata->visitor->udata);
+    } /* end else */
+
+    HDfree(full_name);
+
+    return(H5_ITER_CONT);
+} /* end traverse_cb() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: traverse
+ *
+ * Purpose: Iterate over all the objects/links in a file.  Conforms to the
+ *      "visitor" pattern.
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+traverse(hid_t file_id, const char *grp_name, hbool_t visit_start,
+    hbool_t recurse, const trav_visitor_t *visitor)
+{
+    H5O_info_t  oinfo;          /* Object info for starting group */
+
+    /* Get info for starting object */
+    if(H5Oget_info_by_name(file_id, grp_name, &oinfo, H5P_DEFAULT) < 0)
+        return -1;
+
+    /* Visit the starting object */
+    if(visit_start && visitor->visit_obj)
+        (*visitor->visit_obj)(grp_name, &oinfo, NULL, visitor->udata);
+
+    /* Go visiting, if the object is a group */
+    if(oinfo.type == H5O_TYPE_GROUP) {
+        trav_addr_t seen;           /* List of addresses seen */
+        trav_ud_traverse_t udata;   /* User data for iteration callback */
+
+        /* Init addresses seen */
+        seen.nused = seen.nalloc = 0;
+        seen.objs = NULL;
+
+        /* Check for multiple links to top group */
+        if(oinfo.rc > 1)
+            trav_addr_add(&seen, oinfo.addr, grp_name);
+
+        /* Set up user data structure */
+        udata.seen = &seen;
+        udata.visitor = visitor;
+
+        /* Check for iteration of links vs. visiting all links recursively */
+        if(recurse) {
+            /* Visit all links in group, recursively */
+            if(H5Lvisit_by_name(file_id, grp_name, H5_INDEX_NAME, H5_ITER_INC, traverse_cb, &udata, H5P_DEFAULT) < 0)
+                return -1;
+        } /* end if */
+        else {
+            /* Iterate over links in group */
+            if(H5Literate_by_name(file_id, grp_name, H5_INDEX_NAME, H5_ITER_INC, NULL, traverse_cb, &udata, H5P_DEFAULT) < 0)
+                return -1;
+        } /* end else */
+
+        /* Free visited addresses table */
+        if(seen.objs) {
+            size_t u;       /* Local index variable */
+
+            /* Free paths to objects */
+            for(u = 0; u < seen.nused; u++)
+                HDfree(seen.objs[u].path);
+            HDfree(seen.objs);
+        } /* end if */
+    } /* end if */
+
+    return 0;
+}
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_info_add
+ *
+ * Purpose: Add a link path & type to info struct
+ *
+ * Return: void
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static void
+trav_info_add(trav_info_t *info, const char *path, h5trav_type_t obj_type)
+{
+    size_t idx;         /* Index of address to use  */
+
+    /* Allocate space if necessary */
+    if(info->nused == info->nalloc) {
+        info->nalloc = MAX(1, info->nalloc * 2);;
+        info->paths = (trav_path_t *)HDrealloc(info->paths, info->nalloc * sizeof(trav_path_t));
+    } /* end if */
+
+    /* Append it */
+    idx = info->nused++;
+    info->paths[idx].path = HDstrdup(path);
+    info->paths[idx].type = obj_type;
+} /* end trav_info_add() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_info_visit_obj
+ *
+ * Purpose: Callback for visiting object, with 'info' structure
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+trav_info_visit_obj(const char *path, const H5O_info_t *oinfo,
+    const char UNUSED *already_visited, void *udata)
+{
+    /* Add the object to the 'info' struct */
+    /* (object types map directly to "traversal" types) */
+    trav_info_add((trav_info_t *)udata, path, (h5trav_type_t)oinfo->type);
+
+    return(0);
+} /* end trav_info_visit_obj() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_info_visit_lnk
+ *
+ * Purpose: Callback for visiting link, with 'info' structure
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+trav_info_visit_lnk(const char *path, const H5L_info_t *linfo, void *udata)
+{
+    /* Add the link to the 'info' struct */
+    trav_info_add((trav_info_t *)udata, path, ((linfo->type == H5L_TYPE_SOFT) ? H5TRAV_TYPE_LINK : H5TRAV_TYPE_UDLINK));
+
+    return(0);
+} /* end trav_info_visit_lnk() */
+
+
 /*-------------------------------------------------------------------------
  * Function: h5trav_getinfo
  *
@@ -57,26 +343,21 @@ static herr_t get_name_type( hid_t loc_id,
  *
  *-------------------------------------------------------------------------
  */
-
-int h5trav_getinfo(hid_t file_id,
-                   trav_info_t *info,
-                   int print )
+int
+h5trav_getinfo(hid_t file_id, trav_info_t *info)
 {
+    trav_visitor_t info_visitor;        /* Visitor structure for trav_info_t's */
 
- trav_table_t  *table=NULL;
- int           nnames=0;
+    /* Init visitor structure */
+    info_visitor.visit_obj = trav_info_visit_obj;
+    info_visitor.visit_lnk = trav_info_visit_lnk;
+    info_visitor.udata = info;
 
- /* init table */
- trav_table_init( &table );
+    /* Traverse all objects in the file, visiting each object & link */
+    if(traverse(file_id, "/", TRUE, TRUE, &info_visitor) < 0)
+        return -1;
 
- /* iterate starting on the root group */
- if (( nnames = traverse( file_id, "/", table, info, &nnames, print )) < 0 )
-  return -1;
-
- /* free table */
- trav_table_free( table );
-
- return nnames;
+    return 0;
 }
 
 /*-------------------------------------------------------------------------
@@ -93,93 +374,165 @@ int h5trav_getinfo(hid_t file_id,
  *-------------------------------------------------------------------------
  */
 
-int h5trav_getindex( const char *obj, int nobjs, trav_info_t *info )
+ssize_t
+h5trav_getindex(const trav_info_t *info, const char *obj)
 {
- char *pdest;
- int  result;
- int  i;
+    size_t u;           /* Local index variable */
 
- for ( i = 0; i < nobjs; i++)
- {
-  if ( strcmp(obj,info[i].name)==0 )
-   return i;
+    /* Loop over all paths in 'info' struct, looking for object */
+    for(u = 0; u < info->nused; u++) {
+        /* Check for object name having full path (with leading '/') */
+        if(HDstrcmp(obj, info->paths[u].path) == 0)
+            return((ssize_t)u);
 
-  pdest  = strstr( info[i].name, obj );
-  result = (int)(pdest - info[i].name);
+        /* Check for object name without leading '/' */
+        if(HDstrcmp(obj, (info->paths[u].path + 1)) == 0)
+            return((ssize_t)u);
+    } /* end for */
 
-  /* found at position 1, meaning without '/' */
-  if( pdest != NULL && result==1 )
-   return i;
- }
- return -1;
-}
+    return((ssize_t)-1);
+} /* end h5trav_getindex() */
+
 
 /*-------------------------------------------------------------------------
- * Function: h5trav_freeinfo
+ * Function: trav_info_init
+ *
+ * Purpose: Initialize the info
+ *
+ * Return: void
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 6, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+
+void
+trav_info_init(trav_info_t **_info)
+{
+    trav_info_t *info = (trav_info_t *)HDmalloc(sizeof(trav_info_t));
+
+    /* Init info structure */
+    info->nused = info->nalloc = 0;
+    info->paths = NULL;
+
+    *_info = info;
+} /* end trav_info_init() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_info_free
  *
  * Purpose: free info memory
  *
  *-------------------------------------------------------------------------
  */
 
-void h5trav_freeinfo( trav_info_t *info, int nobjs )
+void
+trav_info_free(trav_info_t *info)
 {
- int i;
-    if ( info )
-    {
-        for ( i = 0; i < nobjs; i++)
-        {
-            if (info[i].name)
-            HDfree( info[i].name );
-        }
-        HDfree(info);
-    }
-}
+    size_t u;           /* Local index variable */
 
-/*-------------------------------------------------------------------------
- * Function: h5trav_printinfo
- *
- * Purpose: print list of names in file
- *
- * Return: void
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: May 9, 2003
- *
- *-------------------------------------------------------------------------
- */
-void h5trav_printinfo(int nobjs, trav_info_t *travi)
-{
- int i;
- for ( i = 0; i < nobjs; i++)
- {
-  switch ( travi[i].type )
-  {
-  case H5G_GROUP:
-   printf(" %-10s %s\n", "group", travi[i].name  );
-   break;
-  case H5G_DATASET:
-   printf(" %-10s %s\n", "dataset", travi[i].name );
-   break;
-  case H5G_TYPE:
-   printf(" %-10s %s\n", "datatype", travi[i].name );
-   break;
-  case H5G_LINK:
-   printf(" %-10s %s\n", "link", travi[i].name );
-   break;
- 
-  default:
-   printf(" %-10s %s\n", "User defined object", travi[i].name );
-   break;
-  }
- }
-}
+    if(info) {
+        /* Free path names */
+        for(u = 0; u < info->nused; u++)
+            HDfree(info->paths[u].path);
+        HDfree(info->paths);
+        HDfree(info);
+    } /* end if */
+} /* end trav_info_free() */
+
 
 /*-------------------------------------------------------------------------
  * "h5trav table" public functions. used in h5repack
  *-------------------------------------------------------------------------
  */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_table_visit_obj
+ *
+ * Purpose: Callback for visiting object, with 'table' sructure
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+trav_table_visit_obj(const char *path, const H5O_info_t *oinfo,
+    const char *already_visited, void *udata)
+{
+    trav_table_t *table = (trav_table_t *)udata;
+
+    /* Check if we've already seen this object */
+    if(NULL == already_visited)
+        /* add object to table */
+        trav_table_add(table, path, oinfo);
+    else
+        /* Add alias for object to table */
+        trav_table_addlink(table, oinfo->addr, path);
+
+    return(0);
+} /* end trav_table_visit_obj() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_table_visit_lnk
+ *
+ * Purpose: Callback for visiting link, with 'table' sructure
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 1, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+trav_table_visit_lnk(const char *path, const H5L_info_t UNUSED *linfo, void *udata)
+{
+    /* Add the link to the 'table' struct */
+    trav_table_add((trav_table_t *)udata, path, NULL);
+
+    return(0);
+} /* end trav_table_visit_lnk() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: h5trav_gettable
+ *
+ * Purpose: get the trav_table_t struct
+ *
+ * Return: 0, -1 on error
+ *
+ * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
+ *
+ * Date: December 17, 2003
+ *
+ *-------------------------------------------------------------------------
+ */
+
+int
+h5trav_gettable(hid_t fid, trav_table_t *table)
+{
+    trav_visitor_t table_visitor;       /* Visitor structure for trav_table_t's */
+
+    /* Init visitor structure */
+    table_visitor.visit_obj = trav_table_visit_obj;
+    table_visitor.visit_lnk = trav_table_visit_lnk;
+    table_visitor.udata = table;
+
+    /* Traverse all objects in the file, visiting each object & link */
+    if(traverse(fid, "/", TRUE, TRUE, &table_visitor) < 0)
+        return -1;
+    return 0;
+}
 
 /*-------------------------------------------------------------------------
  * Function: h5trav_getindext
@@ -195,479 +548,38 @@ void h5trav_printinfo(int nobjs, trav_info_t *travi)
  *-------------------------------------------------------------------------
  */
 
-int h5trav_getindext(const char *name, trav_table_t *table)
+int
+h5trav_getindext(const char *name, const trav_table_t *table)
 {
- char *pdest;
- int  result;
- unsigned int  i, j;
+    unsigned int i;
 
- for ( i = 0; i < table->nobjs; i++)
- {
-  if ( strcmp(name,table->objs[i].name)==0 )
-   return i;
+    for(i = 0; i < table->nobjs; i++) {
+        /* Check for object name having full path (with leading '/') */
+        if(HDstrcmp(name, table->objs[i].name) == 0)
+            return(i);
 
-  pdest  = strstr( table->objs[i].name, name );
-  result = (int)(pdest - table->objs[i].name);
+        /* Check for object name without leading '/' */
+        if(HDstrcmp(name, table->objs[i].name + 1) == 0)
+            return(i);
 
-  /* found at position 1, meaning without '/' */
-  if( pdest != NULL && result==1 && strlen(table->objs[i].name)-1==strlen(name))
-   return i;
+        /* search also in the list of links */
+        if(table->objs[i].nlinks) {
+            unsigned int j;
 
-  /* search also in the list of links */
-  if (table->objs[i].nlinks)
-  {
-   for ( j=0; j<table->objs[i].nlinks; j++)
-   {
-    if ( strcmp(name,table->objs[i].links[j].new_name)==0 )
-     return i;
+            for ( j=0; j<table->objs[i].nlinks; j++) {
+                /* Check for object name having full path (with leading '/') */
+                if(HDstrcmp(name, table->objs[i].links[j].new_name) == 0)
+                    return(i);
 
-    pdest  = strstr( table->objs[i].links[j].new_name, name );
-    result = (int)(pdest - table->objs[i].links[j].new_name);
+                /* Check for object name without leading '/' */
+                if(HDstrcmp(name, table->objs[i].links[j].new_name + 1) == 0)
+                    return(i);
+            } /* end for */
+        } /* end if */
+    } /* end for */
 
-    /* found at position 1, meaning without '/' */
-    if( pdest != NULL && result==1 )
-     return i;
-
-   }
-  }
-
- }
- return -1;
+    return -1;
 }
-
-/*-------------------------------------------------------------------------
- * Function: h5trav_gettable
- *
- * Purpose: get the trav_table_t struct
- *
- * Return: 0, -1 on error
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: December 17, 2003
- *
- *-------------------------------------------------------------------------
- */
-
-int h5trav_gettable(hid_t fid, trav_table_t *travt)
-{
- int nnames=0;
-
- /* iterate starting on the root group */
- if (( nnames = traverse(fid,"/",travt,NULL,&nnames,0))<0)
-  return -1;
-
- return 0;
-
-}
-
-/*-------------------------------------------------------------------------
- * Function: h5trav_printtable
- *
- * Purpose: print list of objects in file
- *
- * Return: void
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: May 9, 2003
- *
- *-------------------------------------------------------------------------
- */
-void h5trav_printtable(trav_table_t *table)
-{
- unsigned int i, j;
-
- for ( i = 0; i < table->nobjs; i++)
- {
-  switch ( table->objs[i].type )
-  {
-  case H5G_GROUP:
-   printf(" %-10s %s\n", "group", table->objs[i].name  );
-   break;
-  case H5G_DATASET:
-   printf(" %-10s %s\n", "dataset", table->objs[i].name );
-   break;
-  case H5G_TYPE:
-   printf(" %-10s %s\n", "datatype", table->objs[i].name );
-   break;
-  case H5G_LINK:
-   printf(" %-10s %s\n", "link", table->objs[i].name );
-   break;
-  default:
-   printf(" %-10s %s\n", "User defined object", table->objs[i].name );
-   break;
-  }
-
-  if (table->objs[i].nlinks)
-  {
-   for ( j=0; j<table->objs[i].nlinks; j++)
-   {
-    printf(" %-10s %s\n", "    hardlink", table->objs[i].links[j].new_name );
-   }
-  }
-
- }
-}
-
-
-/*-------------------------------------------------------------------------
- * Function: get_nnames
- *
- * Purpose:  Counts the number of names in the group GROUP_NAME
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: October 10, 2002
- *
- * Return:
- *     Success: The return value of the first operator that
- *              returns non-zero, or zero if all members were
- *              processed with no operator returning non-zero.
- *
- *     Failure: Negative if something goes wrong within the
- *              library, or the negative value returned by one
- *              of the operators.
- *
- *-------------------------------------------------------------------------
- */
-
-static hssize_t get_nnames( hid_t loc_id, const char *group_name )
-{
-    hid_t gid;
-    hsize_t nobjs = 0;
-
-    /* Open the group */
-    if((gid = H5Gopen(loc_id, group_name)) < 0)
-        return(-1);
-
-    /* Retrieve the number of objects in it */
-    if(H5Gget_num_objs(gid, &nobjs) < 0)
-        return(-1);
-
-    /* Close the group */
-    if(H5Gclose(gid) < 0)
-        return(-1);
-
-    return((hssize_t)nobjs);
-}
-
-
-/*-------------------------------------------------------------------------
- * Function: opget_info
- *
- * Purpose: operator function
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: October 10, 2002
- *
- * Comments:
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-
-static herr_t opget_info( hid_t loc_id, const char *name, void *op_data)
-{
-
- H5G_stat_t statbuf;
-
- if (H5Gget_objinfo( loc_id, name, FALSE, &statbuf) < 0 )
-  return -1;
-
- ((trav_info_t *)op_data)->type = statbuf.type;
- ((trav_info_t *)op_data)->name = (char *)HDstrdup(name);
-
- /* Define 1 for return. This will cause the iterator to stop */
- return 1;
-}
-
-
-/*-------------------------------------------------------------------------
- * Function: get_name_type
- *
- * Purpose:
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: October 10, 2002
- *
- * Return:
- *     Success: The return value of the first operator that
- *              returns non-zero, or zero if all members were
- *              processed with no operator returning non-zero.
- *
- *     Failure: Negative if something goes wrong within the
- *              library, or the negative value returned by one
- *              of the operators.
- *
- *-------------------------------------------------------------------------
- */
-
-static herr_t get_name_type( hid_t loc_id,
-                             const char *group_name,
-                             int idx,
-                             char **name,
-                             H5G_obj_t1 *type )
-{
-
- trav_info_t info;
-
- if (H5Giterate( loc_id, group_name, &idx, opget_info, (void *)&info) < 0 )
-  return -1;
-
- *name = info.name;
- *type = info.type;
-
- return 0;
-}
-
-/*-------------------------------------------------------------------------
- * Function: traverse
- *
- * Purpose: recursive function that searches HDF5 objects in LOC_ID
- *
- * Return: number of objects found in LOC_ID
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: November 4, 2002
- *
- *-------------------------------------------------------------------------
- */
-
-static int traverse( hid_t loc_id,
-                     const char *group_name,
-                     trav_table_t *table,
-                     trav_info_t *info,
-                     int *idx,
-                     int print)
-{
- haddr_t       objno;              /* Compact form of object's location */
- char          *name=NULL;
- H5G_obj_t1    type;
- int           n_names;
- char          *path=NULL;
- H5G_stat_t    statbuf;
- int           inserted_objs=0;
- int           i, j;
-
- /* get the number of names */
- if (( n_names = (int)get_nnames( loc_id, group_name )) < 0 )
-  return -1;
-
- for ( i = 0; i < n_names; i++)
- {
-  if (get_name_type( loc_id, group_name, i, &name, &type ) < 0 )
-   return -1;
-
-  /* allocate path buffer */
-  path = (char*) HDmalloc(HDstrlen(group_name) + HDstrlen(name) + 2);
-
-  /* initialize path */
-  HDstrcpy( path, group_name );
-  if ( HDstrcmp(group_name, "/") != 0 )
-   HDstrcat( path, "/" );
-  HDstrcat( path, name );
-
-  /* disable error reporting */
-  H5E_BEGIN_TRY {
-
-  /* get info */
-   H5Gget_objinfo( loc_id, path, FALSE, &statbuf);
-  } H5E_END_TRY;
-  objno = (haddr_t)statbuf.objno[0] | ((haddr_t)statbuf.objno[1] << (8 * sizeof(long)));
-
-  /* add to array */
-  if ( info )
-  {
-   info[*idx].name = (char *)HDstrdup(path);
-   info[*idx].type = type;
-   (*idx)++;
-  }
-
-
-  switch ( type )
-  {
-
-  /*-------------------------------------------------------------------------
-   * H5G_GROUP
-   *-------------------------------------------------------------------------
-   */
-
-  case H5G_GROUP:
-
-    /* increment */
-   inserted_objs++;
-
-   /* nlink is number of hard links to object */
-   if (statbuf.nlink > 0  && trav_table_search(objno, table ) == -1)
-   {
-    /* add object to table */
-    trav_table_add(objno, path, H5G_GROUP, table );
-
-    /* print it */
-    if (print)
-     printf(" %-10s %s\n", "group", path  );
-
-    /* recurse with the absolute name */
-    inserted_objs += traverse( loc_id, path, table, info, idx, print );
-   }
-
-     /* search table
-       group with more than one link to it */
-   if (statbuf.nlink > 1)
-   {
-    if ((j = trav_table_search(objno, table )) < 0 )
-     return -1;
-
-    trav_table_addlink(table,j,path);
-
-    if ( table->objs[j].displayed == 0 )
-    {
-     table->objs[j].displayed = 1;
-    }
-    else
-    {
-     /* print it */
-     if (print)
-      printf(" %-10s %s %s %s\n", "group", path, "->", table->objs[j].name  );
-    }
-
-   }
-
-   break;
-
-  /*-------------------------------------------------------------------------
-   * H5G_DATASET
-   *-------------------------------------------------------------------------
-   */
-
-  case H5G_DATASET:
-
-    /* increment */
-   inserted_objs++;
-
-   /* nlink is number of hard links to object */
-   if (statbuf.nlink > 0  && trav_table_search(objno, table ) == -1)
-   {
-    /* add object to table */
-    trav_table_add(objno, path, H5G_DATASET, table );
-
-    /* print it */
-    if (print)
-     printf(" %-10s %s\n", "dataset", path  );
-   }
-
-   /* search table
-       dataset with more than one link to it */
-   if (statbuf.nlink > 1)
-   {
-    if ((j = trav_table_search(objno, table )) < 0 )
-     return -1;
-
-    trav_table_addlink(table,j,path);
-
-    if ( table->objs[j].displayed == 0 )
-    {
-     table->objs[j].displayed = 1;
-    }
-    else
-    {
-     /* print it */
-     if (print)
-      printf(" %-10s %s %s %s\n", "dataset", path, "->", table->objs[j].name  );
-    } /* displayed==1 */
-   } /* nlink>1 */
-
-
-   break;
-
-  /*-------------------------------------------------------------------------
-   * H5G_TYPE
-   *-------------------------------------------------------------------------
-   */
-
-  case H5G_TYPE:
-
-   /* increment */
-   inserted_objs++;
-
-   /* nlink is number of hard links to object */
-   if (statbuf.nlink > 0  && trav_table_search(objno, table ) == -1)
-   {
-    /* add object to table */
-    trav_table_add(objno, path, H5G_TYPE, table );
-
-     /* print it */
-    if (print)
-     printf(" %-10s %s\n", "datatype", path  );
-   }
-
-   break;
-
-
-  /*-------------------------------------------------------------------------
-   * H5G_LINK
-   *-------------------------------------------------------------------------
-   */
-
-  case H5G_LINK:
-  {
-    /* increment */
-    inserted_objs++;
-
-    /* add object to table */
-    trav_table_add(HADDR_UNDEF, path, H5G_LINK, table );
-
-    if (statbuf.linklen>0)
-    {
-     char *targbuf;
-
-     targbuf = HDmalloc(statbuf.linklen);
-     assert(targbuf);
-     H5Gget_linkval(loc_id,path,statbuf.linklen,targbuf);
-     if (print)
-      printf(" %-10s %s -> %s\n", "link", path, targbuf);
-     free(targbuf);
-    }
-    else
-    {
-     if (print)
-      printf(" %-10s %s ->\n", "link", path);
-    }
-   }
-
-   break;
-
-  
-
-
-  default:
-    HDfprintf(stderr, "traverse: Unknown object %d!\n", type);
-    return (-1);
-   break;
-
-  }
-
-  /*-------------------------------------------------------------------------
-   * end switch
-   *-------------------------------------------------------------------------
-   */
-
-  if ( name )
-   HDfree( name );
-
-  if ( path )
-   HDfree( path );
-
- } /* i */
-
- return inserted_objs;
-}
-
 
 /*-------------------------------------------------------------------------
  * Function: trav_table_search
@@ -683,15 +595,15 @@ static int traverse( hid_t loc_id,
  *-------------------------------------------------------------------------
  */
 
-int trav_table_search(haddr_t objno, trav_table_t *table )
+static size_t
+trav_table_search(const trav_table_t *table, haddr_t objno)
 {
- unsigned int i;
+    size_t i;
 
- for (i = 0; i < table->nobjs; i++)
-  if (table->objs[i].objno == objno)
-   return i;
-
-  return -1;
+    for(i = 0; i < table->nobjs; i++)
+        if(table->objs[i].objno == objno)
+            return(i);
+    return(i);
 }
 
 
@@ -709,39 +621,72 @@ int trav_table_search(haddr_t objno, trav_table_t *table )
  *-------------------------------------------------------------------------
  */
 
-void trav_table_add(haddr_t objno,
-                    char *name,
-                    H5G_obj_t1 type,
-                    trav_table_t *table)
+static void
+trav_table_add(trav_table_t *table,
+                    const char *path,
+                    const H5O_info_t *oinfo)
 {
- unsigned int i;
+    size_t new;
 
- if (table->nobjs == table->size) {
-  table->size *= 2;
-  table->objs =
-   (trav_obj_t*)HDrealloc(table->objs, table->size * sizeof(trav_obj_t));
+    if(table->nobjs == table->size) {
+        table->size = MAX(1, table->size * 2);
+        table->objs = (trav_obj_t*)HDrealloc(table->objs, table->size * sizeof(trav_obj_t));
+    } /* end if */
 
-  for (i = table->nobjs; i < table->size; i++) {
-   table->objs[i].objno = 0;
-   table->objs[i].flags[0] = table->objs[i].flags[1] = 0;
-   table->objs[i].displayed = 0;
-   table->objs[i].type = H5G_UNKNOWN;
-   table->objs[i].name = NULL;
-   table->objs[i].links = NULL;
-   table->objs[i].nlinks = 0;
-   table->objs[i].sizelinks = 0;
-  }
- }
-
- i = table->nobjs++;
- table->objs[i].objno = objno;
- table->objs[i].flags[0] = table->objs[i].flags[1] = 0;
- HDfree(table->objs[i].name);
- table->objs[i].name = (char *)HDstrdup(name);
- table->objs[i].type = type;
- table->objs[i].links = NULL;
- table->objs[i].nlinks = 0;
+    new = table->nobjs++;
+    table->objs[new].objno = oinfo ? oinfo->addr : HADDR_UNDEF;
+    table->objs[new].flags[0] = table->objs[new].flags[1] = 0;
+    table->objs[new].name = (char *)HDstrdup(path);
+    table->objs[new].type = oinfo ? (h5trav_type_t)oinfo->type : H5TRAV_TYPE_LINK;
+    table->objs[new].nlinks = 0;
+    table->objs[new].sizelinks = 0;
+    table->objs[new].links = NULL;
 }
+
+/*-------------------------------------------------------------------------
+ * Function: trav_table_addlink
+ *
+ * Purpose: Add a hardlink name to the object
+ *
+ * Return: void
+ *
+ * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
+ *
+ * Date: December 17, 2003
+ *
+ *-------------------------------------------------------------------------
+ */
+
+static void
+trav_table_addlink(trav_table_t *table, haddr_t objno, const char *path)
+{
+    size_t i;           /* Local index variable */
+
+    for(i = 0; i < table->nobjs; i++) {
+        if(table->objs[i].objno == objno) {
+            size_t n;
+
+            /* already inserted? */
+            if(HDstrcmp(table->objs[i].name, path) == 0)
+                return;
+
+            /* allocate space if necessary */
+            if(table->objs[i].nlinks == (unsigned)table->objs[i].sizelinks) {
+                table->objs[i].sizelinks = MAX(1, table->objs[i].sizelinks * 2);
+                table->objs[i].links = (trav_link_t*)HDrealloc(table->objs[i].links, table->objs[i].sizelinks * sizeof(trav_link_t));
+            } /* end if */
+
+            /* insert it */
+            n = table->objs[i].nlinks++;
+            table->objs[i].links[n].new_name = (char *)HDstrdup(path);
+
+            return;
+        } /* end for */
+    } /* end for */
+
+    HDassert(0 && "object not in table?!?");
+}
+
 
 
 /*-------------------------------------------------------------------------
@@ -760,37 +705,25 @@ void trav_table_add(haddr_t objno,
 
 void trav_table_addflags(unsigned *flags,
                          char *name,
-                         H5G_obj_t1 type,
+                         h5trav_type_t type,
                          trav_table_t *table)
 {
- unsigned int i;
+    unsigned int new;
 
- if (table->nobjs == table->size) {
-  table->size *= 2;
-  table->objs =
-   (trav_obj_t*)HDrealloc(table->objs, table->size * sizeof(trav_obj_t));
+    if(table->nobjs == table->size) {
+        table->size = MAX(1, table->size * 2);
+        table->objs = (trav_obj_t *)HDrealloc(table->objs, table->size * sizeof(trav_obj_t));
+    } /* end if */
 
-  for (i = table->nobjs; i < table->size; i++) {
-   table->objs[i].objno = 0;
-   table->objs[i].flags[0] = table->objs[i].flags[1] = 0;
-   table->objs[i].displayed = 0;
-   table->objs[i].type = H5G_UNKNOWN;
-   table->objs[i].name = NULL;
-   table->objs[i].links = NULL;
-   table->objs[i].nlinks = 0;
-   table->objs[i].sizelinks = 0;
-  }
- }
-
- i = table->nobjs++;
- table->objs[i].objno = 0;
- table->objs[i].flags[0] = flags[0];
- table->objs[i].flags[1] = flags[1];
- HDfree(table->objs[i].name);
- table->objs[i].name = (char *)HDstrdup(name);
- table->objs[i].type = type;
- table->objs[i].links = NULL;
- table->objs[i].nlinks = 0;
+    new = table->nobjs++;
+    table->objs[new].objno = 0;
+    table->objs[new].flags[0] = flags[0];
+    table->objs[new].flags[1] = flags[1];
+    table->objs[new].name = (char *)HDstrdup(name);
+    table->objs[new].type = type;
+    table->objs[new].nlinks = 0;
+    table->objs[new].sizelinks = 0;
+    table->objs[new].links = NULL;
 }
 
 
@@ -808,28 +741,15 @@ void trav_table_addflags(unsigned *flags,
  *-------------------------------------------------------------------------
  */
 
-void trav_table_init( trav_table_t **tbl )
+void trav_table_init(trav_table_t **tbl)
 {
- unsigned int i;
- trav_table_t* table = (trav_table_t*) HDmalloc(sizeof(trav_table_t));
+    trav_table_t* table = (trav_table_t*) HDmalloc(sizeof(trav_table_t));
 
- table->size = 20;
- table->nobjs = 0;
- table->objs =
-  (trav_obj_t*)HDmalloc(table->size * sizeof(trav_obj_t));
+    table->size = 0;
+    table->nobjs = 0;
+    table->objs = NULL;
 
- for (i = 0; i < table->size; i++) {
-  table->objs[i].objno = 0;
-  table->objs[i].flags[0] = table->objs[i].flags[1] = 0;
-  table->objs[i].displayed = 0;
-  table->objs[i].type = H5G_UNKNOWN;
-  table->objs[i].name = NULL;
-  table->objs[i].links = NULL;
-  table->objs[i].nlinks = 0;
-  table->objs[i].sizelinks = 0;
- }
-
- *tbl = table;
+    *tbl = table;
 }
 
 
@@ -850,68 +770,203 @@ void trav_table_init( trav_table_t **tbl )
 
 void trav_table_free( trav_table_t *table )
 {
- unsigned int i, j;
+    if(table->objs) {
+        unsigned int i;
 
- for ( i = 0; i < table->nobjs; i++)
- {
-  HDfree( table->objs[i].name );
-  if (table->objs[i].nlinks)
-  {
-   for ( j=0; j<table->objs[i].nlinks; j++)
-    HDfree( table->objs[i].links[j].new_name );
+        for(i = 0; i < table->nobjs; i++) {
+            HDfree(table->objs[i].name );
+            if(table->objs[i].nlinks) {
+                unsigned int j;
 
-   HDfree(table->objs[i].links);
-  }
- }
- HDfree(table->objs);
- HDfree(table);
+                for(j = 0; j < table->objs[i].nlinks; j++)
+                    HDfree(table->objs[i].links[j].new_name);
 
+                HDfree(table->objs[i].links);
+            } /* end if */
+        } /* end for */
+        HDfree(table->objs);
+    } /* end if */
+    HDfree(table);
 }
 
-
+
 /*-------------------------------------------------------------------------
- * Function: trav_table_addlink
+ * Function: trav_print_visit_obj
  *
- * Purpose: Add a hardlink name to the object
+ * Purpose: Callback for visiting object, when printing info
  *
- * Return: void
+ * Return: 0 on success, -1 on failure
  *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
  *
- * Date: December 17, 2003
+ * Date: September 6, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+trav_print_visit_obj(const char *path, const H5O_info_t *oinfo,
+    const char *already_visited, void UNUSED *udata)
+{
+    /* Print the name of the object */
+    /* (no new-line, so that objects that we've encountered before can print
+     *  the name of the original object)
+     */
+    switch(oinfo->type) {
+        case H5O_TYPE_GROUP:
+            printf(" %-10s %s", "group", path);
+            break;
+
+        case H5O_TYPE_DATASET:
+            printf(" %-10s %s", "dataset", path);
+            break;
+
+        case H5O_TYPE_NAMED_DATATYPE:
+            printf(" %-10s %s", "datatype", path);
+            break;
+
+        default:
+            printf(" %-10s %s", "unknown object type", path);
+            break;
+    } /* end switch */
+
+    /* Check if we've already seen this object */
+    if(NULL == already_visited)
+        /* Finish printing line about object */
+        printf("\n");
+    else
+        /* Print the link's original name */
+        printf(" -> %s\n", already_visited);
+
+    return(0);
+} /* end trav_print_visit_obj() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: trav_print_visit_lnk
+ *
+ * Purpose: Callback for visiting link, when printing info
+ *
+ * Return: 0 on success, -1 on failure
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 6, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+trav_print_visit_lnk(const char *path, const H5L_info_t *linfo, void *udata)
+{
+    trav_print_udata_t *print_udata = (trav_print_udata_t *)udata;
+
+    /* Print appropriate information for the type of link */
+    switch(linfo->type) {
+        case H5L_TYPE_SOFT:
+            if(linfo->u.val_size > 0) {
+                char *targbuf = HDmalloc(linfo->u.val_size + 1);
+                HDassert(targbuf);
+
+                H5Lget_val(print_udata->fid, path, targbuf, linfo->u.val_size + 1, H5P_DEFAULT);
+                printf(" %-10s %s -> %s\n", "link", path, targbuf);
+                free(targbuf);
+            } /* end if */
+            else
+                printf(" %-10s %s ->\n", "link", path);
+            break;
+
+        case H5L_TYPE_EXTERNAL:
+            if(linfo->u.val_size > 0) {
+                char *targbuf;
+                const char *filename;
+                const char *objname;
+
+                targbuf = HDmalloc(linfo->u.val_size + 1);
+                assert(targbuf);
+
+                H5Lget_val(print_udata->fid, path, targbuf, linfo->u.val_size + 1, H5P_DEFAULT);
+                H5Lunpack_elink_val(targbuf, linfo->u.val_size, NULL, &filename, &objname);
+                printf(" %-10s %s -> %s %s\n", "ext link", path, filename, objname);
+                free(targbuf);
+            } /* end if */
+            else
+                printf(" %-10s %s ->\n", "ext link", path);
+            break;
+
+        default:
+            printf(" %-10s %s -> ???\n", "unknown type of UD link", path);
+            break;
+    } /* end switch() */
+
+    return(0);
+} /* end trav_print_visit_lnk() */
+
+
+/*-------------------------------------------------------------------------
+ * Function: h5trav_print
+ *
+ * Purpose: Print information about the objects & links in the file
+ *
+ * Return: 0, -1 on error
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: September 6, 2007
  *
  *-------------------------------------------------------------------------
  */
 
-void trav_table_addlink(trav_table_t *table,
-                        int j /* the object index */,
-                        char *path )
+int
+h5trav_print(hid_t fid)
 {
- unsigned int k;
+    trav_print_udata_t print_udata;     /* User data for traversal */
+    trav_visitor_t print_visitor;       /* Visitor structure for printing objects */
 
- /* already inserted */
- if (strcmp(table->objs[j].name,path)==0)
-  return;
+    /* Init user data for printing */
+    print_udata.fid = fid;
 
- /* allocate space if necessary */
- if (table->objs[j].nlinks == (unsigned)table->objs[j].sizelinks) {
-  table->objs[j].sizelinks += 2;
-  table->objs[j].links =
-   (trav_link_t*)HDrealloc(table->objs[j].links,
-   table->objs[j].sizelinks * sizeof(trav_link_t));
- }
+    /* Init visitor structure */
+    print_visitor.visit_obj = trav_print_visit_obj;
+    print_visitor.visit_lnk = trav_print_visit_lnk;
+    print_visitor.udata = &print_udata;
 
- /* insert it */
- k=table->objs[j].nlinks++;
- table->objs[j].links[k].new_name = (char*)HDstrdup(path);
+    /* Traverse all objects in the file, visiting each object & link */
+    if(traverse(fid, "/", TRUE, TRUE, &print_visitor) < 0)
+        return -1;
+
+    return 0;
 }
 
+
+/*-------------------------------------------------------------------------
+ * Function: h5trav_visit
+ *
+ * Purpose: Generic traversal routine for visiting objects and links
+ *
+ * Return: 0, -1 on error
+ *
+ * Programmer: Quincey Koziol, koziol@hdfgroup.org
+ *
+ * Date: November 6, 2007
+ *
+ *-------------------------------------------------------------------------
+ */
 
+int
+h5trav_visit(hid_t fid, const char *grp_name, hbool_t visit_start,
+    hbool_t recurse, h5trav_obj_func_t visit_obj, h5trav_lnk_func_t visit_lnk,
+    void *udata)
+{
+    trav_visitor_t visitor;             /* Visitor structure for objects */
 
+    /* Init visitor structure */
+    visitor.visit_obj = visit_obj;
+    visitor.visit_lnk = visit_lnk;
+    visitor.udata = udata;
 
+    /* Traverse all objects in the file, visiting each object & link */
+    if(traverse(fid, grp_name, visit_start, recurse, &visitor) < 0)
+        return -1;
 
-
-
-
-
+    return 0;
+}
 

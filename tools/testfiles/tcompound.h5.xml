@@ -2,9 +2,9 @@
 Expected output for 'h5dump --xml tcompound.h5'
 #############################
 <?xml version="1.0" encoding="UTF-8"?>
-<hdf5:HDF5-File xmlns:hdf5="http://hdfgroup.org/DTDs/HDF5-File" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://hdfgroup.org/DTDs/HDF5-File http://www.hdfgroup.org/DTDs/HDF5-File.xsd">
-<hdf5:RootGroup OBJ-XID="xid_696-0" H5Path="/">
-   <hdf5:NamedDataType Name="#6632:0" OBJ-XID="xid_4294967294-4294967295" Parents="xid_696-0" H5ParentPaths="/">
+<hdf5:HDF5-File xmlns:hdf5="http://hdfgroup.org/DTDs/HDF5-File" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://hdfgroup.org/DTDs/HDF5File http://hdfgroup.org/DTDs/HDF5-File.xsd">
+<hdf5:RootGroup OBJ-XID="xid_696" H5Path="/">
+   <hdf5:NamedDataType Name="#6632" OBJ-XID="xid_18446744073709551614" Parents="xid_696" H5ParentPaths="/">
       <hdf5:DataType>
          <hdf5:CompoundType>
             <hdf5:Field FieldName="int">
@@ -24,58 +24,7 @@ Expected output for 'h5dump --xml tcompound.h5'
          </hdf5:CompoundType>
       </hdf5:DataType>
    </hdf5:NamedDataType>
-   <hdf5:NamedDataType Name="type1" OBJ-XID="xid_1424-0" H5Path="/type1" Parents="xid_696-0" H5ParentPaths="/">
-      <hdf5:DataType>
-         <hdf5:CompoundType>
-            <hdf5:Field FieldName="int_name">
-               <hdf5:DataType>
-                  <hdf5:AtomicType>
-                     <hdf5:IntegerType ByteOrder="BE" Sign="true" Size="4" />
-                  </hdf5:AtomicType>
-               </hdf5:DataType>
-            </hdf5:Field>
-            <hdf5:Field FieldName="float_name">
-               <hdf5:DataType>
-                  <hdf5:AtomicType>
-                     <hdf5:FloatType ByteOrder="BE" Size="4" SignBitLocation="31" ExponentBits="8" ExponentLocation="23" MantissaBits="23" MantissaLocation="0" />
-                  </hdf5:AtomicType>
-               </hdf5:DataType>
-            </hdf5:Field>
-         </hdf5:CompoundType>
-      </hdf5:DataType>
-   </hdf5:NamedDataType>
-   <hdf5:NamedDataType Name="type2" OBJ-XID="xid_2792-0" H5Path="/type2" Parents="xid_696-0" H5ParentPaths="/">
-      <hdf5:DataType>
-         <hdf5:CompoundType>
-            <hdf5:Field FieldName="int_array">
-               <hdf5:DataType>
-                  <hdf5:ArrayType Ndims="1">
-                     <hdf5:ArrayDimension DimSize="4" DimPerm="0"/>
-                     <hdf5:DataType>
-                        <hdf5:AtomicType>
-                           <hdf5:IntegerType ByteOrder="BE" Sign="true" Size="4" />
-                        </hdf5:AtomicType>
-                     </hdf5:DataType>
-                  </hdf5:ArrayType>
-               </hdf5:DataType>
-            </hdf5:Field>
-            <hdf5:Field FieldName="float_array">
-               <hdf5:DataType>
-                  <hdf5:ArrayType Ndims="2">
-                     <hdf5:ArrayDimension DimSize="5" DimPerm="0"/>
-                     <hdf5:ArrayDimension DimSize="6" DimPerm="1"/>
-                     <hdf5:DataType>
-                        <hdf5:AtomicType>
-                           <hdf5:FloatType ByteOrder="BE" Size="4" SignBitLocation="31" ExponentBits="8" ExponentLocation="23" MantissaBits="23" MantissaLocation="0" />
-                        </hdf5:AtomicType>
-                     </hdf5:DataType>
-                  </hdf5:ArrayType>
-               </hdf5:DataType>
-            </hdf5:Field>
-         </hdf5:CompoundType>
-      </hdf5:DataType>
-   </hdf5:NamedDataType>
-   <hdf5:Dataset Name="dset1" OBJ-XID="xid_744-0" H5Path= "/dset1" Parents="xid_696-0" H5ParentPaths="/">
+   <hdf5:Dataset Name="dset1" OBJ-XID="xid_744" H5Path= "/dset1" Parents="xid_696" H5ParentPaths="/">
       <hdf5:StorageLayout>
          <hdf5:ContiguousLayout/>
       </hdf5:StorageLayout>
@@ -121,28 +70,8 @@ Expected output for 'h5dump --xml tcompound.h5'
          </hdf5:DataFromFile>
       </hdf5:Data>
    </hdf5:Dataset>
-   <hdf5:Group Name="group1" OBJ-XID="xid_2104-0" H5Path="/group1" Parents="xid_696-0" H5ParentPaths="/" >
-      <hdf5:NamedDataType Name="type3" OBJ-XID="xid_5592-0" H5Path="/group1/type3" Parents="xid_2104-0" H5ParentPaths="/group1">
-         <hdf5:DataType>
-            <hdf5:CompoundType>
-               <hdf5:Field FieldName="int">
-                  <hdf5:DataType>
-                     <hdf5:AtomicType>
-                        <hdf5:IntegerType ByteOrder="BE" Sign="true" Size="4" />
-                     </hdf5:AtomicType>
-                  </hdf5:DataType>
-               </hdf5:Field>
-               <hdf5:Field FieldName="float">
-                  <hdf5:DataType>
-                     <hdf5:AtomicType>
-                        <hdf5:FloatType ByteOrder="BE" Size="4" SignBitLocation="31" ExponentBits="8" ExponentLocation="23" MantissaBits="23" MantissaLocation="0" />
-                     </hdf5:AtomicType>
-                  </hdf5:DataType>
-               </hdf5:Field>
-            </hdf5:CompoundType>
-         </hdf5:DataType>
-      </hdf5:NamedDataType>
-      <hdf5:Dataset Name="dset2" OBJ-XID="xid_2152-0" H5Path= "/group1/dset2" Parents="xid_2104-0" H5ParentPaths="/group1">
+   <hdf5:Group Name="group1" OBJ-XID="xid_2104" H5Path="/group1" Parents="xid_696" H5ParentPaths="/" >
+      <hdf5:Dataset Name="dset2" OBJ-XID="xid_2152" H5Path= "/group1/dset2" Parents="xid_2104" H5ParentPaths="/group1">
          <hdf5:StorageLayout>
             <hdf5:ContiguousLayout/>
          </hdf5:StorageLayout>
@@ -156,7 +85,7 @@ Expected output for 'h5dump --xml tcompound.h5'
                <hdf5:Dimension  DimSize="5" MaxDimSize="5"/>
             </hdf5:SimpleDataspace>
          </hdf5:Dataspace>
-         <hdf5:NamedDataTypePtr OBJ-XID="xid_1424-0" H5Path="/type1" />
+         <hdf5:NamedDataTypePtr OBJ-XID="xid_1424" H5Path="/type1" />
       <!-- Note: format of compound data not specified -->
          <hdf5:Data>
             <hdf5:DataFromFile>
@@ -164,7 +93,7 @@ Expected output for 'h5dump --xml tcompound.h5'
             </hdf5:DataFromFile>
          </hdf5:Data>
       </hdf5:Dataset>
-      <hdf5:Dataset Name="dset3" OBJ-XID="xid_2872-0" H5Path= "/group1/dset3" Parents="xid_2104-0" H5ParentPaths="/group1">
+      <hdf5:Dataset Name="dset3" OBJ-XID="xid_2872" H5Path= "/group1/dset3" Parents="xid_2104" H5ParentPaths="/group1">
          <hdf5:StorageLayout>
             <hdf5:ContiguousLayout/>
          </hdf5:StorageLayout>
@@ -179,7 +108,7 @@ Expected output for 'h5dump --xml tcompound.h5'
                <hdf5:Dimension  DimSize="6" MaxDimSize="6"/>
             </hdf5:SimpleDataspace>
          </hdf5:Dataspace>
-         <hdf5:NamedDataTypePtr OBJ-XID="xid_2792-0" H5Path="/type2" />
+         <hdf5:NamedDataTypePtr OBJ-XID="xid_2792" H5Path="/type2" />
       <!-- Note: format of compound data not specified -->
          <hdf5:Data>
             <hdf5:DataFromFile>
@@ -276,7 +205,7 @@ Expected output for 'h5dump --xml tcompound.h5'
             </hdf5:DataFromFile>
          </hdf5:Data>
       </hdf5:Dataset>
-      <hdf5:Dataset Name="dset4" OBJ-XID="xid_5672-0" H5Path= "/group1/dset4" Parents="xid_2104-0" H5ParentPaths="/group1">
+      <hdf5:Dataset Name="dset4" OBJ-XID="xid_5672" H5Path= "/group1/dset4" Parents="xid_2104" H5ParentPaths="/group1">
          <hdf5:StorageLayout>
             <hdf5:ContiguousLayout/>
          </hdf5:StorageLayout>
@@ -290,7 +219,7 @@ Expected output for 'h5dump --xml tcompound.h5'
                <hdf5:Dimension  DimSize="5" MaxDimSize="5"/>
             </hdf5:SimpleDataspace>
          </hdf5:Dataspace>
-         <hdf5:NamedDataTypePtr OBJ-XID="xid_5592-0" H5Path="/group1/type3" />
+         <hdf5:NamedDataTypePtr OBJ-XID="xid_5592" H5Path="/group1/type3" />
       <!-- Note: format of compound data not specified -->
          <hdf5:Data>
             <hdf5:DataFromFile>
@@ -298,9 +227,29 @@ Expected output for 'h5dump --xml tcompound.h5'
             </hdf5:DataFromFile>
          </hdf5:Data>
       </hdf5:Dataset>
+      <hdf5:NamedDataType Name="type3" OBJ-XID="xid_5592" H5Path="/group1/type3" Parents="xid_2104" H5ParentPaths="/group1">
+         <hdf5:DataType>
+            <hdf5:CompoundType>
+               <hdf5:Field FieldName="int">
+                  <hdf5:DataType>
+                     <hdf5:AtomicType>
+                        <hdf5:IntegerType ByteOrder="BE" Sign="true" Size="4" />
+                     </hdf5:AtomicType>
+                  </hdf5:DataType>
+               </hdf5:Field>
+               <hdf5:Field FieldName="float">
+                  <hdf5:DataType>
+                     <hdf5:AtomicType>
+                        <hdf5:FloatType ByteOrder="BE" Size="4" SignBitLocation="31" ExponentBits="8" ExponentLocation="23" MantissaBits="23" MantissaLocation="0" />
+                     </hdf5:AtomicType>
+                  </hdf5:DataType>
+               </hdf5:Field>
+            </hdf5:CompoundType>
+         </hdf5:DataType>
+      </hdf5:NamedDataType>
    </hdf5:Group>
-   <hdf5:Group Name="group2" OBJ-XID="xid_6584-0" H5Path="/group2" Parents="xid_696-0" H5ParentPaths="/" >
-      <hdf5:Dataset Name="dset5" OBJ-XID="xid_7040-0" H5Path= "/group2/dset5" Parents="xid_6584-0" H5ParentPaths="/group2">
+   <hdf5:Group Name="group2" OBJ-XID="xid_6584" H5Path="/group2" Parents="xid_696" H5ParentPaths="/" >
+      <hdf5:Dataset Name="dset5" OBJ-XID="xid_7040" H5Path= "/group2/dset5" Parents="xid_6584" H5ParentPaths="/group2">
          <hdf5:StorageLayout>
             <hdf5:ContiguousLayout/>
          </hdf5:StorageLayout>
@@ -314,7 +263,7 @@ Expected output for 'h5dump --xml tcompound.h5'
                <hdf5:Dimension  DimSize="5" MaxDimSize="5"/>
             </hdf5:SimpleDataspace>
          </hdf5:Dataspace>
-         <hdf5:NamedDataTypePtr OBJ-XID="xid_7040-0"/>
+         <hdf5:NamedDataTypePtr OBJ-XID="xid_7040"/>
       <!-- Note: format of compound data not specified -->
          <hdf5:Data>
             <hdf5:DataFromFile>
@@ -323,5 +272,56 @@ Expected output for 'h5dump --xml tcompound.h5'
          </hdf5:Data>
       </hdf5:Dataset>
    </hdf5:Group>
+   <hdf5:NamedDataType Name="type1" OBJ-XID="xid_1424" H5Path="/type1" Parents="xid_696" H5ParentPaths="/">
+      <hdf5:DataType>
+         <hdf5:CompoundType>
+            <hdf5:Field FieldName="int_name">
+               <hdf5:DataType>
+                  <hdf5:AtomicType>
+                     <hdf5:IntegerType ByteOrder="BE" Sign="true" Size="4" />
+                  </hdf5:AtomicType>
+               </hdf5:DataType>
+            </hdf5:Field>
+            <hdf5:Field FieldName="float_name">
+               <hdf5:DataType>
+                  <hdf5:AtomicType>
+                     <hdf5:FloatType ByteOrder="BE" Size="4" SignBitLocation="31" ExponentBits="8" ExponentLocation="23" MantissaBits="23" MantissaLocation="0" />
+                  </hdf5:AtomicType>
+               </hdf5:DataType>
+            </hdf5:Field>
+         </hdf5:CompoundType>
+      </hdf5:DataType>
+   </hdf5:NamedDataType>
+   <hdf5:NamedDataType Name="type2" OBJ-XID="xid_2792" H5Path="/type2" Parents="xid_696" H5ParentPaths="/">
+      <hdf5:DataType>
+         <hdf5:CompoundType>
+            <hdf5:Field FieldName="int_array">
+               <hdf5:DataType>
+                  <hdf5:ArrayType Ndims="1">
+                     <hdf5:ArrayDimension DimSize="4"/>
+                     <hdf5:DataType>
+                        <hdf5:AtomicType>
+                           <hdf5:IntegerType ByteOrder="BE" Sign="true" Size="4" />
+                        </hdf5:AtomicType>
+                     </hdf5:DataType>
+                  </hdf5:ArrayType>
+               </hdf5:DataType>
+            </hdf5:Field>
+            <hdf5:Field FieldName="float_array">
+               <hdf5:DataType>
+                  <hdf5:ArrayType Ndims="2">
+                     <hdf5:ArrayDimension DimSize="5"/>
+                     <hdf5:ArrayDimension DimSize="6"/>
+                     <hdf5:DataType>
+                        <hdf5:AtomicType>
+                           <hdf5:FloatType ByteOrder="BE" Size="4" SignBitLocation="31" ExponentBits="8" ExponentLocation="23" MantissaBits="23" MantissaLocation="0" />
+                        </hdf5:AtomicType>
+                     </hdf5:DataType>
+                  </hdf5:ArrayType>
+               </hdf5:DataType>
+            </hdf5:Field>
+         </hdf5:CompoundType>
+      </hdf5:DataType>
+   </hdf5:NamedDataType>
 </hdf5:RootGroup>
 </hdf5:HDF5-File>

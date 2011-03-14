@@ -16,16 +16,16 @@
 #include "h5tools.h"
 
 /*-------------------------------------------------------------------------
- * Function:    h5tools_get_native_type
+ * Function: h5tools_get_native_type
  *
  * Purpose: Wrapper around H5Tget_native_type() to work around
- *      Problems with bitfields.
+ *  Problems with bitfields.
  *
- * Return:  Success:    datatype ID
+ * Return: Success:    datatype ID
  *
- *      Failure:    FAIL
+ *  Failure:    FAIL
  *
- * Programmer:  Quincey Koziol
+ * Programmer: Quincey Koziol
  *              Tuesday, October  5, 2004
  *
  * Modifications:
@@ -46,6 +46,7 @@ h5tools_get_native_type(hid_t type)
 
     return(p_type);
 }
+
 
 /*-------------------------------------------------------------------------
  * Function: h5tools_get_little_endian_type
@@ -200,3 +201,4 @@ h5tools_get_big_endian_type(hid_t tid)
  
  return(p_type);
 }
+

@@ -65,7 +65,7 @@ static void H5TS_mutex_init(H5TS_mutex_t *mutex);
 static void
 H5TS_key_destructor(void *key_val)
 {
-    /* Use HDfree here instead of H5MM_xfree(), to avoid calling the H5FS routines */
+    /* Use HDfree here instead of H5MM_xfree(), to avoid calling the H5CS routines */
     if(key_val!=NULL)
         HDfree(key_val);
 }
@@ -95,10 +95,6 @@ void
 H5TS_first_thread_init(void)
 {
     H5_g.H5_libinit_g = FALSE;
-
-    /* set the owner objects to initial values */
-    H5_g.init_lock.owner_thread = pthread_self();
-    H5_g.init_lock.owner_valid = FALSE;
 
     /* initialize global API mutex lock */
     pthread_mutex_init(&H5_g.init_lock.atomic_lock, NULL);
@@ -150,26 +146,17 @@ H5TS_mutex_lock(H5TS_mutex_t *mutex)
     if (ret_value)
         return ret_value;
 
-    if (mutex->owner_valid && pthread_equal(pthread_self(), mutex->owner_thread)) {
+    if(mutex->lock_count && pthread_equal(pthread_self(), mutex->owner_thread)) {
         /* already owned by self - increment count */
         mutex->lock_count++;
-    } else if (!mutex->owner_valid) {
-        /* no one else has locked it - set owner and grab lock */
-        mutex->owner_thread = pthread_self();
-        mutex->owner_valid = TRUE;
-        mutex->lock_count = 1;
     } else {
-        /* if already locked by someone else */
-        for (;;) {
-	    pthread_cond_wait(&mutex->cond_var, &mutex->atomic_lock);
+        /* if owned by other thread, wait for condition signal */
+        while(mutex->lock_count)
+            pthread_cond_wait(&mutex->cond_var, &mutex->atomic_lock);
 
-	    if (!mutex->owner_valid) {
-	        mutex->owner_thread = pthread_self();
-                mutex->owner_valid = TRUE;
-	        mutex->lock_count = 1;
-	        break;
-	    }
-        }
+        /* After we've received the signal, take ownership of the mutex */
+        mutex->owner_thread = pthread_self();
+        mutex->lock_count = 1;
     }
 
     return pthread_mutex_unlock(&mutex->atomic_lock);
@@ -204,26 +191,26 @@ H5TS_mutex_lock(H5TS_mutex_t *mutex)
 herr_t
 H5TS_mutex_unlock(H5TS_mutex_t *mutex)
 {
-    herr_t ret_value;
+    herr_t ret_value;           /* Return value */
 
     ret_value = pthread_mutex_lock(&mutex->atomic_lock);
 
-    if (ret_value)
-	    return ret_value;
+    if(ret_value)
+        return ret_value;
 
     mutex->lock_count--;
 
-    if (mutex->lock_count == 0) {
-	mutex->owner_valid = FALSE;
-        ret_value = pthread_cond_signal(&mutex->cond_var);
+    ret_value = pthread_mutex_unlock(&mutex->atomic_lock);
 
-	if (ret_value) {
-	    pthread_mutex_unlock(&mutex->atomic_lock);
-	    return ret_value;
-	}
-    }
+    if(mutex->lock_count == 0) {
+        int err;
 
-    return pthread_mutex_unlock(&mutex->atomic_lock);
+        err = pthread_cond_signal(&mutex->cond_var);
+        if(err != 0)
+            ret_value = err;
+    } /* end if */
+
+    return ret_value;
 }
 
 /*--------------------------------------------------------------------------
@@ -272,8 +259,8 @@ H5TS_cancel_count_inc(void)
 	cancel_counter = H5MM_calloc(sizeof(H5TS_cancel_t));
 
 	if (!cancel_counter) {
-	    H5E_push(H5E_RESOURCE, H5E_NOSPACE, "H5TS_cancel_count_inc",
-		     __FILE__, __LINE__, "memory allocation failed");
+	    H5E_push_stack(NULL, "H5TS_cancel_count_inc",
+		     __FILE__, __LINE__, H5E_ERR_CLS_g, H5E_RESOURCE, H5E_NOSPACE, "memory allocation failed");
 	    return FAIL;
 	}
 

@@ -22,7 +22,7 @@
  */
 static void print_warning(const char *dname, const char *fname)
 {
- fprintf(stderr,"Warning: dataset <%s> cannot be read, %s filter is not available\n",
+ fprintf(stderr,"warning: dataset <%s> cannot be read, %s filter is not available\n",
   dname,fname);
 }
 
@@ -53,6 +53,8 @@ int h5tools_canreadf(const char* name, /* object name, serves also as boolean pr
  int          have_szip=0;
  int          have_shuffle=0;
  int          have_fletcher=0;
+ int          have_nbit=0;
+ int          have_scaleoffset=0;
 
 #ifdef H5_HAVE_FILTER_DEFLATE
  have_deflate=1;
@@ -66,6 +68,13 @@ int h5tools_canreadf(const char* name, /* object name, serves also as boolean pr
 #ifdef H5_HAVE_FILTER_FLETCHER32
  have_fletcher=1;
 #endif
+#ifdef H5_HAVE_FILTER_NBIT
+ have_nbit=1;
+#endif
+#ifdef H5_HAVE_FILTER_SCALEOFFSET
+ have_scaleoffset=1;
+#endif
+
 
  /* get information about filters */
  if ((nfilters = H5Pget_nfilters(dcpl_id))<0)
@@ -76,20 +85,20 @@ int h5tools_canreadf(const char* name, /* object name, serves also as boolean pr
   return 1;
 
  /* check availability of filters */
- for (i=0; i<nfilters; i++)
+ for(i = 0; i < nfilters; i++)
  {
-  if ((filtn = H5Pget_filter(dcpl_id,(unsigned)i,0,0,0,0,0))<0)
+  if((filtn = H5Pget_filter2(dcpl_id, (unsigned)i, 0, 0, 0, 0, 0, NULL)) < 0)
    return -1;
 
-  switch (filtn)
+  switch(filtn)
   {
 /*-------------------------------------------------------------------------
  * user defined filter
  *-------------------------------------------------------------------------
  */
   default:
-    if (name)
-     print_warning(name,"user defined");
+    if(name)
+     print_warning(name, "user defined");
     return 0;
 
 /*-------------------------------------------------------------------------
@@ -140,6 +149,30 @@ int h5tools_canreadf(const char* name, /* object name, serves also as boolean pr
     return 0;
    }
    break;
+/*-------------------------------------------------------------------------
+ * H5Z_FILTER_NBIT
+ *-------------------------------------------------------------------------
+ */
+  case H5Z_FILTER_NBIT:
+   if (!have_nbit)
+   {
+    if (name)
+     print_warning(name,"nbit");
+    return 0;
+   }
+   break;
+/*-------------------------------------------------------------------------
+ * H5Z_FILTER_SCALEOFFSET
+ *-------------------------------------------------------------------------
+ */
+  case H5Z_FILTER_SCALEOFFSET:
+   if (!have_scaleoffset)
+   {
+    if (name)
+     print_warning(name,"scaleoffset");
+    return 0;
+   }
+   break;
   }/*switch*/
  }/*for*/
 
@@ -169,6 +202,8 @@ int h5tools_can_encode( H5Z_filter_t filtn)
  int          have_szip=0;
  int          have_shuffle=0;
  int          have_fletcher=0;
+ int          have_nbit=0;
+ int          have_scaleoffset=0;
  unsigned int filter_config_flags;
 
 #ifdef H5_HAVE_FILTER_DEFLATE
@@ -182,6 +217,12 @@ int h5tools_can_encode( H5Z_filter_t filtn)
 #endif
 #ifdef H5_HAVE_FILTER_FLETCHER32
  have_fletcher=1;
+#endif
+#ifdef H5_HAVE_FILTER_NBIT
+ have_nbit=1;
+#endif
+#ifdef H5_HAVE_FILTER_SCALEOFFSET
+ have_scaleoffset=1;
 #endif
 
   switch (filtn)
@@ -231,6 +272,18 @@ int h5tools_can_encode( H5Z_filter_t filtn)
    break;
   case H5Z_FILTER_FLETCHER32:
    if (!have_fletcher)
+   {
+    return 0;
+   }
+   break;
+  case H5Z_FILTER_NBIT:
+   if (!have_nbit)
+   {
+    return 0;
+   }
+   break;
+  case H5Z_FILTER_SCALEOFFSET:
+   if (!have_scaleoffset)
    {
     return 0;
    }

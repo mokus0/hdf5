@@ -126,7 +126,7 @@ hsize_t FileCreatPropList::getUserblock() const
 ///\par Description
 ///		For information on setting sizes, please refer to the
 ///		C layer Reference Manual at:
-/// <A HREF="../RM_H5P.html#Property-SetSizes">../RM_H5P.html#Property-SetSizes</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSizes
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setSizes( size_t sizeof_addr, size_t sizeof_size ) const
@@ -157,50 +157,6 @@ void FileCreatPropList::getSizes( size_t& sizeof_addr, size_t& sizeof_size ) con
    }
 }
 
-#ifdef H5_WANT_H5_V1_4_COMPAT
-//--------------------------------------------------------------------------
-// Function:    FileCreatPropList::setSymk
-///\brief       Sets the size of parameters used to control the symbol table
-///             nodes.
-///\param       ik - IN: Symbol table tree rank
-///\param       lk - IN: Symbol table node size
-///\exception   H5::PropListIException
-///\par Description
-///             For information, please see the C layer Reference Manual at:
-/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
-// Programmer   Binh-Minh Ribler - 2000
-//--------------------------------------------------------------------------
-void FileCreatPropList::setSymk( int ik, int lk ) const
-{
-   herr_t ret_value = H5Pset_sym_k( id, ik, lk );
-   if( ret_value < 0 )
-   {
-      throw PropListIException("FileCreatPropList::setSymk",
-		"H5Pset_sym_k failed");
-   }
-}
-
-//--------------------------------------------------------------------------
-// Function:    FileCreatPropList::getSymk
-///\brief       Retrieves the size of the symbol table B-tree 1/2 rank and
-///             the symbol table leaf node 1/2 size.
-///
-///\exception   H5::PropListIException
-///\par Description
-///             For information, please see
-/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
-// Programmer   Binh-Minh Ribler - 2000
-//--------------------------------------------------------------------------
-void FileCreatPropList::getSymk( int& ik, int& lk ) const
-{
-   herr_t ret_value = H5Pget_sym_k( id, &ik, &lk );
-   if( ret_value < 0 )
-   {
-      throw PropListIException("FileCreatPropList::getSymk",
-		"H5Pget_sym_k failed");
-   }
-}
-#else /* H5_WANT_H5_V1_4_COMPAT */
 //--------------------------------------------------------------------------
 // Function:	FileCreatPropList::setSymk
 ///\brief	Sets the size of parameters used to control the symbol table
@@ -210,7 +166,7 @@ void FileCreatPropList::getSymk( int& ik, int& lk ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see the C layer Reference Manual at:
-/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSymK
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setSymk( unsigned ik, unsigned lk ) const
@@ -227,10 +183,11 @@ void FileCreatPropList::setSymk( unsigned ik, unsigned lk ) const
 // Function:	FileCreatPropList::getSymk
 ///\brief	Retrieves the size of the symbol table B-tree 1/2 rank and
 ///		the symbol table leaf node 1/2 size.
+///
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see
-/// <A HREF="../RM_H5P.html#Property-SetSymK">../RM_H5P.html#Property-SetSymK</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetSymK
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::getSymk( unsigned& ik, unsigned& lk ) const
@@ -242,7 +199,6 @@ void FileCreatPropList::getSymk( unsigned& ik, unsigned& lk ) const
 		"H5Pget_sym_k failed");
    }
 }
-#endif /* H5_WANT_H5_V1_4_COMPAT */
 
 //--------------------------------------------------------------------------
 // Function:	FileCreatPropList::setIstorek
@@ -252,7 +208,7 @@ void FileCreatPropList::getSymk( unsigned& ik, unsigned& lk ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see the C layer Reference Manual at:
-/// <A HREF="../RM_H5P.html#Property-SetIstoreK">../RM_H5P.html#Property-SetIstoreK</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetIstoreK
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 void FileCreatPropList::setIstorek( unsigned ik ) const
@@ -272,7 +228,7 @@ void FileCreatPropList::setIstorek( unsigned ik ) const
 ///\exception	H5::PropListIException
 ///\par Description
 ///		For information, please see
-/// <A HREF="../RM_H5P.html#Property-SetIstoreK">../RM_H5P.html#Property-SetIstoreK</A>
+/// http://hdf.ncsa.uiuc.edu/HDF5/doc/RM_H5P.html#Property-SetIstoreK
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
 unsigned FileCreatPropList::getIstorek() const

@@ -63,7 +63,7 @@ H5RS_xstrdup(const char *s)
 {
     char *ret_value;   /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5RS_xstrdup)
+    FUNC_ENTER_NOAPI_NOINIT(H5RS_xstrdup)
 
     if(s) {
         ret_value = (char *)H5FL_BLK_MALLOC(str_buf, HDstrlen(s) + 1);
@@ -230,7 +230,7 @@ H5RS_decr(H5RS_str_t *rs)
     /* Decrement reference count for string */
     if((--rs->n)==0) {
         if(!rs->wrapped)
-            H5FL_BLK_FREE(str_buf,rs->s);
+            (void)H5FL_BLK_FREE(str_buf,rs->s);
         H5FL_FREE(H5RS_str_t,rs);
     } /* end if */
 
@@ -312,6 +312,54 @@ H5RS_dup(H5RS_str_t *ret_value)
 
     FUNC_LEAVE_NOAPI(ret_value);
 } /* end H5RS_dup() */
+
+
+/*--------------------------------------------------------------------------
+ NAME
+    H5RS_dup_str
+ PURPOSE
+    "Duplicate" a regular string into a ref-counted string
+ USAGE
+    H5RS_str_t H5RS_dup_str(s)
+        const char *s;     IN: Regular string to duplicate
+
+ RETURNS
+    Returns a pointer to ref-counted string on success, NULL on failure.
+ DESCRIPTION
+    Duplicate a regular string into a ref-counted string.
+ GLOBAL VARIABLES
+ COMMENTS, BUGS, ASSUMPTIONS
+ EXAMPLES
+ REVISION LOG
+--------------------------------------------------------------------------*/
+H5RS_str_t *
+H5RS_dup_str(const char *s)
+{
+    char *new_str = NULL;       /* Duplicate of string */
+    size_t path_len;            /* Length of the path */
+    H5RS_str_t *ret_value;
+
+    FUNC_ENTER_NOAPI(H5RS_dup_str, NULL)
+
+    /* Sanity check */
+    HDassert(s);
+
+    /* Get the length of the string */
+    path_len = HDstrlen(s);
+
+    /* Allocate space for the string */
+    if(NULL == (new_str = (char *)H5FL_BLK_MALLOC(str_buf, path_len + 1)))
+        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, NULL, "memory allocation failed")
+
+    /* Copy name for full path */
+    HDstrcpy(new_str, s);
+
+    /* Create reference counted string for path */
+    ret_value = H5RS_own(new_str);
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5RS_dup_str() */
 
 
 /*--------------------------------------------------------------------------

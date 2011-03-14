@@ -25,22 +25,18 @@
  */
 
 typedef struct {
-    int    m_quiet;   /* quiet mode: no output at all */
+    int    m_quiet;   /* quiet mide: no output at all */
     int    m_report;  /* report mode: print the data */
     int    m_verbose; /* verbose mode: print the data, list of objcets, warnings */
     int    d;         /* delta, absolute value to compare */
     double delta;     /* delta value */
     int    p;         /* relative error to compare*/
-    int      use_system_epsilon;    /* flag to use system epsilon (1 or 0) */
     double percent;   /* relative error value */
     int    n;         /* count, compare up to count */
     hsize_t count;    /* count value */
     int    err_stat;  /* an error ocurred (1, error, 0, no error) */
-    int    cmn_objs;  /* do we have common objects */
+    int    cmn_objs;  /* do we have comparable objects */
     int    not_cmp;   /* are the objects comparable */
-    int    contents;  /* equal contents */
-    int    do_nans;   /* consider Nans while diffing floats */
-    int    m_list_not_cmp;   /* list not comparable messages */
 } diff_opt_t;
 
 
@@ -59,6 +55,10 @@ hsize_t  h5diff(const char *fname1,
                 const char *objname2,
                 diff_opt_t *options);
 
+#ifdef H5_HAVE_PARALLEL
+void phdiff_dismiss_workers(void);
+void print_manager_output(void);
+#endif
 
 #ifdef __cplusplus
 }
@@ -89,25 +89,21 @@ hsize_t diff( hid_t      file1_id,
               hid_t      file2_id,
               const char *path2,
               diff_opt_t *options,
-              H5G_obj_t1  type );
+              h5trav_type_t  type );
 
 hsize_t diff_compare( hid_t file1_id,
                       const char *file1_name,
                       const char *obj1_name,
-                      int nobjects1,
                       trav_info_t *info1,
                       hid_t file2_id,
                       const char *file2_name,
                       const char *obj2_name,
-                      int nobjects2,
                       trav_info_t *info2,
                       diff_opt_t *options );
 
 hsize_t diff_match( hid_t file1_id,
-                    int nobjects1,
                     trav_info_t *info1,
                     hid_t file2_id,
-                    int nobjects2,
                     trav_info_t *info2,
                     diff_opt_t *options );
 
@@ -135,8 +131,7 @@ int diff_can_type( hid_t       f_type1, /* file data type */
                    hsize_t     *maxdim2,
                    const char  *obj1_name,
                    const char  *obj2_name,
-                   diff_opt_t  *options,
-                   int         is_compound);
+                   diff_opt_t  *options );
 
 
 hsize_t diff_attr(hid_t loc1_id,
@@ -152,9 +147,10 @@ hsize_t diff_attr(hid_t loc1_id,
  */
 
 void        print_found(hsize_t nfound);
+void        parallel_print(const char* format, ... );
 void        print_type(hid_t type);
 const char* diff_basename(const char *name);
-const char* get_type(int type);
+const char* get_type(h5trav_type_t type);
 const char* get_class(H5T_class_t tclass);
 const char* get_sign(H5T_sign_t sign);
 void        print_dimensions (int rank, hsize_t *dims);
@@ -181,178 +177,160 @@ hsize_t diff_datum(void       *_mem1,
 
 
 hsize_t diff_float(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_double(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
-
-#if H5_SIZEOF_LONG_DOUBLE !=0
-
-hsize_t diff_ldouble(unsigned char *mem1,
-                     unsigned char *mem2,
-                     hsize_t       nelmts,
-                     hsize_t       hyper_start,
-                     int           rank,
-                     hsize_t       *dims,
-                     hsize_t       *acc,
-                     hsize_t       *pos,
-                     diff_opt_t    *options,
-                     const char    *obj1,
-                     const char    *obj2,
-                     int           *ph);
-
-#endif
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_schar(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_uchar(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_short(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_ushort(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_int(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_uint(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_long(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_ulong(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_llong(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 hsize_t diff_ullong(unsigned char *mem1,
- unsigned char *mem2,
- hsize_t       nelmts,
- hsize_t       hyper_start,
- int           rank,
- hsize_t       *dims,
- hsize_t       *acc,
- hsize_t       *pos,
- diff_opt_t    *options,
- const char    *obj1,
- const char    *obj2,
- int           *ph);
-
-
+                   unsigned char *mem2,
+                   hsize_t       nelmts,
+                   hsize_t       hyper_start,
+                   int           rank,
+                   hsize_t       *dims,
+                   hsize_t       *acc,
+                   hsize_t       *pos,
+                   diff_opt_t    *options,
+                   const char    *obj1,
+                   const char    *obj2,
+                   int           *ph);
 
 #endif  /* H5DIFF_H__ */
+

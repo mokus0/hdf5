@@ -14,10 +14,42 @@
 # access to either file, you may request a copy from help@hdfgroup.org.
 #
 
-# Make a release of hdf5.
+# Make a release of hdf5.  The command-line switches are:
 #
-# Programmer: Robb Matzke
-# Creation date: on or before 1998-01-29.
+#  -d DIR	The name of the directory where the releas(es) should be
+#               placed.  By default, the directory is ./releases
+#
+#  --nocheck	Ignore errors in MANIFEST file.
+#          
+#  --private	Make a private release with today's date in version information.
+#          
+# The other command-line options are the names of the programs to use
+# for compressing the resulting tar archive (if none are given then
+# `tar md5' is assumed):
+#
+#   tar		-- use tar and don't do any compressing.
+#   compress	-- use compress and append `.Z' to the output name.
+#   gzip	-- use gzip with `-9' and append `.gz' to the output name.
+#   bzip2       -- use bzip2 with `-9' and append `.bz2' to the output name.
+#   md5         -- produce a md5 checksum in addition to the archive.
+#   doc         -- produce the latest doc tree in addition to the archive.
+#
+# Examples:
+#
+#   $ release
+#   releases/hdf5-1.0.38.tar
+#   releases/hdf5-1.0.38.tar.md5
+#
+#   $ release gzip
+#   releases/hdf5-1.0.38.tar.gz
+#
+#   $ release -d /tmp tar compress gzip bzip2 md5 doc
+#   /tmp/hdf5-1.0.38.tar
+#   /tmp/hdf5-1.0.38.tar.Z
+#   /tmp/hdf5-1.0.38.tar.gz
+#   /tmp/hdf5-1.0.38.tar.bz2
+#   /tmp/hdf5-1.0.38.tar.md5
+#   /tmp/hdf5-1.0.38_doc.tar
 #
 # Modifications
 #   Robb Matzke, 1999-07-16
@@ -27,12 +59,6 @@
 #   Albert Cheng, 1999-10-26
 #   Moved the MANIFEST checking to a separate command file so that
 #   it can be invoked individually.
-#
-#   Albert Cheng, 2004-08-14
-#   Added the --private option.
-#
-#   James Laird, 2005-09-07
-#   Added the md5 method.
 
 # Function definitions
 #
@@ -57,6 +83,7 @@ for compressing the resulting tar archive (if none are given then
     gzip	-- use gzip with "-9" and append ".gz" to the output name.
     bzip2       -- use bzip2 with "-9" and append ".bz2" to the output name.
     md5         -- produce a md5 checksum in addition to the archive.
+    doc         -- produce the latest doc tree in addition to the archive.
 
 Examples:
 
@@ -95,12 +122,16 @@ check=yes
 today=`date +%Y%m%d`
 pmode='no'
 tmpdir="../#release_tmp.$$"	# tmp work directory
+DOC_URL=http://svn.hdfgroup.uiuc.edu/hdf5doc/trunk
+CPPLUS_RM_NAME=cpplus_RM
 
 # Restore previous Version information
 RESTORE_VERSION()
 {
     if [ X-${VERS_OLD} != X- ]; then
 	echo restoring version information back to $VERS_OLD
+	rm -f config/lt_vers.am
+	cp $tmpdir/lt_vers.am config/lt_vers.am
 	bin/h5vers -s $VERS_OLD
 	VERS_OLD=
     fi
@@ -156,6 +187,9 @@ trap RESTORE_VERSION 0
 
 if [ X$pmode = Xyes ]; then
     VERS_OLD=$VERS
+    # Copy old version of config/lt_vers.am, since it's hard to
+    # "undo" changes to it.
+    cp config/lt_vers.am $tmpdir
     # Set version information to m.n.r-of$today.
     # (h5vers does not correctly handle just m.n.r-$today.)
     VERS=`echo $VERS | sed -e s/-.*//`-of$today
@@ -188,22 +222,17 @@ grep '^\.' MANIFEST | grep -v _DO_NOT_DISTRIBUTE_ >$MANIFEST
 
 # Prepare the source tree for a release.
 ln -s `pwd` $tmpdir/$HDF5_VERS || exit 1
-# Save a backup copy of Makefile if exists.
-test -f Makefile && mv Makefile $tmpdir/Makefile.x
+mv Makefile $tmpdir/Makefile.x 2>/dev/null #might fail
 cp -p Makefile.dist Makefile
 
-# Update README.txt and release_docs/RELEASE.txt with release information in
-# line 1.
+# Update README.txt and release_docs/RELEASE.txt with release information.
 for f in README.txt release_docs/RELEASE.txt; do
     echo "HDF5 version $VERS released on `date`" >$f.x
-    sed -e 1d $f >>$f.x
+    tail +2l $f >>$f.x
     mv $f.x $f
     # Make sure new files are of the right access mode
     chmod 644 $f
 done
-
-# synchronize the HISTORY.tx and RELEASE.tx files in the doc area
-cp release_docs/HISTORY.txt release_docs/RELEASE.txt doc/html/ADGuide/.
 
 # Create the tar file
 test "$verbose" && echo "   Running tar..." 1>&2
@@ -235,14 +264,27 @@ for comp in $methods; do
 	    test "$verbose" && echo "   Creating checksum..." 1>&2
 	    (cd $tmpdir; md5sum $HDF5_VERS.tar ) > $DEST/$HDF5_VERS.tar.md5
 	    ;;
+	doc)
+	    test "$verbose" && echo "   Creating docs..." 1>&2
+	    # Check out docs from svn repo
+	    (cd $tmpdir; svn co $DOC_URL > /dev/null) || exit 1
+	    # Create doxygen C++ RM
+	    (cd c++/src && doxygen cpp_doc_config > /dev/null ) || exit 1
+	    # Replace version of C++ RM with just-created version
+	    rm -rf $tmpdir/trunk/html/$CPPLUS_RM_NAME
+	    mv c++/src/$CPPLUS_RM_NAME $tmpdir/trunk/html/$CPPLUS_RM_NAME
+	    # Compress the docs and move them to the release area
+	    mv $tmpdir/trunk $tmpdir/${HDF5_VERS}_docs
+	    (cd $tmpdir && tar cf ${HDF5_VERS}_docs.tar ${HDF5_VERS}_docs)
+	    mv $tmpdir/${HDF5_VERS}_docs.tar $DEST
+	    ;;
     esac
 done
 
 # Copy the RELEASE.txt to the release area.
 cp release_docs/RELEASE.txt $DEST/$HDF5_VERS-RELEASE.txt
 
-# Remove distributed Makefile and restore previous Makefile if existed.
-rm -f Makefile
+# Restore previous Makefile if existed.
 test -f $tmpdir/Makefile.x && mv $tmpdir/Makefile.x Makefile
 
 # Restore OLD version information, then no need for trap.

@@ -90,7 +90,7 @@
                                full_name, full_namelen)
               USE H5GLOBAL
               !DEC$ IF DEFINED(HDF5F90_WINDOWS)
-              !MS$ATTRIBUTES C,reference,alias:'_H5_FIXNAME_C':: h5_fixname_c
+              !DEC$ ATTRIBUTES C,reference,decorate,alias:'H5_FIXNAME_C':: h5_fixname_c
               !DEC$ ENDIF
               !DEC$ATTRIBUTES reference :: base_name 
               !DEC$ATTRIBUTES reference :: full_name 
@@ -146,7 +146,7 @@
               INTEGER FUNCTION h5_cleanup_c(base_name, base_namelen, fapl)
               USE H5GLOBAL
               !DEC$ IF DEFINED(HDF5F90_WINDOWS)
-              !MS$ATTRIBUTES C,reference,alias:'_H5_CLEANUP_C':: h5_cleanup_c
+              !DEC$ ATTRIBUTES C,reference,decorate,alias:'H5_CLEANUP_C':: h5_cleanup_c
               !DEC$ ENDIF
               !DEC$ATTRIBUTES reference :: base_name 
               CHARACTER(LEN=*), INTENT(IN) :: base_name
@@ -192,7 +192,7 @@
             INTERFACE
               SUBROUTINE h5_exit_c(status)
               !DEC$ IF DEFINED(HDF5F90_WINDOWS)
-              !MS$ATTRIBUTES C,reference,alias:'_H5_EXIT_C':: h5_exit_c
+              !DEC$ ATTRIBUTES C,reference,decorate,alias:'H5_EXIT_C':: h5_exit_c
               !DEC$ ENDIF
               INTEGER, INTENT(IN) :: status
               END SUBROUTINE h5_exit_c
@@ -201,47 +201,4 @@
             CALL h5_exit_c(status)
 
           END SUBROUTINE h5_exit_f
-
-!----------------------------------------------------------------------
-! Name:         h5_env_nocleanup_f
-!
-! Purpose:      Uses the HDF5_NOCLEANUP environment variable in Fortran
-!               tests to determine if the output files should be removed
-!
-! Inputs:
-!
-! Outputs:      HDF5_NOCLEANUP:  .true. - don't remove test files
-!                               .false. - remove test files
-!
-! Programmer:   M.S. Breitenfeld
-!               September 30, 2008
-!
-!----------------------------------------------------------------------
-SUBROUTINE h5_env_nocleanup_f(HDF5_NOCLEANUP)
-!
-!This definition is needed for Windows DLLs
-!DEC$if defined(BUILD_HDF5_DLL)
-!DEC$attributes dllexport :: h5_env_nocleanup_f
-!DEC$endif
-  IMPLICIT NONE
-  LOGICAL, INTENT(OUT) :: HDF5_NOCLEANUP ! Return code
-  INTEGER :: status
-
-  INTERFACE
-     SUBROUTINE h5_env_nocleanup_c(status)
-       !DEC$ IF DEFINED(HDF5F90_WINDOWS)
-       !DEC$ ATTRIBUTES C,reference,decorate,alias:'H5_ENV_NOCLEANUP_C':: h5_env_nocleanup_c
-       !DEC$ ENDIF
-       INTEGER :: status
-     END SUBROUTINE h5_env_nocleanup_c
-  END INTERFACE
-
-  CALL h5_env_nocleanup_c(status)
-
-  HDF5_NOCLEANUP = .FALSE.
-  IF(status.EQ.1)THEN
-     HDF5_NOCLEANUP = .TRUE.
-  ENDIF
-
-END SUBROUTINE h5_env_nocleanup_f
 

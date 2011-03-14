@@ -81,20 +81,20 @@ main (void)
      * Create a new dataset within the file using cparms
      * creation properties.
      */
-    dataset = H5Dcreate(file, DATASETNAME, H5T_NATIVE_INT, dataspace,
-			cparms);
+    dataset = H5Dcreate2(file, DATASETNAME, H5T_NATIVE_INT, dataspace, H5P_DEFAULT,
+			cparms, H5P_DEFAULT);
 
     /*
      * Extend the dataset. This call assures that dataset is at least 3 x 3.
      */
     size[0]   = 3;
     size[1]   = 3;
-    status = H5Dextend (dataset, size);
+    status = H5Dset_extent(dataset, size);
 
     /*
      * Select a hyperslab.
      */
-    filespace = H5Dget_space (dataset);
+    filespace = H5Dget_space(dataset);
     offset[0] = 0;
     offset[1] = 0;
     status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL,
@@ -112,12 +112,12 @@ main (void)
     dims[0]   = dims1[0] + dims2[0];
     size[0]   = dims[0];
     size[1]   = dims[1];
-    status = H5Dextend (dataset, size);
+    status = H5Dset_extent(dataset, size);
 
     /*
      * Select a hyperslab.
      */
-    filespace = H5Dget_space (dataset);
+    filespace = H5Dget_space(dataset);
     offset[0] = 3;
     offset[1] = 0;
     status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL,
@@ -140,12 +140,12 @@ main (void)
     dims[1]   = dims1[1] + dims3[1];
     size[0]   = dims[0];
     size[1]   = dims[1];
-    status = H5Dextend (dataset, size);
+    status = H5Dset_extent(dataset, size);
 
     /*
      * Select a hyperslab
      */
-    filespace = H5Dget_space (dataset);
+    filespace = H5Dget_space(dataset);
     offset[0] = 0;
     offset[1] = 3;
     status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL,

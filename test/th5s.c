@@ -30,8 +30,13 @@
 
 #define TESTFILE   "th5s.h5"
 #define DATAFILE   "th5s1.h5"
-#define NULLFILE   "tnullspace.h5"
+#define NULLFILE   "th5s2.h5"
 #define BASICFILE  "th5s3.h5"
+#define BASICDATASET "basic_dataset"
+#define BASICDATASET2 "basic_dataset2"
+#define BASICATTR  "basic_attribute"
+#define NULLDATASET  "null_dataset"
+#define NULLATTR   "null_attribute"
 
 /* 3-D dataset with fixed dimensions */
 #define SPACE1_NAME  "Space1"
@@ -74,13 +79,6 @@ struct space4_struct {
     float f;
     char c2;
  } space4_data={'v',987123,(float)-3.14,'g'}; /* Test data for 4th dataspace */
-
-/* NULL dataspace info */
-#define NULLDATASET  "null_dataset"
-#define BASICDATASET "basic_dataset"
-#define BASICDATASET2 "basic_dataset2"
-#define NULLATTR   "null_attribute"
-#define BASICATTR  "basic_attribute"
 
 /****************************************************************
 **
@@ -190,8 +188,8 @@ test_h5s_basic(void)
     fid1 = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
     CHECK_I(fid1, "H5Fopen");
     if (fid1 >= 0){
-	dset1 = H5Dopen(fid1, "dset");
-	VERIFY(dset1, FAIL, "H5Dopen");
+	dset1 = H5Dopen2(fid1, "dset", H5P_DEFAULT);
+	VERIFY(dset1, FAIL, "H5Dopen2");
 	ret = H5Fclose(fid1);
 	CHECK_I(ret, "H5Fclose");
     }
@@ -245,12 +243,12 @@ test_h5s_basic(void)
 
     /* This dataset's space has no extent; it should not be created */
     H5E_BEGIN_TRY {
-    dset1 = H5Dcreate(fid1, BASICDATASET, H5T_NATIVE_INT, sid1, H5P_DEFAULT);
+    dset1 = H5Dcreate2(fid1, BASICDATASET, H5T_NATIVE_INT, sid1, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     } H5E_END_TRY
-    VERIFY(dset1, FAIL, "H5Dcreate");
+    VERIFY(dset1, FAIL, "H5Dcreate2");
 
-    dset1 = H5Dcreate(fid1, BASICDATASET2, H5T_NATIVE_INT, sid2, H5P_DEFAULT);
-    CHECK(dset1, FAIL, "H5Dcreate");
+    dset1 = H5Dcreate2(fid1, BASICDATASET2, H5T_NATIVE_INT, sid2, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(dset1, FAIL, "H5Dcreate2");
 
     /* Try some writes with the bad dataspace (sid1) */
     H5E_BEGIN_TRY {
@@ -282,10 +280,9 @@ test_h5s_basic(void)
 
     /* Now use the bad dataspace as the space for an attribute */
     H5E_BEGIN_TRY {
-    aid1 = H5Acreate(dset1, BASICATTR,
-                        H5T_NATIVE_INT, sid1, H5P_DEFAULT);
+    aid1 = H5Acreate2(dset1, BASICATTR, H5T_NATIVE_INT, sid1, H5P_DEFAULT, H5P_DEFAULT);
     } H5E_END_TRY
-    VERIFY(aid1, FAIL, "H5Acreate");
+    VERIFY(aid1, FAIL, "H5Acreate2");
 
     /* Make sure that dataspace reads using the bad dataspace fail */
     H5E_BEGIN_TRY {
@@ -313,6 +310,389 @@ test_h5s_basic(void)
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
 }				/* test_h5s_basic() */
+
+/****************************************************************
+**
+**  test_h5s_null(): Test NULL data space
+**
+****************************************************************/
+static void
+test_h5s_null(void)
+{
+    hid_t fid;          /* File ID */
+    hid_t sid;          /* Dataspace IDs */
+    hid_t dset_sid, dset_sid2;    /* Dataspace IDs */
+    hid_t attr_sid;     /* Dataspace IDs */
+    hid_t did;          /* Dataset ID */
+    hid_t attr;         /*Attribute ID */
+    H5S_class_t stype;  /* dataspace type */
+    hssize_t nelem;     /* Number of elements */
+    unsigned uval=2;    /* Buffer for writing to dataset */
+    int val=1;          /* Buffer for writing to attribute */
+    H5S_sel_type sel_type;      /* Type of selection currently */
+    hsize_t dims[1]={10};       /* Dimensions for converting null dataspace to simple */
+    H5S_class_t space_type;     /* Type of dataspace */
+    herr_t ret;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Null Dataspace\n"));
+
+    /* Create the file */
+    fid = H5Fcreate(NULLFILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    sid = H5Screate(H5S_NULL);
+    CHECK(sid, FAIL, "H5Screate");
+
+    /* Check that the null dataspace actually has 0 elements */
+    nelem = H5Sget_simple_extent_npoints(sid);
+    VERIFY(nelem, 0, "H5Sget_simple_extent_npoints");
+
+    /* Check that the dataspace was created with an "all" selection */
+    sel_type = H5Sget_select_type(sid);
+    VERIFY(sel_type, H5S_SEL_ALL, "H5Sget_select_type");
+
+    /* Check that the null dataspace has 0 elements selected */
+    nelem = H5Sget_select_npoints(sid);
+    VERIFY(nelem, 0, "H5Sget_select_npoints");
+
+    /* Change to "none" selection */
+    ret = H5Sselect_none(sid);
+    CHECK(ret, FAIL, "H5Sselect_none");
+
+    /* Check that the null dataspace has 0 elements selected */
+    nelem = H5Sget_select_npoints(sid);
+    VERIFY(nelem, 0, "H5Sget_select_npoints");
+
+    /* Check to be sure we can't set a hyperslab selection on a null dataspace */
+    H5E_BEGIN_TRY {
+        hsize_t start[1]={0};
+        hsize_t count[1]={0};
+
+	ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, start, NULL, count, NULL);
+    } H5E_END_TRY;
+    VERIFY(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Check to be sure we can't set a point selection on a null dataspace */
+    H5E_BEGIN_TRY {
+        hsize_t	coord[1][1]; /* Coordinates for point selection */
+
+        coord[0][0]=0;
+	ret = H5Sselect_elements(sid, H5S_SELECT_SET, (size_t)1, coord);
+    } H5E_END_TRY;
+    VERIFY(ret, FAIL, "H5Sselect_elements");
+
+    /* Create first dataset */
+    did = H5Dcreate2(fid, NULLDATASET, H5T_NATIVE_UINT, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(did, FAIL, "H5Dcreate2");
+
+    /* Write "nothing" to the dataset */
+    ret = H5Dwrite(did, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &uval);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Write "nothing" to the dataset (with type conversion :-) */
+    ret = H5Dwrite(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &val);
+    CHECK(ret, FAIL, "H5Dwrite");
+
+    /* Try reading from the dataset (make certain our buffer is unmodified) */
+    ret = H5Dread(did, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &uval);
+    CHECK(ret, FAIL, "H5Dread");
+    VERIFY(uval, 2, "H5Dread");
+
+    /* Try reading from the dataset (with type conversion :-) (make certain our buffer is unmodified) */
+    ret = H5Dread(did, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &val);
+    CHECK(ret, FAIL, "H5Dread");
+    VERIFY(val, 1, "H5Dread");
+
+    /* Create an attribute for the group */
+    attr = H5Acreate2(did, NULLATTR, H5T_NATIVE_INT, sid, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(attr, FAIL, "H5Acreate2");
+
+    /* Write "nothing" to the attribute */
+    ret = H5Awrite(attr, H5T_NATIVE_INT, &val);
+    CHECK(ret, FAIL, "H5Awrite");
+
+    /* Write "nothing" to the attribute (with type conversion :-) */
+    ret = H5Awrite(attr, H5T_NATIVE_UINT, &uval);
+    CHECK(ret, FAIL, "H5Awrite");
+
+    /* Try reading from the attribute (make certain our buffer is unmodified) */
+    ret = H5Aread(attr, H5T_NATIVE_INT, &val);
+    CHECK(ret, FAIL, "H5Aread");
+    VERIFY(val, 1, "H5Aread");
+
+    /* Try reading from the attribute (with type conversion :-) (make certain our buffer is unmodified) */
+    ret = H5Aread(attr, H5T_NATIVE_UINT, &uval);
+    CHECK(ret, FAIL, "H5Aread");
+    VERIFY(uval, 2, "H5Aread");
+
+    /* Close attribute */
+    ret=H5Aclose(attr);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close the dataset */
+    ret = H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Verify that we've got the right kind of dataspace */
+    space_type = H5Sget_simple_extent_type(sid);
+    VERIFY(space_type, H5S_NULL, "H5Sget_simple_extent_type");
+
+    /* Convert the null dataspace to a simple dataspace */
+    ret = H5Sset_extent_simple(sid, 1, dims, NULL);
+    CHECK(ret, FAIL, "H5Sset_extent_simple");
+
+    /* Verify that we've got the right kind of dataspace now */
+    space_type = H5Sget_simple_extent_type(sid);
+    VERIFY(space_type, H5S_SIMPLE, "H5Sget_simple_extent_type");
+
+    /* Close the dataspace */
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Close the file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /*============================================
+     *  Reopen the file to check the data space
+     *============================================
+     */
+    fid = H5Fopen(NULLFILE, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Reopen the dataset */
+    did = H5Dopen2(fid, NULLDATASET, H5P_DEFAULT);
+    CHECK(did, FAIL, "H5Dopen2");
+
+    /* Get the space of the dataset */
+    dset_sid = H5Dget_space(did);
+    CHECK(dset_sid, FAIL, "H5Dget_space");
+
+    /* Query the NULL dataspace */
+    dset_sid2 = H5Scopy(dset_sid);
+    CHECK(dset_sid2, FAIL, "H5Scopy");
+
+    /* Verify the class type of dataspace */
+    stype = H5Sget_simple_extent_type(dset_sid2);
+    VERIFY(stype, H5S_NULL, "H5Sget_simple_extent_type");
+
+    /* Verify there is zero element in the dataspace */
+    ret = (herr_t)H5Sget_simple_extent_npoints(dset_sid2);
+    VERIFY(ret, 0, "H5Sget_simple_extent_npoints");
+
+    /* Try reading from the dataset (make certain our buffer is unmodified) */
+    ret = H5Dread(did, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &uval);
+    CHECK(ret, FAIL, "H5Dread");
+    VERIFY(uval, 2, "H5Dread");
+
+    /* Close the dataspace */
+    ret = H5Sclose(dset_sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(dset_sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Open the attribute for the dataset */
+    attr = H5Aopen(did, NULLATTR, H5P_DEFAULT);
+    CHECK(attr, FAIL, "H5Aopen");
+
+    /* Get the space of the dataset */
+    attr_sid = H5Aget_space(attr);
+    CHECK(attr_sid, FAIL, "H5Aget_space");
+
+    /* Verify the class type of dataspace */
+    stype = H5Sget_simple_extent_type(attr_sid);
+    VERIFY(stype, H5S_NULL, "H5Sget_simple_extent_type");
+
+    /* Verify there is zero element in the dataspace */
+    ret = (herr_t)H5Sget_simple_extent_npoints(attr_sid);
+    VERIFY(ret, 0, "H5Sget_simple_extent_npoints");
+
+    /* Close the dataspace */
+    ret = H5Sclose(attr_sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /* Try reading from the attribute (make certain our buffer is unmodified) */
+    ret = H5Aread(attr, H5T_NATIVE_INT, &val);
+    CHECK(ret, FAIL, "H5Aread");
+    VERIFY(val, 1, "H5Aread");
+
+    /* Close attribute */
+    ret=H5Aclose(attr);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Close the dataset */
+    ret = H5Dclose(did);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close the file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_h5s_null() */
+
+/****************************************************************
+**
+**  test_h5s_encode(): Test H5S (dataspace) encoding and decoding.
+**
+****************************************************************/
+static void
+test_h5s_encode(void)
+{
+    hid_t		sid1, sid2, sid3;	/* Dataspace ID		*/
+    hid_t               decoded_sid1, decoded_sid2, decoded_sid3;
+    int		        rank;		/* Logical rank of dataspace	*/
+    hsize_t		dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
+    size_t              sbuf_size=0, null_size=0, scalar_size=0;
+    unsigned char       *sbuf=NULL, *null_sbuf=NULL, *scalar_buf=NULL;
+    hsize_t		tdims[4];	/* Dimension array to test with */
+    hssize_t		n;	 	/* Number of dataspace elements */
+    hsize_t             start[] = {0, 0, 0};
+    hsize_t             stride[] = {2, 5, 3};
+    hsize_t             count[] = {2, 2, 2};
+    hsize_t             block[] = {1, 3, 1};
+    H5S_sel_type        sel_type;
+    H5S_class_t         space_type;
+    hssize_t            nblocks;
+    herr_t		ret;		/* Generic return value		*/
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Dataspace Encoding and Decoding\n"));
+
+    /*-------------------------------------------------------------------------
+     * Test encoding and decoding of simple dataspace and hyperslab selection.
+     *-------------------------------------------------------------------------
+     */
+    sid1 = H5Screate_simple(SPACE1_RANK, dims1, NULL);
+    CHECK(sid1, FAIL, "H5Screate_simple");
+
+    ret = H5Sselect_hyperslab(sid1, H5S_SELECT_SET, start, stride, count, block);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Encode simple data space in a buffer */
+    ret = H5Sencode(sid1, NULL, &sbuf_size);
+    CHECK(ret, FAIL, "H5Sencode");
+
+    if(sbuf_size>0)
+        sbuf = (unsigned char*)HDcalloc((size_t)1, sbuf_size);
+
+    /* Try decoding bogus buffer */
+    H5E_BEGIN_TRY {
+	ret = H5Sdecode(sbuf);
+    } H5E_END_TRY;
+    VERIFY(ret, FAIL, "H5Sdecode");
+
+    ret = H5Sencode(sid1, sbuf, &sbuf_size);
+    CHECK(ret, FAIL, "H5Sencode");
+
+    /* Decode from the dataspace buffer and return an object handle */
+    decoded_sid1=H5Sdecode(sbuf);
+    CHECK(decoded_sid1, FAIL, "H5Sdecode");
+
+    /* Verify the decoded dataspace */
+    n = H5Sget_simple_extent_npoints(decoded_sid1);
+    CHECK(n, FAIL, "H5Sget_simple_extent_npoints");
+    VERIFY(n, SPACE1_DIM1 * SPACE1_DIM2 * SPACE1_DIM3,
+	   "H5Sget_simple_extent_npoints");
+
+    rank = H5Sget_simple_extent_ndims(decoded_sid1);
+    CHECK(rank, FAIL, "H5Sget_simple_extent_ndims");
+    VERIFY(rank, SPACE1_RANK, "H5Sget_simple_extent_ndims");
+
+    rank = H5Sget_simple_extent_dims(decoded_sid1, tdims, NULL);
+    CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
+    VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
+	   "H5Sget_simple_extent_dims");
+
+    /* Verify hyperslabe selection */
+    sel_type = H5Sget_select_type(decoded_sid1);
+    VERIFY(sel_type, H5S_SEL_HYPERSLABS, "H5Sget_select_type");
+
+    nblocks = H5Sget_select_hyper_nblocks(decoded_sid1);
+    VERIFY(nblocks, 2*2*2, "H5Sget_select_hyper_nblocks");
+
+    ret = H5Sclose(sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(decoded_sid1);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /*-------------------------------------------------------------------------
+     * Test encoding and decoding of null dataspace.
+     *-------------------------------------------------------------------------
+     */
+    sid2 = H5Screate(H5S_NULL);
+    CHECK(sid2, FAIL, "H5Screate");
+
+    /* Encode null data space in a buffer */
+    ret = H5Sencode(sid2, NULL, &null_size);
+    CHECK(ret, FAIL, "H5Sencode");
+
+    if(null_size>0)
+        null_sbuf = (unsigned char*)HDcalloc((size_t)1, null_size);
+
+    ret = H5Sencode(sid2, null_sbuf, &null_size);
+    CHECK(ret, FAIL, "H5Sencode");
+
+    /* Decode from the dataspace buffer and return an object handle */
+    decoded_sid2=H5Sdecode(null_sbuf);
+    CHECK(decoded_sid2, FAIL, "H5Sdecode");
+
+    /* Verify decoded dataspace */
+    space_type = H5Sget_simple_extent_type(decoded_sid2);
+    VERIFY(space_type, H5S_NULL, "H5Sget_simple_extent_type");
+
+    ret = H5Sclose(sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(decoded_sid2);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    /*-------------------------------------------------------------------------
+     * Test encoding and decoding of scalar dataspace.
+     *-------------------------------------------------------------------------
+     */
+    /* Create scalar dataspace */
+    sid3 = H5Screate(H5S_SCALAR);
+    CHECK(sid3, FAIL, "H5Screate_simple");
+
+    /* Encode scalar data space in a buffer */
+    ret = H5Sencode(sid3, NULL, &scalar_size);
+    CHECK(ret, FAIL, "H5Sencode");
+
+    if(scalar_size>0)
+        scalar_buf = (unsigned char*)HDcalloc((size_t)1, scalar_size);
+
+    ret = H5Sencode(sid3, scalar_buf, &scalar_size);
+    CHECK(ret, FAIL, "H5Sencode");
+
+    /* Decode from the dataspace buffer and return an object handle */
+    decoded_sid3=H5Sdecode(scalar_buf);
+    CHECK(decoded_sid3, FAIL, "H5Sdecode");
+
+    /* Verify extent type */
+    space_type = H5Sget_simple_extent_type(decoded_sid3);
+    VERIFY(space_type, H5S_SCALAR, "H5Sget_simple_extent_type");
+
+    /* Verify decoded dataspace */
+    n = H5Sget_simple_extent_npoints(decoded_sid3);
+    CHECK(n, FAIL, "H5Sget_simple_extent_npoints");
+    VERIFY(n, 1, "H5Sget_simple_extent_npoints");
+
+    rank = H5Sget_simple_extent_ndims(decoded_sid3);
+    CHECK(rank, FAIL, "H5Sget_simple_extent_ndims");
+    VERIFY(rank, 0, "H5Sget_simple_extent_ndims");
+
+    ret = H5Sclose(sid3);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(decoded_sid3);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    HDfree(sbuf);
+    HDfree(null_sbuf);
+    HDfree(scalar_buf);
+}				/* test_h5s_encode() */
 
 /****************************************************************
 **
@@ -358,8 +738,8 @@ test_h5s_scalar_write(void)
     VERIFY(ext_type, H5S_SCALAR, "H5Sget_simple_extent_type");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",H5T_NATIVE_UINT,sid1,H5P_DEFAULT);
-    CHECK(dataset, FAIL, "H5Dcreate");
+    dataset = H5Dcreate2(fid1, "Dataset1", H5T_NATIVE_UINT, sid1, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate2");
 
     ret = H5Dwrite(dataset, H5T_NATIVE_UINT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &space3_data);
     CHECK(ret, FAIL, "H5Dwrite");
@@ -403,10 +783,10 @@ test_h5s_scalar_read(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Create a dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
-    CHECK(dataset, FAIL, "H5Dopen");
+    dataset = H5Dopen2(fid1, "Dataset1", H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dopen2");
 
-    sid1=H5Dget_space(dataset);
+    sid1 = H5Dget_space(dataset);
     CHECK(sid1, FAIL, "H5Dget_space");
 
     n = H5Sget_simple_extent_npoints(sid1);
@@ -502,8 +882,8 @@ test_h5s_compound_scalar_write(void)
     VERIFY(rank, 0, "H5Sget_simple_extent_dims");
 
     /* Create a dataset */
-    dataset=H5Dcreate(fid1,"Dataset1",tid1,sid1,H5P_DEFAULT);
-    CHECK(dataset, FAIL, "H5Dcreate");
+    dataset = H5Dcreate2(fid1, "Dataset1", tid1, sid1, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dcreate2");
 
     ret = H5Dwrite(dataset, tid1, H5S_ALL, H5S_ALL, H5P_DEFAULT, &space4_data);
     CHECK(ret, FAIL, "H5Dwrite");
@@ -548,10 +928,10 @@ test_h5s_compound_scalar_read(void)
     CHECK(fid1, FAIL, "H5Fopen");
 
     /* Create a dataset */
-    dataset=H5Dopen(fid1,"Dataset1");
-    CHECK(dataset, FAIL, "H5Dopen");
+    dataset = H5Dopen2(fid1, "Dataset1", H5P_DEFAULT);
+    CHECK(dataset, FAIL, "H5Dopen2");
 
-    sid1=H5Dget_space(dataset);
+    sid1 = H5Dget_space(dataset);
     CHECK(sid1, FAIL, "H5Dget_space");
 
     n = H5Sget_simple_extent_npoints(sid1);
@@ -576,6 +956,10 @@ test_h5s_compound_scalar_read(void)
         printf("scalar data different: space4_data.f=%f, read_data4.f=%f\n",space4_data.f,rdata.f);
         TestErrPrintf("scalar data different: space4_data.c1=%c, read_data4.c1=%c\n",space4_data.c1,rdata.c2);
      } /* end if */
+
+    /* Close datatype */
+    ret = H5Tclose(type);
+    CHECK(ret, FAIL, "H5Tclose");
 
     /* Close Dataset */
     ret = H5Dclose(dataset);
@@ -612,7 +996,7 @@ test_h5s_chunk(void)
     hsize_t csize[2];
     int i,j;
 
-    fileID = H5Fcreate(DATAFILE,H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT);
+    fileID = H5Fcreate(DATAFILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     CHECK(fileID, FAIL, "H5Fcreate");
 
     plist_id = H5Pcreate(H5P_DATASET_CREATE);
@@ -629,48 +1013,49 @@ test_h5s_chunk(void)
     space_id = H5Screate_simple(2, dims, NULL);
     CHECK(space_id, FAIL, "H5Screate_simple");
 
-    dsetID = H5Dcreate(fileID,"coords",H5T_NATIVE_FLOAT,space_id,plist_id);
-    CHECK(dsetID, FAIL, "H5Dcreate");
+    dsetID = H5Dcreate2(fileID, "coords", H5T_NATIVE_FLOAT, space_id, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+    CHECK(dsetID, FAIL, "H5Dcreate2");
 
     /* Initialize float array */
-    for(i=0; i<50000; i++)
-        for(j=0; j<3; j++)
-            chunk_data_flt[i][j]=(float)(i*2.5-j*100.3);
+    for(i = 0; i < 50000; i++)
+        for(j = 0; j < 3; j++)
+            chunk_data_flt[i][j] = (float)((i + 1) * 2.5 - j * 100.3);
 
-    status= H5Dwrite(dsetID,H5T_NATIVE_FLOAT,H5S_ALL,H5S_ALL,H5P_DEFAULT,chunk_data_flt);
+    status = H5Dwrite(dsetID, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, chunk_data_flt);
     CHECK(status, FAIL, "H5Dwrite");
 
-    status=H5Pclose(plist_id);
+    status = H5Pclose(plist_id);
     CHECK(status, FAIL, "H5Pclose");
-    status=H5Sclose(space_id);
+    status = H5Sclose(space_id);
     CHECK(status, FAIL, "H5Sclose");
-    status=H5Dclose(dsetID);
+    status = H5Dclose(dsetID);
     CHECK(status, FAIL, "H5Dclose");
-    status=H5Fclose(fileID);
+    status = H5Fclose(fileID);
     CHECK(status, FAIL, "H5Fclose");
 
     /* Reset/initialize the data arrays to read in */
-    HDmemset(chunk_data_dbl,0,sizeof(double)*50000*3);
-    HDmemset(chunk_data_flt,0,sizeof(float)*50000*3);
+    HDmemset(chunk_data_dbl, 0, sizeof(double) * 50000 * 3);
+    HDmemset(chunk_data_flt, 0, sizeof(float) * 50000 * 3);
 
-    fileID = H5Fopen(DATAFILE,H5F_ACC_RDONLY,H5P_DEFAULT);
+    fileID = H5Fopen(DATAFILE, H5F_ACC_RDONLY, H5P_DEFAULT);
     CHECK(fileID, FAIL, "H5Fopen");
-    dsetID = H5Dopen(fileID,"coords");
-    CHECK(dsetID, FAIL, "H5Dopen");
+    dsetID = H5Dopen2(fileID, "coords", H5P_DEFAULT);
+    CHECK(dsetID, FAIL, "H5Dopen2");
 
-    status= H5Dread (dsetID,H5T_NATIVE_DOUBLE,H5S_ALL,H5S_ALL,H5P_DEFAULT,chunk_data_dbl);
+    status= H5Dread (dsetID, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, chunk_data_dbl);
     CHECK(status, FAIL, "H5Dread");
-    status= H5Dread (dsetID,H5T_NATIVE_FLOAT,H5S_ALL,H5S_ALL,H5P_DEFAULT,chunk_data_flt);
+    status= H5Dread (dsetID, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, chunk_data_flt);
     CHECK(status, FAIL, "H5Dread");
 
-    status=H5Dclose(dsetID);
+    status = H5Dclose(dsetID);
     CHECK(status, FAIL, "H5Dclose");
-    status=H5Fclose(fileID);
+    status = H5Fclose(fileID);
     CHECK(status, FAIL, "H5Fclose");
 
     for(i=0; i<50000; i++) {
         for(j=0; j<3; j++) {
-            if(chunk_data_dbl[i][j]!=chunk_data_flt[i][j])
+            /* Check if the two values are within 0.001% range. */
+            if(!DBL_REL_EQUAL(chunk_data_dbl[i][j],chunk_data_flt[i][j], 0.00001))
                 TestErrPrintf("chunk_data_dbl[%d][%d]=%f, chunk_data_flt[%d][%d]=%f\n",i,j,chunk_data_dbl[i][j],i,j,chunk_data_flt[i][j]);
         } /* end for */
     } /* end for */
@@ -678,63 +1063,519 @@ test_h5s_chunk(void)
 
 /****************************************************************
 **
-**  test_h5s_null_space(): Attempt to access dataset and attribute
-**      with null dataspace.  This should fail, since the 1.6.x
-**      branch doesn't understand null dataspaces.
+**  test_h5s_extent_equal(): Exercise extent comparison code
 **
 ****************************************************************/
 static void
-test_h5s_null_space(void)
+test_h5s_extent_equal(void)
 {
-    hid_t fid;                  /* File ID */
-    hid_t gid;                  /* Group ID */
-    hid_t aid;                  /* Attribute ID */
-    hid_t did;                  /* Dataset ID */
-    char testfile[512]="";          /* Character buffer for corrected test file name */
-    char *srcdir = HDgetenv("srcdir");    /* Pointer to the directory the source code is located within */
-    herr_t ret;         /* Generic return value */
+    hid_t null_space;           /* Null dataspace */
+    hid_t scalar_space;         /* Scalar dataspace */
+    hid_t d1_space1, d1_space2, d1_space3, d1_space4; /* 1-D dataspaces */
+    hid_t d2_space1, d2_space2, d2_space3, d2_space4; /* 2-D dataspaces */
+    hid_t d3_space1, d3_space2, d3_space3, d3_space4; /* 3-D dataspaces */
+    hsize_t d1_dims1[1] = {10}, /* 1-D dimensions */
+        d1_dims2[1] = {20},
+        d1_dims3[1] = {H5S_UNLIMITED};
+    hsize_t d2_dims1[2] = {10, 10},             /* 2-D dimensions */
+        d2_dims2[2] = {20, 20},
+        d2_dims3[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
+    hsize_t d3_dims1[3] = {10, 10, 10},         /* 3-D dimensions */
+        d3_dims2[3] = {20, 20, 20},
+        d3_dims3[3] = {H5S_UNLIMITED, H5S_UNLIMITED, H5S_UNLIMITED};
+    htri_t ext_equal;           /* Whether two dataspace extents are equal */
+    herr_t ret;                 /* Generic error return */
 
-    /* Output message about test being performed */
-    MESSAGE(5, ("Testing Attempting to Read NULL Dataspaces\n"));
+    /* Create dataspaces */
+    null_space = H5Screate(H5S_NULL);
+    CHECK(null_space, FAIL, "H5Screate");
 
-    /* Generate the correct name for the test file, by prepending the source path */
-    if (srcdir && ((HDstrlen(srcdir) + HDstrlen(NULLFILE) + 1) < sizeof(testfile))) {
-        HDstrcpy(testfile, srcdir);
-        HDstrcat(testfile, "/");
-    }
-    HDstrcat(testfile, NULLFILE);
+    scalar_space = H5Screate(H5S_SCALAR);
+    CHECK(scalar_space, FAIL, "H5Screate");
 
-    /* Open the testfile */
-    fid = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
-    CHECK_I(fid, "H5Fopen");
+    d1_space1 = H5Screate_simple(1, d1_dims1, NULL);
+    CHECK(d1_space1, FAIL, "H5Screate");
+    d1_space2 = H5Screate_simple(1, d1_dims2, NULL);
+    CHECK(d1_space2, FAIL, "H5Screate");
+    d1_space3 = H5Screate_simple(1, d1_dims1, d1_dims2);
+    CHECK(d1_space3, FAIL, "H5Screate");
+    d1_space4 = H5Screate_simple(1, d1_dims1, d1_dims3);
+    CHECK(d1_space4, FAIL, "H5Screate");
 
-    /* Only try to proceed if the file is around */
-    if (fid >= 0) {
-        /* Open the root group */
-        gid = H5Gopen(fid,"/");
-        CHECK_I(gid, "H5Gopen");
+    d2_space1 = H5Screate_simple(2, d2_dims1, NULL);
+    CHECK(d2_space1, FAIL, "H5Screate");
+    d2_space2 = H5Screate_simple(2, d2_dims2, NULL);
+    CHECK(d2_space2, FAIL, "H5Screate");
+    d2_space3 = H5Screate_simple(2, d2_dims1, d2_dims2);
+    CHECK(d2_space3, FAIL, "H5Screate");
+    d2_space4 = H5Screate_simple(2, d2_dims1, d2_dims3);
+    CHECK(d2_space4, FAIL, "H5Screate");
 
-        /* Attempt to open attribute w/NULL dataspace */
-        H5E_BEGIN_TRY {
-            aid=H5Aopen_name(gid,NULLATTR);
-        } H5E_END_TRY;
-        VERIFY(aid, FAIL, "H5Aopen_name");
+    d3_space1 = H5Screate_simple(3, d3_dims1, NULL);
+    CHECK(d3_space1, FAIL, "H5Screate");
+    d3_space2 = H5Screate_simple(3, d3_dims2, NULL);
+    CHECK(d3_space2, FAIL, "H5Screate");
+    d3_space3 = H5Screate_simple(3, d3_dims1, d3_dims2);
+    CHECK(d3_space3, FAIL, "H5Screate");
+    d3_space4 = H5Screate_simple(3, d3_dims1, d3_dims3);
+    CHECK(d3_space4, FAIL, "H5Screate");
 
-        /* Attempt to open dataset w/NULL dataspace */
-        H5E_BEGIN_TRY {
-            did=H5Dopen(fid,NULLDATASET);
-        } H5E_END_TRY;
-        VERIFY(did, FAIL, "H5Dopen");
+    /* Compare all dataspace combinations */
 
-        /* Close open objects */
-        ret=H5Gclose(gid);
-        CHECK(ret, FAIL, "H5Gclose");
-        ret=H5Fclose(fid);
-        CHECK(ret, FAIL, "H5Fclose");
-    } /* end if */
-    else
-        printf("***cannot open the pre-created NULL dataspace test file (%s)\n",testfile);
-} /* test_h5s_null_space() */
+    /* Compare null dataspace against all others, including itself */
+    ext_equal = H5Sextent_equal(null_space, null_space);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(null_space, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare scalar dataspace against all others, including itself */
+    ext_equal = H5Sextent_equal(scalar_space, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, scalar_space);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(scalar_space, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 1-D dataspace w/no max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d1_space1, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d1_space1);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space1, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare larger 1-D dataspace w/no max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d1_space2, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d1_space2);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space2, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 1-D dataspace w/fixed max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d1_space3, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d1_space3);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space3, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 1-D dataspace w/unlimited max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d1_space4, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d1_space4);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d1_space4, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 2-D dataspace w/no max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d2_space1, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d2_space1);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space1, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare larger 2-D dataspace w/no max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d2_space2, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d2_space2);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space2, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 2-D dataspace w/fixed max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d2_space3, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d2_space3);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space3, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 2-D dataspace w/unlimited max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d2_space4, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d2_space4);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d2_space4, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 3-D dataspace w/no max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d3_space1, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d3_space1);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space1, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare larger 2-D dataspace w/no max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d3_space2, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d3_space2);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space2, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 2-D dataspace w/fixed max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d3_space3, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d3_space3);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space3, d3_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+
+    /* Compare small 2-D dataspace w/unlimited max. dims against all others, including itself */
+    ext_equal = H5Sextent_equal(d3_space4, null_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, scalar_space);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d1_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d1_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d1_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d1_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d2_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d2_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d2_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d2_space4);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d3_space1);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d3_space2);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d3_space3);
+    VERIFY(ext_equal, FALSE, "H5Sextent_equal");
+    ext_equal = H5Sextent_equal(d3_space4, d3_space4);
+    VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+
+    /* Close dataspaces */
+    ret = H5Sclose(null_space);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(scalar_space);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(d1_space1);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d1_space2);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d1_space3);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d1_space4);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(d2_space1);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d2_space2);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d2_space3);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d2_space4);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Sclose(d3_space1);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d3_space2);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d3_space3);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(d3_space4);
+    CHECK(ret, FAIL, "H5Sclose");
+} /* test_h5s_extent_equal() */
 
 /****************************************************************
 **
@@ -748,16 +1589,18 @@ test_h5s(void)
     MESSAGE(5, ("Testing Dataspaces\n"));
 
     test_h5s_basic();		/* Test basic H5S code */
+    test_h5s_null();		/* Test Null dataspace H5S code */
+    test_h5s_encode();          /* Test encoding and decoding */
     test_h5s_scalar_write();	/* Test scalar H5S writing code */
-    test_h5s_scalar_read();		/* Test scalar H5S reading code */
+    test_h5s_scalar_read();	/* Test scalar H5S reading code */
+
     test_h5s_compound_scalar_write();	/* Test compound datatype scalar H5S writing code */
     test_h5s_compound_scalar_read();	/* Test compound datatype scalar H5S reading code */
 
     /* This test was added later to exercise a bug in chunked I/O */
     test_h5s_chunk();	        /* Exercise bug fix for chunked I/O */
 
-    /* This test is specific to the 1.6.x branch, to test backward compatibility w/null dataspaces */
-    test_h5s_null_space();
+    test_h5s_extent_equal();	/* Test extent comparison code */
 } /* test_h5s() */
 
 
@@ -779,6 +1622,6 @@ void
 cleanup_h5s(void)
 {
     remove(DATAFILE);
+    remove(NULLFILE);
     remove(BASICFILE);
 }
-

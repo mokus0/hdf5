@@ -36,7 +36,7 @@
 #endif
 
 #include "h5test.h"
-#include "H5Cpp.h"	// C++ API header file
+#include "H5Cpp.h"
 
 #ifndef H5_NO_NAMESPACE
     using namespace H5;
@@ -100,8 +100,8 @@ void issue_fail_msg(const char* where, int line, const char* file_name,
 {
     //if (GetTestVerbosity()>=VERBO_HI)
     {
-	cerr << ">>> FAILED in " << where << " at line " << line
-	     << " in " << file_name << " - " << message << endl << endl;
+        cerr << ">>> FAILED in " << where << " at line " << line
+             << " in " << file_name << " - " << message << endl << endl;
     }
 }
 
@@ -112,7 +112,7 @@ void issue_fail_msg(const char* where, int line, const char* file_name,
  *		different, the function will print out a message and the
  *		different values.  This function is made to reuse the code
  *		segment that is used in various places throughout
- *		the test code.  Where the C version of this code segment
+ *		the test code.  Where the C version of this code segment 
  *		"goto error," this function will return -1.
  *
  * Return:	Success:	0
@@ -132,7 +132,7 @@ int check_values (hsize_t i, hsize_t j, int apoint, int acheck)
     {
 	cerr << "    Read different values than written.\n" << endl;
 	cerr << "    At index " << (unsigned long)i << "," <<
-	(unsigned long)j << endl;
+   	(unsigned long)j << endl;
 	return -1;
     }
     return 0;
@@ -147,7 +147,7 @@ InvalidActionException::InvalidActionException():Exception(){}
 // Function:    InvalidActionException overloaded constructor
 //
 // Purpose:	Creates an InvalidActionException with the name of the function,
-//		which the failure should have occurred but didn't, and a
+//              which the failure should have occurred but didn't, and a
 //		message explaining why it should fail.
 // Parameters
 //		func_name - IN: Name of the function where failure should occur
@@ -169,7 +169,7 @@ TestFailedException::TestFailedException():Exception(){}
 // Function:    TestFailedException overloaded constructor
 //
 // Purpose:	Creates an TestFailedException with the name of the function,
-//		which the failure should have occurred but didn't, and a
+//              which the failure should have occurred but didn't, and a
 //		message explaining why it should fail.
 // Parameters
 //		func_name - IN: Name of the function where failure should occur
@@ -178,7 +178,7 @@ TestFailedException::TestFailedException():Exception(){}
 TestFailedException::TestFailedException(const H5std_string func_name, const H5std_string message) : Exception(func_name, message) {}
 
 //--------------------------------------------------------------------------
-// Function:	TestFailedException destructor
+// Function:    TestFailedException destructor
 //--------------------------------------------------------------------------
 TestFailedException::~TestFailedException() {}
 

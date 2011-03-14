@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "gif.h"
-#include "H5IM.h"
+#include "H5IMpublic.h"
 #include "h5tools_utils.h"
 
 

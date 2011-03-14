@@ -47,7 +47,6 @@
  */
 #define H5TOOLS_MALLOCSIZE      (128 * 1024 * 1024)
 
-
 /* format for hsize_t */
 #define HSIZE_T_FORMAT   "%"H5_PRINTF_LL_WIDTH"u"
 
@@ -349,7 +348,7 @@ typedef struct h5tools_context_t {
     size_t cur_column;                       /*current column for output */
     size_t cur_elmt;                         /*current element/output line */
     int  need_prefix;                        /*is line prefix needed? */
-    int  ndims;                              /*dimensionality  */
+    unsigned ndims;                          /*dimensionality  */
     hsize_t p_min_idx[H5S_MAX_RANK];         /*min selected index */
     hsize_t p_max_idx[H5S_MAX_RANK];         /*max selected index */
     int  prev_multiline;                     /*was prev datum multiline? */
@@ -374,9 +373,11 @@ struct subset_t {
     hsize_t *block;
 };
 
-extern FILE   *rawdatastream;       /*output stream for raw data            */
+extern FILE   *rawdatastream;       /* output stream for raw data */
 extern int     bin_output;          /* binary output */
 extern int     bin_form;            /* binary form */
+
+
 
 /* Strings for output */
 #define H5_TOOLS_GROUP           "GROUP"
@@ -386,8 +387,8 @@ extern int     bin_form;            /* binary form */
 /* Definitions of useful routines */
 extern void     h5tools_init(void);
 extern void     h5tools_close(void);
-extern hid_t    h5tools_fopen(const char *fname, const char *driver,
-                              char *drivername, size_t drivername_len);
+extern hid_t    h5tools_fopen(const char *fname, unsigned flags, hid_t fapl,
+                    const char *driver, char *drivername, size_t drivername_len);
 extern int      h5tools_dump_dset(FILE *stream, const h5tool_format_t *info, hid_t dset,
                                   hid_t p_typ, struct subset_t *sset, int indentlevel);
 extern int      h5tools_dump_mem(FILE *stream, const h5tool_format_t *info, hid_t obj_id,
@@ -395,6 +396,7 @@ extern int      h5tools_dump_mem(FILE *stream, const h5tool_format_t *info, hid_
 extern hid_t    h5tools_get_native_type(hid_t type);
 extern hid_t    h5tools_get_little_endian_type(hid_t type);
 extern hid_t    h5tools_get_big_endian_type(hid_t type);
+
 
 extern void     h5tools_dump_simple_data(FILE *stream, const h5tool_format_t *info, hid_t container,
                          h5tools_context_t *ctx/*in,out*/, unsigned flags,
@@ -406,5 +408,5 @@ extern int      h5tools_can_encode(H5Z_filter_t filtn);
 
 void            init_acc_pos(h5tools_context_t *ctx, hsize_t *dims);
 
-#endif  /* H5TOOLS_H__ */
+#endif /* H5TOOLS_H__ */
 

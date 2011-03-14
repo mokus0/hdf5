@@ -48,27 +48,20 @@
      INTEGER :: vl_total_error = 0
      INTEGER :: z_total_error = 0
      INTEGER :: sz_total_error = 0
-     INTEGER :: derived_flt_error = 0
-     INTEGER :: ret_total_error = 0
      INTEGER :: majnum, minnum, relnum
      CHARACTER(LEN=8) error_string
      CHARACTER(LEN=8) :: success = ' PASSED '
      CHARACTER(LEN=8) :: failure = '*FAILED*'
      CHARACTER(LEN=8) :: skip = '--SKIP--'
      CHARACTER(LEN=4) :: e_format ='(8a)'
+     LOGICAL :: cleanup = .TRUE.
+!     LOGICAL :: cleanup = .FALSE.
      LOGICAL :: szip_flag
-     LOGICAL :: cleanup, status
 
      CALL h5open_f(error) 
-
-     cleanup = .TRUE.
-     CALL h5_env_nocleanup_f(status)
-     IF(status) cleanup=.FALSE.
-
      write(*,*) '                       ==========================                            '
      write(*,*) '                              FORTRAN tests '
      write(*,*) '                       ==========================                            '
-
      CALL h5get_libversion_f(majnum, minnum, relnum, total_error)
      if(total_error .eq. 0) then
 
@@ -83,7 +76,6 @@
      endif
      write(*,*)
 !     CALL h5check_version_f(1,4,4,total_error)
-
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing FILE Interface                   '
 !     write(*,*) '========================================='
@@ -95,7 +87,6 @@
 
      write(*, fmt = e_format) error_string 
      total_error = total_error + mounting_total_error 
-
      error_string = failure
      CALL reopentest(cleanup, reopen_total_error)
      IF (reopen_total_error == 0) error_string = success
@@ -104,6 +95,9 @@
      write(*, fmt = e_format) error_string
      total_error = total_error + reopen_total_error 
 
+!DEC$ if defined(H5_VMS)
+     goto 100
+!DEC$ else
      error_string = failure
      CALL file_close(cleanup, fclose_total_error)
      IF (fclose_total_error == 0) error_string = success
@@ -111,7 +105,8 @@
      write(*, fmt = '(49x,a)', advance = 'no') ' ' 
      write(*, fmt = e_format) error_string
      total_error = total_error + fclose_total_error 
-
+!DEC$ endif
+100  continue
      error_string = failure
      CALL file_space(cleanup, fspace_total_error)
      IF (fspace_total_error == 0) error_string = success
@@ -119,7 +114,6 @@
      write(*, fmt = '(49x,a)', advance = 'no') ' ' 
      write(*, fmt = e_format) error_string
      total_error = total_error + fspace_total_error 
-
 
 !     write(*,*)
 !     write(*,*) '========================================='
@@ -133,7 +127,6 @@
      write(*, fmt = '(57x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + dataset_total_error 
-
      error_string = failure
      CALL extenddsettest(cleanup, extend_dataset_total_error)
      IF (extend_dataset_total_error == 0)  error_string = success
@@ -141,7 +134,6 @@
      write(*, fmt = '(46x,a)', advance = 'no') ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + extend_dataset_total_error 
-
 !     write(*,*)
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing DATASPACE Interface             '
@@ -206,38 +198,11 @@
      write(*, fmt = e_format) error_string
      total_error = total_error + element_total_error 
 
-     error_string = failure
-     ret_total_error = 0
-     CALL test_select_point(cleanup, ret_total_error)
-     IF (ret_total_error == 0) error_string = success
-     write(*, fmt = '(33a)', advance = 'no') ' Element selection functions test'     
-     write(*, fmt = '(37x,a)', advance = 'no')  ' '
-     write(*, fmt = e_format) error_string
-     total_error = total_error + ret_total_error
-
-     error_string = failure
-     ret_total_error = 0
-     CALL test_select_combine(cleanup, ret_total_error)
-     IF (ret_total_error == 0) error_string = success
-     write(*, fmt = '(28a)', advance = 'no') ' Selection combinations test'     
-     write(*, fmt = '(42x,a)', advance = 'no')  ' '
-     write(*, fmt = e_format) error_string
-     total_error = total_error + ret_total_error
-
-     error_string = failure
-     ret_total_error = 0
-     CALL test_select_bounds(cleanup, ret_total_error)
-     IF (ret_total_error == 0) error_string = success
-     write(*, fmt = '(22a)', advance = 'no') ' Selection bounds test'     
-     write(*, fmt = '(48x,a)', advance = 'no')  ' '
-     write(*, fmt = e_format) error_string
-     total_error = total_error + ret_total_error
 
 !     write(*,*)
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing DATATYPE interface               '
 !     write(*,*) '========================================='
-
      error_string = failure
      CALL basic_data_type_test(cleanup, basic_datatype_total_error)
      IF (basic_datatype_total_error == 0) error_string = success
@@ -253,7 +218,6 @@
      write(*, fmt = '(47x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + total_error_compoundtest
-
      error_string = failure
      CALL enumtest(cleanup, enum_total_error)
      IF (enum_total_error == 0) error_string = success
@@ -261,15 +225,6 @@
      write(*, fmt = '(51x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + enum_total_error 
-
-     error_string = failure
-     CALL test_derived_flt(cleanup, derived_flt_error)
-     IF (derived_flt_error == 0) error_string = success
-     write(*, fmt = '(28a)', advance = 'no') ' Derived float datatype test'     
-     write(*, fmt = '(42x,a)', advance = 'no')  ' '
-     write(*, fmt = e_format) error_string
-     total_error = total_error + derived_flt_error
-
 !     write(*,*)
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing PROPERTY interface               ' 
@@ -282,15 +237,16 @@
      write(*, fmt = '(48x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + external_total_error 
-    
+
      error_string = failure
+!     error_string = skip
+     cleanup = .FALSE.
      CALL multi_file_test(cleanup, multi_file_total_error)
      IF (multi_file_total_error == 0) error_string = success
      write(*, fmt = '(23a)', advance = 'no') ' Multi file driver test'     
      write(*, fmt = '(47x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + multi_file_total_error 
-    
 !     write(*,*)
 !     write(*,*) '========================================='
 !     write(*,*) 'Testing ATTRIBUTE interface              ' 
@@ -316,7 +272,6 @@
      write(*, fmt = '(54x,a)', advance = 'no')  ' '
      write(*, fmt = e_format) error_string
      total_error = total_error + identifier_total_error 
-
      error_string = failure
      CALL filters_test(cleanup, z_total_error)
      IF (z_total_error == 0) error_string = success

@@ -18,18 +18,44 @@
  *	       Thursday, September 30, 2004
  */
 
+/****************/
+/* Module Setup */
+/****************/
+
 #define H5D_PACKAGE		/*suppress error about including H5Dpkg	  */
 
+
+/***********/
+/* Headers */
+/***********/
 #include "H5private.h"		/* Generic Functions			*/
 #include "H5Dpkg.h"		/* Datasets				*/
 #include "H5Eprivate.h"		/* Error handling		  	*/
 #include "H5Fprivate.h"		/* Files				*/
 
-/* PRIVATE PROTOTYPES */
+/****************/
+/* Local Macros */
+/****************/
+
+/******************/
+/* Local Typedefs */
+/******************/
+
+/********************/
+/* Local Prototypes */
+/********************/
 static herr_t H5D_efl_read (const H5O_efl_t *efl, haddr_t addr, size_t size,
     uint8_t *buf);
 static herr_t H5D_efl_write(const H5O_efl_t *efl, haddr_t addr, size_t size,
     const uint8_t *buf);
+
+/*********************/
+/* Package Variables */
+/*********************/
+
+/*******************/
+/* Local Variables */
+/*******************/
 
 
 /*-------------------------------------------------------------------------
@@ -230,7 +256,7 @@ ssize_t
 H5D_efl_readvv(const H5D_io_info_t *io_info,
     size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
     size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    void *_buf)
+    haddr_t UNUSED address, void UNUSED *pointer/*in*/, void *_buf)
 {
     const H5O_efl_t *efl=&(io_info->store->efl); /* Pointer to efl info */
     unsigned char *buf;         /* Pointer to buffer to write */
@@ -314,7 +340,7 @@ ssize_t
 H5D_efl_writevv(const H5D_io_info_t *io_info,
     size_t dset_max_nseq, size_t *dset_curr_seq, size_t dset_len_arr[], hsize_t dset_offset_arr[],
     size_t mem_max_nseq, size_t *mem_curr_seq, size_t mem_len_arr[], hsize_t mem_offset_arr[],
-    const void *_buf)
+    haddr_t UNUSED address, void UNUSED *pointer/*in*/, const void *_buf)
 {
     const H5O_efl_t *efl=&(io_info->store->efl); /* Pointer to efl info */
     const unsigned char *buf;   /* Pointer to buffer to write */

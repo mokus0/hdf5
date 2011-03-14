@@ -25,10 +25,33 @@
 /* Private headers needed by this file */
 #include "H5Gprivate.h"		/* Groups				*/
 
+
+/**************************/
+/* Library Private Macros */
+/**************************/
+
+
+/****************************/
+/* Library Private Typedefs */
+/****************************/
+
 /* Forward references of package typedefs */
 typedef struct H5A_t H5A_t;
+typedef struct H5A_attr_iter_op_t H5A_attr_iter_op_t;
 
-/* Library private functions in package */
-H5_DLL H5G_entry_t *H5A_entof(H5A_t *attr);
 
-#endif
+/*****************************/
+/* Library-private Variables */
+/*****************************/
+
+
+/***************************************/
+/* Library-private Function Prototypes */
+/***************************************/
+
+/* General attribute routines */
+H5_DLL struct H5O_loc_t *H5A_oloc(H5A_t *attr);
+H5_DLL H5G_name_t *H5A_nameof(H5A_t *attr);
+
+#endif /* _H5Aprivate_H */
+

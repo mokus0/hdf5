@@ -24,8 +24,8 @@
 #endif  /* !PATH_MAX */
 
 /* global variables */
-int dim0;
-int dim1;
+int dim0 = DIM0;
+int dim1 = DIM1;
 int chunkdim0;
 int chunkdim1;
 int nerrors = 0;			/* errors count */
@@ -33,8 +33,9 @@ int ndatasets = 300;			/* number of datasets to create*/
 int ngroups = 512;                      /* number of groups to create in root
                                          * group. */
 int facc_type = FACC_MPIO;		/*Test file access type */
+int dxfer_coll_type = DXFER_COLLECTIVE_IO;
 
-H5E_auto_t old_func;		        /* previous error handler */
+H5E_auto2_t old_func;		        /* previous error handler */
 void *old_client_data;			/* previous error handler arg.*/
 
 /* other option flags */
@@ -118,8 +119,8 @@ usage(void)
     printf("\t-f <prefix>\tfilename prefix\n");
     printf("\t-2\t\tuse Split-file together with MPIO\n");
     printf("\t-p\t\tuse combo MPI-POSIX driver\n");
-    printf("\t-d <factor0> <factor1>\tdataset dimensions factors. Defaults (%d,%d)\n",
-        ROW_FACTOR, COL_FACTOR);
+    printf("\t-d <dim0> <dim1>\tdataset dimensions. Defaults (%d,%d)\n",
+	DIM0, DIM1);
     printf("\t-c <dim0> <dim1>\tdataset chunk dimensions. Defaults (dim0/10,dim1/10)\n");
     printf("\n");
 }
@@ -170,6 +171,9 @@ parse_options(int argc, char **argv)
 		case 'p':   /* Use the MPI-POSIX driver access */
 			    facc_type = FACC_MPIPOSIX;
 			    break;
+		case 'i':   /* Collective MPI-IO access with independent IO  */
+			    dxfer_coll_type = DXFER_INDEPENDENT_IO;
+			    break;
 		case '2':   /* Use the split-file driver with MPIO access */
 			    /* Can use $HDF5_METAPREFIX to define the */
 			    /* meta-file-prefix. */
@@ -180,9 +184,9 @@ parse_options(int argc, char **argv)
 				nerrors++;
 				return(1);
 			    }
-			    dim0 = atoi(*(++argv))*mpi_size;
+			    dim0 = atoi(*(++argv));
 			    argc--;
-			    dim1 = atoi(*(++argv))*mpi_size;
+			    dim1 = atoi(*(++argv));
 			    /* set default chunkdim sizes too */
 			    chunkdim0 = (dim0+9)/10;
 			    chunkdim1 = (dim1+9)/10;
@@ -296,11 +300,7 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type,
 
     if (l_facc_type == FACC_MPIPOSIX) {
 	/* set Parallel access with communicator */
-#ifdef H5_WANT_H5_V1_4_COMPAT
-	ret = H5Pset_fapl_mpiposix(ret_pl, comm);
-#else /* H5_WANT_H5_V1_4_COMPAT */
 	ret = H5Pset_fapl_mpiposix(ret_pl, comm, use_gpfs);
-#endif /* H5_WANT_H5_V1_4_COMPAT */
 	VRFY((ret >= 0), "H5Pset_fapl_mpiposix succeeded");
 	return(ret_pl);
     }
@@ -308,6 +308,7 @@ create_faccess_plist(MPI_Comm comm, MPI_Info info, int l_facc_type,
     /* unknown file access types */
     return (ret_pl);
 }
+
 
 int main(int argc, char **argv)
 {
@@ -323,9 +324,6 @@ int main(int argc, char **argv)
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-
-    dim0 = ROW_FACTOR*mpi_size;
-    dim1 = COL_FACTOR*mpi_size;
 
     if (MAINPROCESS){
 	printf("===================================\n");
@@ -368,7 +366,7 @@ int main(int argc, char **argv)
     AddTest("eidsetw2", extend_writeInd2, NULL,
 	    "extendible dataset independent write #2", PARATESTFILE);
     AddTest("selnone", none_selection_chunk, NULL,
-	    "chunked dataset with none-selection", PARATESTFILE);
+            "chunked dataset with none-selection", PARATESTFILE);
 
     AddTest("calloc", test_chunk_alloc, NULL,
 	    "parallel extend Chunked allocation on serial file", PARATESTFILE);
@@ -401,44 +399,51 @@ int main(int argc, char **argv)
 	    "collective group and dataset write", &collngroups_params);
     AddTest("ingrpr", independent_group_read, NULL,
 	    "independent group and dataset read", &collngroups_params);
-
-    /* By default, do not run big dataset. */
-    AddTest("-bigdset", big_dataset, NULL,
-	    "big dataset test", PARATESTFILE);
+ /* By default, do not run big dataset on _WIN32. */
+#ifdef _WIN32
+    AddTest("-bigdset", big_dataset, NULL, 
+            "big dataset test", PARATESTFILE);
+#else
+				 AddTest("bigdset", big_dataset, NULL, 
+            "big dataset test", PARATESTFILE);
+#endif
     AddTest("fill", dataset_fillvalue, NULL,
 	    "dataset fill value", PARATESTFILE);
 
-#if 0
-    /* Collective Chunk IO are verified to work for 64 processes.
-     * Add or skip depending on whether mpi_size is larger than 64.
-     */
-
-    if((mpi_size > 64) && MAINPROCESS) {
-	printf("Collective chunk IO tests haven't been tested \n");
-	printf("  for the number of process greater than 64.\n");
-	printf("Please try with the number of process \n");
-	printf("  no greater than 64 for collective chunk IO test.\n");
-	printf("Collective chunk tests will be skipped \n");
-    }
-    AddTest((mpi_size > 64) ? "-cchunk1" : "cchunk1",
-	coll_chunk1,NULL, "simple collective chunk io",PARATESTFILE);
-    AddTest((mpi_size > 64) ? "-cchunk2" : "cchunk2",
-	coll_chunk2,NULL, "noncontiguous collective chunk io",PARATESTFILE);
-    AddTest((mpi_size > 64) ? "-cchunk3" : "cchunk3",
-	coll_chunk3,NULL, "multi-chunk collective chunk io",PARATESTFILE);
-    AddTest((mpi_size > 64) ? "-cchunk4" : "cchunk4",
-	coll_chunk4,NULL, "collective to independent chunk io",PARATESTFILE);
-#endif
-  AddTest("cchunk1",
+    AddTest("cchunk1",
 	coll_chunk1,NULL, "simple collective chunk io",PARATESTFILE);
     AddTest("cchunk2",
 	coll_chunk2,NULL, "noncontiguous collective chunk io",PARATESTFILE);
     AddTest("cchunk3",
 	coll_chunk3,NULL, "multi-chunk collective chunk io",PARATESTFILE);
-#if 0
     AddTest("cchunk4",
-	coll_chunk4,NULL, "collective to independent chunk io",PARATESTFILE);
-#endif
+        coll_chunk4,NULL, "collective chunk io with partial non-selection ",PARATESTFILE);
+
+    if((mpi_size < 3)&& MAINPROCESS ) {
+	printf("Collective chunk IO optimization APIs ");
+	printf("needs at least 3 processes to participate\n");
+	printf("Collective chunk IO API tests will be skipped \n");
+    }
+    AddTest((mpi_size <3)? "-cchunk5":"cchunk5" ,
+        coll_chunk5,NULL,
+	"linked chunk collective IO without optimization",PARATESTFILE);
+    AddTest((mpi_size < 3)? "-cchunk6" : "cchunk6",
+	coll_chunk6,NULL,
+	"multi-chunk collective IO without optimization",PARATESTFILE);
+    AddTest((mpi_size < 3)? "-cchunk7" : "cchunk7",
+	coll_chunk7,NULL,
+	"linked chunk collective IO with optimization",PARATESTFILE);
+    AddTest((mpi_size < 3)? "-cchunk8" : "cchunk8",
+	coll_chunk8,NULL,
+	"linked chunk collective IO transferring to multi-chunk",PARATESTFILE);
+    AddTest((mpi_size < 3)? "-cchunk9" : "cchunk9",
+	coll_chunk9,NULL,
+	"multiple chunk collective IO with optimization",PARATESTFILE);
+    AddTest((mpi_size < 3)? "-cchunk10" : "cchunk10",
+	coll_chunk10,NULL,
+	"multiple chunk collective IO transferring to independent IO",PARATESTFILE);
+          
+         
 
 /* irregular collective IO tests*/
     AddTest("ccontw",
@@ -460,6 +465,38 @@ int main(int argc, char **argv)
 	coll_irregular_complex_chunk_read,NULL,
 	"collective irregular complex chunk read",PARATESTFILE);
 
+
+#if 0
+    if((mpi_size > 3) && MAINPROCESS) {
+	printf("Collective irregular chunk IO tests haven't been tested \n");
+	printf("  for the number of process greater than 3.\n");
+	printf("Please try with the number of process \n");
+	printf("  no greater than 3 for collective irregular chunk IO test.\n");
+	printf("Collective irregular chunk tests will be skipped \n");
+    }
+    AddTest((mpi_size > 3) ? "-ccontw" : "ccontw",
+	coll_irregular_cont_write,NULL,
+	"collective irregular contiguous write",PARATESTFILE);
+    AddTest((mpi_size > 3) ? "-ccontr" : "ccontr",
+	coll_irregular_cont_read,NULL,
+	"collective irregular contiguous read",PARATESTFILE);
+    AddTest((mpi_size > 3) ? "-cschunkw" : "cschunkw",
+	coll_irregular_simple_chunk_write,NULL,
+	"collective irregular simple chunk write",PARATESTFILE);
+    AddTest((mpi_size > 3) ? "-cschunkr" : "cschunkr",
+	coll_irregular_simple_chunk_read,NULL,
+	"collective irregular simple chunk read",PARATESTFILE);
+    AddTest((mpi_size > 3) ? "-ccchunkw" : "ccchunkw",
+	coll_irregular_complex_chunk_write,NULL,
+	"collective irregular complex chunk write",PARATESTFILE);
+    AddTest((mpi_size > 3) ? "-ccchunkr" : "ccchunkr",
+	coll_irregular_complex_chunk_read,NULL,
+	"collective irregular complex chunk read",PARATESTFILE);
+#endif
+
+
+    AddTest("null", null_dataset, NULL,
+	    "null dataset test", PARATESTFILE);
 
     io_mode_confusion_params.name  = PARATESTFILE;
     io_mode_confusion_params.count = 0; /* value not used */
@@ -483,6 +520,13 @@ int main(int argc, char **argv)
 	       "   Using MPIPOSIX driver\n"
 	       "===================================\n");
     }
+
+    if (dxfer_coll_type == DXFER_INDEPENDENT_IO && MAINPROCESS){
+	printf("===================================\n"
+	       "   Using Independent I/O with file set view to replace collective I/O \n"
+	       "===================================\n");
+    }
+
 
     /* Perform requested testing */
     PerformTests();

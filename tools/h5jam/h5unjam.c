@@ -112,13 +112,13 @@ parse_command_line(int argc, const char *argv[])
     while ((opt = get_option(argc, argv, s_opts, l_opts)) != EOF) {
         switch ((char)opt) {
 	case 'o':
-	  output_file = HDstrdup (opt_arg);
+	  output_file = strdup (opt_arg);
 	  break;
 	case 'i':
-	  input_file = HDstrdup (opt_arg);
+	  input_file = strdup (opt_arg);
 	  break;
 	case 'u':
-	  ub_file = HDstrdup (opt_arg);
+	  ub_file = strdup (opt_arg);
 	  break;
 	case 'd':
 	  do_delete = TRUE;
@@ -167,7 +167,7 @@ main(int argc, const char *argv[])
     int   ufid;
     int   h5fid;
     void               *edata;
-    H5E_auto_t          func;
+    H5E_auto2_t          func;
     hid_t               ifile;
     off_t fsize;
     hsize_t usize;
@@ -178,9 +178,8 @@ main(int argc, const char *argv[])
     struct stat sbuf;
 
     /* Disable error reporting */
-    H5Eget_auto(&func, &edata);
-    H5Eset_auto(NULL, NULL);
-
+    H5Eget_auto2(H5E_DEFAULT, &func, &edata);
+    H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
 
     parse_command_line(argc, argv);
 
@@ -240,7 +239,7 @@ main(int argc, const char *argv[])
 
     if (ub_file == NULL) {
 	/* write to sdtout */
-	ufid = HDdup(1);
+	ufid = dup(1);
     } else {
         ufid = HDopen(ub_file,O_WRONLY|O_CREAT|O_TRUNC, 0644 );
 
@@ -278,9 +277,9 @@ main(int argc, const char *argv[])
     copy_to_file( ifid, h5fid, (ssize_t) usize, (ssize_t)(fsize - (ssize_t)usize) );
 
 
-    HDclose(ufid);
-    HDclose(h5fid);
-    HDclose(ifid);
+    close(ufid);
+    close(h5fid);
+    close(ifid);
 
     return d_status;
 }

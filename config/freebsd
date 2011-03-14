@@ -30,16 +30,47 @@ fi
 #       from /usr/include/sys/cdefs.h
 # (Unless we are using g++ as a C compiler)
 if test "X-g++" != "X-$CC"; then
-    CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600" 
+    H5_CPPFLAGS="$H5_CPPFLAGS -D_XOPEN_SOURCE=600" 
 fi
 
 # Figure out C compiler flags
 . $srcdir/config/gnu-flags
 
+# Figure out Intel C compiler flags
+. $srcdir/config/intel-flags
+
+# The default Fortran 90 compiler
+if test "X-" = "X-$FC"; then
+    case $CC_BASENAME in
+        gcc*|pgcc*)
+            FC=gfortran40
+            FC_BASENAME=gfortran40
+            ;;
+        icc*)
+            FC=ifort
+            FC_BASENAME=ifort
+            ;;
+        mpicc*)
+            FC=mpif90
+            FC_BASENAME=mpif90
+            ;;
+    esac
+fi
+
+# Figure out FORTRAN compiler flags
+. $srcdir/config/gnu-fflags
+
+# Figure out Intel F90 compiler flags
+. $srcdir/config/intel-fflags
+
 # Special setup to use pthread support if enable-threadsafe is on.
 # Works with static executable only.
 if test "X-" != "X-$enable_threadsafe"; then
-  CFLAGS="$CFLAGS -D_THREAD_SAFE" 
-  CXXFLAGS="$CXXFLAGS -D_THREAD_SAFE" 
+  H5_CFLAGS="$H5_CFLAGS -D_THREAD_SAFE" 
+  H5_CXXFLAGS="$H5_CXXFLAGS -D_THREAD_SAFE" 
   LDFLAGS="$LDFLAGS -pthread"
 fi
+
+# Temporarily hard set this variable.  The problem of loss of the last 2 bytes of mantissa
+# turns out to be elusive.  Hard set it until a better solution is found. 
+hdf5_cv_ullong_to_ldouble_precision_works=${hdf5_cv_ullong_to_ldouble_precision_works='no'}

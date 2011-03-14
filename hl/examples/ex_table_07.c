@@ -13,7 +13,8 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "H5TA.h"
+#include "hdf5.h"
+#include "hdf5_hl.h"
 #include <stdlib.h>
 
 /*-------------------------------------------------------------------------
@@ -30,13 +31,13 @@
 
 int main( void )
 {
- typedef struct Particle 
+ typedef struct Particle
  {
   char   name[16];
   int    lati;
   int    longi;
   float  pressure;
-  double temperature; 
+  double temperature;
  } Particle;
 
  /* Calculate the size and the offsets of our struct members in memory */
@@ -46,9 +47,9 @@ int main( void )
                                 HOFFSET( Particle, longi ),
                                 HOFFSET( Particle, pressure ),
                                 HOFFSET( Particle, temperature )};
-  
+
  /* Define an array of Particles */
- Particle  p_data[NRECORDS] = { 
+ Particle  p_data[NRECORDS] = {
  {"zero",0,0, 0.0f, 0.0},
  {"one",10,10, 1.0f, 10.0},
  {"two",  20,20, 2.0f, 20.0},
@@ -66,14 +67,14 @@ int main( void )
  hid_t      file_id;
  hsize_t    chunk_size = 10;
  int        compress  = 0;
- Particle   fill_data[1] = 
+ Particle   fill_data[1] =
  { {"no data",-1,-1, -99.0f, -99.0} };
  hsize_t    start;                      /* Record to start reading */
  hsize_t    nrecords;                   /* Number of records to insert/delete */
  hsize_t    nfields_out;
  hsize_t    nrecords_out;
- herr_t     status; 
- 
+ herr_t     status;
+
  /* Initialize the field field_type */
  string_type = H5Tcopy( H5T_C_S1 );
  H5Tset_size( string_type, 16 );
@@ -82,18 +83,18 @@ int main( void )
  field_type[2] = H5T_NATIVE_INT;
  field_type[3] = H5T_NATIVE_FLOAT;
  field_type[4] = H5T_NATIVE_DOUBLE;
- 
+
  /* Create a new file using default properties. */
  file_id = H5Fcreate( "ex_table_07.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT );
- 
+
  /* Make the table */
- status=H5TBmake_table( "Table Title",file_id,TABLE_NAME,NFIELDS,NRECORDS, 
-  dst_size,field_names, dst_offset, field_type, 
+ status=H5TBmake_table( "Table Title",file_id,TABLE_NAME,NFIELDS,NRECORDS,
+  dst_size,field_names, dst_offset, field_type,
   chunk_size, fill_data, compress, p_data  );
- 
+
  /* Delete records  */
- start    = 3;      
- nrecords = 3; 
+ start    = 3;
+ nrecords = 3;
  status=H5TBdelete_record( file_id, TABLE_NAME, start, nrecords );
 
   /* Get table info  */
@@ -101,14 +102,14 @@ int main( void )
 
  /* print */
  printf ("Table has %d fields and %d records\n",(int)nfields_out,(int)nrecords_out);
- 
- /* close type */
+
+  /* close type */
  H5Tclose( string_type );
  
  /* close the file */
  H5Fclose( file_id );
- 
+
  return 0;
- 
+
 }
 

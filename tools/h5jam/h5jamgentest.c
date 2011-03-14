@@ -22,6 +22,7 @@
  * trying it on a new platform, ...), you need to verify the correctness
  * of the expected output and update the corresponding *.ddl files.
  */
+#include <assert.h>
 #include <limits.h>
 
 #include "hdf5.h"
@@ -65,6 +66,8 @@ char pattern[11] = "abcdefghij";
  *-------------------------------------------------------------------------
  */
 
+
+#define BUF_SIZE 1024
 
 #define LENSTR  50
 #define LENSTR2  11
@@ -119,51 +122,92 @@ typedef struct s1_t {
 /* VL string datatype name */
 #define VLSTR_TYPE      "vl_string_type"
 
+/* A UD link traversal function.  Shouldn't actually be called. */
+static hid_t UD_traverse(const char UNUSED * link_name, hid_t UNUSED cur_group,
+    const void UNUSED * udata, size_t UNUSED udata_size, hid_t UNUSED lapl_id)
+{
+    return -1;
+}
 
-/*
+#define MY_LINKCLASS 187
+const H5L_class_t UD_link_class[1] = {{
+    H5L_LINK_CLASS_T_VERS,    /* H5L_class_t version       */
+    MY_LINKCLASS,             /* Link type id number            */
+    "UD link class",          /* name for debugging             */
+    NULL,                     /* Creation callback              */
+    NULL,                     /* Move/rename callback           */
+    NULL,                     /* Copy callback                  */
+    UD_traverse,              /* The actual traversal function  */
+    NULL,                     /* Deletion callback              */
+    NULL                      /* Query callback                 */
+}};
+
+
+
+/* gent_ub
+    with no ub, identical to gent_all from h5dumpgentest.c
+
+    FILENAME is the name of the file to create
+    UB_SIZE is the size the buffer should be
+    UB_FILL characters will be set to the PATTERN array,
+        the rest of the user block will be NULL.
 
 / : g1  g2  attr1  attr2
 g1 : g1.1  g1.2
 g1.1 : dset1.1.1(attr1, attr2)   dset1.1.2
-g1.2 : g1.2.1
+g1.2 : g1.2.1 extlink
 g1.2.1 : slink
-g2 : dset2.1  dset2.2
+g2 : dset2.1  dset2.2 udlink
 
 */
 
+static void
+gent_ub(const char * filename, size_t ub_size, size_t ub_fill)
+{
+    hid_t fid, group, attr, dataset, space;
+    hid_t create_plist;
+    hsize_t dims[2];
+    int data[2][2], dset1[10][10], dset2[20];
+    char buf[BUF_SIZE];
+    int i, j;
+    size_t u;
+    float dset2_1[10], dset2_2[3][5];
+    int fd;
+    char *bp;
 
-static void gent_all(void) {
-hid_t fid, group, attr, dataset, space;
-hsize_t dims[2];
-int data[2][2], dset1[10][10], dset2[20];
-char buf[60];
-int i, j;
-float dset2_1[10], dset2_2[3][5];
-
-  fid = H5Fcreate(FILE7, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  if(ub_size > 0)
+  {
+      create_plist = H5Pcreate(H5P_FILE_CREATE);
+      H5Pset_userblock(create_plist, (hsize_t)ub_size);
+      fid = H5Fcreate(filename, H5F_ACC_TRUNC, create_plist, H5P_DEFAULT);
+  }
+  else
+  {
+      fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  }
 
   /* create groups */
-  group = H5Gcreate (fid, "/g1", 0);
+  group = H5Gcreate2(fid, "/g1", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   H5Gclose(group);
 
-  group = H5Gcreate (fid, "/g2", 0);
+  group = H5Gcreate2(fid, "/g2", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   H5Gclose(group);
 
-  group = H5Gcreate (fid, "/g1/g1.1", 0);
+  group = H5Gcreate2(fid, "/g1/g1.1", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   H5Gclose(group);
 
-  group = H5Gcreate (fid, "/g1/g1.2", 0);
+  group = H5Gcreate2(fid, "/g1/g1.2", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   H5Gclose(group);
 
-  group = H5Gcreate (fid, "/g1/g1.2/g1.2.1", 0);
+  group = H5Gcreate2(fid, "/g1/g1.2/g1.2.1", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   H5Gclose(group);
 
   /* root attributes */
-  group = H5Gopen (fid, "/");
+  group = H5Gopen2(fid, "/", H5P_DEFAULT);
 
   dims[0] = 10;
   space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (group, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT);
+  attr = H5Acreate2(group, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT, H5P_DEFAULT);
   sprintf(buf, "abcdefghi");
   H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
   H5Sclose(space);
@@ -171,7 +215,7 @@ float dset2_1[10], dset2_2[3][5];
 
   dims[0] = 2; dims[1] = 2;
   space = H5Screate_simple(2, dims, NULL);
-  attr = H5Acreate (group, "attr2", H5T_STD_I32BE, space, H5P_DEFAULT);
+  attr = H5Acreate2(group, "attr2", H5T_STD_I32BE, space, H5P_DEFAULT, H5P_DEFAULT);
   data[0][0] = 0; data[0][1] = 1; data[1][0] = 2; data[1][1] = 3;
   H5Awrite(attr, H5T_NATIVE_INT, data);
   H5Sclose(space);
@@ -179,12 +223,12 @@ float dset2_1[10], dset2_2[3][5];
 
   H5Gclose(group);
 
-  group = H5Gopen (fid, "/g1/g1.1");
+  group = H5Gopen2(fid, "/g1/g1.1", H5P_DEFAULT);
 
   /* dset1.1.1 */
   dims[0] = 10; dims[1] = 10;
   space = H5Screate_simple(2, dims, NULL);
-  dataset = H5Dcreate(group, "dset1.1.1", H5T_STD_I32BE, space, H5P_DEFAULT);
+  dataset = H5Dcreate2(group, "dset1.1.1", H5T_STD_I32BE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   for (i = 0; i < 10; i++)
        for (j = 0; j < 10; j++)
             dset1[i][j] = j*i;
@@ -194,7 +238,7 @@ float dset2_1[10], dset2_2[3][5];
   /* attributes of dset1.1.1 */
   dims[0] = 27;
   space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (dataset, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT);
+  attr = H5Acreate2(dataset, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT, H5P_DEFAULT);
   sprintf(buf, "1st attribute of dset1.1.1");
   H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
   H5Sclose(space);
@@ -202,7 +246,7 @@ float dset2_1[10], dset2_2[3][5];
 
   dims[0] = 27;
   space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (dataset, "attr2", H5T_STD_I8BE, space, H5P_DEFAULT);
+  attr = H5Acreate2(dataset, "attr2", H5T_STD_I8BE, space, H5P_DEFAULT, H5P_DEFAULT);
   sprintf(buf, "2nd attribute of dset1.1.1");
   H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
   H5Sclose(space);
@@ -213,7 +257,7 @@ float dset2_1[10], dset2_2[3][5];
   /* dset1.1.2 */
   dims[0] = 20;
   space = H5Screate_simple(1, dims, NULL);
-  dataset = H5Dcreate(group, "dset1.1.2", H5T_STD_I32BE, space, H5P_DEFAULT);
+  dataset = H5Dcreate2(group, "dset1.1.2", H5T_STD_I32BE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   for (i = 0; i < 20; i++)
        dset2[i] = i;
   H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2);
@@ -222,17 +266,20 @@ float dset2_1[10], dset2_2[3][5];
 
   H5Gclose(group);
 
+  /* external link */
+  H5Lcreate_external("somefile", "somepath", fid, "/g1/g1.2/extlink", H5P_DEFAULT, H5P_DEFAULT);
+
   /* soft link */
-  group = H5Gopen (fid, "/g1/g1.2/g1.2.1");
-  H5Glink (group, H5G_LINK_SOFT, "somevalue", "slink");
+  group = H5Gopen2(fid, "/g1/g1.2/g1.2.1", H5P_DEFAULT);
+  H5Lcreate_soft("somevalue", group, "slink", H5P_DEFAULT, H5P_DEFAULT);
   H5Gclose(group);
 
-  group = H5Gopen (fid, "/g2");
+  group = H5Gopen2(fid, "/g2", H5P_DEFAULT);
 
   /* dset2.1 */
   dims[0] = 10;
   space = H5Screate_simple(1, dims, NULL);
-  dataset = H5Dcreate(group, "dset2.1", H5T_IEEE_F32BE, space, H5P_DEFAULT);
+  dataset = H5Dcreate2(group, "dset2.1", H5T_IEEE_F32BE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   for (i = 0; i < 10; i++)
        dset2_1[i] = (float)(i*0.1+1);
   H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_1);
@@ -242,7 +289,7 @@ float dset2_1[10], dset2_2[3][5];
   /* dset2.2 */
   dims[0] = 3; dims[1] = 5;
   space = H5Screate_simple(2, dims, NULL);
-  dataset = H5Dcreate(group, "dset2.2", H5T_IEEE_F32BE, space, H5P_DEFAULT);
+  dataset = H5Dcreate2(group, "dset2.2", H5T_IEEE_F32BE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   for (i = 0; i < 3; i++)
        for (j = 0; j < 5; j++)
             dset2_2[i][j] = (float)((i+1)*j*0.1);
@@ -252,358 +299,83 @@ float dset2_1[10], dset2_2[3][5];
 
   H5Gclose(group);
 
-  H5Fclose(fid);
-
-}
-
-static void gent_withub(void) {
-hid_t fid, group, attr, dataset, space;
-hid_t create_plist;
-hsize_t dims[2];
-int data[2][2], dset1[10][10], dset2[20];
-char buf[512];
-int i, j;
-unsigned u;
-float dset2_1[10], dset2_2[3][5];
-int fd;
-char *bp;
-
-  create_plist = H5Pcreate(H5P_FILE_CREATE);
-  H5Pset_userblock(create_plist,(hsize_t)512);
-  fid = H5Fcreate(FILE8, H5F_ACC_TRUNC, create_plist, H5P_DEFAULT);
-
-  /* create groups */
-  group = H5Gcreate (fid, "/g1", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g2", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g1/g1.1", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g1/g1.2", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g1/g1.2/g1.2.1", 0);
-  H5Gclose(group);
-
-  /* root attributes */
-  group = H5Gopen (fid, "/");
-
-  dims[0] = 10;
-  space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (group, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT);
-  sprintf(buf, "abcdefghi");
-  H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  dims[0] = 2; dims[1] = 2;
-  space = H5Screate_simple(2, dims, NULL);
-  attr = H5Acreate (group, "attr2", H5T_STD_I32BE, space, H5P_DEFAULT);
-  data[0][0] = 0; data[0][1] = 1; data[1][0] = 2; data[1][1] = 3;
-  H5Awrite(attr, H5T_NATIVE_INT, data);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  H5Gclose(group);
-
-  group = H5Gopen (fid, "/g1/g1.1");
-
-  /* dset1.1.1 */
-  dims[0] = 10; dims[1] = 10;
-  space = H5Screate_simple(2, dims, NULL);
-  dataset = H5Dcreate(group, "dset1.1.1", H5T_STD_I32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 10; i++)
-       for (j = 0; j < 10; j++)
-            dset1[i][j] = j*i;
-  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset1);
-  H5Sclose(space);
-
-  /* attributes of dset1.1.1 */
-  dims[0] = 27;
-  space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (dataset, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT);
-  sprintf(buf, "1st attribute of dset1.1.1");
-  H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  dims[0] = 27;
-  space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (dataset, "attr2", H5T_STD_I8BE, space, H5P_DEFAULT);
-  sprintf(buf, "2nd attribute of dset1.1.1");
-  H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  H5Dclose(dataset);
-
-  /* dset1.1.2 */
-  dims[0] = 20;
-  space = H5Screate_simple(1, dims, NULL);
-  dataset = H5Dcreate(group, "dset1.1.2", H5T_STD_I32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 20; i++)
-       dset2[i] = i;
-  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2);
-  H5Sclose(space);
-  H5Dclose(dataset);
-
-  H5Gclose(group);
-
-  /* soft link */
-  group = H5Gopen (fid, "/g1/g1.2/g1.2.1");
-  H5Glink (group, H5G_LINK_SOFT, "somevalue", "slink");
-  H5Gclose(group);
-
-  group = H5Gopen (fid, "/g2");
-
-  /* dset2.1 */
-  dims[0] = 10;
-  space = H5Screate_simple(1, dims, NULL);
-  dataset = H5Dcreate(group, "dset2.1", H5T_IEEE_F32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 10; i++)
-       dset2_1[i] = (float)(i*0.1+1);
-  H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_1);
-  H5Sclose(space);
-  H5Dclose(dataset);
-
-  /* dset2.2 */
-  dims[0] = 3; dims[1] = 5;
-  space = H5Screate_simple(2, dims, NULL);
-  dataset = H5Dcreate(group, "dset2.2", H5T_IEEE_F32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 3; i++)
-       for (j = 0; j < 5; j++)
-            dset2_2[i][j] = (float)((i+1)*j*0.1);
-  H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_2);
-  H5Sclose(space);
-  H5Dclose(dataset);
-
-  H5Gclose(group);
+  /* user-defined link */
+  H5Lregister(UD_link_class);
+  H5Lcreate_ud(fid, "/g2/udlink", MY_LINKCLASS, NULL, (size_t)0, H5P_DEFAULT, H5P_DEFAULT);
 
   H5Fclose(fid);
 
+  /* If a user block is being used, write to it here */
+  if(ub_size > 0)
+  {
+        HDassert(ub_size <= BUF_SIZE);
 
-	fd = HDopen(FILE8,O_RDWR, 0);
-	if (fd < 0) {
-		/* panic */
-	}
+	fd = HDopen(filename, O_RDWR, 0);
+        HDassert(fd >= 0);
+
 	/* fill buf with pattern */
-	memset(buf,'\0',512);
+	HDmemset(buf, '\0', ub_size);
 	bp = buf;
-	for (u = 0; u < strlen(pattern); u++) {
-		*bp++ = pattern[u%10];
-	}
+	for (u = 0; u < ub_fill; u++)
+            *bp++ = pattern[u % 10];
 
-	HDwrite(fd,buf,512);
+	HDwrite(fd, buf, ub_size);
 
 	close(fd);
-}
-
-static void gent_withub513(void) {
-hid_t fid, group, attr, dataset, space;
-hid_t create_plist;
-hsize_t dims[2];
-int data[2][2], dset1[10][10], dset2[20];
-char buf[1023];
-int i, j;
-float dset2_1[10], dset2_2[3][5];
-int fd;
-char *bp;
-
-  create_plist = H5Pcreate(H5P_FILE_CREATE);
-  H5Pset_userblock(create_plist,(hsize_t)1024);
-  fid = H5Fcreate(FILE9, H5F_ACC_TRUNC, create_plist, H5P_DEFAULT);
-
-  /* create groups */
-  group = H5Gcreate (fid, "/g1", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g2", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g1/g1.1", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g1/g1.2", 0);
-  H5Gclose(group);
-
-  group = H5Gcreate (fid, "/g1/g1.2/g1.2.1", 0);
-  H5Gclose(group);
-
-  /* root attributes */
-  group = H5Gopen (fid, "/");
-
-  dims[0] = 10;
-  space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (group, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT);
-  sprintf(buf, "abcdefghi");
-  H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  dims[0] = 2; dims[1] = 2;
-  space = H5Screate_simple(2, dims, NULL);
-  attr = H5Acreate (group, "attr2", H5T_STD_I32BE, space, H5P_DEFAULT);
-  data[0][0] = 0; data[0][1] = 1; data[1][0] = 2; data[1][1] = 3;
-  H5Awrite(attr, H5T_NATIVE_INT, data);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  H5Gclose(group);
-
-  group = H5Gopen (fid, "/g1/g1.1");
-
-  /* dset1.1.1 */
-  dims[0] = 10; dims[1] = 10;
-  space = H5Screate_simple(2, dims, NULL);
-  dataset = H5Dcreate(group, "dset1.1.1", H5T_STD_I32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 10; i++)
-       for (j = 0; j < 10; j++)
-            dset1[i][j] = j*i;
-  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset1);
-  H5Sclose(space);
-
-  /* attributes of dset1.1.1 */
-  dims[0] = 27;
-  space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (dataset, "attr1", H5T_STD_I8BE, space, H5P_DEFAULT);
-  sprintf(buf, "1st attribute of dset1.1.1");
-  H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  dims[0] = 27;
-  space = H5Screate_simple(1, dims, NULL);
-  attr = H5Acreate (dataset, "attr2", H5T_STD_I8BE, space, H5P_DEFAULT);
-  sprintf(buf, "2nd attribute of dset1.1.1");
-  H5Awrite(attr, H5T_NATIVE_SCHAR, buf);
-  H5Sclose(space);
-  H5Aclose(attr);
-
-  H5Dclose(dataset);
-
-  /* dset1.1.2 */
-  dims[0] = 20;
-  space = H5Screate_simple(1, dims, NULL);
-  dataset = H5Dcreate(group, "dset1.1.2", H5T_STD_I32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 20; i++)
-       dset2[i] = i;
-  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2);
-  H5Sclose(space);
-  H5Dclose(dataset);
-
-  H5Gclose(group);
-
-  /* soft link */
-  group = H5Gopen (fid, "/g1/g1.2/g1.2.1");
-  H5Glink (group, H5G_LINK_SOFT, "somevalue", "slink");
-  H5Gclose(group);
-
-  group = H5Gopen (fid, "/g2");
-
-  /* dset2.1 */
-  dims[0] = 10;
-  space = H5Screate_simple(1, dims, NULL);
-  dataset = H5Dcreate(group, "dset2.1", H5T_IEEE_F32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 10; i++)
-       dset2_1[i] = (float)(i*0.1+1);
-  H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_1);
-  H5Sclose(space);
-  H5Dclose(dataset);
-
-  /* dset2.2 */
-  dims[0] = 3; dims[1] = 5;
-  space = H5Screate_simple(2, dims, NULL);
-  dataset = H5Dcreate(group, "dset2.2", H5T_IEEE_F32BE, space, H5P_DEFAULT);
-  for (i = 0; i < 3; i++)
-       for (j = 0; j < 5; j++)
-            dset2_2[i][j] = (float)((i+1)*j*0.1);
-  H5Dwrite(dataset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset2_2);
-  H5Sclose(space);
-  H5Dclose(dataset);
-
-  H5Gclose(group);
-
-  H5Fclose(fid);
-
-
-	fd = HDopen(FILE9,O_RDWR, 0);
-	if (fd < 0) {
-		/* panic */
-	}
-	/* fill buf with pattern */
-	memset(buf,'\0',1024);
-	bp = buf;
-	for (i = 0; i < 513; i++) {
-		*bp++ = pattern[i%10];
-	}
-
-	HDwrite(fd,buf,1024);
-
-	close(fd);
+  }
 }
 
 static void
-create_textfile(const char *name, size_t size) {
-char *buf;
-int fd;
-size_t i;
-char *bp;
+create_textfile(const char *name, size_t size)
+{
+    char *buf;
+    int fd;
+    size_t i;
+    char *bp;
 
+#ifdef _WIN32
+    fd = _creat(name, _S_IREAD | _S_IWRITE);
+#else /* _WIN32 */
+    fd = creat(name,(mode_t)0777);
+#endif /* _WIN32 */
+    assert(fd >= 0);
+    buf = calloc(size, (size_t)1);
+    assert(buf);
 
-	#ifdef WIN32
-	fd = _creat(name, _S_IREAD | _S_IWRITE);
-	#else /* WIN32 */
-	fd = creat(name,(mode_t)0777);
-	#endif /* WIN32 */
-	if (fd < 0) {
-		/* panic */
-	}
-	buf = calloc(size,1);
-	if (buf == NULL) {
-		/* panic */
-	}
-	/* fill buf with pattern */
-	bp = buf;
-	for (i = 0; i < size; i++) {
-		*bp++ = pattern[i%10];
-	}
+    /* fill buf with pattern */
+    bp = buf;
+    for(i = 0; i < size; i++)
+        *bp++ = pattern[i % 10];
 
+    HDwrite(fd, buf, size);
 
-	HDwrite(fd,buf,size);
-
-	close(fd);
+    close(fd);
 }
 
 #ifdef notdef
 /* not used yet */
 void
-create_binfile(char *name, off_t size) {
-char *buf;
-int fd;
-int i;
-char *bp;
+create_binfile(char *name, off_t size)
+{
+    char *buf;
+    int fd;
+    int i;
+    char *bp;
 
+    fd = creat(name,0777);
+    HDassert(fd >= 0);
 
-	fd = creat(name,0777);
-	if (fd < 0) {
-		/* panic */
-	}
-	buf = calloc(size,1);
-	if (buf == NULL) {
-		/* panic */
-	}
-	/* fill buf with pattern */
-	bp = buf;
-	for (i = 0; i < size; i++) {
-		*bp++ = (char) i & 0xff;
-	}
+    buf = calloc(size,1);
+    HDassert(buf);
 
-	HDwrite(fd,buf,size);
+    /* fill buf with pattern */
+    bp = buf;
+    for (i = 0; i < size; i++)
+        *bp++ = (char) i & 0xff;
 
-	close(fd);
+    HDwrite(fd,buf,size);
+
+    close(fd);
 }
 #endif
 
@@ -618,30 +390,30 @@ int main(void)
 {
 
 /*
-create_textfile(UBTXT1,0);
+create_textfile(UBTXT1, (size_t)0);
 */
-create_textfile(UBTXT2,10);
-create_textfile(UBTXT3,511);
-create_textfile(UBTXT4,512);
-create_textfile(UBTXT5,513);
+create_textfile(UBTXT2, (size_t)10);
+create_textfile(UBTXT3, (size_t)511);
+create_textfile(UBTXT4, (size_t)512);
+create_textfile(UBTXT5, (size_t)513);
 /*
-create_textfile(UBTXT6,1023);
-create_textfile(UBTXT7,1024);
-create_textfile(UBTXT8,1025);
-create_textfile(UBTXT9,2047);
-create_textfile(UBTXT10,2048);
-create_textfile(UBTXT11,2049);
+create_textfile(UBTXT6, (size_t)1023);
+create_textfile(UBTXT7, (size_t)1024);
+create_textfile(UBTXT8, (size_t)1025);
+create_textfile(UBTXT9, (size_t)2047);
+create_textfile(UBTXT10, (size_t)2048);
+create_textfile(UBTXT11, (size_t)2049);
 
-create_binfile(UBBIN1,0);
-create_binfile(UBBIN2,10);
-create_binfile(UBBIN3,511);
-create_binfile(UBBIN4,512);
-create_binfile(UBBIN5,513);
+create_binfile(UBBIN1, (off_t)0);
+create_binfile(UBBIN2, (off_t)10);
+create_binfile(UBBIN3, (off_t)511);
+create_binfile(UBBIN4, (off_t)512);
+create_binfile(UBBIN5, (off_t)513);
 
 */
-    gent_all();
-    gent_withub();
-    gent_withub513();
+    gent_ub(FILE7, (size_t)0, (size_t)0);
+    gent_ub(FILE8, (size_t)512, HDstrlen(pattern));
+    gent_ub(FILE9, (size_t)1024, (size_t)513);
 
     return 0;
 }

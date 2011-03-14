@@ -39,12 +39,58 @@ case "X-$CC" in
     ;;
 
   *)
-    CFLAGS="$CFLAGS -Ae"
+    CFLAGS="$CFLAGS -Ae -Wp,-H65536" #increase the size of macro definition table. For test/dtypes.c
     DEBUG_CFLAGS=-g
     DEBUG_CPPFLAGS="-Ae"
     PROD_CFLAGS=-O
     PROD_CPPFLAGS="-Ae"
     PROFILE_CFLAGS=
     PROFILE_CPPFLAGS="-Ae"
+    ;;
+esac
+
+# The default Fortran 90 compiler
+
+if test "X$FC" = "X"; then
+  FC=f90
+fi
+
+if test "X$f9x_flags_set" = "X"; then
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS -O"
+  DEBUG_FCFLAGS="-O"
+  PROD_FCFLAGS="-O"
+  PROFILE_FCFLAGS="-O"
+  f9x_flags_set=yes
+fi
+
+# The default C++ compiler
+
+if test -z "$CXX"; then
+  CXX=aCC
+  CXX_BASENAME=aCC
+fi
+
+case "X-$CXX" in
+  X-aCC)
+    # +Z for PIC
+    CXXFLAGS="$CXXFLAGS +Z  -D_INCLUDE_LONGLONG"
+    CFLAGS="$CFLAGS -g +O2"
+    DEBUG_CXXFLAGS=-g
+    DEBUG_CPPFLAGS=
+    PROD_CXXFLAGS="-O -s"
+    PROD_CPPFLAGS=
+    PROFILE_CPPFLAGS=
+    ;;
+
+  *)
+    CXXFLAGS="$CXXFLAGS -D_INCLUDE_LONGLONG"
+    CFLAGS="$CFLAGS"
+    DEBUG_CXXFLAGS=
+    DEBUG_CPPFLAGS=
+    PROD_CXXFLAGS=
+    PROD_CPPFLAGS=
+    PROFILE_CPPFLAGS=
     ;;
 esac

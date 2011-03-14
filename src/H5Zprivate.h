@@ -23,14 +23,12 @@
 /* Include package's public header */
 #include "H5Zpublic.h"
 
-/* Structure to store information about each filter's parameters */
-typedef struct {
-    H5Z_filter_t	id;		/*filter identification number	     */
-    unsigned		flags;		/*defn and invocation flags	     */
-    char		*name;		/*optional filter name		     */
-    size_t		cd_nelmts;	/*number of elements in cd_values[]  */
-    unsigned		*cd_values;	/*client data values		     */
-} H5Z_filter_info_t;
+/* Private headers needed by this file */
+#include "H5Tprivate.h"		/* Datatypes				*/
+
+/**************************/
+/* Library Private Macros */
+/**************************/
 
 /* Special parameters for szip compression */
 /* [These are aliases for the similar definitions in szlib.h, which we can't
@@ -40,6 +38,37 @@ typedef struct {
 #define H5_SZIP_MSB_OPTION_MASK         16
 #define H5_SZIP_RAW_OPTION_MASK         128
 
+/* Common # of 'client data values' for filters */
+/* (avoids dynamic memory allocation in most cases) */
+#define H5Z_COMMON_CD_VALUES    4
+
+/* Common size of filter name */
+/* (avoids dynamic memory allocation in most cases) */
+#define H5Z_COMMON_NAME_LEN    12
+
+/****************************/
+/* Library Private Typedefs */
+/****************************/
+
+/* Structure to store information about each filter's parameters */
+typedef struct {
+    H5Z_filter_t	id;		/*filter identification number	     */
+    unsigned		flags;		/*defn and invocation flags	     */
+    char		_name[H5Z_COMMON_NAME_LEN];	/*internal filter name		     */
+    char		*name;		/*optional filter name		     */
+    size_t		cd_nelmts;	/*number of elements in cd_values[]  */
+    unsigned		_cd_values[H5Z_COMMON_CD_VALUES];	/*internal client data values		     */
+    unsigned		*cd_values;	/*client data values		     */
+} H5Z_filter_info_t;
+
+/*****************************/
+/* Library-private Variables */
+/*****************************/
+
+
+/***************************************/
+/* Library-private Function Prototypes */
+/***************************************/
 struct H5O_pline_t; /*forward decl*/
 
 /* Internal API routines */
@@ -61,5 +90,16 @@ H5_DLL H5Z_filter_info_t *H5Z_filter_info(const struct H5O_pline_t *pline,
         H5Z_filter_t filter);
 H5_DLL htri_t H5Z_all_filters_avail(const struct H5O_pline_t *pline);
 H5_DLL herr_t H5Z_delete(struct H5O_pline_t *pline, H5Z_filter_t filter);
+H5_DLL herr_t H5Z_set_latest_version(struct H5O_pline_t *pline);
+
+/* Data Transform Functions */
+typedef struct H5Z_data_xform_t H5Z_data_xform_t; /* Defined in H5Ztrans.c */
+
+H5_DLL H5Z_data_xform_t *H5Z_xform_create(const char *expr);
+H5_DLL herr_t H5Z_xform_copy(H5Z_data_xform_t **data_xform_prop);
+H5_DLL herr_t H5Z_xform_destroy(H5Z_data_xform_t *data_xform_prop);
+H5_DLL herr_t H5Z_xform_eval(H5Z_data_xform_t *data_xform_prop, void* array, size_t array_size, const H5T_t *buf_type);
+H5_DLL hbool_t H5Z_xform_noop(const H5Z_data_xform_t *data_xform_prop);
+H5_DLL char* H5Z_xform_extract_xform_str(const H5Z_data_xform_t *data_xform_prop);
 
 #endif

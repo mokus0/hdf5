@@ -25,15 +25,6 @@
 
 #define HOFFSET(S,M)    (offsetof(S,M))
 
-/*
- * API compatibility macros - for backward compatibility of programs that
- * explicitly use the 1.6 API functions (H5Gcreate1, etc.)
- */
-#define H5Tarray_create1 H5Tarray_create
-#define H5Tcommit1 H5Tcommit
-#define H5Tget_array_dims1 H5Tget_array_dims
-#define H5Topen1 H5Topen
-
 /* These are the various classes of datatypes */
 /* If this goes over 16 types (0-15), the file format will need to change) */
 typedef enum H5T_class_t {
@@ -88,7 +79,7 @@ typedef enum H5T_norm_t {
 typedef enum H5T_cset_t {
     H5T_CSET_ERROR       = -1,  /*error                                      */
     H5T_CSET_ASCII       = 0,   /*US ASCII                                   */
-    H5T_CSET_RESERVED_1  = 1,   /*reserved for later use		     */
+    H5T_CSET_UTF8        = 1,   /*UTF-8 Unicode encoding		     */
     H5T_CSET_RESERVED_2  = 2,   /*reserved for later use		     */
     H5T_CSET_RESERVED_3  = 3,   /*reserved for later use		     */
     H5T_CSET_RESERVED_4  = 4,   /*reserved for later use		     */
@@ -104,7 +95,7 @@ typedef enum H5T_cset_t {
     H5T_CSET_RESERVED_14 = 14,  /*reserved for later use		     */
     H5T_CSET_RESERVED_15 = 15   /*reserved for later use		     */
 } H5T_cset_t;
-#define H5T_NCSET H5T_CSET_RESERVED_1    		/*Number of character sets actually defined  */
+#define H5T_NCSET H5T_CSET_RESERVED_2    		/*Number of character sets actually defined  */
 
 /*
  * Type of padding to use in character strings.  Do not change these values
@@ -177,6 +168,24 @@ typedef enum H5T_direction_t {
     H5T_DIR_DESCEND     = 2     /*in descendent order                        */
 } H5T_direction_t;
 
+/* The exception type passed into the conversion callback function */
+typedef enum H5T_conv_except_t {
+    H5T_CONV_EXCEPT_RANGE_HI       = 0,   /*source value is greater than destination's range */
+    H5T_CONV_EXCEPT_RANGE_LOW      = 1,   /*source value is less than destination's range    */
+    H5T_CONV_EXCEPT_PRECISION      = 2,   /*source value loses precision in destination      */
+    H5T_CONV_EXCEPT_TRUNCATE       = 3,   /*source value is truncated in destination         */
+    H5T_CONV_EXCEPT_PINF           = 4,   /*source value is positive infinity(floating number) */
+    H5T_CONV_EXCEPT_NINF           = 5,   /*source value is negative infinity(floating number) */
+    H5T_CONV_EXCEPT_NAN            = 6    /*source value is NaN(floating number)             */
+} H5T_conv_except_t;
+
+/* The return value from conversion callback function H5T_conv_except_func_t */
+typedef enum H5T_conv_ret_t {
+    H5T_CONV_ABORT      = -1,   /*abort conversion                           */
+    H5T_CONV_UNHANDLED  = 0,    /*callback function failed to handle the exception      */
+    H5T_CONV_HANDLED    = 1     /*callback function handled the exception successfully  */
+} H5T_conv_ret_t;
+
 /* Variable Length Datatype struct in memory */
 /* (This is only used for VL sequences, not VL strings, which are stored in char *'s) */
 typedef struct {
@@ -200,18 +209,11 @@ typedef herr_t (*H5T_conv_t) (hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
       size_t nelmts, size_t buf_stride, size_t bkg_stride, void *buf,
       void *bkg, hid_t dset_xfer_plist);
 
-/*
- * If an error occurs during a data type conversion then the function
- * registered with H5Tset_overflow() is called.  It's arguments are the
- * source and destination data types, a buffer which has the source value,
- * and a buffer to receive an optional result for the overflow conversion.
- * If the overflow handler chooses a value for the result it should return
- * non-negative; otherwise the hdf5 library will choose an appropriate
- * result.
+/* Exception handler.  If an exception like overflow happenes during conversion,
+ * this function is called if it's registered through H5Pset_type_conv_cb.
  */
-typedef herr_t (*H5T_overflow_t)(hid_t src_id, hid_t dst_id,
-				 void *src_buf, void *dst_buf);
-
+typedef H5T_conv_ret_t (*H5T_conv_except_func_t)(H5T_conv_except_t except_type,
+    hid_t src_id, hid_t dst_id, void *src_buf, void *dst_buf, void *user_data);
 
 /* When this header is included from a private header, don't make calls to H5open() */
 #undef H5OPEN
@@ -373,13 +375,21 @@ H5_DLLVAR hid_t H5T_FORTRAN_S1_g;
 #define H5T_MIPS_F64		H5T_IEEE_F64BE
 
 /*
+ * The VAX floating point types (i.e. in VAX byte order)
+ */
+#define H5T_VAX_F32		(H5OPEN H5T_VAX_F32_g)
+#define H5T_VAX_F64		(H5OPEN H5T_VAX_F64_g)
+H5_DLLVAR hid_t H5T_VAX_F32_g;
+H5_DLLVAR hid_t H5T_VAX_F64_g;
+
+/*
  * The predefined native types. These are the types detected by H5detect and
  * they violate the naming scheme a little.  Instead of a class name,
  * precision and byte order as the last component, they have a C-like type
  * name.  If the type begins with `U' then it is the unsigned version of the
  * integer type; other integer types are signed.  The type LLONG corresponds
  * to C's `long_long' and LDOUBLE is `long double' (these types might be the
- * same as `LONG' and `DOUBLE' respectively.
+ * same as `LONG' and `DOUBLE' respectively).
  */
 #define H5T_NATIVE_CHAR		(CHAR_MIN?H5T_NATIVE_SCHAR:H5T_NATIVE_UCHAR)
 #define H5T_NATIVE_SCHAR        (H5OPEN H5T_NATIVE_SCHAR_g)
@@ -394,7 +404,9 @@ H5_DLLVAR hid_t H5T_FORTRAN_S1_g;
 #define H5T_NATIVE_ULLONG       (H5OPEN H5T_NATIVE_ULLONG_g)
 #define H5T_NATIVE_FLOAT        (H5OPEN H5T_NATIVE_FLOAT_g)
 #define H5T_NATIVE_DOUBLE       (H5OPEN H5T_NATIVE_DOUBLE_g)
+#if H5_SIZEOF_LONG_DOUBLE !=0
 #define H5T_NATIVE_LDOUBLE	(H5OPEN H5T_NATIVE_LDOUBLE_g)
+#endif
 #define H5T_NATIVE_B8		(H5OPEN H5T_NATIVE_B8_g)
 #define H5T_NATIVE_B16		(H5OPEN H5T_NATIVE_B16_g)
 #define H5T_NATIVE_B32		(H5OPEN H5T_NATIVE_B32_g)
@@ -417,7 +429,9 @@ H5_DLLVAR hid_t H5T_NATIVE_LLONG_g;
 H5_DLLVAR hid_t H5T_NATIVE_ULLONG_g;
 H5_DLLVAR hid_t H5T_NATIVE_FLOAT_g;
 H5_DLLVAR hid_t H5T_NATIVE_DOUBLE_g;
+#if H5_SIZEOF_LONG_DOUBLE !=0
 H5_DLLVAR hid_t H5T_NATIVE_LDOUBLE_g;
+#endif
 H5_DLLVAR hid_t H5T_NATIVE_B8_g;
 H5_DLLVAR hid_t H5T_NATIVE_B16_g;
 H5_DLLVAR hid_t H5T_NATIVE_B32_g;
@@ -483,14 +497,19 @@ H5_DLLVAR hid_t H5T_NATIVE_INT_FAST64_g;
 H5_DLLVAR hid_t H5T_NATIVE_UINT_FAST64_g;
 
 /* Operations defined on all datatypes */
-H5_DLL hid_t H5Topen(hid_t loc_id, const char *name);
 H5_DLL hid_t H5Tcreate(H5T_class_t type, size_t size);
 H5_DLL hid_t H5Tcopy(hid_t type_id);
 H5_DLL herr_t H5Tclose(hid_t type_id);
 H5_DLL htri_t H5Tequal(hid_t type1_id, hid_t type2_id);
 H5_DLL herr_t H5Tlock(hid_t type_id);
-H5_DLL herr_t H5Tcommit(hid_t loc_id, const char *name, hid_t type_id);
+H5_DLL herr_t H5Tcommit2(hid_t loc_id, const char *name, hid_t type_id,
+    hid_t lcpl_id, hid_t tcpl_id, hid_t tapl_id);
+H5_DLL hid_t H5Topen2(hid_t loc_id, const char *name, hid_t tapl_id);
+H5_DLL herr_t H5Tcommit_anon(hid_t loc_id, hid_t type_id, hid_t tcpl_id, hid_t tapl_id);
+H5_DLL hid_t H5Tget_create_plist(hid_t type_id);
 H5_DLL htri_t H5Tcommitted(hid_t type_id);
+H5_DLL herr_t H5Tencode(hid_t obj_id, void *buf, size_t *nalloc);
+H5_DLL hid_t H5Tdecode(const void *buf);
 
 /* Operations defined on compound datatypes */
 H5_DLL herr_t H5Tinsert(hid_t parent_id, const char *name, size_t offset,
@@ -509,10 +528,10 @@ H5_DLL herr_t H5Tenum_valueof(hid_t type, const char *name,
 H5_DLL hid_t H5Tvlen_create(hid_t base_id);
 
 /* Operations defined on array datatypes */
-H5_DLL hid_t H5Tarray_create(hid_t base_id, int ndims,
-            const hsize_t dim[/* ndims */], const int perm[/* ndims */]);
+H5_DLL hid_t H5Tarray_create2(hid_t base_id, unsigned ndims,
+            const hsize_t dim[/* ndims */]);
 H5_DLL int H5Tget_array_ndims(hid_t type_id);
-H5_DLL int H5Tget_array_dims(hid_t type_id, hsize_t dims[], int perm[]);
+H5_DLL int H5Tget_array_dims2(hid_t type_id, hsize_t dims[]);
 
 /* Operations defined on opaque datatypes */
 H5_DLL herr_t H5Tset_tag(hid_t type, const char *tag);
@@ -568,12 +587,34 @@ H5_DLL herr_t H5Tregister(H5T_pers_t pers, const char *name, hid_t src_id,
 H5_DLL herr_t H5Tunregister(H5T_pers_t pers, const char *name, hid_t src_id,
 			     hid_t dst_id, H5T_conv_t func);
 H5_DLL H5T_conv_t H5Tfind(hid_t src_id, hid_t dst_id, H5T_cdata_t **pcdata);
+H5_DLL htri_t H5Tcompiler_conv(hid_t src_id, hid_t dst_id);
 H5_DLL herr_t H5Tconvert(hid_t src_id, hid_t dst_id, size_t nelmts,
 			  void *buf, void *background, hid_t plist_id);
-H5_DLL H5T_overflow_t H5Tget_overflow(void);
-H5_DLL herr_t H5Tset_overflow(H5T_overflow_t func);
+
+/* Symbols defined for compatibility with previous versions of the HDF5 API.
+ * 
+ * Use of these symbols is deprecated.
+ */
+#ifndef H5_NO_DEPRECATED_SYMBOLS
+
+/* Macros */
+
+
+/* Typedefs */
+
+
+/* Function prototypes */
+H5_DLL herr_t H5Tcommit1(hid_t loc_id, const char *name, hid_t type_id);
+H5_DLL hid_t H5Topen1(hid_t loc_id, const char *name);
+H5_DLL hid_t H5Tarray_create1(hid_t base_id, int ndims,
+            const hsize_t dim[/* ndims */],
+            const int perm[/* ndims */]);
+H5_DLL int H5Tget_array_dims1(hid_t type_id, hsize_t dims[], int perm[]);
+
+#endif /* H5_NO_DEPRECATED_SYMBOLS */
 
 #ifdef __cplusplus
 }
 #endif
-#endif
+#endif /* _H5Tpublic_H */
+

@@ -32,38 +32,45 @@ $Source = "";
                "hbool_t"                    => "b",
                "double"                     => "d",
                "H5D_alloc_time_t"           => "Da",
+	       "H5FD_mpio_collective_opt_t" => "Dc",
                "H5D_fill_time_t"            => "Df",
                "H5D_fill_value_t"           => "DF",
+	       "H5FD_mpio_chunk_opt_t"      => "Dh",
                "H5D_layout_t"               => "Dl",
                "H5D_space_status_t"         => "Ds",
                "H5FD_mpio_xfer_t"           => "Dt",
                "herr_t"                     => "e",
                "H5E_direction_t"            => "Ed",
-               "H5E_error_t*"               => "Ee",
-	       "H5E_major_t"                => "Ej",
-	       "H5E_minor_t"		    => "En",
-               "H5F_close_degree_t"         => "Fd",
+               "H5E_error_t"                => "Ee",
+	       "H5E_type_t"                 => "Et",
+	       "H5F_close_degree_t"         => "Fd",
                "H5F_scope_t"                => "Fs",
-               "H5FD_t*"                    => "x",
-               "H5FD_class_t*"              => "x",
-               "H5FD_stream_fapl_t*"        => "x",
-               "H5G_link_t"                 => "Gl",
+	       "H5F_libver_t"               => "Fv",
                "H5G_obj_t"                  => "Go",
-               "H5G_stat_t*"                => "Gs",
-               "hsize_t"                    => "h",
+               "H5G_stat_t"                 => "Gs",
+	       "hsize_t"                    => "h",
                "hssize_t"                   => "Hs",
+	       "H5E_major_t"                => "i",
+               "H5E_minor_t"                => "i",
+               "H5_iter_order_t"            => "Io",
+               "H5_index_t"                 => "Ii",
                "hid_t"                      => "i",
                "int"                        => "Is",
+               "int32_t"                    => "Is",
                "unsigned"                   => "Iu",
                "unsigned int"               => "Iu",
                "H5I_type_t"                 => "It",
+	       "H5G_link_t"                 => "Ll", #Same as H5L_type_t now
+	       "H5L_type_t"                 => "Ll",
                "MPI_Comm"                   => "Mc",
                "MPI_Info"                   => "Mi",
                "H5FD_mem_t"                 => "Mt",
                "off_t"                      => "o",
+               "H5O_type_t"                 => "Ot",
                "H5P_class_t"                => "p",
+	       "hobj_ref_t"		    => "r",
                "H5R_type_t"                 => "Rt",
-               "char*"                      => "s",
+               "char"                       => "s",
                "H5S_class_t"                => "Sc",
                "H5S_seloper_t"              => "Ss",
                "H5S_sel_type"               => "St",
@@ -77,16 +84,32 @@ $Source = "";
                "H5T_sign_t"                 => "Ts",
                "H5T_class_t"                => "Tt",
                "H5T_str_t"                  => "Tz",
-               "void*"                      => "x",
-               "void**"                     => "x",
-               "FILE*"                      => "x",
+               "void"                       => "x",
+               "FILE"                       => "x",
                "H5A_operator_t"             => "x",
+	       "H5A_operator1_t"            => "x",
+	       "H5A_operator2_t"            => "x",
+	       "H5A_info_t"                 => "x",
+               "H5AC_cache_config_t"        => "x",
                "H5D_operator_t"             => "x",
                "H5E_auto_t"                 => "x",
+               "H5E_auto1_t"                => "x",
+               "H5E_auto2_t"                => "x",
                "H5E_walk_t"                 => "x",
+               "H5E_walk1_t"                => "x",
+               "H5E_walk2_t"                => "x",
+	       "H5F_info_t"                 => "x",
+               "H5FD_t"                     => "x",
+               "H5FD_class_t"               => "x",
+               "H5FD_stream_fapl_t"         => "x",
                "H5G_iterate_t"              => "x",
+	       "H5G_info_t"                 => "x",
+               "H5L_class_t"                => "x",
+               "H5L_iterate_t"              => "x",
                "H5MM_allocate_t"            => "x",
                "H5MM_free_t"                => "x",
+	       "H5O_info_t"                 => "x",
+               "H5O_iterate_t"              => "x",
                "H5P_cls_create_func_t"      => "x",
                "H5P_cls_copy_func_t"        => "x",
                "H5P_cls_close_func_t"       => "x",
@@ -97,13 +120,15 @@ $Source = "";
                "H5P_prp_delete_func_t"      => "x",
                "H5P_prp_get_func_t"         => "x",
                "H5P_prp_set_func_t"         => "x",
-               "H5T_cdata_t**"              => "x",
+               "H5P_prp_compare_func_t"     => "x",
+               "H5T_cdata_t"                => "x",
                "H5T_conv_t"                 => "x",
-	       "H5T_overflow_t"             => "x",
+               "H5T_conv_except_func_t"     => "x",
                "H5Z_func_t"                 => "x",
                "H5Z_filter_func_t"          => "x",
                "size_t"                     => "z",
-               "H5Z_class_t*"               => "Zc",
+               "H5Z_SO_scale_type_t"        => "Za",
+               "H5Z_class_t"                => "Zc",
                "H5Z_EDC_t"                  => "Ze",
                "H5Z_filter_t"               => "Zf",
                "ssize_t"                    => "Zs",
@@ -218,7 +243,7 @@ sub rewrite_func ($$$$$) {
 	}
       }
     }
-    $trace = "H5TRACE" . scalar(@arg_str) . "(\"$rettype\",\"";
+    $trace = "H5TRACE" . scalar(@arg_str) . "(\"$rettype\", \"";
     $trace .= join("", @arg_str) . "\"";
     my $len = 4 + length $trace;
     for (@arg_name) {
@@ -226,7 +251,7 @@ sub rewrite_func ($$$$$) {
 	$trace .= ",\n             $_";
 	$len = 13 + length;
       } else {
-	$trace .= ",$_";
+	$trace .= ", $_";
 	$len += 1 + length;
       }
     }
@@ -237,9 +262,9 @@ sub rewrite_func ($$$$$) {
   # The H5TRACE() statement
   if ($body =~ /\/\*[ \t]*NO[ \t]*TRACE[ \t]*\*\//) {
     if ($body =~ /\s*H5TRACE\d+\s*\(/) {
-      errmesg $file, $name, "warning: trace info was not updated";
+      errmesg $file, $name, "warning: trace info was not updated because of NO TRACE comment";
     } else {
-      errmesg $file, $name, "warning: trace info was not inserted";
+      errmesg $file, $name, "warning: trace info was not inserted because of NO TRACE comment";
     }
   } elsif ($body =~ s/((\n[ \t]*)H5TRACE\d+\s*\(.*?\);)\n/"$2$trace"/es) {
     # Replaced an H5TRACE macro
@@ -262,27 +287,31 @@ sub rewrite_func ($$$$$) {
 #
 my $total_api = 0;
 for $file (@ARGV) {
-  # Snarf up the entire file
-  open SOURCE, $file or die "$file: $!\n";
-  $Source = join "", <SOURCE>;
-  close SOURCE;
-
-  # Make modifications
-  my $original = $Source;
-  my $napi = $Source =~ s/\n([A-Za-z]\w*(\s+[a-z]\w*)*)\s*\n #type
-                            (H5[A-Z]{0,2}[^_A-Z]\w*)      #name
-                            \s*\((.*?)\)\s*               #args
-                            (\{.*?\n\}[^\n]*)             #body
-                         /rewrite_func($file,$1,$3,$4,$5)/segx;
-  $total_api += $napi;
+  # Ignore some files that do not need tracing macros
+  unless ($file eq "H5FDmulti.c" or $file eq "src/H5FDmulti.c" or $file eq "H5FDstdio.c" or $file eq "src/H5FDstdio.c") {
   
-  # If the source changed then print out the new version
-  if ($original ne $Source) {
-    printf "%s: instrumented %d API function%s\n", 
-           $file, $napi, 1==$napi?"":"s";
-    rename $file, "$file~" or die "unable to make backup";
-    open SOURCE, ">$file" or die "unable to modify source";
-    print SOURCE $Source;
+    # Snarf up the entire file
+    open SOURCE, $file or die "$file: $!\n";
+    $Source = join "", <SOURCE>;
     close SOURCE;
+
+    # Make modifications
+    my $original = $Source;
+    my $napi = $Source =~ s/\n([A-Za-z]\w*(\s+[a-z]\w*)*)\s*\n #type
+                              (H5[A-Z]{0,2}[^_A-Z0-9]\w*)      #name
+                              \s*\((.*?)\)\s*               #args
+                              (\{.*?\n\}[^\n]*)             #body
+                           /rewrite_func($file,$1,$3,$4,$5)/segx;
+    $total_api += $napi;
+
+    # If the source changed then print out the new version
+    if ($original ne $Source) {
+      printf "%s: instrumented %d API function%s\n", 
+             $file, $napi, 1==$napi?"":"s";
+      rename $file, "$file~" or die "unable to make backup";
+      open SOURCE, ">$file" or die "unable to modify source";
+      print SOURCE $Source;
+      close SOURCE;
+    }
   }
 }

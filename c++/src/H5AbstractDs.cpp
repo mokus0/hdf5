@@ -25,11 +25,6 @@
 #include "H5CommonFG.h"
 #include "H5Alltypes.h"
 
-#include <iostream> // remove when done
-
-    using std::cerr;
-    using std::endl;
-
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
@@ -39,14 +34,21 @@ namespace H5 {
 ///\brief	Default constructor
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-AbstractDs::AbstractDs(){}
+AbstractDs::AbstractDs() : H5Object() {}
+
+//--------------------------------------------------------------------------
+// Function:	AbstractDs default constructor
+///\brief	Creates an AbstractDs instance using an existing id.
+// Programmer	Binh-Minh Ribler - 2000
+//--------------------------------------------------------------------------
+AbstractDs::AbstractDs( const hid_t ds_id ) : H5Object( ds_id ) {}
 
 //--------------------------------------------------------------------------
 // Function:	AbstractDs copy constructor
 ///\brief	Copy constructor: makes a copy of the original AbstractDs object.
 // Programmer	Binh-Minh Ribler - 2000
 //--------------------------------------------------------------------------
-AbstractDs::AbstractDs(const AbstractDs& original){}
+AbstractDs::AbstractDs( const AbstractDs& original ) : H5Object( original ) {}
 
 //--------------------------------------------------------------------------
 // Function:	AbstractDs::getTypeClass
@@ -78,10 +80,8 @@ H5T_class_t AbstractDs::getTypeClass() const
       return( type_class );
    else
    {
-      if (fromClass() == "DataSet")
-	 throw DataTypeIException("DataSet::getTypeClass", "H5Tget_class returns H5T_NO_CLASS");
-      else if (fromClass() == "Attribute")
-	 throw DataTypeIException("Attribute::getTypeClass", "H5Tget_class returns H5T_NO_CLASS");
+      throw DataTypeIException(inMemFunc("getTypeClass"),
+		"H5Tget_class returns H5T_NO_CLASS");
    }
 }
 
@@ -117,7 +117,7 @@ DataType AbstractDs::getDataType() const
 ///		can be a dataset or an attribute.
 ///\return	ArrayType instance
 ///\exception	H5::DataTypeIException
-// Programmer	Binh-Minh Ribler - 2000
+// Programmer	Binh-Minh Ribler - Jul, 2005
 //--------------------------------------------------------------------------
 ArrayType AbstractDs::getArrayType() const
 {
@@ -273,7 +273,7 @@ StrType AbstractDs::getStrType() const
 ///		which can be a dataset or an attribute.
 ///\return	VarLenType instance
 ///\exception	H5::DataTypeIException
-// Programmer	Binh-Minh Ribler - 2000
+// Programmer	Binh-Minh Ribler - Jul, 2005
 //--------------------------------------------------------------------------
 VarLenType AbstractDs::getVarLenType() const
 {

@@ -37,7 +37,7 @@
 #include "H5Cpp.h"
 
 #ifndef H5_NO_NAMESPACE
-using namespace H5;
+    using namespace H5;
 #endif
 
 const H5std_string FILE_NAME( "SDSextendible.h5" );

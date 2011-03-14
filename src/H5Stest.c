@@ -23,10 +23,10 @@
 #define H5S_TESTING		/*suppress warning about H5S testing funcs*/
 
 
-#include "H5private.h"		/* Generic Functions			  */
-#include "H5Eprivate.h"		/* Error handling		  */
-#include "H5Iprivate.h"		/* ID Functions		  */
-#include "H5Spkg.h"		/* Dataspace functions			  */
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Eprivate.h"		/* Error handling		  	*/
+#include "H5Iprivate.h"		/* IDs			  		*/
+#include "H5Spkg.h"		/* Dataspaces 				*/
 
 
 /*--------------------------------------------------------------------------
@@ -45,30 +45,67 @@
     dimensionality and shape.
  GLOBAL VARIABLES
  COMMENTS, BUGS, ASSUMPTIONS
-    DO NOT USE THIS FUNCTION FOR ANYTHING EXCEPT TESTING H5P_get_class_path()
+    DO NOT USE THIS FUNCTION FOR ANYTHING EXCEPT TESTING
  EXAMPLES
  REVISION LOG
 --------------------------------------------------------------------------*/
 htri_t
 H5S_select_shape_same_test(hid_t sid1, hid_t sid2)
 {
-    H5S_t	*space1 = NULL;      /* Pointer to 1st dataspace */
-    H5S_t	*space2 = NULL;      /* Pointer to 2nd dataspace */
-    htri_t ret_value;        /* return value */
+    H5S_t	*space1 = NULL;         /* Pointer to 1st dataspace */
+    H5S_t	*space2 = NULL;         /* Pointer to 2nd dataspace */
+    htri_t      ret_value;              /* Return value */
 
-    FUNC_ENTER_NOAPI(H5S_select_shape_same_test, FAIL);
+    FUNC_ENTER_NOAPI(H5S_select_shape_same_test, FAIL)
 
     /* Get dataspace structures */
-    if (NULL == (space1=H5I_object_verify(sid1, H5I_DATASPACE)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace");
-    if (NULL == (space2=H5I_object_verify(sid2, H5I_DATASPACE)))
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace");
+    if(NULL == (space1 = H5I_object_verify(sid1, H5I_DATASPACE)))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace")
+    if(NULL == (space2 = H5I_object_verify(sid2, H5I_DATASPACE)))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace")
 
     /* Check if the dataspace selections are the same shape */
-    if ((ret_value=H5S_select_shape_same(space1,space2))<0)
-        HGOTO_ERROR(H5E_DATASPACE, H5E_CANTCOMPARE, FAIL, "unable to compare dataspace selections");
+    if((ret_value = H5S_select_shape_same(space1, space2)) < 0)
+        HGOTO_ERROR(H5E_DATASPACE, H5E_CANTCOMPARE, FAIL, "unable to compare dataspace selections")
 
 done:
-    FUNC_LEAVE_NOAPI(ret_value);
-}   /* H5S_select_shape_same_test() */
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* H5S_select_shape_same_test() */
+
+
+/*--------------------------------------------------------------------------
+ NAME
+    H5S_get_rebuild_status_test
+ PURPOSE
+    Determine the status of hyperslab rebuild
+ USAGE
+    htri_t H5S_inquiry_rebuild_status(hid_t space_id)
+        hid_t space_id;          IN:  dataspace id
+ RETURNS
+    Non-negative TRUE/FALSE on success, negative on failure
+ DESCRIPTION
+    Query the status of rebuilding the hyperslab
+ GLOBAL VARIABLES
+ COMMENTS, BUGS, ASSUMPTIONS
+    DO NOT USE THIS FUNCTION FOR ANYTHING EXCEPT TESTING
+ EXAMPLES
+ REVISION LOG
+--------------------------------------------------------------------------*/
+htri_t
+H5S_get_rebuild_status_test(hid_t space_id)
+{
+    H5S_t *space = NULL;        /* Pointer to 1st dataspace */
+    htri_t ret_value;           /* Return value */
+
+    FUNC_ENTER_NOAPI(H5S_get_rebuild_status_test, FAIL)
+
+     /* Get dataspace structures */
+    if(NULL == (space = H5I_object_verify(space_id, H5I_DATASPACE)))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a dataspace")
+
+    ret_value = space->select.sel_info.hslab->diminfo_valid;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* H5S_get_rebuild_status_test() */
 

@@ -1,4 +1,4 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Copyright by The HDF Group.                                               *
  * Copyright by the Board of Trustees of the University of Illinois.         *
  * All rights reserved.                                                      *
@@ -29,6 +29,7 @@ extern char  *progname;
  *
  *-------------------------------------------------------------------------
  */
+
 void init_packobject(pack_info_t *obj)
 {
     int j, k;
@@ -36,9 +37,9 @@ void init_packobject(pack_info_t *obj)
     strcpy(obj->path,"\0");
     for ( j=0; j<H5_REPACK_MAX_NFILTERS; j++)
     {
-        obj->filter[j].filtn		  = -1;
+        obj->filter[j].filtn        = -1;
         for ( k=0; k<CD_VALUES; k++)
-            obj->filter[j].cd_values[k] = 0;
+            obj->filter[j].cd_values[k] = -1;
     }
     obj->chunk.rank = -1;
     obj->refobj_id = -1;
@@ -230,7 +231,7 @@ int options_add_layout( obj_list_t *obj_list,
                     if (table->objs[i].chunk.rank>0)
                     {
                         error_msg(progname, "chunk information already inserted for <%s>\n",obj_list[j].obj);
-                        exit(EXIT_FAILURE);
+                        exit(1);
                     }
                     /* insert the layout info */
                     else

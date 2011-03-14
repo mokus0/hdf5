@@ -45,16 +45,15 @@ int main(void)
    /*
     * Initialization of buffer matrix "bm"
     */
-   for(i =0; i<NX; i++) {
-    for(j = 0; j<NY; j++)
+   for(i =0; i < NX; i++)
+    for(j = 0; j < NY; j++)
       bm[i][j] = i + j;
-   }
 
    /*
     * Create first file and a group in it.
     */
    fid1 = H5Fcreate(FILE1, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-   gid = H5Gcreate(fid1, "/G", 0);
+   gid = H5Gcreate2(fid1, "/G", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
    /*
     * Close group and file
@@ -69,7 +68,7 @@ int main(void)
    dims[0] = NX;
    dims[1] = NY;
    sid = H5Screate_simple(RANK, dims, NULL);
-   did = H5Dcreate(fid2, "D", H5T_NATIVE_INT, sid, H5P_DEFAULT);
+   did = H5Dcreate2(fid2, "D", H5T_NATIVE_INT, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
    /*
     * Write data to the dataset.
@@ -97,7 +96,7 @@ int main(void)
    /*
     * Access dataset D in the first file under /G/D name.
     */
-   did = H5Dopen(fid1,"/G/D");
+   did = H5Dopen2(fid1, "/G/D", H5P_DEFAULT);
    tid = H5Dget_type(did);
    status = H5Dread(did, tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, bm_out);
 

@@ -30,25 +30,40 @@
 
 #include "H5Sprivate.h"
 
-/* Number of reserved IDs in ID group */
-#define H5S_RESERVED_ATOMS  2
-
 /* Flags to indicate special dataspace features are active */
 #define H5S_VALID_MAX	0x01
 #define H5S_VALID_PERM	0x02
+
+
+/* Initial version of the dataspace information */
+#define H5O_SDSPACE_VERSION_1	1
+
+/* This version adds support for "null" dataspaces, encodes the type of the
+ *      dataspace in the message and eliminated the rest of the "reserved"
+ *      bytes.
+ */
+#define H5O_SDSPACE_VERSION_2	2
+
+/* The latest version of the format.  Look through the 'encode' 
+ *      and 'size' callbacks for places to change when updating this. */
+#define H5O_SDSPACE_VERSION_LATEST H5O_SDSPACE_VERSION_2
+
 
 /*
  * Dataspace extent information
  */
 /* Extent container */
-typedef struct {
-    H5S_class_t	type;   /* Type of extent */
-    hsize_t nelem;      /* Number of elements in extent */
+struct H5S_extent_t {
+    H5O_shared_t sh_loc;        /* Shared message info (must be first) */
 
-    unsigned rank;      /* Number of dimensions */
-    hsize_t *size;      /* Current size of the dimensions */
-    hsize_t *max;       /* Maximum size of the dimensions */
-} H5S_extent_t;
+    H5S_class_t	type;           /* Type of extent */
+    unsigned version;           /* Version of object header message to encode this object with */
+    hsize_t nelem;              /* Number of elements in extent */
+
+    unsigned rank;              /* Number of dimensions */
+    hsize_t *size;              /* Current size of the dimensions */
+    hsize_t *max;               /* Maximum size of the dimensions */
+};
 
 /*
  * Dataspace selection information
@@ -118,14 +133,18 @@ typedef hssize_t (*H5S_sel_serial_size_func_t)(const H5S_t *space);
 typedef herr_t (*H5S_sel_serialize_func_t)(const H5S_t *space, uint8_t *buf);
 /* Method to store create selection from "serialized" form (a byte sequence suitable for storing on disk) */
 typedef herr_t (*H5S_sel_deserialize_func_t)(H5S_t *space, const uint8_t *buf);
-/* Method to determine to smallest n-D bounding box containing the current selection */
+/* Method to determine smallest n-D bounding box containing the current selection */
 typedef herr_t (*H5S_sel_bounds_func_t)(const H5S_t *space, hsize_t *start, hsize_t *end);
+/* Method to determine linear offset of initial element in selection within dataspace */
+typedef herr_t (*H5S_sel_offset_func_t)(const H5S_t *space, hsize_t *offset);
 /* Method to determine if current selection is contiguous */
 typedef htri_t (*H5S_sel_is_contiguous_func_t)(const H5S_t *space);
 /* Method to determine if current selection is a single block */
 typedef htri_t (*H5S_sel_is_single_func_t)(const H5S_t *space);
 /* Method to determine if current selection is "regular" */
 typedef htri_t (*H5S_sel_is_regular_func_t)(const H5S_t *space);
+/* Method to adjust a selection by an offset */
+typedef herr_t (*H5S_sel_adjust_u_func_t)(H5S_t *space, const hsize_t *offset);
 /* Method to initialize iterator for current selection */
 typedef herr_t (*H5S_sel_iter_init_func_t)(H5S_sel_iter_t *sel_iter, const H5S_t *space);
 
@@ -142,15 +161,18 @@ typedef struct {
     H5S_sel_serialize_func_t serialize;         /* Method to store current selection in "serialized" form (a byte sequence suitable for storing on disk) */
     H5S_sel_deserialize_func_t deserialize;     /* Method to store create selection from "serialized" form (a byte sequence suitable for storing on disk) */
     H5S_sel_bounds_func_t bounds;               /* Method to determine to smallest n-D bounding box containing the current selection */
+    H5S_sel_offset_func_t offset;               /* Method to determine linear offset of initial element in selection within dataspace */
     H5S_sel_is_contiguous_func_t is_contiguous; /* Method to determine if current selection is contiguous */
     H5S_sel_is_single_func_t is_single;         /* Method to determine if current selection is a single block */
     H5S_sel_is_regular_func_t is_regular;       /* Method to determine if current selection is "regular" */
+    H5S_sel_adjust_u_func_t adjust_u;           /* Method to adjust a selection by an offset */
     H5S_sel_iter_init_func_t iter_init;         /* Method to initialize iterator for current selection */
 } H5S_select_class_t;
 
 /* Selection information object */
 typedef struct {
     const H5S_select_class_t *type;     /* Pointer to selection's class info */
+    hbool_t offset_changed;             /* Indicate that the offset for the selection has been changed */
     hssize_t offset[H5S_MAX_RANK];      /* Offset within the extent */
     hsize_t num_elem;   /* Number of elements in selection */
     union {
@@ -161,7 +183,7 @@ typedef struct {
 
 /* Main dataspace structure (typedef'd in H5Sprivate.h) */
 struct H5S_t {
-    H5S_extent_t extent;                /* Dataspace extent */
+    H5S_extent_t extent;                /* Dataspace extent (must stay first) */
     H5S_select_t select;		/* Dataspace selection */
 };
 
@@ -217,13 +239,16 @@ H5_DLLVAR const H5S_select_class_t H5S_sel_point[1];
 
 /* Extent functions */
 H5_DLL herr_t H5S_extent_release(H5S_extent_t *extent);
-H5_DLL herr_t H5S_extent_copy(H5S_extent_t *dst, const H5S_extent_t *src);
+H5_DLL herr_t H5S_extent_copy(H5S_extent_t *dst, const H5S_extent_t *src,
+    hbool_t copy_max);
 
 /* Operations on selections */
 
 /* Testing functions */
 #ifdef H5S_TESTING
 H5_DLL htri_t H5S_select_shape_same_test(hid_t sid1, hid_t sid2);
+H5_DLL htri_t H5S_get_rebuild_status_test(hid_t space_id);
 #endif /* H5S_TESTING */
 
 #endif /*_H5Spkg_H*/
+

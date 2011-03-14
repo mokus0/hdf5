@@ -22,7 +22,9 @@
 #include "h5tools.h"
 #include "h5tools_utils.h"
 
+
 extern char  *progname;
+
 
 /*-------------------------------------------------------------------------
  * File: h5repack.c
@@ -43,7 +45,7 @@ static int have_request(pack_opt_t *options);
  * Purpose: locate all high-level HDF5 objects in the file
  *  and compress/chunk them using options
  *
- * Algorithm: 2 traversals are made to the file; the 1st builds a list of
+ * Algorythm: 2 traversals are made to the file; the 1st builds a list of
  *  the objects, the 2nd makes a copy of them, using the options;
  *  the reason for the 1st traversal is to check for invalid
  *  object name requests
@@ -93,20 +95,19 @@ int h5repack_init (pack_opt_t *options,
 {
     int k, n;
     memset(options,0,sizeof(pack_opt_t));
-    options->min_comp = 1024;
+    options->threshold = 1024;
     options->verbose   = verbose;
-
+        
     for ( n = 0; n < H5_REPACK_MAX_NFILTERS; n++)
     {
         options->filter_g[n].filtn  = -1;
-        options->filter_g[n].cd_nelmts  = 0;
+        options->filter_g[n].cd_nelmts  = -1;
         for ( k = 0; k < CD_VALUES; k++)
-            options->filter_g[n].cd_values[k] = 0;
+            options->filter_g[n].cd_values[k] = -1;
     }
-
+     
     return (options_table_init(&(options->op_tbl)));
 }
-
 
 /*-------------------------------------------------------------------------
  * Function: h5repack_end
@@ -252,6 +253,10 @@ int h5repack_addlayout(const char* str,
  *
  * Date: September, 22, 2003
  * 
+ * Modification:
+ *   Peter Cao, July 9, 2007
+ *   Add "-L, --latest" and other options to pack a file with the latest file format
+ *
  *-------------------------------------------------------------------------
  */
 static int check_options(pack_opt_t *options)
@@ -379,40 +384,27 @@ static int check_options(pack_opt_t *options)
         is present with other objects\n");
     return -1;
     }
-
-    /*--------------------------------------------------------------------------------
-    * verify new user userblock options; file name must be present
-    *---------------------------------------------------------------------------------
-    */
-    if ( options->ublock_filename != NULL && options->ublock_size == 0 )
-    {
-        if ( options->verbose )
-        {
-            printf("Warning: user block size missing for file %s. Assigning a default size of 1024...\n",
-                options->ublock_filename);
-            options->ublock_size = 1024;
+    
+    /* check options for the latest format */
+    if (options->grp_compact < 0) {
+        error_msg(progname, "invalid maximum number of links to store as header messages\n");
+        return -1;
+    }
+    if (options->grp_indexed < 0) {
+        error_msg(progname, "invalid minimum number of links to store in the indexed format\n");
+        return -1;
+    }
+    if (options->grp_indexed > options->grp_compact) {
+        error_msg(progname, "minimum indexed size is greater than the maximum compact size\n");
+        return -1;
+    }
+    for (i=0; i<8; i++) {
+        if (options->msg_size[i]<0) {
+            error_msg(progname, "invalid shared message size\n");
+            return -1;
         }
     }
-
-    if ( options->ublock_filename == NULL && options->ublock_size != 0 )
-    {
-        error_msg(progname, "file name missing for user block\n",
-            options->ublock_filename);
-        return -1;
-    }
-
-
-    /*--------------------------------------------------------------------------------
-    * verify alignment options; threshold is zero default but alignment not
-    *---------------------------------------------------------------------------------
-    */
-
-    if ( options->alignment == 0 && options->threshold != 0 )
-    {
-        error_msg(progname, "alignment for H5Pset_alignment missing\n");
-        return -1;
-    }
-
+    
     return 0;
 }
 
@@ -446,8 +438,7 @@ static int check_objects(const char* fname,
      * open the file
      *-------------------------------------------------------------------------
      */
-    if((fid = h5tools_fopen(fname, NULL, NULL, 0)) < 0)
-    {
+    if((fid = h5tools_fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT, NULL, NULL, 0)) < 0){
         printf("<%s>: %s\n", fname, H5FOPENERROR );
         return -1;
     }
@@ -472,15 +463,13 @@ static int check_objects(const char* fname,
     if(options->verbose)
         printf("Opening file <%s>. Searching for objects to modify...\n", fname);
     
-    for(i = 0; i < options->op_tbl->nelems; i++) 
-    {
+    for(i = 0; i < options->op_tbl->nelems; i++) {
         char* name=options->op_tbl->objs[i].path;
         if(options->verbose)
             printf(" <%s>",name);
         
         /* the input object names are present in the file and are valid */
-        if(h5trav_getindext(name, travt) < 0) 
-        {
+        if(h5trav_getindext(name, travt) < 0) {
             error_msg(progname, "%s Could not find <%s> in file <%s>. Exiting...\n",
                 (options->verbose?"\n":""),name,fname);
             goto out;
@@ -489,28 +478,25 @@ static int check_objects(const char* fname,
             printf("...Found\n");
 
         /* check for extra filter conditions */
-        switch(options->op_tbl->objs[i].filter->filtn) 
-        {
+        switch(options->op_tbl->objs[i].filter->filtn) {
             /* chunk size must be smaller than pixels per block */
             case H5Z_FILTER_SZIP:
             {
-                int      j;
-                hsize_t  csize = 1;
-                unsigned ppb = options->op_tbl->objs[i].filter->cd_values[0];
-                hsize_t  dims[H5S_MAX_RANK];
-                int      rank;
-                hid_t    did;
-                hid_t    sid;
+                int     j;
+                int     csize = 1;
+                int     ppb = options->op_tbl->objs[i].filter->cd_values[0];
+                hsize_t dims[H5S_MAX_RANK];
+                int     rank;
+                hid_t   did;
+                hid_t   sid;
                 
-                if (options->op_tbl->objs[i].chunk.rank > 0) 
-                {
+                if(options->op_tbl->objs[i].chunk.rank > 0) {
                     rank = options->op_tbl->objs[i].chunk.rank;
                     for(j = 0; j < rank; j++)
-                        csize *= options->op_tbl->objs[i].chunk.chunk_lengths[j];
+                        csize *= (int)options->op_tbl->objs[i].chunk.chunk_lengths[j];
                 }
-                else 
-                {
-                    if((did = H5Dopen(fid, name)) < 0)
+                else {
+                    if((did = H5Dopen2(fid, name, H5P_DEFAULT)) < 0)
                         goto out;
                     if((sid = H5Dget_space(did)) < 0)
                         goto out;
@@ -520,15 +506,14 @@ static int check_objects(const char* fname,
                     if(H5Sget_simple_extent_dims(sid, dims, NULL) < 0)
                         goto out;
                     for(j = 0; j < rank; j++)
-                        csize *= dims[j];
+                        csize *= (int)dims[j];
                     if(H5Sclose(sid) < 0)
                         goto out;
                     if(H5Dclose(did) < 0)
                         goto out;
                 }
                 
-                if (csize < ppb ) 
-                {
+                if (csize < ppb ) {
                     printf(" <warning: SZIP settins, chunk size is smaller than pixels per block>\n");
                     goto out;
                 }
@@ -599,15 +584,14 @@ static const char* get_sfilter(H5Z_filter_t filtn)
         return "SHUFFLE";
     else if (filtn==H5Z_FILTER_FLETCHER32)
         return "FLETCHER32";
+    else if (filtn==H5Z_FILTER_NBIT)
+        return "NBIT";
+    else if (filtn==H5Z_FILTER_SCALEOFFSET)
+        return "SOFF";
     else {
         error_msg(progname, "input error in filter type\n");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
     return NULL;
 }
-
-
-
-
-
 

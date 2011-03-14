@@ -19,7 +19,7 @@
 
 /*----------------------------------------------------------------------------
  * Name:        h5dcreate_c
- * Purpose:     Call H5Dcreate to create a dataset
+ * Purpose:     Call H5Dcreate2 to create a dataset
  * Inputs:      loc_id - file or group identifier
  *              name - name of the dataset
  *              namelen - name length
@@ -35,46 +35,34 @@
 int_f
 nh5dcreate_c (hid_t_f *loc_id, _fcd name, int_f *namelen, hid_t_f *type_id, hid_t_f *space_id, hid_t_f *crt_prp,  hid_t_f *dset_id)
 {
-     int ret_value = -1;
-     char *c_name;
-     size_t c_namelen;
-     hid_t c_loc_id;
-     hid_t c_type_id;
-     hid_t c_space_id;
+     char *c_name = NULL;
      hid_t c_dset_id;
-     hid_t c_crt_prp;
-
-     /*
-      * Define creation property
-      */
-     c_crt_prp = (hid_t)*crt_prp;
+     int ret_value = -1;
 
      /*
       * Convert FORTRAN name to C name
       */
-     c_namelen = *namelen;
-     c_name = (char *)HD5f2cstring(name, c_namelen);
-     if (c_name == NULL) return ret_value;
+     if(NULL == ( c_name = (char *)HD5f2cstring(name, (size_t)*namelen)))
+         goto DONE;
 
      /*
-      * Call H5Dcreate function.
+      * Call H5Dcreate2 function.
       */
-     c_loc_id = (hid_t)*loc_id;
-     c_type_id = (hid_t)*type_id;
-     c_space_id = (hid_t)*space_id;
-     c_dset_id = H5Dcreate(c_loc_id, c_name, c_type_id, c_space_id, c_crt_prp);
-     if (c_dset_id < 0) goto DONE;
+     if((c_dset_id = H5Dcreate2((hid_t)*loc_id, c_name, (hid_t)*type_id, (hid_t)*space_id, H5P_DEFAULT, (hid_t)*crt_prp, H5P_DEFAULT)) < 0)
+         goto DONE;
      *dset_id = (hid_t_f)c_dset_id;
+
      ret_value = 0;
 
 DONE:
-     HDfree(c_name);
-     return ret_value;
+    if(c_name)
+        HDfree(c_name);
+    return ret_value;
 }
 
 /*----------------------------------------------------------------------------
  * Name:        h5dopen_c
- * Purpose:     Call H5Dopen to open a dataset
+ * Purpose:     Call H5Dopen2 to open a dataset
  * Inputs:      loc_id - file or group identifier
  *              name - name of the dataset
  *              namelen - name length
@@ -85,33 +73,30 @@ DONE:
  * Modifications:
  *---------------------------------------------------------------------------*/
 int_f
-nh5dopen_c (hid_t_f *loc_id, _fcd name, int_f *namelen, hid_t_f *dset_id)
+nh5dopen_c(hid_t_f *loc_id, _fcd name, int_f *namelen, hid_t_f *dset_id)
 {
-     int ret_value = -1;
-     char *c_name;
-     size_t c_namelen;
-     hid_t c_loc_id;
+     char *c_name = NULL;
      hid_t c_dset_id;
+     int ret_value = -1;
 
      /*
       * Convert FORTRAN name to C name
       */
-     c_namelen = *namelen;
-     c_name = (char *)HD5f2cstring(name, c_namelen);
-     if (c_name == NULL) return ret_value;
+     if(NULL == (c_name = (char *)HD5f2cstring(name, (size_t)*namelen)))
+         goto DONE;
 
      /*
-      * Call H5Dopen function.
+      * Call H5Dopen2 function.
       */
-     c_loc_id = (hid_t)*loc_id;
-     c_dset_id = H5Dopen(c_loc_id, c_name);
+     if((c_dset_id = H5Dopen2((hid_t)*loc_id, c_name, H5P_DEFAULT)) < 0)
+         goto DONE;
 
-     if (c_dset_id < 0) goto DONE;
      *dset_id = (hid_t_f)c_dset_id;
      ret_value = 0;
 
 DONE:
-     HDfree(c_name);
+     if(c_name)
+         HDfree(c_name);
      return ret_value;
 }
 
@@ -1273,7 +1258,7 @@ nh5dget_create_plist_c ( hid_t_f *dset_id , hid_t_f *plist_id)
 
 /*----------------------------------------------------------------------------
  * Name:        h5dextend_c
- * Purpose:     Call H5Dextend to extend dataset with unlimited dimensions
+ * Purpose:     Call H5Dset_extent to extend dataset with unlimited dimensions
  * Inputs:      dset_id - identifier of the dataset
  * Outputs:     dims - array with the dimension sizes
  * Returns:     0 on success, -1 on failure
@@ -1285,35 +1270,27 @@ nh5dget_create_plist_c ( hid_t_f *dset_id , hid_t_f *plist_id)
 int_f
 nh5dextend_c ( hid_t_f *dset_id , hsize_t_f *dims)
 {
-  int ret_value = -1;
-  hsize_t *c_dims;
-  int status;
+  hid_t c_space_id;
+  hsize_t c_dims[H5S_MAX_RANK];
   int rank;
   int i;
-  hid_t c_dset_id;
-  hid_t c_space_id;
+  int status;
+  int ret_value = -1;
 
-  c_dset_id = (hid_t)*dset_id;
-  c_space_id = H5Dget_space(c_dset_id);
-  if (c_space_id < 0) return ret_value;
+  if((c_space_id = H5Dget_space((hid_t)*dset_id)) < 0) return ret_value;
 
-  rank = H5Sget_simple_extent_ndims(c_space_id);
-  H5Sclose(c_space_id);
-  if (rank < 0) return ret_value;
-
-  c_dims = malloc(sizeof(hsize_t)*rank);
-  if (!c_dims) return ret_value;
+  if((rank = H5Sget_simple_extent_ndims(c_space_id)) < 0) return ret_value;
 
   /*
    * Reverse dimensions due to C-FORTRAN storage order.
    */
-  for (i=0; i < rank; i++)
+  for(i = 0; i < rank; i++)
       c_dims[i] = dims[rank - i - 1];
 
-  status = H5Dextend(c_dset_id, c_dims);
+  status = H5Dset_extent((hid_t)*dset_id, c_dims);
 
-  if ( status >= 0  ) ret_value = 0;
-  HDfree(c_dims);
+  if(status >= 0)
+      ret_value = 0;
   return ret_value;
 }
 

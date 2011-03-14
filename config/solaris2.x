@@ -31,7 +31,7 @@ fi
 
 # Try solaris native compiler flags
 if test "X-" = "X-$cc_flags_set"; then
-  CFLAGS="$CFLAGS -erroff=%none -DBSD_COMP"
+  H5_CFLAGS="$H5_CFLAGS -erroff=%none -DBSD_COMP"
   DEBUG_CFLAGS="-g -xildoff"
   DEBUG_CPPFLAGS=
   PROD_CFLAGS="-O -s"
@@ -39,6 +39,16 @@ if test "X-" = "X-$cc_flags_set"; then
   PROFILE_CFLAGS=-xpg
   PROFILE_CPPFLAGS=
   cc_flags_set=yes
+# Special linking flag is needed to build with Fortran on Solaris 5.9
+    system_version="`uname -r`"
+    case "$system_version" in
+	5.9*)
+	    # Need the xopenmp flag to build the Fortran library
+	    if test X-$enable_fortran = X-yes; then
+		LDFLAGS="$LDFLAGS -xopenmp=stubs"
+	    fi
+	    ;;
+    esac
 
   # Turn off optimization flag for SUNpro compiler versions 4.x which
   # have an optimization bug.  Version 5.0 works.
@@ -48,3 +58,57 @@ fi
 
 # Add socket lib for the Stream Virtual File Driver
 LIBS="$LIBS -lsocket"
+
+# The default Fortran 90 compiler
+
+if test "X-" = "X-$FC"; then
+  FC=f90
+fi
+
+if test "X-" = "X-$f9x_flags_set"; then
+  F9XSUFFIXFLAG=""
+  FSEARCH_DIRS=""
+  FCFLAGS="$FCFLAGS"
+  DEBUG_FCFLAGS=""
+  PROD_FCFLAGS=""
+  PROFILE_FCFLAGS=""
+  f9x_flags_set=yes
+fi
+
+# The default C++ compiler
+
+# The default compiler is `sunpro cc'
+if test -z "$CXX"; then
+  CXX=CC
+  CXX_BASENAME=CC
+fi
+
+# Try gcc compiler flags
+#. $srcdir/config/gnu-flags
+
+cxx_version="`$CXX -V 2>&1 |grep 'WorkShop' |\
+                sed 's/.*WorkShop.*C++ \([0-9\.]*\).*/\1/'`"
+
+cxx_vers_major=`echo $cxx_version | cut -f1 -d.`
+cxx_vers_minor=`echo $cxx_version | cut -f2 -d.`
+cxx_vers_patch=`echo $cxx_version | cut -f3 -d.`
+
+# Specify the "-features=tmplife" if the compiler can handle this...
+if test -n "$cxx_version"; then
+  if test $cxx_vers_major -ge 5 -a $cxx_vers_minor -ge 3 -o $cxx_vers_major -gt 5; then
+    H5_CXXFLAGS="$H5_CXXFLAGS -features=tmplife"
+  fi
+fi
+
+# Try solaris native compiler flags
+if test -z "$cxx_flags_set"; then
+  H5_CXXFLAGS="$H5_CXXFLAGS -instances=static"
+  H5_CPPFLAGS="$H5_CPPFLAGS -LANG:std"
+  DEBUG_CXXFLAGS=-g
+  DEBUG_CPPFLAGS=
+  PROD_CXXFLAGS="-O -s"
+  PROD_CPPFLAGS=
+  PROFILE_CXXFLAGS=-xpg
+  PROFILE_CPPFLAGS=
+  cxx_flags_set=yes
+fi

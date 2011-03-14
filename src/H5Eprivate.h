@@ -24,44 +24,22 @@
 /* Private headers needed by this file */
 #include "H5private.h"
 
-#define H5E_NSLOTS	32	/*number of slots in an error stack	     */
-
-/*
- * The list of error messages in the system is kept as an array of
- * error_code/message pairs, one for major error numbers and another for
- * minor error numbers.
- */
-typedef struct H5E_major_mesg_t {
-    H5E_major_t error_code;
-    const char	*str;
-} H5E_major_mesg_t;
-
-typedef struct H5E_minor_mesg_t {
-    H5E_minor_t error_code;
-    const char	*str;
-} H5E_minor_mesg_t;
-
-/* An error stack */
-typedef struct H5E_t {
-    int	nused;			/*num slots currently used in stack  */
-    H5E_error_t slot[H5E_NSLOTS];	/*array of error records	     */
-    H5E_auto_t auto_func;       /* Function for 'automatic' error reporting */
-    void *auto_data;            /* Callback data for 'automatic' error reporting */
-} H5E_t;
+/* Typedef for error stack (defined in H5Epkg.h) */
+typedef struct H5E_t H5E_t;
 
 /*
  * HERROR macro, used to facilitate error reporting between a FUNC_ENTER()
  * and a FUNC_LEAVE() within a function body.  The arguments are the major
  * error number, the minor error number, and a description of the error.
  */
-#define HERROR(maj, min, str) H5E_push(maj, min, FUNC, __FILE__, __LINE__, str)
+#define HERROR(maj_id, min_id, str) H5E_push_stack(NULL, __FILE__, FUNC, __LINE__, H5E_ERR_CLS_g, maj_id, min_id, str)
 
 /*
  * HCOMMON_ERROR macro, used by HDONE_ERROR and HGOTO_ERROR
  * (Shouldn't need to be used outside this header file)
  */
 #define HCOMMON_ERROR(maj, min, str)  				              \
-   HERROR (maj, min, str);						      \
+   HERROR(maj, min, str);						      \
    (void)H5E_dump_api_stack((int)H5_IS_API(FUNC));
 
 /*
@@ -74,7 +52,7 @@ typedef struct H5E_t {
  *      without jumping to any labels)
  */
 #define HDONE_ERROR(maj, min, ret_val, str) {				      \
-   HCOMMON_ERROR (maj, min, str);					      \
+   HCOMMON_ERROR(maj, min, str);					      \
    ret_value = ret_val;                                                       \
 }
 
@@ -86,8 +64,8 @@ typedef struct H5E_t {
  * control branches to the `done' label.
  */
 #define HGOTO_ERROR(maj, min, ret_val, str) {				      \
-   HCOMMON_ERROR (maj, min, str);					      \
-   HGOTO_DONE (ret_val)						              \
+   HCOMMON_ERROR(maj, min, str);					      \
+   HGOTO_DONE(ret_val)						              \
 }
 
 /*
@@ -99,11 +77,11 @@ typedef struct H5E_t {
 #define HGOTO_DONE(ret_val) {ret_value = ret_val; goto done;}
 
 /* Library-private functions defined in H5E package */
-H5_DLL herr_t H5E_push (H5E_major_t maj_num, H5E_minor_t min_num,
-			 const char *func_name, const char *file_name,
-			 unsigned line, const char *desc);
-H5_DLL herr_t H5E_clear (void);
-H5_DLL herr_t H5E_dump_api_stack (int is_api);
+H5_DLL herr_t H5E_init(void);
+H5_DLL herr_t H5E_push_stack(H5E_t *estack, const char *file, const char *func, unsigned line,
+                            hid_t cls_id, hid_t maj_id, hid_t min_id, const char *desc);
+H5_DLL herr_t H5E_clear_stack(H5E_t *estack);
+H5_DLL herr_t H5E_dump_api_stack(int is_api);
 
 /*
  * Macros handling system error messages as described in C standard.
@@ -113,14 +91,14 @@ H5_DLL herr_t H5E_dump_api_stack (int is_api);
 /* Retrieve the error code description string and push it onto the error
  * stack.
  */
-#define	HSYS_ERROR(errnum){						      \
+#define	HSYS_ERROR(errnum) {						      \
     HERROR(H5E_INTERNAL, H5E_SYSERRSTR, HDstrerror(errnum));                  \
 }
-#define	HSYS_DONE_ERROR(majorcode, minorcode, retcode, str){				      \
+#define	HSYS_DONE_ERROR(majorcode, minorcode, retcode, str) {		      \
     HSYS_ERROR(errno);							      \
     HDONE_ERROR(majorcode, minorcode, retcode, str);			      \
 }
-#define	HSYS_GOTO_ERROR(majorcode, minorcode, retcode, str){				      \
+#define	HSYS_GOTO_ERROR(majorcode, minorcode, retcode, str) {		      \
     HSYS_ERROR(errno);							      \
     HGOTO_ERROR(majorcode, minorcode, retcode, str);			      \
 }
@@ -145,6 +123,7 @@ extern	int	H5E_mpi_error_str_len;
     HMPI_ERROR(mpierr);							      \
     HGOTO_ERROR(H5E_INTERNAL, H5E_MPI, retcode, str);			      \
 }
-#endif
+#endif /* H5_HAVE_PARALLEL */
 
-#endif
+#endif /* _H5Eprivate_H */
+

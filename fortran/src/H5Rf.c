@@ -36,7 +36,7 @@ nh5rcreate_object_c (haddr_t_f *ref, hid_t_f *loc_id, _fcd name, int_f *namelen)
      hid_t c_loc_id;
      int ret_value_c;
      char *c_name;
-     int c_namelen;
+     size_t c_namelen;
      hobj_ref_t ref_c;
 
      /*
@@ -83,7 +83,7 @@ nh5rcreate_region_c (int_f *ref, hid_t_f *loc_id, _fcd name, int_f *namelen, hid
      hid_t c_space_id;
      int ret_value_c;
      char *c_name;
-     int c_namelen;
+     size_t c_namelen;
      hdset_reg_ref_t ref_c;
 
      /*
@@ -160,7 +160,7 @@ nh5rdereference_object_c (hid_t_f *dset_id, haddr_t_f *ref, hid_t_f *obj_id)
      hid_t c_obj_id;
      hobj_ref_t ref_c;
 
-     ref_c=(hobj_ref_t)*ref;
+     ref_c=*ref;
 
      /*
       * Call H5Rdereference function.
@@ -220,20 +220,22 @@ nh5rget_region_region_c (hid_t_f *dset_id, int_f *ref, hid_t_f *space_id)
 int_f
 nh5rget_object_type_obj_c (hid_t_f *dset_id, haddr_t_f *ref, int_f *obj_type)
 {
-     int ret_value = -1;
-     hid_t c_dset_id;
-     int c_obj_type;
+     H5O_type_t c_obj_type;
      hobj_ref_t ref_c;
+     int_f ret_value = -1;
 
-     ref_c=*ref;
+     ref_c = *ref;
 
      /*
       * Call H5Rget_object_type function.
       */
-     c_dset_id = *dset_id;
-     c_obj_type = H5Rget_obj_type(c_dset_id, H5R_OBJECT, &ref_c);
-     if(c_obj_type < 0) return ret_value;
+     if(H5Rget_obj_type2((hid_t)*dset_id, H5R_OBJECT, &ref_c, &c_obj_type) < 0)
+         return ret_value;
+
      *obj_type = (int_f)c_obj_type;
+
      ret_value = 0;
+
      return ret_value;
 }
+

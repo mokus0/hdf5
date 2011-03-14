@@ -13,29 +13,30 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include "H5LT.h"
+#include "hdf5.h"
+#include "hdf5_hl.h"
 #include <stdlib.h>
 
 #define ATTR_SIZE 5
 
 int main( void )
 {
- hid_t   file_id; 
+ hid_t   file_id;
  hid_t   dset_id;
- hid_t   space_id;  
+ hid_t   space_id;
  hsize_t dims[1] = { ATTR_SIZE };
  int     data[ATTR_SIZE] = {1,2,3,4,5};
- herr_t  status; 
+ herr_t  status;
  int     i;
-  
+
  /* create a file */
- file_id = H5Fcreate ("ex_lite3.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT); 
+ file_id = H5Fcreate("ex_lite3.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
  /* create a data space  */
- space_id = H5Screate_simple(1,dims,NULL);
+ space_id = H5Screate_simple(1, dims, NULL);
 
  /* create a dataset named "dset" */
- dset_id = H5Dcreate(file_id,"dset",H5T_NATIVE_INT,space_id,H5P_DEFAULT);
+ dset_id = H5Dcreate2(file_id, "dset", H5T_NATIVE_INT, space_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
  /* close */
  status = H5Dclose(dset_id);
@@ -45,9 +46,9 @@ int main( void )
  * example of H5LTset_attribute_int
  *-------------------------------------------------------------------------
  */
-  
+
  /* create and write the attribute "attr1" on the dataset "dset" */
- status = H5LTset_attribute_int(file_id,"dset","attr1",data,ATTR_SIZE);
+ status = H5LTset_attribute_int(file_id, "dset", "attr1", data, ATTR_SIZE);
 
 /*-------------------------------------------------------------------------
  * example of H5LTget_attribute_int
@@ -55,18 +56,15 @@ int main( void )
  */
 
  /* get the attribute "attr1" from the dataset "dset" */
- status = H5LTget_attribute_int(file_id,"dset","attr1",data);
+ status = H5LTget_attribute_int(file_id, "dset", "attr1", data);
 
- for (i=0; i< ATTR_SIZE; i++ )
- {
-  printf ("  %d", data[i]);
- }
- printf ("\n");
+ for(i = 0; i < ATTR_SIZE; i++ )
+  printf("  %d", data[i]);
+ printf("\n");
 
  /* close file */
  status = H5Fclose(file_id);
 
  return 0;
-
 }
 

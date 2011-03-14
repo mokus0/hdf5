@@ -31,13 +31,13 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 
 	// Queries whether all the filters set in this property list are
 	// available currently.
-	bool allFiltersAvail() const;
+	bool allFiltersAvail();
 
 	// Get space allocation time for this property.
-	H5D_alloc_time_t getAllocTime() const;
+	H5D_alloc_time_t getAllocTime();
 
 	// Set space allocation time for dataset during creation.
-	void setAllocTime(H5D_alloc_time_t alloc_time) const;
+	void setAllocTime(H5D_alloc_time_t alloc_time);
 
 	// Retrieves the size of the chunks used to store a chunked layout dataset.
 	int getChunk( int max_ndims, hsize_t* dim ) const;
@@ -52,10 +52,10 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	int getExternalCount() const;
 
 	// Gets fill value writing time.
-	H5D_fill_time_t getFillTime() const;
+	H5D_fill_time_t getFillTime();
 
 	// Sets fill value writing time for dataset.
-	void setFillTime(H5D_fill_time_t fill_time) const;
+	void setFillTime(H5D_fill_time_t fill_time);
 
 	// Retrieves a dataset fill value.
 	void getFillValue( const DataType& fvalue_type, void* value ) const;
@@ -64,10 +64,10 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	void setFillValue( const DataType& fvalue_type, const void* value ) const;
 
 	// Returns information about a filter in a pipeline.
-	H5Z_filter_t getFilter(int filter_number, unsigned int& flags, size_t& cd_nelmts, unsigned int* cd_values, size_t namelen, char name[]) const;
+	H5Z_filter_t getFilter(int filter_number, unsigned int& flags, size_t& cd_nelmts, unsigned int* cd_values, size_t namelen, char name[], unsigned int &filter_config) const;
 
 	// Returns information about a filter in a pipeline given the filter id.
-	void getFilterById(H5Z_filter_t filter_id, unsigned int &flags, size_t &cd_nelmts, unsigned int* cd_values, size_t namelen, char name[]) const;
+	void getFilterById(H5Z_filter_t filter_id, unsigned int &flags, size_t &cd_nelmts, unsigned int* cd_values, size_t namelen, char name[], unsigned int &filter_config) const;
 
 	// Gets the layout of the raw data storage of the data that uses this
 	// property list.
@@ -81,7 +81,7 @@ class H5_DLLCPP DSetCreatPropList : public PropList {
 	int getNfilters() const;
 
 	// Checks if fill value has been defined for this property.
-	H5D_fill_value_t isFillValueDefined() const;
+	H5D_fill_value_t isFillValueDefined();
 
 	// Modifies the specified filter.
 	void modifyFilter( H5Z_filter_t filter_id, unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[] ) const;

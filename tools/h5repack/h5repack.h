@@ -13,11 +13,13 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+
 #ifndef H5REPACK_H__
 #define H5REPACK_H__
 
 #include "hdf5.h"
 #include "h5trav.h"
+#include "H5Zprivate.h"	/* H5Z_COMMON_CD_VALUES */	
 
 
 
@@ -28,9 +30,6 @@
 
 #define MAX_NC_NAME 256 /* max length of a name */
 #define MAX_VAR_DIMS 32 /* max per variable dimensions */
-#define FORMAT_OBJ      " %-27s %s\n"   /* obj type, name */
-#define FORMAT_OBJ_ATTR "  %-27s %s\n"  /* obj type, name */
-
 
 /*-------------------------------------------------------------------------
  * data structures for command line options
@@ -50,9 +49,11 @@ typedef struct {
  H5Z_FILTER_SHUFFLE     2 , shuffle the data
  H5Z_FILTER_FLETCHER32  3 , letcher32 checksum of EDC
  H5Z_FILTER_SZIP        4 , szip compression
-
+ H5Z_FILTER_NBIT        5 , nbit compression
+ H5Z_FILTER_SCALEOFFSET 6 , scaleoffset compression
 */
 
+/* #define CD_VALUES H5Z_COMMON_CD_VALUES */
 #define CD_VALUES 20
 
 typedef struct {
@@ -60,8 +61,6 @@ typedef struct {
  unsigned     cd_values[CD_VALUES];            /* filter client data values */
  size_t       cd_nelmts;                       /* filter client number of values */
 } filter_info_t;
-
-
 
 /* chunk lengths along each dimension and rank */
 typedef struct {
@@ -106,14 +105,14 @@ typedef struct {
  chunk_info_t    chunk_g;     /*global chunk INFO for the ALL case */
  H5D_layout_t    layout_g;    /*global layout information for the ALL case */
  int             verbose;     /*verbose mode */
- hsize_t         min_comp;    /*minimum size to compress, in bytes */
- int             use_native;  /*use a native type in write */ 
- const char      *ublock_filename; /* user block file name */
- hsize_t         ublock_size;      /* user block size */
- hsize_t         threshold;        /* alignment threshold for H5Pset_alignment */
- hsize_t         alignment ;       /* alignment for H5Pset_alignment */
+ hsize_t         threshold;   /*minimum size to compress, in bytes */
+ int             use_native;  /*use a native type in write */  
+ int             latest;      /*pack file with the latest file format */
+ int             grp_compact; /* Set the maximum number of links to store as header messages in the group */
+ int             grp_indexed; /* Set the minimum number of links to store in the indexed format */
+ int             msg_size[8]; /* Minumum size of shared messages: dataspace, 
+                                 datatype, fill value, filter pipleline, attribute */
 } pack_opt_t;
-
 
 
 
@@ -147,55 +146,39 @@ int h5repack_cmpdcpl   (const char *fname1,
  *-------------------------------------------------------------------------
  */
 
-int copy_objects(const char* fnamein,
-                 const char* fnameout,
-                 pack_opt_t *options);
+
+/*-------------------------------------------------------------------------
+ * copy module
+ *-------------------------------------------------------------------------
+ */
+
+int copy_objects   (const char* fnamein,
+                    const char* fnameout,
+                    pack_opt_t *options);
 
 int do_copy_refobjs(hid_t fidin,
                     hid_t fidout,
                     trav_table_t *travt,
-                    pack_opt_t *options); /* repack options */
+                    pack_opt_t *options); 
 
-
+/*-------------------------------------------------------------------------
+ * filters and verify module
+ *-------------------------------------------------------------------------
+ */
 void init_packobject(pack_info_t *obj);
-int print_filters(hid_t dcpl_id);
 
 
 /*-------------------------------------------------------------------------
- * filters
+ * filters and copy module
  *-------------------------------------------------------------------------
  */
 
 int apply_filters(const char* name,    /* object name from traverse list */
                   int rank,            /* rank of dataset */
                   hsize_t *dims,       /* dimensions of dataset */
-                  size_t msize,        /* size of type */
                   hid_t dcpl_id,       /* dataset creation property list */
                   pack_opt_t *options, /* repack options */
                   int *has_filter);    /* (OUT) object NAME has a filter */
-
-
-int has_filter(hid_t dcpl_id,
-               H5Z_filter_t filtnin);
-
-
-int can_read(const char* name,    /* object name from traverse list */
-             hid_t dcpl_id,       /* dataset creation property list */
-             pack_opt_t *options); /* repack options */
-
-
-/*-------------------------------------------------------------------------
- * layout functions
- *-------------------------------------------------------------------------
- */
-
-int layout_this(hid_t dcpl_id,             /* DCPL from input object */
-                const char* name,          /* object name from traverse list */
-                pack_opt_t *options,       /* repack options */
-                pack_info_t *pack /*OUT*/) /* object to apply layout */;
-
-int apply_layout(hid_t dcpl_id,
-                 pack_info_t *pack);  /* info about object  */
 
 
 /*-------------------------------------------------------------------------
@@ -220,13 +203,11 @@ pack_info_t* options_get_object( const char *path,
  *-------------------------------------------------------------------------
  */
 
-
 obj_list_t* parse_filter(const char *str,
                          int *n_objs,
                          filter_info_t *filt,
                          pack_opt_t *options,
                          int *is_glb);
-
 
 obj_list_t* parse_layout(const char *str,
                          int *n_objs,

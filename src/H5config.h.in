@@ -1,5 +1,8 @@
 /* src/H5config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define if your system generates wrong code for log2 routine. */
+#undef BAD_LOG2_CODE_GENERATED
+
 /* Define if the memory buffers being written to disk should be cleared before
    writing. */
 #undef CLEAR_MEMORY
@@ -8,8 +11,40 @@
    values. */
 #undef CONVERT_DENORMAL_FLOAT
 
+/* Define if C++ compiler recognizes offsetof */
+#undef CXX_HAVE_OFFSETOF
+
+/* Define the default virtual file driver to compile */
+#undef DEFAULT_VFD
+
 /* Define if `dev_t' is a scalar */
 #undef DEV_T_IS_SCALAR
+
+/* Define to dummy `main' function (if any) required to link to the Fortran
+   libraries. */
+#undef FC_DUMMY_MAIN
+
+/* Define if F77 and FC dummy `main' functions are identical. */
+#undef FC_DUMMY_MAIN_EQ_F77
+
+/* Define to a macro mangling the given C identifier (in lower and upper
+   case), which must not contain underscores, for linking with Fortran. */
+#undef FC_FUNC
+
+/* As FC_FUNC, but for C identifiers containing underscores. */
+#undef FC_FUNC_
+
+/* Define if your system can handle overflow converting floating-point to
+   integer values. */
+#undef FP_TO_INTEGER_OVERFLOW_WORKS
+
+/* Define if your system roundup accurately converting floating-point to
+   unsigned long long values. */
+#undef FP_TO_ULLONG_ACCURATE
+
+/* Define if your system has right maximum convert floating-point to unsigned
+   long long values. */
+#undef FP_TO_ULLONG_RIGHT_MAXIMUM
 
 /* Define if gettimeofday() populates the tz pointer passed in */
 #undef GETTIMEOFDAY_GIVES_TZ
@@ -23,6 +58,9 @@
 /* Define to 1 if you have the `BSDgettimeofday' function. */
 #undef HAVE_BSDGETTIMEOFDAY
 
+/* Define if the function stack tracing code is to be compiled in */
+#undef HAVE_CODESTACK
+
 /* Define to 1 if you have the declaration of `tzname', and to 0 if you don't.
    */
 #undef HAVE_DECL_TZNAME
@@ -30,23 +68,29 @@
 /* Define to 1 if you have the `difftime' function. */
 #undef HAVE_DIFFTIME
 
+/* Define if the direct I/O virtual file driver should be compiled */
+#undef HAVE_DIRECT
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
 /* Define to 1 if you have the <dmalloc.h> header file. */
 #undef HAVE_DMALLOC_H
 
-/* Define if library information should be embedded in the executables */
-#undef HAVE_EMBEDDED_LIBINFO
-
 /* Define to 1 if you have the <features.h> header file. */
 #undef HAVE_FEATURES_H
 
-/* Define if support for deflate filter is enabled */
+/* Define if support for deflate (zlib) filter is enabled */
 #undef HAVE_FILTER_DEFLATE
 
 /* Define if support for Fletcher32 checksum is enabled */
 #undef HAVE_FILTER_FLETCHER32
+
+/* Define if support for nbit filter is enabled */
+#undef HAVE_FILTER_NBIT
+
+/* Define if support for scaleoffset filter is enabled */
+#undef HAVE_FILTER_SCALEOFFSET
 
 /* Define if support for shuffle filter is enabled */
 #undef HAVE_FILTER_SHUFFLE
@@ -69,11 +113,11 @@
 /* Define to 1 if you have the `fseeko' function. */
 #undef HAVE_FSEEKO
 
+/* Define to 1 if you have the `fstat64' function. */
+#undef HAVE_FSTAT64
+
 /* Define to 1 if you have the `ftello' function. */
 #undef HAVE_FTELLO
-
-/* Define if the function stack tracing code is to be compiled in */
-#undef HAVE_FUNCSTACK
 
 /* Define if the compiler understand the __FUNCTION__ keyword */
 #undef HAVE_FUNCTION
@@ -118,8 +162,14 @@
 /* Define to 1 if you have the <io.h> header file. */
 #undef HAVE_IO_H
 
+/* Define if it's safe to use `long long' for hsize_t and hssize_t */
+#undef HAVE_LARGE_HSIZET
+
 /* Define to 1 if you have the `dmalloc' library (-ldmalloc). */
 #undef HAVE_LIBDMALLOC
+
+/* Define to 1 if you have the `lmpe' library (-llmpe). */
+#undef HAVE_LIBLMPE
 
 /* Define to 1 if you have the `m' library (-lm). */
 #undef HAVE_LIBM
@@ -141,6 +191,9 @@
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
+
+/* Define to 1 if you have the `socket' library (-lsocket). */
+#undef HAVE_LIBSOCKET
 
 /* Define to 1 if you have the `sz' library (-lsz). */
 #undef HAVE_LIBSZ
@@ -166,11 +219,23 @@
 /* Define if MPI_File_get_size works correctly */
 #undef HAVE_MPI_GET_SIZE
 
+/* Define if `MPI_Comm_c2f' and `MPI_Comm_f2c' exists */
+#undef HAVE_MPI_MULTI_LANG_Comm
+
+/* Define if `MPI_Info_c2f' and `MPI_Info_f2c' exists */
+#undef HAVE_MPI_MULTI_LANG_Info
+
 /* Define if we have parallel support */
 #undef HAVE_PARALLEL
 
 /* Define to 1 if you have the <pthread.h> header file. */
 #undef HAVE_PTHREAD_H
+
+/* Define to 1 if you have the `random' function. */
+#undef HAVE_RANDOM
+
+/* Define to 1 if you have the `rand_r' function. */
+#undef HAVE_RAND_R
 
 /* Define to 1 if you have the <setjmp.h> header file. */
 #undef HAVE_SETJMP_H
@@ -181,11 +246,20 @@
 /* Define to 1 if you have the `sigaction' function. */
 #undef HAVE_SIGACTION
 
+/* Define to 1 if you have the `siglongjmp' function. */
+#undef HAVE_SIGLONGJMP
+
 /* Define to 1 if you have the `signal' function. */
 #undef HAVE_SIGNAL
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
+
+/* Define to 1 if you have the `srandom' function. */
+#undef HAVE_SRANDOM
+
+/* Define to 1 if you have the `stat64' function. */
+#undef HAVE_STAT64
 
 /* Define if `struct stat' has the `st_blocks' field */
 #undef HAVE_STAT_ST_BLOCKS
@@ -268,6 +342,9 @@
 /* Define if the ioctl TIOGWINSZ is defined */
 #undef HAVE_TIOCGWINSZ
 
+/* Define to 1 if you have the `tmpfile' function. */
+#undef HAVE_TMPFILE
+
 /* Define if `tm_gmtoff' is a member of `struct tm' */
 #undef HAVE_TM_GMTOFF
 
@@ -281,6 +358,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the `vasprintf' function. */
+#undef HAVE_VASPRINTF
 
 /* Define to 1 if you have the `vsnprintf' function. */
 #undef HAVE_VSNPRINTF
@@ -303,6 +383,41 @@
 /* Define if `__tm_gmtoff' is a member of `struct tm' */
 #undef HAVE___TM_GMTOFF
 
+/* Define if your system can't handle converting floating-point values to long
+   long. */
+#undef HW_FP_TO_LLONG_NOT_WORKS
+
+/* Define if HDF5's high-level library headers should be included in hdf5.h */
+#undef INCLUDE_HL
+
+/* Define if your system can accurately convert from integers to long double
+   values. */
+#undef INTEGER_TO_LDOUBLE_ACCURATE
+
+/* Define if your system can convert long double to integers accurately. */
+#undef LDOUBLE_TO_INTEGER_ACCURATE
+
+/* Define if your system can convert from long double to integer values. */
+#undef LDOUBLE_TO_INTEGER_WORKS
+
+/* Define if your system can convert long double to (unsigned) long long
+   values correctly. */
+#undef LDOUBLE_TO_LLONG_ACCURATE
+
+/* Define if your system can convert long double to unsigned int values
+   correctly. */
+#undef LDOUBLE_TO_UINT_ACCURATE
+
+/* Define if your system can compile long long to floating-point casts. */
+#undef LLONG_TO_FP_CAST_WORKS
+
+/* Define if your system can convert (unsigned) long long to long double
+   values correctly. */
+#undef LLONG_TO_LDOUBLE_CORRECT
+
+/* Define if the metadata trace file code is to be compiled in */
+#undef METADATA_TRACE_FILE
+
 /* Define if your system can handle complicated MPI derived datatype
    correctly. */
 #undef MPI_COMPLEX_DERIVED_DATATYPE_WORKS
@@ -311,8 +426,17 @@
    2GB. */
 #undef MPI_FILE_SET_SIZE_BIG
 
+/* Define if your system can handle special collective IO properly. */
+#undef MPI_SPECIAL_COLLECTIVE_IO_WORKS
+
+/* Define if deprecated public API symbols are disabled */
+#undef NO_DEPRECATED_SYMBOLS
+
 /* Define if shared writing must be disabled (CodeWarrior only) */
 #undef NO_SHARED_WRITING
+
+/* Name of package */
+#undef PACKAGE
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -389,6 +513,9 @@
 /* The size of `long long', as computed by sizeof. */
 #undef SIZEOF_LONG_LONG
 
+/* The size of `off64_t', as computed by sizeof. */
+#undef SIZEOF_OFF64_T
+
 /* The size of `off_t', as computed by sizeof. */
 #undef SIZEOF_OFF_T
 
@@ -456,8 +583,38 @@
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
-/* Define if the HDF5 v1.4 compatibility functions are to be compiled in */
-#undef WANT_H5_V1_4_COMPAT
+/* Define if your system can compile unsigned long long to floating-point
+   casts. */
+#undef ULLONG_TO_FP_CAST_WORKS
+
+/* Define if your system can convert unsigned long long to long double with
+   correct precision. */
+#undef ULLONG_TO_LDOUBLE_PRECISION
+
+/* Define if your system can accurately convert unsigned (long) long values to
+   floating-point values. */
+#undef ULONG_TO_FP_BOTTOM_BIT_ACCURATE
+
+/* Define using v1.6 public API symbols by default */
+#undef USE_16_API
+
+/* Define if a memory checking tool will be used on the library, to cause
+   library to be very picky about memory operations and also disable the
+   internal free list manager code. */
+#undef USING_MEMCHECKER
+
+/* Version number of package */
+#undef VERSION
+
+/* Define if vsnprintf() returns the correct value for formatted strings that
+   don't fit into size allowed */
+#undef VSNPRINTF_WORKS
+
+/* Data accuracy is prefered to speed during data conversions */
+#undef WANT_DATA_ACCURACY
+
+/* Check exception handling functions during data conversions */
+#undef WANT_DCONV_EXCEPTION
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */

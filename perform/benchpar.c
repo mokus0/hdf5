@@ -17,10 +17,22 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
+#include <float.h>
+#include <string.h>
 
 #include "hdf5.h"
 
 /* Local macros */
+
+/*
+ * HDF Boolean type.
+ */
+#ifndef FALSE
+#   define FALSE 0
+#endif
+#ifndef TRUE
+#   define TRUE 1
+#endif
 
 /* defines for type of VFL driver to use */
 #define FACC_DEFAULT    0
@@ -374,8 +386,8 @@ int main(int argc, char *argv[])
         assert(dcpl>0);
 
         /* Create dataset */
-        dsid=H5Dcreate(fid,DEFAULT_DATASET_NAME,DEFAULT_HDF5_DATATYPE,file_sid,dcpl);
-        assert(dsid>0);
+        dsid = H5Dcreate2(fid, DEFAULT_DATASET_NAME, DEFAULT_HDF5_DATATYPE, file_sid, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+        assert(dsid > 0);
 
         /* Close dataset creation property list */
         ret=H5Pclose(dcpl);

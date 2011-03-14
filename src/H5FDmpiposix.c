@@ -95,9 +95,11 @@ typedef struct H5FD_mpiposix_t {
     haddr_t	pos;		/* Current file I/O position	        */
     int		op;		/* Last file I/O operation		*/
     hsize_t	naccess;	/* Number of (write) accesses to file   */
+#ifdef H5_HAVE_GPFS
     size_t      blksize;        /* Block size of file system            */
+#endif
     hbool_t     use_gpfs;       /* Use GPFS to write things             */
-#ifndef WIN32
+#ifndef _WIN32
     /*
      * On most systems the combination of device and i-node number uniquely
      * identify a file.
@@ -106,7 +108,7 @@ typedef struct H5FD_mpiposix_t {
     ino_t	inode;		/*file i-node number		*/
 #else
     /*
-     * On WIN32 the low-order word of a unique identifier associated with the
+     * On _WIN32 the low-order word of a unique identifier associated with the
      * file and the volume serial number uniquely identify a file. This number
      * (which, both? -rpm) may change when the system is restarted or when the
      * file is opened. After a process opens a file, the identifier is
@@ -131,13 +133,12 @@ typedef struct H5FD_mpiposix_t {
  *			either lseek() or lseek64().
  */
 /* adding for windows NT file system support. */
-/* pvn: added __MWERKS__ support. */
 
 #ifdef H5_HAVE_LSEEK64
 #   define file_offset_t	off64_t
 #   define file_seek		lseek64
 #   define file_truncate	ftruncate64
-#elif defined (WIN32) && !defined(__MWERKS__)
+#elif defined (_WIN32) && !defined(__MWERKS__)
 # /*MSVC*/
 #   define file_offset_t __int64
 #   define file_seek _lseeki64
@@ -181,9 +182,9 @@ static H5FD_t *H5FD_mpiposix_open(const char *name, unsigned flags, hid_t fapl_i
 static herr_t H5FD_mpiposix_close(H5FD_t *_file);
 static int H5FD_mpiposix_cmp(const H5FD_t *_f1, const H5FD_t *_f2);
 static herr_t H5FD_mpiposix_query(const H5FD_t *_f1, unsigned long *flags);
-static haddr_t H5FD_mpiposix_get_eoa(H5FD_t *_file);
-static herr_t H5FD_mpiposix_set_eoa(H5FD_t *_file, haddr_t addr);
-static haddr_t H5FD_mpiposix_get_eof(H5FD_t *_file);
+static haddr_t H5FD_mpiposix_get_eoa(const H5FD_t *_file, H5FD_mem_t UNUSED type);
+static herr_t H5FD_mpiposix_set_eoa(H5FD_t *_file, H5FD_mem_t type, haddr_t addr);
+static haddr_t H5FD_mpiposix_get_eof(const H5FD_t *_file);
 static herr_t  H5FD_mpiposix_get_handle(H5FD_t *_file, hid_t fapl, void** file_handle);
 static herr_t H5FD_mpiposix_read(H5FD_t *_file, H5FD_mem_t type, hid_t fapl_id, haddr_t addr,
         size_t size, void *buf);
@@ -321,124 +322,6 @@ H5FD_mpiposix_term(void)
     FUNC_LEAVE_NOAPI_VOID
 } /* end H5FD_mpiposix_term() */
 
-#ifdef H5_WANT_H5_V1_4_COMPAT
-
-/*-------------------------------------------------------------------------
- * Function:	H5Pset_fapl_mpiposix
- *
- * Purpose:	Store the user supplied MPI communicator COMM in
- *		the file access property list FAPL_ID which can then be used
- *		to create and/or open the file.  This function is available
- *		only in the parallel HDF5 library and is not collective.
- *
- *		comm is the MPI communicator to be used for file open as
- *		defined in MPI_FILE_OPEN of MPI-2. This function makes a
- *		duplicate of comm. Any modification to comm after this function
- *		call returns has no effect on the access property list.
- *
- *              If fapl_id has previously set comm value, it will be replaced
- *              and the old communicator is freed.
- *
- * Return:	Success:	Non-negative
- * 		Failure:	Negative
- *
- * Programmer:	Quincey Koziol
- *		Thursday, July 11, 2002
- *
- * Modifications:
- *		Albert Cheng, 2003-04-24
- *		Modified the description of the function that it now stores
- *		a duplicate of the communicator.  Free the old duplicate if
- *		previously set.  (Work is actually done by H5P_set_driver.)
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5Pset_fapl_mpiposix(hid_t fapl_id, MPI_Comm comm)
-{
-    H5FD_mpiposix_fapl_t	fa;
-    H5P_genplist_t *plist;      /* Property list pointer */
-    herr_t ret_value;
-
-    FUNC_ENTER_API(H5Pset_fapl_mpiposix, FAIL)
-    H5TRACE2("e","iMc",fapl_id,comm);
-
-    /* Check arguments */
-    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a file access list")
-    if (MPI_COMM_NULL == comm)
-	HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a valid communicator")
-
-    /* Initialize driver specific properties */
-    fa.comm = comm;
-    fa.use_gpfs = FALSE;
-
-    /* duplication is done during driver setting. */
-    ret_value= H5P_set_driver(plist, H5FD_MPIPOSIX, &fa);
-
-done:
-    FUNC_LEAVE_API(ret_value)
-} /* end H5Pset_fapl_mpiposix() */
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5Pget_fapl_mpiposix
- *
- * Purpose:	If the file access property list is set to the H5FD_MPIPOSIX
- *		driver then this function returns a duplicate of the MPI
- *		communicator through the comm pointer. It is the responsibility
- *		of the application to free the returned communicator.
- *
- * Return:	Success:	Non-negative with the communicator and
- *				information returned through the COMM
- *				argument if non-null.  Since it is a duplicate
- *				of the stored object, future modifications to
- *				the access property list do not affect it and
- *				it is the responsibility of the application to
- *				free it.
- *
- * 		Failure:	Negative
- *
- * Programmer:	Quincey Koziol
- *		Thursday, July 11, 2002
- *
- * Modifications:
- *		Albert Cheng, 2003-04-24
- *		Return duplicate of the stored communicator.
- *
- *              Bill Wendling, 2003-05-01
- *              Return the USE_GPFS flag.
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/)
-{
-    H5FD_mpiposix_fapl_t	*fa;
-    H5P_genplist_t *plist;      /* Property list pointer */
-    int		mpi_code;		/* mpi return code */
-    herr_t      ret_value=SUCCEED;      /* Return value */
-
-    FUNC_ENTER_API(H5Pget_fapl_mpiposix, FAIL)
-    H5TRACE2("e","ix",fapl_id,comm);
-
-    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a file access list")
-    if (H5FD_MPIPOSIX!=H5P_get_driver(plist))
-        HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "incorrect VFL driver")
-    if (NULL==(fa=H5P_get_driver_info(plist)))
-        HGOTO_ERROR(H5E_PLIST, H5E_BADVALUE, FAIL, "bad VFL driver info")
-
-    /* Get MPI Communicator */
-    if (comm){
-	if (MPI_SUCCESS != (mpi_code=MPI_Comm_dup(fa->comm, comm)))
-	    HMPI_GOTO_ERROR(FAIL, "MPI_Comm_dup failed", mpi_code)
-    }
-
-done:
-    FUNC_LEAVE_API(ret_value)
-} /* end H5Pget_fapl_mpiposix() */
-#else /* H5_WANT_H5_V1_4_COMPAT */
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pset_fapl_mpiposix
@@ -482,7 +365,7 @@ H5Pset_fapl_mpiposix(hid_t fapl_id, MPI_Comm comm, hbool_t use_gpfs)
     herr_t ret_value;
 
     FUNC_ENTER_API(H5Pset_fapl_mpiposix, FAIL)
-    H5TRACE3("e","iMcb",fapl_id,comm,use_gpfs);
+    H5TRACE3("e", "iMcb", fapl_id, comm, use_gpfs);
 
     /* Check arguments */
     if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
@@ -541,7 +424,7 @@ H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/, hbool_t *use_gpfs/*ou
     herr_t      ret_value=SUCCEED;      /* Return value */
 
     FUNC_ENTER_API(H5Pget_fapl_mpiposix, FAIL)
-    H5TRACE3("e","ixx",fapl_id,comm,use_gpfs);
+    H5TRACE3("e", "ixx", fapl_id, comm, use_gpfs);
 
     if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
         HGOTO_ERROR(H5E_PLIST, H5E_BADTYPE, FAIL, "not a file access list")
@@ -562,7 +445,6 @@ H5Pget_fapl_mpiposix(hid_t fapl_id, MPI_Comm *comm/*out*/, hbool_t *use_gpfs/*ou
 done:
     FUNC_LEAVE_API(ret_value)
 } /* end H5Pget_fapl_mpiposix() */
-#endif /* H5_WANT_H5_V1_4_COMPAT */
 
 
 /*-------------------------------------------------------------------------
@@ -738,7 +620,7 @@ H5FD_mpiposix_open(const char *name, unsigned flags, hid_t fapl_id,
     H5FD_mpiposix_fapl_t	_fa;            /* Private copy of default file access property list information */
     H5P_genplist_t              *plist;         /* Property list pointer */
     h5_stat_t                   sb;             /* Portable 'stat' struct */
-#ifdef WIN32
+#ifdef _WIN32
     HFILE filehandle;
     struct _BY_HANDLE_FILE_INFORMATION fileinfo;
     int results;
@@ -871,7 +753,12 @@ H5FD_mpiposix_open(const char *name, unsigned flags, hid_t fapl_id,
     /* Set the general file information */
     file->fd = fd;
     file->eof = sb.st_size;
+
+    /* for _WIN32 support. _WIN32 'stat' does not have st_blksize and st_blksize
+       is only used for the H5_HAVE_GPFS case */
+#ifdef H5_HAVE_GPFS
     file->blksize = sb.st_blksize;
+#endif
 
     /* Set this field in the H5FD_mpiposix_t struct for later use */
     file->use_gpfs = fa->use_gpfs;
@@ -886,7 +773,7 @@ H5FD_mpiposix_open(const char *name, unsigned flags, hid_t fapl_id,
     file->op = OP_UNKNOWN;
 
     /* Set the information for the file's device and inode */
-#ifdef WIN32
+#ifdef _WIN32
     filehandle = _get_osfhandle(fd);
     results = GetFileInformationByHandle((HANDLE)filehandle, &fileinfo);
     file->fileindexhi = fileinfo.nFileIndexHigh;
@@ -981,7 +868,7 @@ H5FD_mpiposix_cmp(const H5FD_t *_f1, const H5FD_t *_f2)
 
     FUNC_ENTER_NOAPI(H5FD_mpiposix_cmp, H5FD_VFD_DEFAULT)
 
-#ifdef WIN32
+#ifdef _WIN32
     if (f1->fileindexhi < f2->fileindexhi) HGOTO_DONE(-1)
     if (f1->fileindexhi > f2->fileindexhi) HGOTO_DONE(1)
 
@@ -1024,6 +911,12 @@ done:
  *
  * Modifications:
  *
+ *              John Mainzer -- 9/21/05
+ *              Modified code to turn off the
+ *              H5FD_FEAT_ACCUMULATE_METADATA_WRITE flag.
+ *		With the movement of all cache writes to process 0,
+ *		this flag has become problematic in PHDF5.
+ *
  *-------------------------------------------------------------------------
  */
 static herr_t
@@ -1037,15 +930,6 @@ H5FD_mpiposix_query(const H5FD_t UNUSED *_file, unsigned long *flags /* out */)
     if(flags) {
         *flags=0;
         *flags|=H5FD_FEAT_AGGREGATE_METADATA; /* OK to aggregate metadata allocations */
-
-        /* Distinguish between updating the metadata accumulator on writes and
-         * reads.  This is particularly (perhaps only, even) important for MPI-I/O
-         * where we guarantee that writes are collective, but reads may not be.
-         * If we were to allow the metadata accumulator to be written during a
-         * read operation, the application would hang.
-         */
-        *flags|=H5FD_FEAT_ACCUMULATE_METADATA_WRITE; /* OK to accumulate metadata for faster writes */
-
         *flags|=H5FD_FEAT_AGGREGATE_SMALLDATA; /* OK to aggregate "small" raw data allocations */
     } /* end if */
 
@@ -1068,13 +952,16 @@ done:
  *              Thursday, July 11, 2002
  *
  * Modifications:
+ *              Raymond Lu
+ *              21 Dec. 2006
+ *              Added the parameter TYPE.  It's only used for MULTI driver.
  *
  *-------------------------------------------------------------------------
  */
 static haddr_t
-H5FD_mpiposix_get_eoa(H5FD_t *_file)
+H5FD_mpiposix_get_eoa(const H5FD_t *_file, H5FD_mem_t UNUSED type)
 {
-    H5FD_mpiposix_t *file = (H5FD_mpiposix_t*)_file;
+    const H5FD_mpiposix_t *file = (const H5FD_mpiposix_t*)_file;
     haddr_t ret_value;          /* Return value */
 
     FUNC_ENTER_NOAPI(H5FD_mpiposix_get_eoa, HADDR_UNDEF)
@@ -1104,11 +991,14 @@ done:
  *              Thursday, July 11, 2002
  *
  * Modifications:
+ *              Raymond Lu
+ *              21 Dec. 2006
+ *              Added the parameter TYPE.  It's only used for MULTI driver.
  *
  *-------------------------------------------------------------------------
  */
 static herr_t
-H5FD_mpiposix_set_eoa(H5FD_t *_file, haddr_t addr)
+H5FD_mpiposix_set_eoa(H5FD_t *_file, H5FD_mem_t UNUSED type, haddr_t addr)
 {
     H5FD_mpiposix_t	*file = (H5FD_mpiposix_t*)_file;
     herr_t ret_value=SUCCEED;   /* Return value */
@@ -1148,9 +1038,9 @@ done:
  *-------------------------------------------------------------------------
  */
 static haddr_t
-H5FD_mpiposix_get_eof(H5FD_t *_file)
+H5FD_mpiposix_get_eof(const H5FD_t *_file)
 {
-    H5FD_mpiposix_t	*file = (H5FD_mpiposix_t*)_file;
+    const H5FD_mpiposix_t	*file = (const H5FD_mpiposix_t*)_file;
     haddr_t ret_value;          /* Return value */
 
     FUNC_ENTER_NOAPI(H5FD_mpiposix_get_eof, HADDR_UNDEF)
@@ -1349,6 +1239,14 @@ H5FD_mpiposix_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access property list")
 
     /* Metadata specific actions */
+    /* All metadata is now written from process 0 -- thus this function
+     * needs to be re-written to reflect this.  For now I have simply
+     * commented out the code that attempts to synchronize metadata
+     * writes between processes, but we should really just flag an error
+     * whenever any process other than process 0 attempts to write
+     * metadata.
+     * 						-- JRM 9/1/05
+     */
     if(type!=H5FD_MEM_DRAW) {
         unsigned		block_before_meta_write=0;      /* Whether to block before a metadata write */
 
@@ -1366,9 +1264,11 @@ H5FD_mpiposix_write(H5FD_t *_file, H5FD_mem_t type, hid_t dxpl_id, haddr_t addr,
             if(H5P_get(plist,H5AC_BLOCK_BEFORE_META_WRITE_NAME,&block_before_meta_write)<0)
                 HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get H5AC property")
 
+#if 0 /* JRM */
         if(block_before_meta_write)
             if (MPI_SUCCESS!= (mpi_code=MPI_Barrier(file->comm)))
                 HMPI_GOTO_ERROR(FAIL, "MPI_Barrier failed", mpi_code)
+#endif /* JRM */
 
         /* Only one process will do the actual write if all procs in comm write same metadata */
         if (file->mpi_rank != H5_PAR_META_WRITE)
@@ -1442,6 +1342,14 @@ done:
         file->pos = HADDR_UNDEF;
         file->op = OP_UNKNOWN;
     } /* end if */
+#if 0 /* JRM */
+        /* Since metadata writes are now done by process 0 only, this broadcast
+	 * is no longer needed.  I leave it in and commented out to remind us
+	 * that we need to re-work this function to reflect this reallity.
+	 *
+	 *                                          -- JRM 9/1/05
+	 */
+
     /* Guard against getting into metadata broadcast in failure cases */
     else {
         /* when only one process writes, need to broadcast the ret_value to other processes */
@@ -1450,6 +1358,7 @@ done:
                 HMPI_GOTO_ERROR(FAIL, "MPI_Bcast failed", mpi_code)
         } /* end if */
     } /* end else */
+#endif /* JRM */
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5FD_mpiposix_write() */
@@ -1474,10 +1383,10 @@ static herr_t
 H5FD_mpiposix_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned UNUSED closing)
 {
     H5FD_mpiposix_t	*file = (H5FD_mpiposix_t*)_file;
-#ifdef WIN32
+#ifdef _WIN32
     HFILE filehandle;   /* Windows file handle */
     LARGE_INTEGER li;   /* 64-bit integer for SetFilePointer() call */
-#endif /* WIN32 */
+#endif /* _WIN32 */
     int			mpi_code;	/* MPI return code */
     herr_t              ret_value=SUCCEED;
 
@@ -1490,9 +1399,9 @@ H5FD_mpiposix_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned UNUSED closing
     if(file->eoa>file->last_eoa) {
         /* Use the round-robin process to truncate (extend) the file */
         if(file->mpi_rank == H5_PAR_META_WRITE) {
-#ifdef WIN32
+#ifdef _WIN32
             /* Map the posix file handle to a Windows file handle */
-            filehandle = _get_osfhandle(fd);
+            filehandle = _get_osfhandle(file->fd);
 
             /* Translate 64-bit integers into form Windows wants */
             /* [This algorithm is from the Windows documentation for SetFilePointer()] */
@@ -1500,10 +1409,10 @@ H5FD_mpiposix_flush(H5FD_t *_file, hid_t UNUSED dxpl_id, unsigned UNUSED closing
             SetFilePointer((HANDLE)filehandle,li.LowPart,&li.HighPart,FILE_BEGIN);
             if(SetEndOfFile((HANDLE)filehandle)==0)
                 HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly")
-#else /* WIN32 */
+#else /* _WIN32 */
             if(-1==file_truncate(file->fd, (file_offset_t)file->eoa))
                 HGOTO_ERROR(H5E_IO, H5E_SEEKERROR, FAIL, "unable to extend file properly")
-#endif /* WIN32 */
+#endif /* _WIN32 */
         } /* end if */
 
         /* Don't let any proc return until all have extended the file.

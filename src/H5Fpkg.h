@@ -36,19 +36,11 @@
 
 /* Other private headers needed by this file */
 #include "H5private.h"		/* Generic Functions			*/
+#include "H5FLprivate.h"	/* Free Lists                           */
 #include "H5FOprivate.h"        /* File objects                         */
 #include "H5Gprivate.h"		/* Groups 			  	*/
+#include "H5Oprivate.h"         /* Object header messages               */
 #include "H5RCprivate.h"	/* Reference counted object functions	*/
-
-/*
- * Feature: Define this constant to be non-zero if you want to enable code
- *	    that minimizes the number of calls to lseek().  This has a huge
- *	    performance benefit on some systems.  Set this constant to zero
- *	    on the compiler command line to disable that optimization.
- */
-#ifndef H5F_OPT_SEEK
-#  define H5F_OPT_SEEK 1
-#endif
 
 /*
  * Feature: Define this constant on the compiler command-line if you want to
@@ -58,17 +50,16 @@
 #  undef H5F_DEBUG
 #endif
 
-/* Maximum size of super-block buffer */
-#define H5F_SUPERBLOCK_SIZE  128
-#define H5F_DRVINFOBLOCK_SIZE  1024
-
 /* Define the HDF5 file signature */
 #define H5F_SIGNATURE	  "\211HDF\r\n\032\n"
 #define H5F_SIGNATURE_LEN 8
 
-/*
- * Private file open flags.
- */
+/* Superblock status flags */
+#define H5F_SUPER_WRITE_ACCESS          0x01
+#define H5F_SUPER_FILE_OK               0x02
+#define H5F_SUPER_ALL_FLAGS             (H5F_SUPER_WRITE_ACCESS | H5F_SUPER_FILE_OK)
+
+/* Mask for removing private file access flags */
 #define H5F_ACC_PUBLIC_FLAGS 	0x00ffu
 
 /*
@@ -81,23 +72,29 @@
 typedef struct H5F_file_t {
     H5FD_t	*lf; 		/* Lower level file handle for I/O	*/
     unsigned	nrefs;		/* Ref count for times file is opened	*/
-    uint32_t	consist_flags;	/* File Consistency Flags		*/
+    uint8_t	status_flags;	/* File status flags			*/
     unsigned	flags;		/* Access Permissions for file		*/
 
-    /* Cached values from FCPL */
+    /* Cached values from FCPL/superblock */
     unsigned	sym_leaf_k;	/* Size of leaves in symbol tables      */
     unsigned    btree_k[H5B_NUM_BTREE_ID];  /* B-tree key values for each type  */
     size_t	sizeof_addr;	/* Size of addresses in file            */
     size_t	sizeof_size;	/* Size of offsets in file              */
     haddr_t	super_addr;	/* Absolute address of super block	*/
     haddr_t	base_addr;	/* Absolute base address for rel.addrs. */
-    haddr_t	freespace_addr;	/* Relative address of free-space info	*/
+    haddr_t	extension_addr;	/* Relative address of superblock extension	*/
+    haddr_t	sohm_addr;	/* Relative address of shared object header message table */
+    unsigned	sohm_vers;	/* Version of shared message table on disk */
+    unsigned	sohm_nindexes;	/* Number of shared messages indexes in the table */
     haddr_t	driver_addr;	/* File driver information block address*/
+    haddr_t	maxaddr;	/* Maximum address for file             */
 
-    unsigned	super_chksum;	/* Superblock checksum                  */
-    unsigned	drvr_chksum;	/* Driver info block checksum           */
     H5AC_t      *cache;		/* The object cache			*/
-    int         mdc_nelmts;	/* Size of meta data cache (elements)	*/
+    H5AC_cache_config_t
+		mdc_initCacheCfg; /* initial configuration for the      */
+                                /* metadata cache.  This structure is   */
+                                /* fixed at creation time and should    */
+                                /* not change thereafter.               */
     hid_t       fcpl_id;	/* File creation property list ID 	*/
     H5F_close_degree_t fc_degree;   /* File close behavior degree	*/
     size_t	rdcc_nelmts;	/* Size of raw data chunk cache (elmts)	*/
@@ -107,6 +104,9 @@ typedef struct H5F_file_t {
     hsize_t	threshold;	/* Threshold for alignment		*/
     hsize_t	alignment;	/* Alignment				*/
     unsigned	gc_ref;		/* Garbage-collect references?		*/
+    hbool_t	latest_format;	/* Always use the latest format?	*/
+    hbool_t	store_msg_crt_idx;  /* Store creation index for object header messages?	*/
+    hbool_t     fam_to_sec2;    /* Is h5repart changing driver from family to sec2? */
     int	ncwfs;			/* Num entries on cwfs list		*/
     struct H5HG_heap_t **cwfs;	/* Global heap cache			*/
     struct H5G_t *root_grp;	/* Open root group			*/
@@ -150,35 +150,47 @@ struct H5F_t {
     H5F_mtab_t		mtab;		/* File mount table		*/
 };
 
-/* Forward declarations for prototype arguments */
-struct H5D_dxpl_cache_t;
-struct H5D_dcpl_cache_t;
-union H5D_storage_t;
+/*****************************/
+/* Package Private Variables */
+/*****************************/
 
-/* Private functions, not part of the publicly documented API */
-#ifdef NOT_YET
-H5_DLL void H5F_encode_length_unusual(const H5F_t *f, uint8_t **p, uint8_t *l);
-#endif /* NOT_YET */
+/* Declare a free list to manage the H5F_t struct */
+H5FL_EXTERN(H5F_t);
+
+/* Declare a free list to manage the H5F_file_t struct */
+H5FL_EXTERN(H5F_file_t);
+
+
+/******************************/
+/* Package Private Prototypes */
+/******************************/
 
 /* General routines */
-H5_DLL herr_t H5F_try_close(H5F_t *f);
+H5_DLL herr_t H5F_init(void);
 H5_DLL haddr_t H5F_locate_signature(H5FD_t *file, hid_t dxpl_id);
 
 /* File mount related routines */
-H5_DLL herr_t H5F_mountpoint(struct H5G_entry_t *find/*in,out*/);
 H5_DLL herr_t H5F_close_mounts(H5F_t *f);
 H5_DLL int H5F_term_unmount_cb(void *obj_ptr, hid_t obj_id, void *key);
 H5_DLL herr_t H5F_mount_count_ids(H5F_t *f, unsigned *nopen_files, unsigned *nopen_objs);
 
 /* Superblock related routines */
-H5_DLL herr_t H5F_init_superblock(const H5F_t *f, hid_t dxpl_id);
-H5_DLL herr_t H5F_write_superblock(H5F_t *f, hid_t dxpl_id);
-H5_DLL herr_t H5F_read_superblock(H5F_t *f, hid_t dxpl_id, H5G_entry_t *root_ent);
+H5_DLL herr_t H5F_super_init(H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_super_write(H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_super_read(H5F_t *f, hid_t dxpl_id, H5G_loc_t *root_loc);
+H5_DLL herr_t H5F_super_ext_size(H5F_t *f, hid_t dxpl_id, hsize_t *super_ext_info);
+
 
 /* Shared file list related routines */
 H5_DLL herr_t H5F_sfile_add(H5F_file_t *shared);
 H5_DLL H5F_file_t * H5F_sfile_search(H5FD_t *lf);
 H5_DLL herr_t H5F_sfile_remove(H5F_file_t *shared);
 
-#endif
+/* Testing functions */
+#ifdef H5F_TESTING
+H5_DLL herr_t H5F_get_sohm_mesg_count_test(hid_t fid, unsigned type_id,
+    size_t *mesg_count);
+#endif /* H5F_TESTING */
+
+#endif /* _H5Fpkg_H */
 

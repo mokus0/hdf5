@@ -1,4 +1,4 @@
-HDF5 version 1.8.4 released on Tue Nov 10 15:33:14 CST 2009
+HDF5 version 1.8.4-patch1 released on Tue Feb 23 11:31:09 CST 2010
 ================================================================================
 
 INTRODUCTION
@@ -45,6 +45,7 @@ CONTENTS
 
 - New Features
 - Support for New Platforms, Languages, and Compilers
+- Bug Fixes since HDF5-1.8.4
 - Bug Fixes since HDF5-1.8.3
 - Platforms Tested
 - Supported Configuration Features Summary
@@ -103,6 +104,18 @@ Support for New Platforms, Languages, and Compilers
 ===================================================
     - PathScale compilers are recognized and can build the HDF5 library
       properly. AKC - 2009/7/28 -
+
+
+Bug Fixes since HDF5-1.8.4
+==========================
+
+    Library
+    -------
+    - Fixed a bug where fractal heap IDs for attributes and shared object
+      header messages could be incorrectly encoded in the file for files
+      created on big-endian platforms.  
+      Please see http://www.hdfgroup.org/HDF5/release/known_problems if you 
+      suspect you have a file with this problem.  QAK - 2010/02/23 - 1755
 
 
 Bug Fixes since HDF5-1.8.3
@@ -248,13 +261,11 @@ The following platforms and compilers have been tested for this release.
                                       applications, Version 11.0, 11.1
                                   Absoft 32-bit Fortran 95 10.0.7
                                   MPICH mpich2-1.0.8 compiled with
-                                  gcc (GCC) 4.1.2 and G95 
-                                  (GCC 4.0.3 (g95 0.92!)
+                                  gcc 4.1.2 and G95  (GCC 4.0.3 (g95 0.92!)
 
     Linux 2.6.18-164.el5 #1 SMP   gcc 4.1.2 20080704
     x86_64 GNU/Linux              G95 (GCC 4.0.3 (g95 0.92!) Jun 24 2009)
-    (amani)                       tested for both 32- and 64-bit binaries
-                                  Intel(R) C, C++, Fortran Compilers for 
+    (amani)                       Intel(R) C, C++, Fortran Compilers for 
                                   applications running on Intel(R) 64, 
                                   Versions 11.1.
                                   PGI C, Fortran, C++ Version 9.0-4
@@ -262,6 +273,7 @@ The following platforms and compilers have been tested for this release.
                                   gcc 4.1.2 and G95  (GCC 4.0.3 (g95 0.92!)
                                   MPICH mpich2-1.0.8 compiled with
                                   gcc 4.1.2 and G95 (GCC 4.0.3 (g95 0.92!)
+                                  tested for both 32- and 64-bit binaries
                                   GNU Fortran (GCC) 4.1.2 20080704
                                   (Red Hat 4.1.2-46)
 
@@ -309,6 +321,9 @@ The following platforms and compilers have been tested for this release.
                                   GNU Fortran (GCC) 4.3.0 20070810
                                   G95 (GCC 4.0.3 (g95 0.91!) Apr 24 2008)
                                   Intel C, C++ and Fortran compilers 10.1
+    OpenVMS V8.3                  HP C V7.3-009 on OpenVMS Alpha V8.3
+                                  HP Fortran V8.0-1-104669-48GBT
+                                  HP C++ V7.3-009 for OpenVMS Alpha V8.3
 
 
 Supported Configuration Features Summary

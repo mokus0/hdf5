@@ -1,6 +1,6 @@
 /*
- * Copyright © 1999 NCSA
- *                  All rights reserved.
+ * Copyright © 1999-2001 NCSA
+ *                       All rights reserved.
  *
  * Programmer:  Robb Matzke <matzke@llnl.gov>
  *              Monday, August  2, 1999
@@ -10,8 +10,8 @@
 #ifndef H5FDmpio_H
 #define H5FDmpio_H
 
-#include <H5FDpublic.h>
-#include <H5Ipublic.h>
+#include "H5FDpublic.h"
+#include "H5Ipublic.h"
 
 #ifdef H5_HAVE_PARALLEL
 #   define H5FD_MPIO	(H5FD_mpio_init())
@@ -47,6 +47,10 @@ typedef struct H5FD_mpio_dxpl_t {
     (H5FD_MPIO==H5F_get_driver_id(f))
 
 /* Function prototypes */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 __DLL__ hid_t H5FD_mpio_init(void);
 __DLL__ herr_t H5Pset_fapl_mpio(hid_t fapl_id, MPI_Comm comm, MPI_Info info);
 __DLL__ herr_t H5Pget_fapl_mpio(hid_t fapl_id, MPI_Comm *comm/*out*/,
@@ -59,6 +63,10 @@ __DLL__ herr_t H5FD_mpio_setup(H5FD_t *_file, MPI_Datatype btype, MPI_Datatype f
 		       haddr_t disp, hbool_t use_types);
 __DLL__ herr_t H5FD_mpio_wait_for_left_neighbor(H5FD_t *file);
 __DLL__ herr_t H5FD_mpio_signal_right_neighbor(H5FD_t *file);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*H5_HAVE_PARALLEL*/
 

@@ -10,7 +10,7 @@
  *									    *
  ****************************************************************************/
 
-/* $Id: H5I.c,v 1.36.2.1 2001/03/20 22:08:57 acheng Exp $ */
+/* $Id: H5I.c,v 1.36.2.2 2001/05/15 21:25:51 wendling Exp $ */
 
 /*
  * FILE:	H5I.c - Internal storage routines for handling "IDs"
@@ -31,11 +31,11 @@
  *	1/7/96	- Finished coding prototype
  *	6/10/97 - Moved into HDF5 library
  */
-#include <H5private.h>
-#include <H5Iprivate.h>
-#include <H5Eprivate.h>
-#include <H5FLprivate.h>	/*Free Lists	  */
-#include <H5MMprivate.h>
+#include "H5private.h"
+#include "H5Iprivate.h"
+#include "H5Eprivate.h"
+#include "H5FLprivate.h"	/*Free Lists	  */
+#include "H5MMprivate.h"
 
 /* Interface initialialization? */
 #define PABLO_MASK	H5I_mask

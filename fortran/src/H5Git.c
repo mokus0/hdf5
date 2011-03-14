@@ -5,13 +5,12 @@
  *-------------------------------------------------------------------------
  */
 
-#include <hdf5.h>
+#include "hdf5.h"
 #include "H5Git.h"
 #define FALSE 0
 
 herr_t count_elems(hid_t loc_id, const char *name, void *opdata);
-/*herr_t obj_info(hid_t loc_id, const char *name, void *opdata);*/
-herr_t obj_info(hid_t loc_id,  char *name, void *opdata);
+herr_t obj_info(hid_t loc_id, const char *name, void *opdata);
 
 typedef struct retval {
 	char * name;
@@ -49,7 +48,7 @@ typedef struct retval {
  *
  *-------------------------------------------------------------------------
  */
-int 
+int
 H5Gn_members( hid_t loc_id, char *group_name )
 {
 	int res;
@@ -100,8 +99,8 @@ H5Gn_members( hid_t loc_id, char *group_name )
  *
  *-------------------------------------------------------------------------
  */
-herr_t 
-H5Gget_obj_info_idx( hid_t loc_id, char *group_name, int idx, char **objname, int *type )
+herr_t
+H5Gget_obj_info_idx( hid_t loc_id, char *group_name, int idx, char **objname, size_t max_objname_len, int *type )
 {
 	int res;
 	retval_t retVal;
@@ -110,7 +109,19 @@ H5Gget_obj_info_idx( hid_t loc_id, char *group_name, int idx, char **objname, in
 	if (res < 0) {
 		return res;
 	}
-	*objname = retVal.name;
+
+	/* Only play with the string if it was returned */
+	if(retVal.name!=NULL) {
+		/* Copy the name to return & truncate if necessary */
+		strncpy(*objname,retVal.name,max_objname_len);
+		(*objname)[max_objname_len]='\0';
+
+		/* Free the name we strdup'ed in obj_info() */
+		free(retVal.name);
+   	} /* end if */
+	else
+	 	*(*objname)='\0';
+
 	*type = retVal.type;
 	return 0;
 }
@@ -200,8 +211,7 @@ count_elems(hid_t loc_id, const char *name, void *opdata)
  *			group, or named datatype)
  */
 static herr_t 
-/*obj_info(hid_t loc_id, const char *name, void *opdata)*/
-obj_info(hid_t loc_id,  char *name, void *opdata)
+obj_info(hid_t loc_id, const char *name, void *opdata)
 {
 	herr_t res;
 	H5G_stat_t statbuf;
@@ -213,8 +223,7 @@ obj_info(hid_t loc_id,  char *name, void *opdata)
 		return 1;
 	} else {
 		((retval_t *)opdata)->type = statbuf.type;
-/*		((retval_t *)opdata)->name = strdup(name); */
-		((retval_t *)opdata)->name = name;
+  		((retval_t *)opdata)->name = strdup(name);
 		return 1;
 	}
  }

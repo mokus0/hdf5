@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: testhdf5.h,v 1.27 2001/01/09 22:21:51 koziol Exp $ */
+/* $Id: testhdf5.h,v 1.27.2.1 2001/05/15 21:26:44 wendling Exp $ */
 
 /*
  * This header file contains information required for testing the HDF5 library.
@@ -23,8 +23,8 @@
  * Include required headers.  This file tests internal library functions,
  * so we include the private headers here.
  */
-#include <H5private.h>
-#include <H5Eprivate.h>
+#include "H5private.h"
+#include "H5Eprivate.h"
 
 #ifndef HDF5_TEST_MASTER
 extern int              num_errs;

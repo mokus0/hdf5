@@ -1,10 +1,10 @@
-/* $Id: t_file.c,v 1.7 2000/12/13 00:12:56 acheng Exp $ */
+/* $Id: t_file.c,v 1.7.2.1 2001/04/09 21:58:15 acheng Exp $ */
 
 /*
  * Parallel tests for file operations
  */
 
-#include <testphdf5.h>
+#include "testphdf5.h"
 
 /*
  * test file access by communicator besides COMM_WORLD.

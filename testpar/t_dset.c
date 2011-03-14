@@ -1,4 +1,4 @@
-/* $Id: t_dset.c,v 1.18 2000/11/28 17:35:06 acheng Exp $ */
+/* $Id: t_dset.c,v 1.18.2.1 2001/04/09 21:58:14 acheng Exp $ */
 
 /*
  * Parallel tests for datasets
@@ -13,7 +13,7 @@
  * only.  Collective mode for extendible datasets are not supported yet.
  */
 
-#include <testphdf5.h>
+#include "testphdf5.h"
 
 /*
  * The following are various utility routines used by the tests.

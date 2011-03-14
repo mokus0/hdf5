@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: testhdf5.c,v 1.40.2.1 2001/03/20 22:09:41 acheng Exp $ */
+/* $Id: testhdf5.c,v 1.40.2.3 2001/06/28 21:23:07 pvn Exp $ */
 
 /*
    FILE
@@ -52,7 +52,7 @@ int                     num_errs = 0;
 int                     Verbosity;
 
 /* ANY new test needs to have a prototype in tproto.h */
-#include <testhdf5.h>
+#include "testhdf5.h"
 
 struct TestStruct {
     int    NumErrors;
@@ -140,9 +140,7 @@ main(int argc, char *argv[])
     int                     Cache = 1;
     uintn                   major, minor, release;
 
-#if defined __MWERKS__
-    argc = ccommand(&argv);
-#endif
+
 
 #if !(defined MAC || defined __MWERKS__ || defined SYMANTEC_C)
     /* Un-buffer the stdout and stderr */

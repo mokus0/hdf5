@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: tmeta.c,v 1.8.4.1 2001/03/20 22:09:42 acheng Exp $ */
+/* $Id: tmeta.c,v 1.8.4.2 2001/05/15 21:26:45 wendling Exp $ */
 
 /***********************************************************
 *
@@ -20,10 +20,10 @@
 *
 *************************************************************/
 
-#include <testhdf5.h>
+#include "testhdf5.h"
 
-#include <H5private.h>
-#include <H5Fprivate.h>
+#include "H5private.h"
+#include "H5Fprivate.h"
 
 #define TEST_INT16_VALUE    -7641
 #define TEST_UINT16_VALUE   45002

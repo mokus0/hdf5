@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: ttsafe.h,v 1.1 2000/05/18 19:13:32 cwlee Exp $ */
+/* $Id: ttsafe.h,v 1.1.2.1 2001/05/15 21:26:46 wendling Exp $ */
 
 /*
  * This header file contains information required for testing the HDF5 library.
@@ -19,15 +19,15 @@
 #ifndef HDF5TEST_H
 #define HDF5TEST_H
 
-#include <hdf5.h>
+#include "hdf5.h"
 #include <string.h>
 
 /*
  * Include required headers.  This file tests internal library functions,
  * so we include the private headers here.
  */
-#include <H5private.h>
-#include <H5Eprivate.h>
+#include "H5private.h"
+#include "H5Eprivate.h"
 
 #ifdef H5_HAVE_THREADSAFE
 /* Include pthread library for threadsafe tests */

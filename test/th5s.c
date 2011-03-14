@@ -10,7 +10,7 @@
  *									    *
  ****************************************************************************/
 
-/* $Id: th5s.c,v 1.19.2.1 2001/03/20 22:09:41 acheng Exp $ */
+/* $Id: th5s.c,v 1.19.2.2 2001/05/15 21:26:44 wendling Exp $ */
 
 /***********************************************************
 *
@@ -20,12 +20,12 @@
 *
 *************************************************************/
 
-#include <testhdf5.h>
+#include "testhdf5.h"
 
-#include <H5private.h>
-#include <H5Bprivate.h>
-#include <H5Sprivate.h>
-#include <H5Pprivate.h>
+#include "H5private.h"
+#include "H5Bprivate.h"
+#include "H5Sprivate.h"
+#include "H5Pprivate.h"
 
 #define TESTFILE   "th5s.h5"
 #define FILE   "th5s1.h5"

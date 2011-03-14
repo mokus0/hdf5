@@ -1,17 +1,17 @@
 dnl ----------------------------------------------------------------------
 dnl Process this file with autoconf to produce configure.
 dnl
-dnl Copyright (C) 2000 National Center for Supercomputing Applications.
-dnl                    All rights reserved.
+dnl Copyright (C) 2000-2001 National Center for Supercomputing Applications
+dnl                         All rights reserved.
 dnl ----------------------------------------------------------------------
 
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in,v 1.11.2.1 2001/03/22 19:16:18 wendling Exp $)
+AC_REVISION($Id: configure.in,v 1.11.2.3 2001/07/09 17:50:12 wendling Exp $)
 AC_INIT(src/HDF5.f90)
 AC_CONFIG_HEADER(src/H5config.h)
-AC_CONFIG_AUX_DIR(bin)
+AC_CONFIG_AUX_DIR(../bin)
 AC_CANONICAL_HOST
 AC_SUBST(CPPFLAGS)
 
@@ -249,6 +249,13 @@ dnl Is the GNU zlib present?  It has a header file `zlib.h' and a library
 dnl `-lz' and their locations might be specified with the `--enable-zlib'
 dnl command-line switch.  The value is an include path and/or a library path.
 dnl If the library path is specified then it must be preceded by a comma.
+
+dnl If the presence of zlib is already cached by the top-level configure,
+dnl then "uncache" it so that we will go through this logic in any case.
+dnl Some systems where you need to specify exactly where the zlib is need
+dnl this.
+ac_cv_lib_z_compress=""
+
 AC_ARG_WITH(zlib,[  --with-zlib=INC,LIB     Use the GNU zlib compression],
             ,withval=yes)
 case "$withval" in

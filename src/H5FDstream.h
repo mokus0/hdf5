@@ -8,7 +8,7 @@
  *
  * Purpose:	The public header file for the Stream Virtual File Driver.
  *
- * Version: $Header: /afs/ncsa/projects/hdf/cvs/hdf5/src/H5FDstream.h,v 1.3 2001/01/09 22:19:06 koziol Exp $
+ * Version: $Header: /afs/ncsa/projects/hdf/cvs/hdf5/src/H5FDstream.h,v 1.3.2.3 2001/07/02 13:55:01 tradke Exp $
  *
  * Modifications:
  *          Thomas Radke, Thursday, October 26, 2000
@@ -20,8 +20,7 @@
 
 #ifdef H5_HAVE_STREAM
 
-#include <H5pubconf.h>
-#include <H5Ipublic.h>
+#include "H5Ipublic.h"
 
 /* check what sockets type we have (Unix or Windows sockets)
    Note that only MS compilers require to use Windows sockets
@@ -41,7 +40,7 @@
 #include <winsock.h>
 
 #define H5FD_STREAM_SOCKET_TYPE            SOCKET
-#define H5FD_STREAM_INVALID_SOCKET         SOCKET_ERROR
+#define H5FD_STREAM_INVALID_SOCKET         INVALID_SOCKET
 
 #endif
 
@@ -60,11 +59,13 @@ typedef int (*H5FD_stream_broadcast_t) (unsigned char **file,
 typedef struct H5FD_stream_fapl_t
 {
   size_t       increment;            /* how much to grow memory in reallocs  */
-  H5FD_STREAM_SOCKET_TYPE socket;    /* external socket descriptor           */
+  H5FD_STREAM_SOCKET_TYPE socket;    /* externally provided socket descriptor*/
   hbool_t      do_socket_io;         /* do I/O on socket                     */
   int          backlog;              /* backlog argument for listen call     */
   H5FD_stream_broadcast_t broadcast_fn; /* READ broadcast callback           */
   void        *broadcast_arg;        /* READ broadcast callback user argument*/
+  unsigned int maxhunt;              /* how many more ports to try to bind to*/
+  unsigned short int port;           /* port a socket was bound/connected to */
 } H5FD_stream_fapl_t;
 
 

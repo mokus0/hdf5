@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5public.h,v 1.262.2.8 2001/04/06 18:23:21 epourmal Exp $ */
+/* $Id: H5public.h,v 1.262.2.23 2001/07/20 18:03:59 epourmal Exp $ */
 
 
 /*
@@ -20,7 +20,15 @@
 #define _H5public_H
 
 /* Include files for public use... */
-#include <H5pubconf.h>		/*from configure                             */
+/*
+ * Since H5pubconf.h is a generated header file, it is messy to try
+ * to put a #ifndef _H5pubconf_H ... #endif guard in it.
+ * HDF5 has set an internal rule that it is being included here.
+ * Source files should NOT include H5pubconf.h directly but include
+ * it via H5public.h.  The #ifndef _H5public_H guard above would
+ * prevent repeated include.
+ */
+#include "H5pubconf.h"		/*from configure                             */
 #include <sys/types.h>
 #ifdef H5_STDC_HEADERS
 #   include <limits.h>		/*for H5T_NATIVE_CHAR defn in H5Tpublic.h    */
@@ -47,14 +55,15 @@
 #include <srbClient.h>
 #endif
 
-#include <H5api_adpt.h>
+#include "H5api_adpt.h"
 
 /* Version numbers */
 #define H5_VERS_MAJOR	1	/* For major interface/format changes  	     */
 #define H5_VERS_MINOR	4	/* For minor interface/format changes  	     */
-#define H5_VERS_RELEASE	1	/* For tweaks, bug-fixes, or development     */
+#define H5_VERS_RELEASE	2	/* For tweaks, bug-fixes, or development     */
 #define H5_VERS_SUBRELEASE ""	/* For pre-releases like snap0       */
 				/* Empty string for real releases.           */
+#define H5_VERS_INFO    "HDF5 library version: 1.4.2"      /* Full version string */
 
 #define H5check()	H5check_version(H5_VERS_MAJOR,H5_VERS_MINOR,	      \
 				        H5_VERS_RELEASE)

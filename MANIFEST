@@ -6,23 +6,14 @@
 #------------------------------------------------------------------------------
 
 ./COPYING
-./INSTALL
-./INSTALL_TFLOPS
-./INSTALL_VFL
-./INSTALL_parallel
-./INSTALL_Windows.txt
-./HISTORY.txt
 ./MANIFEST
 ./Makefile.dist
 ./Makefile.in
-./README
-./RELEASE.txt
+./README.txt
 ./acconfig.h
 ./aclocal.m4
 ./configure
 ./configure.in
-./all.zip
-./all_withhdf4.zip
 
 ./bin/checkapi				_DO_NOT_DISTRIBUTE_
 ./bin/checkposix			_DO_NOT_DISTRIBUTE_
@@ -44,7 +35,6 @@
 ./bin/runtest				_DO_NOT_DISTRIBUTE_
 ./bin/snapshot
 ./bin/trace
-./bin/versinc				_DO_NOT_DISTRIBUTE_
 
 ./config/BlankForm
 ./config/alphaev67-linux-gnu
@@ -255,6 +245,7 @@
 ./doc/html/Tutor/crtgrpd.html
 ./doc/html/Tutor/extend.html
 ./doc/html/Tutor/fileorg.html
+./doc/html/Tutor/footer-ncsalogo.gif
 ./doc/html/Tutor/glossary.html
 ./doc/html/Tutor/img001.gif
 ./doc/html/Tutor/img002.gif
@@ -483,6 +474,7 @@
 ./examples/h5_attribute.c
 ./examples/h5_mount.c
 ./examples/h5_reference.c
+./examples/ph5example.c
 ./examples/run_examples.sh
 
 #------------------------------------------------------------------------------
@@ -498,12 +490,6 @@
 ./fortran/acsite.m4
 ./fortran/configure
 ./fortran/configure.in
-
-./fortran/bin/config.guess
-./fortran/bin/config.sub
-./fortran/bin/install-sh
-./fortran/bin/ltconfig
-./fortran/bin/ltmain.sh
 
 ./fortran/config/BlankForm
 ./fortran/config/alphaev67-linux-gnu
@@ -529,8 +515,6 @@
 ./fortran/config/linux-gnu
 ./fortran/config/linux-gnulibc1
 ./fortran/config/linux-gnulibc2
-./fortran/config/powerpc-ibm-aix4.2.1.0
-./fortran/config/powerpc-ibm-aix4.3.2.0
 ./fortran/config/powerpc-ibm-aix4.x
 ./fortran/config/rs6000-ibm-aix4.x
 ./fortran/config/solaris2.x
@@ -559,8 +543,8 @@
 ./fortran/examples/selectele.f90
 
 ./fortran/src/Dependencies
-./fortran/src/H5f.c
-./fortran/src/H5ff.f90
+./fortran/src/H5_f.c
+./fortran/src/H5_ff.f90
 ./fortran/src/H5Af.c
 ./fortran/src/H5Aff.f90
 ./fortran/src/H5Df.c
@@ -638,12 +622,6 @@
 ./c++/aclocal.m4
 ./c++/configure
 ./c++/configure.in
-
-./c++/bin/config.guess
-./c++/bin/config.sub
-./c++/bin/install-sh
-./c++/bin/ltconfig
-./c++/bin/ltmain.sh
 
 ./c++/config/BlankForm
 ./c++/config/commence.in
@@ -760,8 +738,18 @@
 ./pablo/ProcIDs.h
 ./pablo/PabloSedscr
 ./pablo/ProcTrace.h
-./pablo/ProcTrace.inc
 ./pablo/READ_ME
+
+
+./release_docs/INSTALL
+./release_docs/INSTALL_TFLOPS
+./release_docs/INSTALL_VFL
+./release_docs/INSTALL_parallel
+./release_docs/INSTALL_Windows.txt
+./release_docs/INSTALL_Windows_withF90.txt
+./release_docs/INSTALL_codewarrior.txt
+./release_docs/HISTORY.txt
+./release_docs/RELEASE.txt
 
 ./src/.indent.pro			_DO_NOT_DISTRIBUTE_
 ./src/Dependencies
@@ -940,6 +928,7 @@
 ./test/tattr.c
 ./test/testhdf5.c
 ./test/testhdf5.h
+./test/testmeta.c
 ./test/tfile.c
 ./test/tgenprop.c
 ./test/th5s.c
@@ -971,6 +960,18 @@
 
 ./tools/Dependencies
 ./tools/Makefile.in
+
+./tools/gifconv/Dependencies
+./tools/gifconv/Makefile.in
+./tools/gifconv/decompress.c
+./tools/gifconv/gif.h
+./tools/gifconv/gif2hdf.c
+./tools/gifconv/gif2mem.c
+./tools/gifconv/gifread.c
+./tools/gifconv/hdf2gif.c
+./tools/gifconv/hdfgifwr.c
+./tools/gifconv/readhdf.c
+./tools/gifconv/writehdf.c
 
 ./tools/h4toh5/Dependencies
 ./tools/h4toh5/Makefile.in
@@ -1224,3 +1225,7 @@
 ./tools/testfiles/tvldtypes1.h5.xml
 ./tools/testfiles/tvldtypes2.h5.xml
 ./tools/testfiles/tvldtypes3.h5.xml
+
+./windows/all.zip
+./windows/all_withf90.zip
+./windows/all_withhdf4.zip

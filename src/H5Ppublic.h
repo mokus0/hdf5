@@ -21,12 +21,21 @@
 #define H5P_DEFAULT     0
 
 /* Public headers needed by this file */
-#include <H5public.h>
-#include <H5Ipublic.h>
-#include <H5Dpublic.h>
-#include <H5Fpublic.h>
-#include <H5MMpublic.h>
-#include <H5Zpublic.h>
+#include "H5public.h"
+#include "H5Ipublic.h"
+#include "H5Dpublic.h"
+#include "H5Fpublic.h"
+#include "H5MMpublic.h"
+#include "H5Zpublic.h"
+
+
+/* Metroworks <sys/types.h> doesn't define off_t. */
+#ifdef __MWERKS__
+typedef long off_t;
+/* Metroworks does not define EINTR in <errno.h> */
+# define EINTR 4
+#endif
+/*__MWERKS__*/
 
 /* Property list classes */
 typedef enum H5P_class_t {
@@ -162,12 +171,12 @@ __DLL__ herr_t H5Pget_split(hid_t plist_id, size_t meta_ext_size, char *meta_ext
 __DLL__ herr_t H5Pset_family(hid_t plist_id, hsize_t memb_size, hid_t memb_plist_id);
 __DLL__ herr_t H5Pget_family(hid_t plist_id, hsize_t *memb_size/*out*/,
 	       hid_t *memb_plist_id/*out*/);
-#ifdef HAVE_PARALLEL
+#if defined(HAVE_PARALLEL) || defined(H5_HAVE_PARALLEL)
 __DLL__ herr_t H5Pset_mpi(hid_t plist_id, MPI_Comm comm, MPI_Info info);
 __DLL__ herr_t H5Pget_mpi(hid_t plist_id, MPI_Comm *comm, MPI_Info *info);
 __DLL__ herr_t H5Pset_xfer(hid_t plist_id, H5D_transfer_t data_xfer_mode);
 __DLL__ herr_t H5Pget_xfer(hid_t plist_id, H5D_transfer_t *data_xfer_mode);
-#endif /*HAVE_PARALLEL*/
+#endif /*H5_HAVE_PARALLEL*/
 #else /* WANT_H5_V1_2_COMPAT */
 __DLL__ hid_t H5Pget_driver(hid_t plist_id);
 #endif /* WANT_H5_V1_2_COMPAT */
@@ -226,3 +235,5 @@ __DLL__ herr_t H5Pget_sieve_buf_size(hid_t fapl_id, hsize_t *size/*out*/);
 }
 #endif
 #endif
+
+

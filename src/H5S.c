@@ -10,18 +10,18 @@
 *									   *
 ****************************************************************************/
 
-/* $Id: H5S.c,v 1.69.2.1 2001/03/20 22:09:01 acheng Exp $ */
+/* $Id: H5S.c,v 1.69.2.3 2001/07/02 22:22:32 acheng Exp $ */
 
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	  */
 
 #define _H5S_IN_H5S_C
-#include <H5private.h>		/* Generic Functions			  */
-#include <H5Iprivate.h>		/* ID Functions		  */
-#include <H5Eprivate.h>		/* Error handling		  */
-#include <H5FLprivate.h>	/* Free Lists	  */
-#include <H5MMprivate.h>	/* Memory Management functions		  */
-#include <H5Oprivate.h>		/* object headers		  */
-#include <H5Spkg.h>		    /* Data-space functions			  */
+#include "H5private.h"		/* Generic Functions			  */
+#include "H5Iprivate.h"		/* ID Functions                           */
+#include "H5Eprivate.h"		/* Error handling                         */
+#include "H5FLprivate.h"	/* Free Lists                             */
+#include "H5MMprivate.h"	/* Memory Management functions		  */
+#include "H5Oprivate.h"		/* object headers                         */
+#include "H5Spkg.h"	        /* Data-space functions			  */
 
 /* Interface initialization */
 #define PABLO_MASK	H5S_mask
@@ -40,7 +40,7 @@ static size_t			H5S_nconv_g = 0;	/*entries used*/
 
 #ifdef H5_HAVE_PARALLEL
 /* Global var whose value comes from environment variable */
-hbool_t         H5_mpi_opt_types_g = TRUE;
+hbool_t         H5_mpi_opt_types_g = FALSE;
 #endif
 
 /* Declare a free list to manage the H5S_simple_t struct */
@@ -92,9 +92,16 @@ H5S_init_interface(void)
     {
         /* Allow MPI buf-and-file-type optimizations? */
         const char *s = HDgetenv ("HDF5_MPI_OPT_TYPES");
+#ifdef H5FDmpio_DEBUG
+	hbool_t         oldtmp = H5_mpi_opt_types_g ;
+#endif
         if (s && HDisdigit(*s)) {
             H5_mpi_opt_types_g = (int)HDstrtol (s, NULL, 0);
         }
+#ifdef H5FDmpio_DEBUG
+    	fprintf(stdout, "H5_mpi_opt_types_g was %ld became %ld\n",
+		    oldtmp, H5_mpi_opt_types_g);
+#endif
     }
 #endif
 

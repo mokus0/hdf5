@@ -17,10 +17,10 @@
 
 /* #define H5FL_DEBUG */
 
-#include <H5private.h>		/*library		  */
-#include <H5Eprivate.h>		/*error handling	  */
-#include <H5MMprivate.h>	/*Core memory management	  */
-#include <H5FLprivate.h>	/*Priority queues	  */
+#include "H5private.h"		/*library		  */
+#include "H5Eprivate.h"		/*error handling	  */
+#include "H5MMprivate.h"	/*Core memory management	  */
+#include "H5FLprivate.h"	/*Priority queues	  */
 
 #define PABLO_MASK	H5FL_mask
 static intn		interface_initialize_g = 0;
@@ -1132,7 +1132,8 @@ H5FL_arr_free(H5FL_arr_head_t *head, void *obj)
     H5MM_xfree(obj);
 #else /* NO_ARR_FREE_LISTS */
     /* The H5MM_xfree code allows obj to null */
-    if (!obj) return (NULL);
+    if (!obj)
+        HRETURN(NULL);
 
     /* Double check parameters */
     assert(head);

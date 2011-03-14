@@ -10,16 +10,16 @@
 *                                                                           *
 ****************************************************************************/
 
-/* $Id: H5Tvlen.c,v 1.12.2.1 2001/03/20 22:09:06 acheng Exp $ */
+/* $Id: H5Tvlen.c,v 1.12.2.2 2001/05/15 21:26:20 wendling Exp $ */
 
-#define H5T_PACKAGE		/*suppress error about including H5Tpkg	     */
+#define H5T_PACKAGE		/*suppress error about including H5Tpkg    */
 
-#include <H5private.h>		/* Generic Functions			*/
-#include <H5Eprivate.h>     /* Errors */
-#include <H5HGprivate.h>    /* Global Heaps */
-#include <H5Iprivate.h>     /* IDs */
-#include <H5MMprivate.h>    /* Memory Allocation */
-#include <H5Tpkg.h>         /* Datatypes */
+#include "H5private.h"          /* Generic Functions                       */
+#include "H5Eprivate.h"         /* Errors                                  */
+#include "H5HGprivate.h"        /* Global Heaps                            */
+#include "H5Iprivate.h"         /* IDs                                     */
+#include "H5MMprivate.h"        /* Memory Allocation                       */
+#include "H5Tpkg.h"             /* Datatypes                               */
 
 #define PABLO_MASK	H5Tvlen_mask
 

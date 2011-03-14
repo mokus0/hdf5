@@ -232,7 +232,7 @@ cd ..
 
 AC_MSG_CHECKING(how $F9X finds modules)
 
-for flag in "-M" "-I" "-p"; do
+for flag in "-I" "-M" "-p"; do
   cat >conftest.$ac_ext <<EOF
       program conftest
           use module
@@ -249,6 +249,7 @@ done
 
 if test -n "$F9XMODFLAG"; then
   echo $F9XMODFLAG 1>&6
+  FFLAGS="$F9XMODFLAG. $F9XMODFLAG../src $FFLAGS"
 else
   echo unknown 1>&6
 fi

@@ -1,19 +1,19 @@
 /*
- * Copyright (C) 1998 NCSA
- *		    All rights reserved.
+ * Copyright (C) 1998-2001 NCSA
+ *		           All rights reserved.
  *
  * Programmer:	Robb Matzke <matzke@llnl.gov>
  *		Friday, July 24, 1998
  *
  * Purpose:	The object modification time message.
  */
-#include <H5private.h>
-#include <H5Eprivate.h>
-#include <H5FLprivate.h>	/*Free Lists	  */
-#include <H5MMprivate.h>
-#include <H5Oprivate.h>
+#include "H5private.h"
+#include "H5Eprivate.h"
+#include "H5FLprivate.h"	/*Free Lists	  */
+#include "H5MMprivate.h"
+#include "H5Oprivate.h"
 
-#if defined WIN32
+#if defined (WIN32) && !defined (__MWERKS__) 
 #include <sys/types.h>
 #include <sys/timeb.h>
 #endif
@@ -145,7 +145,7 @@ H5O_mtime_decode(H5F_t UNUSED *f, const uint8_t *p,
 	}
 	the_time -= tz.tz_minuteswest*60 - (tm.tm_isdst?3600:0);
     }
-#elif defined WIN32 
+#elif defined WIN32 && !defined __MWERKS__  
 	{
 
    struct timeb timebuffer;
@@ -154,7 +154,7 @@ H5O_mtime_decode(H5F_t UNUSED *f, const uint8_t *p,
 
    tz = timebuffer.timezone;
   
-   the_time -=tz*60;
+   the_time -=tz*60-3600*_daylight;
 
    
 }

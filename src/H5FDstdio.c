@@ -10,7 +10,6 @@
  * Notes:  Ported to the new H5FD architecture on 10/18/99 - QAK
  *
  */
-#include <hdf5.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -18,10 +17,15 @@
 #ifdef H5_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
+
+#include "hdf5.h"
+
 #ifdef WIN32
 #include <windows.h>
 #include <io.h>
 #endif
+
 
 #ifdef MAX
 #undef MAX

@@ -10,21 +10,21 @@
 *									   *
 ****************************************************************************/
 
-/* $Id: H5R.c,v 1.45.2.1 2001/03/20 22:09:01 acheng Exp $ */
+/* $Id: H5R.c,v 1.45.2.2 2001/05/15 21:26:03 wendling Exp $ */
 
 #define H5F_PACKAGE		/*suppress error about including H5Fpkg	  */
 
-#include <H5private.h>		/* Generic Functions */
-#include <H5Iprivate.h>		/* ID Functions */
-#include <H5Dprivate.h>		/* Datasets */
-#include <H5Eprivate.h>		/* Error handling */
-#include <H5Fpkg.h>		/* Files */
-#include <H5Gprivate.h>		/* Groups */
-#include <H5HGprivate.h>    /* Global Heaps */
-#include <H5MMprivate.h>    /* Memory Management */
-#include <H5Rprivate.h>		/* References */
-#include <H5Sprivate.h>		/* Dataspaces */
-#include <H5Tprivate.h>		/* Datatypes */
+#include "H5private.h"		/* Generic Functions */
+#include "H5Iprivate.h"		/* ID Functions */
+#include "H5Dprivate.h"		/* Datasets */
+#include "H5Eprivate.h"		/* Error handling */
+#include "H5Fpkg.h"		/* Files */
+#include "H5Gprivate.h"		/* Groups */
+#include "H5HGprivate.h"        /* Global Heaps */
+#include "H5MMprivate.h"        /* Memory Management */
+#include "H5Rprivate.h"		/* References */
+#include "H5Sprivate.h"		/* Dataspaces */
+#include "H5Tprivate.h"		/* Datatypes */
 
 /* Interface initialization */
 #define PABLO_MASK	H5R_mask

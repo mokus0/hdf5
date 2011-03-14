@@ -10,25 +10,25 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5.c,v 1.99.2.1 2001/03/20 22:08:51 acheng Exp $ */
+/* $Id: H5.c,v 1.99.2.5 2001/07/16 21:37:10 acheng Exp $ */
 
 /* private headers */
-#include <H5private.h>          /*library                 		*/
-#include <H5Bprivate.h>         /*B-link trees                    	*/
-#include <H5Dprivate.h>         /*datasets          		    */
-#include <H5Eprivate.h>         /*error handling          		*/
-#include <H5FDprivate.h>	/*file driver				*/
-#include <H5FLprivate.h>	/*Free Lists	  */
-#include <H5Iprivate.h>		/*atoms					*/
-#include <H5MMprivate.h>        /*memory management               	*/
-#include <H5Pprivate.h>		/*property lists			*/
-#include <H5Rpublic.h>		/*references				*/
-#include <H5Sprivate.h>		/*data spaces				*/
-#include <H5Tprivate.h>         /*data types                      	*/
-#include <H5Zprivate.h>		/*filters				*/
+#include "H5private.h"          /*library                 		*/
+#include "H5Bprivate.h"         /*B-link trees                    	*/
+#include "H5Dprivate.h"         /*datasets                              */
+#include "H5Eprivate.h"         /*error handling          		*/
+#include "H5FDprivate.h"	/*file driver				*/
+#include "H5FLprivate.h"	/*Free Lists                            */
+#include "H5Iprivate.h"		/*atoms					*/
+#include "H5MMprivate.h"        /*memory management               	*/
+#include "H5Pprivate.h"		/*property lists			*/
+#include "H5Rpublic.h"		/*references				*/
+#include "H5Sprivate.h"		/*data spaces				*/
+#include "H5Tprivate.h"         /*data types                      	*/
+#include "H5Zprivate.h"		/*filters				*/
 
 /* datatypes of predefined drivers needed by H5_trace() */
-#include <H5FDmpio.h>
+#include "H5FDmpio.h"
 
 /* we need this for the struct rusage declaration */
 #if defined(H5_HAVE_GETRUSAGE) && defined(linux)
@@ -36,7 +36,9 @@
 #endif
 
 /* We need this on Irix64 even though we've included stdio.h as documented */
+#if !defined __MWERKS__  
 FILE *fdopen(int fd, const char *mode);
+#endif
 
 #define PABLO_MASK      H5_mask
 
@@ -48,6 +50,7 @@ H5_api_t H5_g;
 hbool_t H5_libinit_g = FALSE;
 #endif
 
+char			H5_lib_vers_info_g[] = H5_VERS_INFO;
 hbool_t                 dont_atexit_g = FALSE;
 H5_debug_t		H5_debug_g;		/*debugging info	*/
 static void		H5_debug_mask(const char*);
@@ -481,11 +484,23 @@ H5get_libversion(unsigned *majnum, unsigned *minnum, unsigned *relnum)
 /*-------------------------------------------------------------------------
  * Function:	H5check_version
  *
- * Purpose:	Verifies that the arguments match the version numbers
- *		compiled into the library.  This function is intended to be
- *		called from user to verify that the versions of header files
+ * Purpose:	Verifies the library versions are consistent.  It consists of
+ *		two parts:
+ *		1. Verifies that the arguments match the version numbers
+ *		compiled into the library.  This is intended to be called
+ *		from user to verify that the versions of header files
  *		compiled into the application match the version of the hdf5
- *		library.
+ *		library with which it links.
+ *		NOTE that this does not verify the Sub-release value
+ *		which should be an empty string for any official release.
+ *		This requires that any incompatible library version must
+ *              have different {major,minor,release} values. (Notice the
+ *              reverse is not necessarily true.)
+ *		2. Verifies that the five library version information of
+ *		H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE,
+ *		H5_VERS_SUBRELEASE and H5_VERS_INFO are consistent.
+ *		This catches source code inconsistency but is not a potential
+ *		fatal error as the error in part 1.
  *
  * Return:	Success:	SUCCEED
  *
@@ -495,14 +510,40 @@ H5get_libversion(unsigned *majnum, unsigned *minnum, unsigned *relnum)
  *              Tuesday, April 21, 1998
  *
  * Modifications:
+ *	Albert Cheng, May 12, 2001
+ *	Added verification of H5_VERS_INFO.
  *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5check_version (unsigned majnum, unsigned minnum, unsigned relnum)
 {
+    char	lib_str[256];
+    char	substr[] = H5_VERS_SUBRELEASE;
+    static int	checked = 0;
+
     /* Don't initialize the library quite yet */
     
+    /*
+     *This catches link-time version errors--an application that
+     *compiles with one version of HDF5 headers file and links
+     *with a different version of HDF5 library, will trip the alarm here.
+     *This is a fatal error because it has the potential to corrupt an
+     *existing valid HDF5 file.
+     *This must be checked repeatedly because it is possible that an
+     *application may contain different modules that are compiled with
+     *different versions of HDF5 headers.  E.g., an application prog.c
+     *calls hdf5 library directly and also calls lib-Y which calls
+     *the hdf5 library.
+     *   prog.c  is compiled with hdf5 version X
+     *   lib-Y   is compiled with hdf5 version Y
+     *   hdf5 library is version X
+     *
+     *The following code will catch the version inconsistency
+     *even if prog.c calls the hdf5 library first and then calls
+     *lib-Y which calls the hdf5 library.
+     */   
+
     if (H5_VERS_MAJOR!=majnum || H5_VERS_MINOR!=minnum ||
 	H5_VERS_RELEASE!=relnum) {
 	HDfputs ("Warning! The HDF5 header files included by this application "
@@ -516,6 +557,39 @@ H5check_version (unsigned majnum, unsigned minnum, unsigned relnum)
 	HDfputs ("Bye...\n", stderr);
 	HDabort ();
     }
+
+    if (checked)
+	return SUCCEED;
+    
+    checked = 1;
+    /*
+     *verify if H5_VERS_INFO is consistent with the other version information.
+     *Check only the first sizeof(lib_str) char.  Assume the information
+     *will fit within this size or enough significance.
+     *This catches the error if someone changes only some of the
+     *five H5_VERS_XXX macros in H5public.h.  E.g., if one changes
+     *H5_VERS_SUBRELEASE but did not update H5_VERS_INFO too, this code
+     *will bark.  This does not apply to link-version error as the
+     *above code.
+     */
+    sprintf(lib_str, "HDF5 library version: %d.%d.%d",
+	H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE);
+    if (*substr){
+	HDstrcat(lib_str, "-");
+	HDstrncat(lib_str, substr, sizeof(lib_str) - HDstrlen(lib_str) - 1);
+    }
+    if (HDstrcmp(lib_str, H5_lib_vers_info_g)){
+	HDfputs ("Warning!  Library version information error.\n"
+	         "The HDF5 library version information are not "
+		 "consistent in its source code.\nThis is NOT a fatal error "
+		 "but should be corrected.\n", stderr);
+	fprintf (stderr, "Library version information are:\n"
+		 "H5_VERS_MAJOR=%d, H5_VERS_MINOR=%d, H5_VERS_RELEASE=%d, "
+		 "H5_VERS_SUBRELEASE=%s,\nH5_VERS_INFO=%s\n",
+		 H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE,
+		 H5_VERS_SUBRELEASE, H5_VERS_INFO);
+    }
+
     return SUCCEED;
 }
 

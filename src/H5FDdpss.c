@@ -9,16 +9,16 @@
  *
  */
 
-#include <hdf5.h>
-#include <H5Eprivate.h>         /* error handling    */
-#include <H5FDprivate.h>	/*file driver				  */
-#include <H5FDdpss.h>
-#include <H5MMprivate.h>        /* memory management */
+#include "hdf5.h"
+#include "H5Eprivate.h"         /*error handling                          */
+#include "H5FDprivate.h"	/*file driver				  */
+#include "H5FDdpss.h"
+#include "H5MMprivate.h"        /*memory management                       */
 
 #ifdef COALESCE_READS
 /* Packages needed by this file.*/
-#include <H5Fprivate.h>
-#include <H5Iprivate.h>
+#include "H5Fprivate.h"
+#include "H5Iprivate.h"
 #endif
 
 
@@ -51,8 +51,8 @@ typedef struct H5FD_dpss_t {
     haddr_t               eof;            /* end of file; current file size */
 } H5FD_dpss_t;
 
-
-/*** FIXME: is this really needed here ? ***/
+
+
 /*
  * This driver supports systems that have the lseek64() function by defining
  * some macros here so we don't have to have conditional compilations later

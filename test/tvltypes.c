@@ -1,16 +1,16 @@
 /****************************************************************************
- * NCSA HDF								                                    *
- * Software Development Group						                        *
- * National Center for Supercomputing Applications			                *
- * University of Illinois at Urbana-Champaign				                *
- * 605 E. Springfield, Champaign IL 61820				                    *
- *									                                        *
- * For conditions of distribution and use, see the accompanying		        *
- * hdf/COPYING file.							                            *
- *									                                        *
+ * NCSA HDF								    *
+ * Software Development Group						    *
+ * National Center for Supercomputing Applications			    *
+ * University of Illinois at Urbana-Champaign				    *
+ * 605 E. Springfield, Champaign IL 61820				    *
+ *									    *
+ * For conditions of distribution and use, see the accompanying		    *
+ * hdf/COPYING file.							    *
+ *									    *
  ****************************************************************************/
 
-/* $Id: tvltypes.c,v 1.13.2.1 2001/03/20 22:09:43 acheng Exp $ */
+/* $Id: tvltypes.c,v 1.13.2.3 2001/07/12 16:56:19 koziol Exp $ */
 
 /***********************************************************
 *
@@ -20,9 +20,9 @@
 *
 *************************************************************/
 
-#include <testhdf5.h>
+#include "testhdf5.h"
 
-#include <hdf5.h>
+#include "hdf5.h"
 
 #define FILENAME   "tvltypes.h5"
 
@@ -51,7 +51,7 @@ void test_vltypes_free_custom(void *mem, void *info);
 void *test_vltypes_alloc_custom(size_t size, void *info)
 {
     void *ret_value=NULL;       /* Pointer to return */
-    int *mem_used=(int *)info;  /* Get the pointer to the memory used */
+    unsigned *mem_used=(unsigned *)info;  /* Get the pointer to the memory used */
     size_t extra;               /* Extra space needed */
 
     /*
@@ -79,7 +79,7 @@ void *test_vltypes_alloc_custom(size_t size, void *info)
 void test_vltypes_free_custom(void *_mem, void *info)
 {
     unsigned char *mem;
-    int *mem_used=(int *)info;  /* Get the pointer to the memory used */
+    unsigned *mem_used=(unsigned *)info;  /* Get the pointer to the memory used */
     size_t extra;               /* Extra space needed */
 
     /*
@@ -114,7 +114,7 @@ test_vltypes_vlen_atomic(void)
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j;        /* counting variables */
-    int         mem_used=0; /* Memory used during allocation */
+    unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -242,7 +242,7 @@ test_vltypes_vlen_compound(void)
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j;        /* counting variables */
-    int         mem_used=0; /* Memory used during allocation */
+    unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -392,7 +392,7 @@ test_vltypes_compound_vlen_atomic(void)
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j;        /* counting variables */
-    int         mem_used=0; /* Memory used during allocation */
+    unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */
@@ -565,7 +565,7 @@ test_vltypes_vlen_vlen_atomic(void)
     hsize_t		dims1[] = {SPACE1_DIM1};
     hsize_t     size;       /* Number of bytes which will be used */
     uintn       i,j,k;      /* counting variables */
-    int         mem_used=0; /* Memory used during allocation */
+    unsigned         mem_used=0; /* Memory used during allocation */
     herr_t		ret;		/* Generic return value		*/
 
     /* Output message about test being performed */

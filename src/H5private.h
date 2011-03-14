@@ -9,11 +9,21 @@
  *		define common things which are not defined in the HDF5 API.
  *		The configuration constants like H5_HAVE_UNISTD_H etc. are
  *		defined in H5config.h which is included by H5public.h.
+ *
  */
 #ifndef _H5private_H
 #define _H5private_H
-#include <H5public.h>		/* Include Public Definitions		*/
-#include <H5config.h>		/* Include all configuration info	*/
+
+#include "H5public.h"		/* Include Public Definitions		*/
+/*
+ * Since H5config.h is a generated header file, it is messy to try
+ * to put a #ifndef _H5config_H ... #endif guard in it.
+ * HDF5 has set an internal rule that it is being included here.
+ * Source files should NOT include H5config.h directly but include
+ * it via H5private.h.  The #ifndef _H5private_H guard above would
+ * prevent repeated include.
+ */
+#include "H5config.h"		/* Include all configuration info	*/
 
 /* include the pthread library */
 #ifdef H5_HAVE_THREADSAFE
@@ -120,22 +130,34 @@
 #ifdef H5_HAVE_SYS_PROC_H
 #   include <sys/proc.h>
 #endif
-
-/*
- * Win32 is severely broken when it comes to ANSI-C and Posix.1 compliance.
- */
 #ifdef H5_HAVE_IO_H
 #   include <io.h>
 #endif
-#ifdef H5_HAVE_WINDOWS_H
-#include <windows.h>
-#endif
+
 
 #ifdef WIN32
-#include <io.h>
-#include <process.h>
+
+#define VC_EXTRALEAN		/*Exclude rarely-used stuff from Windows headers */
 #include <windows.h>
+
+/*
+inline is now in C but in the C99 standard and not the old C89 version so
+MS doesn't recognize it yet (as of April 2001)
+*/
+#if defined(__MWERKS__) || defined(__cplusplus)
+# define H5_inline   inline
+# else
+# define H5_inline 
 #endif
+
+#endif /*WIN32*/
+
+/* H5_inline */
+#ifndef H5_inline
+#define H5_inline
+#endif /* H5_inline */
+
+
 #ifndef F_OK
 #   define F_OK	00
 #   define W_OK 02
@@ -383,23 +405,6 @@
 #   error "nothing appropriate for uint64_t"
 #endif
 
-#if SIZEOF_FLOAT>=4
-typedef float float32;
-#elif SIZEOF_DOUBLE>=4
-typedef double float32;
-#else
-#   error "nothing appropriate for float32"
-#endif
-
-/* Bias float64 toward using double - QAK */
-#if SIZEOF_DOUBLE>=8
-typedef double float64;
-#elif SIZEOF_FLOAT>=8
-typedef float float64;
-#else
-#  error "nothing appropriate for float64"
-#endif
-
 /*
  * Define a type for generic integers.	Use this instead of `int' to
  * show that some thought went into the algorithm.
@@ -513,7 +518,12 @@ __DLL__ void H5_bandwidth(char *buf/*out*/, double nbytes, double nseconds);
 #define HDexecve(S,AV,E)	execve(S,AV,E)
 #define HDexecvp(S,AV)		execvp(S,AV)
 #define HDexit(N)		exit(N)
+#if defined __MWERKS__
+#include <abort_exit.h>
+#define HD_exit(N)		__exit(N)
+#else
 #define HD_exit(N)		_exit(N)
+#endif
 #define HDexp(X)		exp(X)
 #define HDfabs(X)		fabs(X)
 #define HDfclose(F)		fclose(F)
@@ -721,13 +731,23 @@ __DLL__ int64_t HDstrtoll (const char *s, const char **rest, int base);
 #define HDwaitpid(P,W,O)	waitpid(P,W,O)
 #define HDwcstombs(S,P,Z)	wcstombs(S,P,Z)
 #define HDwctomb(S,C)		wctomb(S,C)
+
+
+#if defined (__MWERKS__)
+/* workaround for a bug in the Metrowerks header file for write
+ which is not defined as const void*
+ pvn
+ */
+#define HDwrite(F,M,Z)		write(F,(void*)M,Z)
+#else
 #define HDwrite(F,M,Z)		write(F,M,Z)
+#endif
 
 /*
  * And now for a couple non-Posix functions...  Watch out for systems that
  * define these in terms of macros.
  */
-#ifdef WIN32
+#if defined (__MWERKS__)
 #define HDstrdup(S)    _strdup(S)
 #else
 
@@ -908,11 +928,14 @@ __DLL__ void H5_trace(hbool_t returning, const char *func, const char *type,
 /* Is `S' the name of an API function? */
 #define H5_IS_API(S) ('_'!=S[2] && '_'!=S[3] && (!S[4] || '_'!=S[4]))
 
+/* global library version information string */
+extern char	H5_lib_vers_info_g[];
+
 /* Lock headers */
 #ifdef H5_HAVE_THREADSAFE
 
 /* Include required thread-safety header */
-#include <H5TSprivate.h>
+#include "H5TSprivate.h"
 
 /* replacement structure for original global variable */
 typedef struct H5_api_struct {
@@ -1063,6 +1086,5 @@ __DLL__ intn H5S_term_interface(void);
 __DLL__ intn H5TN_term_interface(void);
 __DLL__ intn H5T_term_interface(void);
 __DLL__ intn H5Z_term_interface(void);
-
 
 #endif

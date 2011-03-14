@@ -10,7 +10,7 @@
 
 /* See H5private.h for how to include headers */
 #undef NDEBUG
-#include <hdf5.h>
+#include "hdf5.h"
 
 #ifdef H5_STDC_HEADERS
 #   include <ctype.h>
@@ -21,7 +21,7 @@
 #endif
 
 #ifdef H5_HAVE_IO_H
-#	include <io.h>
+#   include <io.h>
 #endif
 
 #ifdef H5_HAVE_UNISTD_H
@@ -207,7 +207,14 @@ test(fill_t fill_style, const double splits[],
     if ((mspace=H5Screate_simple(1, ch_size, ch_size))<0) goto error;
     if ((dset=H5Dcreate(file, "chunked", H5T_NATIVE_INT,
 			fspace, dcpl))<0) goto error;
+
+#if !defined( __MWERKS__)
+ /* 
+  workaround for a bug in the Metrowerks open function
+  pvn
+  */		
     if ((fd=open(FILE_NAME_1, O_RDONLY))<0) goto error;
+#endif
 
     for (i=1; i<=cur_size[0]; i++) {
 
@@ -243,18 +250,16 @@ test(fill_t fill_style, const double splits[],
 	}
 
 	/* Determine overhead */
+#if !defined( __MWERKS__)
 	if (verbose) {
 	    if (H5Fflush(file, H5F_SCOPE_LOCAL)<0) goto error;
 	    if (fstat(fd, &sb)<0) goto error;
-	    /*
-	     * The extra cast in the following statement is a bug workaround
-	     * for the Win32 version 5.0 compiler.
-	     * 1998-11-06 ptl
-	     */
+	  
 	    printf("%4lu %8.3f ***\n",
 		   (unsigned long)i,
 		   (double)(hssize_t)(sb.st_size-i*sizeof(int))/(hssize_t)i);
 	}
+#endif
     }
 
     H5Dclose(dset);
@@ -283,17 +288,21 @@ test(fill_t fill_style, const double splits[],
 	case FILL_ALL:
 	    abort();
 	}
+
+#if !defined( __MWERKS__)
 	if (fstat(fd, &sb)<0) goto error;
-	/*
-	 * The extra cast in the following statement is a bug workaround
-	 * for the Win32 version 5.0 compiler.
-	 * 1998-11-06 ptl
-	 */
+
 	printf("%-7s %8.3f\n", sname,
 	       (double)(hssize_t)(sb.st_size-cur_size[0]*sizeof(int))/
 	           (hssize_t)cur_size[0]);
+#endif
+
     }
+
+#if !defined( __MWERKS__)
     close(fd);
+#endif
+
     return 0;
 
  error:
@@ -303,7 +312,11 @@ test(fill_t fill_style, const double splits[],
     H5Pclose(dcpl);
     H5Fclose(file);
     free(had);
+   
+#if !defined( __MWERKS__)
     close(fd);
+#endif   
+   
     return 1;
 }
 

@@ -16,10 +16,10 @@
 #ifndef _H5Fpkg_H
 #define _H5Fpkg_H
 
-#include <H5Fprivate.h>
+#include "H5Fprivate.h"
 
 /* This is a near top-level header! Try not to include much! */
-#include <H5private.h>
+#include "H5private.h"
 
 /*
  * Feature: Define this constant to be non-zero if you want to enable code
@@ -199,9 +199,9 @@ __DLL__ herr_t H5F_istore_allocate (H5F_t *f, hid_t dxpl_id,
 				    const struct H5O_fill_t *fill);
 
 /* Functions that operate on contiguous storage wrt boot block */
-__DLL__ herr_t H5F_contig_read(H5F_t *f, H5FD_mem_t type, haddr_t addr, hsize_t size,
+__DLL__ herr_t H5F_contig_read(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr, hsize_t size,
                 hid_t dxpl_id, void *_buf/*out*/);
-__DLL__ herr_t H5F_contig_write(H5F_t *f, H5FD_mem_t type, haddr_t addr,
+__DLL__ herr_t H5F_contig_write(H5F_t *f, hsize_t max_data, H5FD_mem_t type, haddr_t addr,
                   hsize_t size, hid_t dxpl_id, const void *buf);
 
 #endif

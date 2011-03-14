@@ -10,17 +10,17 @@
 *									   *
 ****************************************************************************/
 
-/* $Id: H5Odtype.c,v 1.51.2.1 2001/03/20 22:08:57 acheng Exp $ */
+/* $Id: H5Odtype.c,v 1.51.2.2 2001/05/15 21:25:54 wendling Exp $ */
 
 #define H5T_PACKAGE		/*prevent warning from including H5Tpkg.h */
 
-#include <H5private.h>
-#include <H5Eprivate.h>
-#include <H5FLprivate.h>	/*Free Lists	  */
-#include <H5Gprivate.h>
-#include <H5MMprivate.h>
-#include <H5Oprivate.h>
-#include <H5Tpkg.h>
+#include "H5private.h"
+#include "H5Eprivate.h"
+#include "H5FLprivate.h"	/*Free Lists	  */
+#include "H5Gprivate.h"
+#include "H5MMprivate.h"
+#include "H5Oprivate.h"
+#include "H5Tpkg.h"
 
 #define PABLO_MASK	H5O_dtype_mask
 

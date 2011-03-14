@@ -1,4 +1,4 @@
-This is hdf5-1.4.1 released on Fri Apr  6 16:13:31 CDT 2001
+HDF5 version 1.4.2 released on Tue Jul 31 17:37:23 CDT 2001
 Please refer to the INSTALL file for installation instructions.
 ------------------------------------------------------------------------------
 

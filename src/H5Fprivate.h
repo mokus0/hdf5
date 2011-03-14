@@ -10,7 +10,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5Fprivate.h,v 1.117 2001/01/09 22:19:24 koziol Exp $ */
+/* $Id: H5Fprivate.h,v 1.117.2.1 2001/05/15 21:25:43 wendling Exp $ */
 
 /*
  * This file contains macros & information for file access
@@ -19,10 +19,10 @@
 #ifndef _H5Fprivate_H
 #define _H5Fprivate_H
 
-#include <H5Fpublic.h>
+#include "H5Fpublic.h"
 
 /* This is a near top-level header! Try not to include much! */
-#include <H5FDpublic.h>		/*file drivers				     */
+#include "H5FDpublic.h"		/*file drivers				     */
 
 typedef struct H5F_t H5F_t;
 

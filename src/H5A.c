@@ -10,24 +10,24 @@
 *									    *
 ****************************************************************************/
 
-/* $Id: H5A.c,v 1.65.2.1 2001/03/20 22:08:52 acheng Exp $ */
+/* $Id: H5A.c,v 1.65.2.2 2001/05/15 21:25:24 wendling Exp $ */
 
 #define H5A_PACKAGE		/*suppress error about including H5Apkg	*/
 #define H5S_PACKAGE		/*suppress error about including H5Spkg	*/
 
 /* Private header files */
-#include <H5private.h>		/* Generic Functions			*/
-#include <H5Iprivate.h>		/* IDs			  		*/
-#include <H5Bprivate.h>		/* B-tree subclass names	  	*/
-#include <H5Dprivate.h>		/* Datasets				*/
-#include <H5Gprivate.h>		/* Groups				*/
-#include <H5Tprivate.h>		/* Datatypes				*/
-#include <H5Eprivate.h>		/* Error handling		  	*/
-#include <H5MMprivate.h>	/* Memory management			*/
-#include <H5Pprivate.h>		/* Property lists			*/
-#include <H5Oprivate.h>     	/* Object Headers       		*/
-#include <H5Spkg.h>		    /* Data-space functions			  */
-#include <H5Apkg.h>		/* Attributes				*/
+#include "H5private.h"		/* Generic Functions			*/
+#include "H5Iprivate.h"		/* IDs			  		*/
+#include "H5Bprivate.h"		/* B-tree subclass names	  	*/
+#include "H5Dprivate.h"		/* Datasets				*/
+#include "H5Gprivate.h"		/* Groups				*/
+#include "H5Tprivate.h"		/* Datatypes				*/
+#include "H5Eprivate.h"		/* Error handling		  	*/
+#include "H5MMprivate.h"	/* Memory management			*/
+#include "H5Pprivate.h"		/* Property lists			*/
+#include "H5Oprivate.h"     	/* Object Headers       		*/
+#include "H5Spkg.h"             /* Data-space functions                 */
+#include "H5Apkg.h"		/* Attributes				*/
 
 #define PABLO_MASK	H5A_mask
 

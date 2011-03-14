@@ -12,14 +12,14 @@
  *		I/O from this driver with I/O from other parts of the
  *		application to the same file).
  */
-#include <H5private.h>		/*library functions			*/
-#include <H5Eprivate.h>		/*error handling			*/
-#include <H5Fprivate.h>		/*files					*/
-#include <H5FDprivate.h>	/*file driver				  */
-#include <H5FDsec2.h>       /* Sec2 file driver */
-#include <H5FLprivate.h>	/*Free Lists	  */
-#include <H5MMprivate.h>    /* Memory allocation */
-#include <H5Pprivate.h>		/*property lists			*/
+#include "H5private.h"		/*library functions			*/
+#include "H5Eprivate.h"		/*error handling			*/
+#include "H5Fprivate.h"		/*files					*/
+#include "H5FDprivate.h"	/*file driver			        */
+#include "H5FDsec2.h"           /*sec2 file driver                      */
+#include "H5FLprivate.h"	/*free lists	                        */
+#include "H5MMprivate.h"        /*memory allocation                     */
+#include "H5Pprivate.h"		/*property lists			*/
 
 #ifdef MAX
 #undef MAX
@@ -87,18 +87,23 @@ typedef struct H5FD_sec2_t {
  *			either lseek() or lseek64().
  */
 /* adding for windows NT file system support. */
+/* pvn: added __MWERKS__ support. */
 
 #ifdef H5_HAVE_LSEEK64
 #   define file_offset_t	off64_t
 #   define file_seek		lseek64
-#elif defined WIN32
-#   define file_offset_t    __int64
-#   define file_seek        _lseeki64
+#elif defined (WIN32)
+# ifdef __MWERKS__
+#   define file_offset_t off_t
+#   define file_seek lseek
+# else /*MSVC*/
+#   define file_offset_t __int64
+#   define file_seek _lseeki64
+# endif
 #else
 #   define file_offset_t	off_t
 #   define file_seek		lseek
 #endif
-
 
 /*
  * These macros check for overflow of various quantities.  These macros

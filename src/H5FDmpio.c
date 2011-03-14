@@ -20,13 +20,13 @@
  *		bytes read is always equal to the number requested.  This
  *		kluge is activated by #ifdef MPI_KLUGE0202.
  */
-#include <H5private.h>		/*library functions			*/
-#include <H5Eprivate.h>		/*error handling			*/
-#include <H5Fprivate.h>		/*files					*/
-#include <H5FDprivate.h>	/*file driver				  */
-#include <H5FDmpio.h>       /* MPI I/O file driver */
-#include <H5MMprivate.h>    /* Memory allocation */
-#include <H5Pprivate.h>		/*property lists			*/
+#include "H5private.h"		/*library functions			*/
+#include "H5Eprivate.h"		/*error handling			*/
+#include "H5Fprivate.h"		/*files					*/
+#include "H5FDprivate.h"	/*file driver			        */
+#include "H5FDmpio.h"           /*MPI I/O file driver                   */
+#include "H5MMprivate.h"        /*memory allocation                     */
+#include "H5Pprivate.h"		/*property lists			*/
 
 /*
  * The driver identification number, initialized at runtime if H5_HAVE_PARALLEL
@@ -1524,6 +1524,9 @@ H5FD_mpio_flush(H5FD_t *_file)
      * Unfortunately, keeping track of EOF is an expensive operation, so
      * we can't just check whether EOF<EOA like with other drivers.
      * Therefore we'll just read the byte at EOA-1 and then write it back. */
+    /* But if eoa is zero, then nothing to flush.  Just return */
+    if (file->eoa == 0)
+	HRETURN(SUCCEED);
     if (haddr_to_MPIOff(file->eoa-1, &mpi_off)<0) {
         HRETURN_ERROR(H5E_INTERNAL, H5E_BADRANGE, FAIL,
                       "cannot convert from haddr_t to MPI_Offset");

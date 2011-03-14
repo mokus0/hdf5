@@ -10,12 +10,12 @@
  *                                                                          *
  ****************************************************************************/
 
-/* $Id: H5TS.c,v 1.4.2.1 2001/03/20 22:09:05 acheng Exp $ */
+/* $Id: H5TS.c,v 1.4.2.2 2001/05/15 21:26:15 wendling Exp $ */
 
 /* private headers */
-#include <H5private.h>		/*library                 		*/
-#include <H5Eprivate.h>		/*error handling          		*/
-#include <H5MMprivate.h>	/*memory management functions		*/
+#include "H5private.h"		/*library                 		*/
+#include "H5Eprivate.h"		/*error handling          		*/
+#include "H5MMprivate.h"	/*memory management functions		*/
 
 #ifdef H5_HAVE_THREADSAFE
 

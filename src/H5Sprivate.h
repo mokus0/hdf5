@@ -16,13 +16,13 @@
 #ifndef _H5Sprivate_H
 #define _H5Sprivate_H
 
-#include <H5Spublic.h>
+#include "H5Spublic.h"
 
 /* Private headers needed by this file */
-#include <H5private.h>
-#include <H5Dpublic.h>
-#include <H5Fprivate.h>
-#include <H5Oprivate.h>
+#include "H5private.h"
+#include "H5Dpublic.h"
+#include "H5Fprivate.h"
+#include "H5Oprivate.h"
 
 #define H5S_RESERVED_ATOMS  2
 
@@ -82,7 +82,7 @@ typedef struct H5S_fconv_t {
     
     /* Initialize file element numbering information */
     herr_t (*init)(const struct H5O_layout_t *layout, const H5S_t *space,
-		   H5S_sel_iter_t *iter, size_t *min_elem_out);
+		   H5S_sel_iter_t *iter);
 
     /* Determine optimal number of elements to transfer */
     hsize_t (*avail)(const H5S_t *file_space, const H5S_sel_iter_t *file_iter,
@@ -112,7 +112,7 @@ typedef struct H5S_mconv_t {
     
     /* Initialize memory element numbering information */
     herr_t (*init)(const struct H5O_layout_t *layout, const H5S_t *space,
-		   H5S_sel_iter_t *iter, size_t *min_elem_out);
+		   H5S_sel_iter_t *iter);
 
     /* Gather elements from app buffer to type conversion buffer */
     hsize_t (*gath)(const void *buf, size_t elmt_size,

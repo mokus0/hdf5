@@ -25,6 +25,7 @@ If you have any questions or comments, please send them to:
 
 CONTENTS
 
+- Bug Fixes since HDF5-1.4.2
 - New Features
 - Bug Fixes since HDF5-1.4.1
 - Documentation
@@ -32,6 +33,11 @@ CONTENTS
 - Supported Configuration Features
 - Known Problems
 
+Bug Fixes since HDF5-1.4.2 Release
+==================================
+
+    * Fixed a bug where reading or writing chunked data which needed datatype
+      conversion could result in data values getting corrupted.
 
 New Features
 ============

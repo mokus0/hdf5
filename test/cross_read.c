@@ -63,7 +63,7 @@ const char *FILENAME[] = {
  *
  *-------------------------------------------------------------------------
  */
-static unsigned read_data(char *fname)
+static int read_data(char *fname)
 {
     char        pathname[1024];
     char       *srcdir = getenv("srcdir"); /*where the src code is located*/
@@ -103,7 +103,7 @@ static unsigned read_data(char *fname)
      */
     for (j = 0; j < NX; j++) {
 	for (i = 0; i < NY; i++) {
-	    data_in[j][i] = (float)(i + j);
+	    data_in[j][i] = i + j;
 	    data_out[j][i] = 0;
         }
     }

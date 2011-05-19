@@ -898,6 +898,442 @@ test_h5o_link(void)
 
 /****************************************************************
 **
+**  test_h5o_comment(): Test H5Oset(get)_comment functions.
+**
+****************************************************************/
+static void
+test_h5o_comment(void)
+{
+    hid_t       fid;                        /* HDF5 File ID      */
+    hid_t       grp, dset, dtype, dspace;   /* Object identifiers */
+    hid_t       attr_space, attr_id;
+    hsize_t     dims[RANK];
+    hsize_t     attr_dims = 1;
+    int         attr_value = 5;
+    const char  *file_comment = "file comment";
+    const char  *grp_comment = "group comment";
+    const char  *dset_comment = "dataset comment";
+    const char  *dtype_comment = "datatype comment";
+    char        check_comment[64];
+    ssize_t     comment_len = 0;
+    herr_t      ret;                        /* Value returned from API calls */
+    int         ret_value;
+
+    /* Create a new HDF5 file */
+    fid = H5Fcreate(TEST_FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create an attribute for the file */
+    attr_space = H5Screate_simple(1, &attr_dims, NULL);
+    CHECK(attr_space, FAIL, "H5Screate_simple");
+    attr_id = H5Acreate2(fid, "file attribute", H5T_NATIVE_INT, attr_space, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(attr_id, FAIL, "H5Acreate2");
+    ret = H5Awrite(attr_id, H5T_NATIVE_INT, &attr_value);
+    CHECK(ret, FAIL, "H5Awrite");
+
+    /* Putting a comment on the file through its attribute */
+    ret = H5Oset_comment(attr_id, file_comment);
+    CHECK(ret, FAIL, "H5Oset_comment");
+
+    ret = H5Sclose(attr_space);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Aclose(attr_id);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Create a group, dataset, and committed datatype within the file */
+    /* Create the group */
+    grp = H5Gcreate2(fid, "group", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(grp, FAIL, "H5Gcreate2");
+
+    /* Putting a comment on the group */
+    ret = H5Oset_comment(grp, grp_comment);
+    CHECK(ret, FAIL, "H5Oset_comment");
+
+    ret = H5Gclose(grp);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Commit the type inside the group */
+    dtype = H5Tcopy(H5T_NATIVE_INT);
+    CHECK(dtype, FAIL, "H5Tcopy");
+    ret = H5Tcommit2(fid, "group/datatype", dtype, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Tcommit2");
+
+    /* Putting a comment on the committed data type */
+    ret = H5Oset_comment(dtype, dtype_comment);
+    CHECK(ret, FAIL, "H5Oset_comment");
+
+    ret = H5Tclose(dtype);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    /* Create the data space for the dataset. */
+    dims[0] = DIM0;
+    dims[1] = DIM1;
+    dspace = H5Screate_simple(RANK, dims, NULL);
+    CHECK(dspace, FAIL, "H5Screate_simple");
+
+    /* Create the dataset. */
+    dset = H5Dcreate2(fid, "dataset", H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(dset, FAIL, "H5Dcreate2");
+
+    /* Putting a comment on the dataset */
+    ret = H5Oset_comment(dset, dset_comment);
+    CHECK(ret, FAIL, "H5Oset_comment");
+
+    /* Putting a comment on the dataspace.  It's supposed to fail. */
+    H5E_BEGIN_TRY {
+        ret = H5Oset_comment(dspace, "dataspace comment");
+    } H5E_END_TRY;
+    VERIFY(ret, FAIL, "H5Oset_comment");
+
+    /* Close the file */
+    ret = H5Dclose(dset);
+    CHECK(ret, FAIL, "H5Dclose");
+    ret = H5Sclose(dspace);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Now make sure that the comments are correct all 4 types of objects */
+    /* Open file */
+    fid = H5Fopen(TEST_FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Getting the comment on the file and verify it */
+    comment_len = H5Oget_comment(fid, NULL, (size_t)0);
+    CHECK(comment_len, FAIL, "H5Oget_comment");
+
+    ret = H5Oget_comment(fid, check_comment, (size_t)comment_len+1);
+    CHECK(ret, FAIL, "H5Oget_comment");
+
+    ret_value = HDstrcmp(file_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment");
+
+    /* Open the group */
+    grp = H5Gopen2(fid, "group", H5P_DEFAULT);
+    CHECK(grp, FAIL, "H5Gopen2");
+
+    /* Getting the comment on the group and verify it */
+    comment_len = H5Oget_comment(grp, NULL, (size_t)0);
+    CHECK(comment_len, FAIL, "H5Oget_comment");
+
+    ret = H5Oget_comment(grp, check_comment, (size_t)comment_len+1);
+    CHECK(ret, FAIL, "H5Oget_comment");
+
+    ret_value = HDstrcmp(grp_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment");
+
+    /* Open the datatype */
+    dtype = H5Topen2(fid, "group/datatype", H5P_DEFAULT);
+    CHECK(dtype, FAIL, "H5Topen2");
+
+    /* Getting the comment on the datatype and verify it */
+    comment_len = H5Oget_comment(dtype, NULL, (size_t)0);
+    CHECK(comment_len, FAIL, "H5Oget_comment");
+
+    ret = H5Oget_comment(dtype, check_comment, (size_t)comment_len+1);
+    CHECK(ret, FAIL, "H5Oget_comment");
+
+    ret_value = HDstrcmp(dtype_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment");
+
+    /* Open the dataset */
+    dset = H5Dopen2(fid, "dataset", H5P_DEFAULT);
+    CHECK(dset, FAIL, "H5Dopen2");
+
+    /* Getting the comment on the dataset and verify it */
+    comment_len = H5Oget_comment(dset, NULL, (size_t)0);
+    CHECK(comment_len, FAIL, "H5Oget_comment");
+
+    ret = H5Oget_comment(dset, check_comment, (size_t)comment_len+1);
+    CHECK(ret, FAIL, "H5Oget_comment");
+
+    ret_value = HDstrcmp(dset_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment");
+
+
+    /* Close the IDs */
+    ret = H5Gclose(grp);
+    CHECK(ret, FAIL, "H5Gclose");
+    ret = H5Tclose(dtype);
+    CHECK(ret, FAIL, "H5Tclose");
+    ret = H5Dclose(dset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    /* Close the file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+} /* test_h5o_comment() */
+
+
+/****************************************************************
+**
+**  test_h5o_comment_by_name(): Test H5Oset(get)_comment_by_name functions.
+**
+****************************************************************/
+static void
+test_h5o_comment_by_name(void)
+{
+    hid_t       fid;                        /* HDF5 File ID      */
+    hid_t       grp, dset, dtype, dspace;   /* Object identifiers */
+    hid_t       attr_space, attr_id;
+    hsize_t     dims[RANK];
+    hsize_t     attr_dims = 1;
+    int         attr_value = 5;
+    const char  *file_comment = "file comment by name";
+    const char  *grp_comment = "group comment by name";
+    const char  *dset_comment = "dataset comment by name";
+    const char  *dtype_comment = "datatype comment by name";
+    char        check_comment[64];
+    ssize_t     comment_len = 0;
+    herr_t      ret;                        /* Value returned from API calls */
+    int         ret_value;
+
+    /* Create a new HDF5 file */
+    fid = H5Fcreate(TEST_FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fcreate");
+
+    /* Create an attribute for the file */
+    attr_space = H5Screate_simple(1, &attr_dims, NULL);
+    CHECK(attr_space, FAIL, "H5Screate_simple");
+    attr_id = H5Acreate2(fid, "file attribute", H5T_NATIVE_INT, attr_space, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(attr_id, FAIL, "H5Acreate2");
+    ret = H5Awrite(attr_id, H5T_NATIVE_INT, &attr_value);
+    CHECK(ret, FAIL, "H5Awrite");
+
+    /* Putting a comment on the file through its attribute */
+    ret = H5Oset_comment_by_name(attr_id, ".", file_comment, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oset_comment_by_name");
+
+    ret = H5Sclose(attr_space);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    ret = H5Aclose(attr_id);
+    CHECK(ret, FAIL, "H5Aclose");
+
+    /* Create a group, dataset, and committed datatype within the file */
+    /* Create the group */
+    grp = H5Gcreate2(fid, "group", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(grp, FAIL, "H5Gcreate2");
+
+    /* Putting a comment on the group */
+    ret = H5Oset_comment_by_name(fid, "group", grp_comment, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oset_comment_by_name");
+
+    /* Commit the type inside the group */
+    dtype = H5Tcopy(H5T_NATIVE_INT);
+    CHECK(dtype, FAIL, "H5Tcopy");
+    ret = H5Tcommit2(fid, "group/datatype", dtype, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Tcommit2");
+
+    /* Putting a comment on the committed data type */
+    ret = H5Oset_comment_by_name(grp, "datatype", dtype_comment, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oset_comment_by_name");
+
+    ret = H5Tclose(dtype);
+    CHECK(ret, FAIL, "H5Tclose");
+
+    ret = H5Gclose(grp);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Create the data space for the dataset. */
+    dims[0] = DIM0;
+    dims[1] = DIM1;
+    dspace = H5Screate_simple(RANK, dims, NULL);
+    CHECK(dspace, FAIL, "H5Screate_simple");
+
+    /* Create the dataset. */
+    dset = H5Dcreate2(fid, "dataset", H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(dset, FAIL, "H5Dcreate2");
+
+    /* Putting a comment on the dataset */
+    ret = H5Oset_comment_by_name(fid, "dataset", dset_comment, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oset_comment_by_name");
+
+    /* Putting a comment on the dataspace.  It's supposed to fail. */
+    H5E_BEGIN_TRY {
+        ret = H5Oset_comment_by_name(dspace, ".", "dataspace comment", H5P_DEFAULT);
+    } H5E_END_TRY;
+    VERIFY(ret, FAIL, "H5Oset_comment");
+
+    /* Close the file */
+    ret = H5Dclose(dset);
+    CHECK(ret, FAIL, "H5Dclose");
+    ret = H5Sclose(dspace);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Now make sure that the comments are correct all 4 types of objects */
+    /* Open file */
+    fid = H5Fopen(TEST_FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);
+    CHECK(fid, FAIL, "H5Fopen");
+
+    /* Getting the comment on the file and verify it */
+    comment_len = H5Oget_comment_by_name(fid, ".", NULL, (size_t)0, H5P_DEFAULT);
+    CHECK(comment_len, FAIL, "H5Oget_comment_by_name");
+
+    ret = H5Oget_comment_by_name(fid, ".", check_comment, (size_t)comment_len+1, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_comment_by_name");
+
+    ret_value = HDstrcmp(file_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment_by_name");
+
+    /* Open the group */
+    grp = H5Gopen2(fid, "group", H5P_DEFAULT);
+    CHECK(grp, FAIL, "H5Gopen2");
+
+    /* Getting the comment on the group and verify it */
+    comment_len = H5Oget_comment_by_name(fid, "group", NULL, (size_t)0, H5P_DEFAULT);
+    CHECK(comment_len, FAIL, "H5Oget_comment_by_name");
+
+    ret = H5Oget_comment_by_name(fid, "group", check_comment, (size_t)comment_len+1, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_comment_by_name");
+
+    ret_value = HDstrcmp(grp_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment_by_name");
+
+    /* Getting the comment on the datatype and verify it */
+    comment_len = H5Oget_comment_by_name(grp, "datatype", NULL, (size_t)0, H5P_DEFAULT);
+    CHECK(comment_len, FAIL, "H5Oget_comment_by_name");
+
+    ret = H5Oget_comment_by_name(grp, "datatype", check_comment, (size_t)comment_len+1, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_comment");
+
+    ret_value = HDstrcmp(dtype_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment_by_name");
+
+    /* Getting the comment on the dataset and verify it */
+    comment_len = H5Oget_comment_by_name(fid, "dataset", NULL, (size_t)0, H5P_DEFAULT);
+    CHECK(comment_len, FAIL, "H5Oget_comment_by_name");
+
+    ret = H5Oget_comment_by_name(fid, "dataset", check_comment, (size_t)comment_len+1, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_comment_by_name");
+
+    ret_value = HDstrcmp(dset_comment, check_comment);
+    VERIFY(ret_value, 0, "H5Oget_comment_by_name");
+
+    /* Close the IDs */
+    ret = H5Gclose(grp);
+    CHECK(ret, FAIL, "H5Gclose");
+
+    /* Close the file */
+    ret = H5Fclose(fid);
+    CHECK(ret, FAIL, "H5Fclose");
+
+} /* test_h5o_comment_by_name() */
+
+
+/****************************************************************
+**
+**  test_h5o_getinfo_same_file():  Test that querying the object info for
+**      objects in the same file will return the same file "number"
+**
+****************************************************************/
+static void
+test_h5o_getinfo_same_file(void)
+{
+    hid_t       fid1, fid2;             /* HDF5 File ID */
+    hid_t       gid1, gid2;             /* Group IDs */
+    H5O_info_t	oinfo1, oinfo2;         /* Object info structs */
+    herr_t      ret;                    /* Value returned from API calls */
+
+    /* Create a new HDF5 file */
+    fid1 = H5Fcreate(TEST_FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fcreate");
+
+    /* Create two groups in the file */
+    gid1 = H5Gcreate2(fid1, "group1", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(gid1, FAIL, "H5Gcreate2");
+    gid2 = H5Gcreate2(fid1, "group2", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(gid2, FAIL, "H5Gcreate2");
+
+    /* Reset object info */
+    HDmemset(&oinfo1, 0, sizeof(oinfo1));
+    HDmemset(&oinfo2, 0, sizeof(oinfo2));
+
+    /* Query the object info for each object, through group IDs */
+    ret = H5Oget_info(gid1, &oinfo1);
+    CHECK(ret, FAIL, "H5Oget_info");
+    ret = H5Oget_info(gid2, &oinfo2);
+    CHECK(ret, FAIL, "H5Oget_info");
+
+    VERIFY(oinfo1.fileno, oinfo2.fileno, "file number from H5Oget_info");
+
+    /* Reset object info */
+    HDmemset(&oinfo1, 0, sizeof(oinfo1));
+    HDmemset(&oinfo2, 0, sizeof(oinfo2));
+
+    /* Query the object info for each object, by name */
+    ret = H5Oget_info_by_name(fid1, "group1", &oinfo1, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_info_by_name");
+    ret = H5Oget_info_by_name(fid1, "group2", &oinfo2, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_info_by_name");
+
+    VERIFY(oinfo1.fileno, oinfo2.fileno, "file number from H5Oget_info");
+
+    /* Close everything */
+    ret = H5Gclose(gid1);
+    CHECK(ret, FAIL, "H5Gclose");
+    ret = H5Gclose(gid2);
+    CHECK(ret, FAIL, "H5Gclose");
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+
+
+    /* Open file twice */
+    fid1 = H5Fopen(TEST_FILENAME, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid1, FAIL, "H5Fopen");
+    fid2 = H5Fopen(TEST_FILENAME, H5F_ACC_RDWR, H5P_DEFAULT);
+    CHECK(fid2, FAIL, "H5Fopen");
+
+    /* Open the two groups in the file */
+    gid1 = H5Gopen2(fid1, "group1", H5P_DEFAULT);
+    CHECK(gid1, FAIL, "H5Gopen2");
+    gid2 = H5Gopen2(fid2, "group2", H5P_DEFAULT);
+    CHECK(gid2, FAIL, "H5Gopen2");
+
+    /* Reset object info */
+    HDmemset(&oinfo1, 0, sizeof(oinfo1));
+    HDmemset(&oinfo2, 0, sizeof(oinfo2));
+
+    /* Query the object info for each object, through group IDs */
+    ret = H5Oget_info(gid1, &oinfo1);
+    CHECK(ret, FAIL, "H5Oget_info");
+    ret = H5Oget_info(gid2, &oinfo2);
+    CHECK(ret, FAIL, "H5Oget_info");
+
+    VERIFY(oinfo1.fileno, oinfo2.fileno, "file number from H5Oget_info");
+
+    /* Reset object info */
+    HDmemset(&oinfo1, 0, sizeof(oinfo1));
+    HDmemset(&oinfo2, 0, sizeof(oinfo2));
+
+    /* Query the object info for each object, by name */
+    ret = H5Oget_info_by_name(fid1, "group1", &oinfo1, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_info_by_name");
+    ret = H5Oget_info_by_name(fid1, "group2", &oinfo2, H5P_DEFAULT);
+    CHECK(ret, FAIL, "H5Oget_info_by_name");
+
+    VERIFY(oinfo1.fileno, oinfo2.fileno, "file number from H5Oget_info");
+
+    /* Close everything */
+    ret = H5Gclose(gid1);
+    CHECK(ret, FAIL, "H5Gclose");
+    ret = H5Gclose(gid2);
+    CHECK(ret, FAIL, "H5Gclose");
+    ret = H5Fclose(fid1);
+    CHECK(ret, FAIL, "H5Fclose");
+    ret = H5Fclose(fid2);
+    CHECK(ret, FAIL, "H5Fclose");
+
+} /* test_h5o_getinfo_same_file() */
+
+
+/****************************************************************
+**
 **  test_h5o(): Main H5O (generic object) testing routine.
 **
 ****************************************************************/
@@ -913,6 +1349,11 @@ test_h5o(void)
     test_h5o_refcount();        /* Test incrementing and decrementing reference count */
     test_h5o_plist();           /* Test object creation properties */
     test_h5o_link();            /* Test object link routine */
+    test_h5o_comment();         /* Test routines for comment */
+    test_h5o_comment_by_name(); /* Test routines for comment by name */
+#ifndef  H5_CANNOT_OPEN_TWICE   /* OpenVMS can't open a file twice */
+    test_h5o_getinfo_same_file(); /* Test info for objects in the same file */
+#endif /* H5_CANNOT_OPEN_TWICE */
 } /* test_h5o() */
 
 

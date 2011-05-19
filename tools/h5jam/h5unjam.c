@@ -13,15 +13,6 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-
-#ifdef H5_HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 #include "hdf5.h"
 #include "H5private.h"
 #include "h5tools_utils.h"
@@ -177,7 +168,7 @@ main(int argc, const char *argv[])
     herr_t status;
     hid_t plist;
     int res;
-    struct stat sbuf;
+    h5_stat_t sbuf;
 
     h5tools_setprogname(PROGRAMNAME);
     h5tools_setstatus(EXIT_SUCCESS);
@@ -221,21 +212,19 @@ main(int argc, const char *argv[])
 
     }
 
-    res = stat(input_file, &sbuf);
+    ifid = HDopen(input_file,O_RDONLY,0);
+    if(ifid < 0) {
+        error_msg("unable to open input HDF5 file \"%s\"\n", input_file);
+        exit(EXIT_FAILURE);
+    }
 
-    if (res < 0) {
+    res = HDfstat(ifid, &sbuf);
+    if(res < 0) {
         error_msg("Can't stat file \"%s\"\n", input_file);
         exit(EXIT_FAILURE);
     }
 
     fsize = sbuf.st_size;
-
-    ifid = HDopen(input_file,O_RDONLY,0);
-
-    if (ifid < 0) {
-        error_msg("unable to open input HDF5 file \"%s\"\n", input_file);
-        exit(EXIT_FAILURE);
-    }
 
     if (do_delete && (ub_file != NULL)) {
             error_msg("??\"%s\"\n", ub_file);

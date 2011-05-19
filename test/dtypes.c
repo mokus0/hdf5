@@ -23,6 +23,7 @@
 #include <math.h>
 #include <time.h>
 #include "h5test.h"
+#include "H5srcdir.h"
 #include "H5Iprivate.h"     /* For checking that datatype id's don't leak */
 
 /* Number of elements in each test */
@@ -80,6 +81,8 @@ const char *FILENAME[] = {
     "dtypes8",
     NULL
 };
+
+#define TESTFILE   "bad_compound.h5"
 
 typedef struct complex_t {
     double                  re;
@@ -3127,6 +3130,136 @@ error:
 
 
 /*-------------------------------------------------------------------------
+ * Function:    test_compound_18
+ *
+ * Purpose:     Tests that library fails correctly when opening a dataset
+ *              a compound datatype with zero fields.
+ *
+ * Return:      Success:        0
+ *              Failure:        number of errors
+ *
+ * Programmer:  Quincey Koziol
+ *              Thursday, April 14, 2011
+ *
+ *-------------------------------------------------------------------------
+ */
+static int
+test_compound_18(void)
+{
+    hid_t       file = -1;
+    hid_t       gid = -1;
+    hid_t       did = -1;
+    hid_t       aid = -1;
+    hid_t       tid = -1;
+    hid_t       sid = -1;
+    hsize_t     dim = 1;
+    const char *testfile = H5_get_srcdir_filename(TESTFILE); /* Corrected test file name */
+    char        filename[1024];
+    herr_t      ret;
+
+    TESTING("accessing objects with compound datatypes that have no fields");
+
+    /* Create compound datatype, but don't insert fields */
+    tid = H5Tcreate(H5T_COMPOUND, (size_t)8);
+    assert(tid > 0);
+
+    /* Attempt to create file with compound datatype that has no fields */
+    /* Create File */
+    h5_fixname(FILENAME[3], H5P_DEFAULT, filename, sizeof filename);
+    if((file = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
+
+    /* Create a dataspace to use */
+    sid = H5Screate_simple(1, &dim, NULL);
+    assert(sid > 0);
+
+    /* Create a dataset with the bad compound datatype */
+    H5E_BEGIN_TRY {
+        did = H5Dcreate2(file, "dataset", tid, sid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(did > 0) {
+        H5Dclose(did);
+        FAIL_PUTS_ERROR("created dataset with bad compound datatype")
+    } /* end if */
+
+    /* Create a group */
+    gid = H5Gcreate2(file, "group", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    assert(gid > 0);
+
+    /* Create an attribute with the bad compound datatype */
+    H5E_BEGIN_TRY {
+        aid = H5Acreate2(gid, "attr", tid, sid, H5P_DEFAULT, H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(aid > 0) {
+        H5Aclose(aid);
+        FAIL_PUTS_ERROR("created attribute with bad compound datatype")
+    } /* end if */
+
+    /* Commit the datatype */ 
+    H5E_BEGIN_TRY {
+        ret = H5Tcommit2(file, "cmpnd", tid, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(ret >= 0) {
+        FAIL_PUTS_ERROR("committed named datatype with bad compound datatype")
+    } /* end if */
+
+    /* Close IDs */
+    if(H5Tclose(tid) < 0) FAIL_STACK_ERROR
+    if(H5Sclose(sid) < 0) FAIL_STACK_ERROR
+    if(H5Gclose(gid) < 0) FAIL_STACK_ERROR
+    if(H5Fclose(file) < 0) FAIL_STACK_ERROR
+
+
+    /* Open Generated File */
+    /* (generated with gen_bad_compound.c) */
+#ifdef H5_VMS
+    if((file = H5Fopen(TESTFILE, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
+#else
+    if((file = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT)) < 0) FAIL_STACK_ERROR
+#endif
+
+    /* Try to open the datatype */
+    H5E_BEGIN_TRY {
+        tid = H5Topen2(file, "cmpnd", H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(tid > 0) {
+        H5Tclose(tid);
+        FAIL_PUTS_ERROR("opened named datatype with bad compound datatype")
+    } /* end if */
+
+    /* Try to open the dataset */
+    H5E_BEGIN_TRY {
+        did = H5Dopen2(file, "dataset", H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(did > 0) {
+        H5Dclose(did);
+        FAIL_PUTS_ERROR("opened dataset with bad compound datatype")
+    } /* end if */
+
+    /* Open the group with the attribute */
+    if((gid = H5Gopen2(file, "group", H5P_DEFAULT)) < 0) TEST_ERROR
+
+    /* Try to open the dataset */
+    H5E_BEGIN_TRY {
+        aid = H5Aopen(gid, "attr", H5P_DEFAULT);
+    } H5E_END_TRY;
+    if(aid > 0) {
+        H5Aclose(aid);
+        FAIL_PUTS_ERROR("opened attribute with bad compound datatype")
+    } /* end if */
+
+    /* Close IDs */
+    if(H5Gclose(gid) < 0) FAIL_STACK_ERROR
+    if(H5Fclose(file) < 0) FAIL_STACK_ERROR
+
+    PASSED();
+    return 0;
+
+error:
+    return 1;
+} /* end test_compound_18() */
+
+
+/*-------------------------------------------------------------------------
  * Function:    test_query
  *
  * Purpose:     Tests query functions of compound and enumeration types.
@@ -4901,6 +5034,10 @@ opaque_funcs(void)
  * Modifications: Raymond Lu
  *              July 13, 2009
  *              Added the test for VL string types.
+ *
+ *              Raymond Lu
+ *              17 February 2011
+ *              I added the test of reference count for decoded datatypes.
  *-------------------------------------------------------------------------
  */
 static int
@@ -5329,6 +5466,78 @@ test_encode(void)
     } /* end if */
 
     /*-----------------------------------------------------------------------
+     * Test the reference count of the decoded datatypes
+     *-----------------------------------------------------------------------
+     */
+
+    /* Make sure the reference counts for the decoded datatypes are one. */
+    if(H5Iget_ref(decoded_tid1) != 1) { 
+        H5_FAILED();
+        printf("Decoded datatype has incorrect reference count\n");
+        goto error;
+    } /* end if */
+
+    if(H5Iget_ref(decoded_tid2) != 1) { 
+        H5_FAILED();
+        printf("Decoded datatype has incorrect reference count\n");
+        goto error;
+    } /* end if */
+
+    if(H5Iget_ref(decoded_tid3) != 1) { 
+        H5_FAILED();
+        printf("Decoded datatype has incorrect reference count\n");
+        goto error;
+    } /* end if */
+
+    /* Make sure the reference counts for the decoded datatypes can be 
+     * decremented and the datatypes are closed. */
+    if(H5Idec_ref(decoded_tid1) != 0) { 
+        H5_FAILED();
+        printf("Decoded datatype can't close\n");
+        goto error;
+    } /* end if */
+
+    if(H5Idec_ref(decoded_tid2) != 0) { 
+        H5_FAILED();
+        printf("Decoded datatype can't close\n");
+        goto error;
+    } /* end if */
+
+    if(H5Idec_ref(decoded_tid3) != 0) { 
+        H5_FAILED();
+        printf("Decoded datatype can't close\n");
+        goto error;
+    } /* end if */
+
+    /* Make sure the decoded datatypes are already closed. */
+    H5E_BEGIN_TRY {
+	ret = H5Tclose(decoded_tid1);
+    } H5E_END_TRY;
+    if(ret!=FAIL) {
+        H5_FAILED();
+        printf("Decoded datatype should have been closed\n");
+        goto error;
+    }
+
+    H5E_BEGIN_TRY {
+	ret = H5Tclose(decoded_tid2);
+    } H5E_END_TRY;
+    if(ret!=FAIL) {
+        H5_FAILED();
+        printf("Decoded datatype should have been closed\n");
+        goto error;
+    }
+
+    H5E_BEGIN_TRY {
+	ret = H5Tclose(decoded_tid3);
+    } H5E_END_TRY;
+    if(ret!=FAIL) {
+        H5_FAILED();
+        printf("Decoded datatype should have been closed\n");
+        goto error;
+    }
+
+    /*-----------------------------------------------------------------------
      * Close and release
      *-----------------------------------------------------------------------
      */
@@ -5344,22 +5553,6 @@ test_encode(void)
         goto error;
     } /* end if */
     if(H5Tclose(tid3) < 0) {
-        H5_FAILED();
-        printf("Can't close datatype\n");
-        goto error;
-    } /* end if */
-
-    if(H5Tclose(decoded_tid1) < 0) {
-        H5_FAILED();
-        printf("Can't close datatype\n");
-        goto error;
-    } /* end if */
-    if(H5Tclose(decoded_tid2) < 0) {
-        H5_FAILED();
-        printf("Can't close datatype\n");
-        goto error;
-    } /* end if */
-    if(H5Tclose(decoded_tid3) < 0) {
         H5_FAILED();
         printf("Can't close datatype\n");
         goto error;
@@ -6473,6 +6666,7 @@ main(void)
     nerrors += test_compound_15();
     nerrors += test_compound_16();
     nerrors += test_compound_17();
+    nerrors += test_compound_18();
     nerrors += test_conv_enum_1();
     nerrors += test_conv_enum_2();
     nerrors += test_conv_bitfield();

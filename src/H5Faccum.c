@@ -364,7 +364,7 @@ H5F_accum_adjust(H5F_meta_accum_t *accum, H5FD_t *lf, hid_t dxpl_id,
 
             /* Trim the accumulator's use of its buffer */
             accum->size = remnant_size;
-
+            
             /* When appending, need to adjust location of accumulator */
             if (H5F_ACCUM_APPEND == adjust) {
                 /* Move remnant of accumulator down */

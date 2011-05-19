@@ -2807,6 +2807,11 @@ done:
  *              slu@ncsa.uiuc.edu
  *              July 14, 2004
  *
+ * Modification:Raymond Lu
+ *              songyulu@hdfgroup.org
+ *              17 February 2011
+ *              I changed the value for the APP_REF parameter of H5I_register
+ *              from FALSE to TRUE. 
  *-------------------------------------------------------------------------
  */
 hid_t
@@ -2827,7 +2832,7 @@ H5Tdecode(const void *buf)
 	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTDECODE, FAIL, "can't decode object")
 
     /* Register the type and return the ID */
-    if((ret_value = H5I_register(H5I_DATATYPE, dt, FALSE)) < 0)
+    if((ret_value = H5I_register(H5I_DATATYPE, dt, TRUE)) < 0)
 	HGOTO_ERROR(H5E_DATATYPE, H5E_CANTREGISTER, FAIL, "unable to register data type")
 
 done:
@@ -3589,6 +3594,11 @@ H5T_close(H5T_t *dt)
                 if(H5O_close(&dt->oloc) < 0)
                     HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "unable to close")
             } /* end if */
+            else
+                /* Free object location (i.e. "unhold" the file if appropriate)
+                 */
+                if(H5O_loc_free(&(dt->oloc)) < 0)
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTRELEASE, FAIL, "problem attempting to free location")
         } /* end if */
 
         /* Free the group hier. path since we're not calling H5T_free*/

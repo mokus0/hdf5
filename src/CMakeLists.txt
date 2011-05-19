@@ -114,6 +114,7 @@ SET (H5F_SRCS
     ${HDF5_SRC_DIR}/H5F.c
     ${HDF5_SRC_DIR}/H5Faccum.c
     ${HDF5_SRC_DIR}/H5Fdbg.c
+    ${HDF5_SRC_DIR}/H5Fefc.c
     ${HDF5_SRC_DIR}/H5Ffake.c
     ${HDF5_SRC_DIR}/H5Fio.c
     ${HDF5_SRC_DIR}/H5Fmount.c
@@ -508,10 +509,10 @@ SET (H5_PUBLIC_HEADERS
 # --------------------------------------------------------------------
 # If we are compiling on Windows then add the windows specific files
 # --------------------------------------------------------------------
-IF (WIN32)
+IF (WIN32 AND NOT CYGWIN)
   SET (common_SRCS  ${common_SRCS}  ${HDF5_SRC_DIR}/H5FDwindows.c)
   SET (H5_PUBLIC_HEADERS ${H5_PUBLIC_HEADERS}  ${HDF5_SRC_DIR}/H5FDwindows.h)
-ENDIF (WIN32)
+ENDIF (WIN32 AND NOT CYGWIN)
 
 SET (H5_PRIVATE_HEADERS
     ${HDF5_SRC_DIR}/H5private.h

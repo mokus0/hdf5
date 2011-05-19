@@ -1713,7 +1713,7 @@ done:
  * Function:    H5AC_dump_cache
  *
  * Purpose:     Dumps a summary of the contents of the metadata cache
- *		to stdout.
+ *              to stdout.
  *
  * Return:      Non-negative on success/Negative on failure
  *
@@ -1725,7 +1725,7 @@ done:
 herr_t
 H5AC_dump_cache(const H5F_t *f)
 {
-    herr_t		ret_value = SUCCEED;   /* Return value */
+    herr_t              ret_value = SUCCEED;   /* Return value */
 
     FUNC_ENTER_NOAPI(H5AC_dump_cache, FAIL)
 
@@ -2385,7 +2385,9 @@ H5AC_open_trace_file(H5AC_t * cache_ptr,
 
 #else /* H5_HAVE_PARALLEL */
 
-    sprintf(file_name, "%s", trace_file_name);
+    HDsnprintf(file_name, 
+               (size_t)(H5AC__MAX_TRACE_FILE_NAME_LEN + H5C__PREFIX_LEN + 1), 
+               "%s", trace_file_name);
 
 #endif /* H5_HAVE_PARALLEL */
 

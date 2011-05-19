@@ -789,7 +789,7 @@ H5D_update_oh_info(H5F_t *file, hid_t dxpl_id, H5D_t *dset, hid_t dapl_id)
         ohdr_size += layout->storage.u.compact.size;
 
     /* Create an object header for the dataset */
-    if(H5O_create(file, dxpl_id, ohdr_size, dset->shared->dcpl_id, oloc/*out*/) < 0)
+    if(H5O_create(file, dxpl_id, ohdr_size, (size_t)1, dset->shared->dcpl_id, oloc/*out*/) < 0)
         HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to create dataset object header")
     HDassert(file == dset->oloc.file);
 
@@ -1063,6 +1063,8 @@ done:
             if(new_dset->shared->type && H5I_dec_ref(new_dset->shared->type_id) < 0)
                 HDONE_ERROR(H5E_DATASET, H5E_CLOSEERROR, NULL, "unable to release datatype")
             if(H5F_addr_defined(new_dset->oloc.addr)) {
+                if(H5O_dec_rc_by_loc(&(new_dset->oloc), dxpl_id) < 0)
+                    HDONE_ERROR(H5E_DATASET, H5E_CANTDEC, NULL, "unable to decrement refcount on newly created object")
                 if(H5O_close(&(new_dset->oloc)) < 0)
                     HDONE_ERROR(H5E_DATASET, H5E_CLOSEERROR, NULL, "unable to release object header")
                 if(file) {
@@ -1455,9 +1457,14 @@ H5D_close(H5D_t *dataset)
             HGOTO_ERROR(H5E_DATASET, H5E_CANTRELEASE, FAIL, "can't decrement count for object")
 
         /* Check reference count for this object in the top file */
-        if(H5FO_top_count(dataset->oloc.file, dataset->oloc.addr) == 0)
+        if(H5FO_top_count(dataset->oloc.file, dataset->oloc.addr) == 0) {
             if(H5O_close(&(dataset->oloc)) < 0)
                 HGOTO_ERROR(H5E_DATASET, H5E_CANTINIT, FAIL, "unable to close")
+        } /* end if */
+        else
+            /* Free object location (i.e. "unhold" the file if appropriate) */
+            if(H5O_loc_free(&(dataset->oloc)) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTRELEASE, FAIL, "problem attempting to free location")
     } /* end else */
 
    /* Release the dataset's path info */
@@ -1626,16 +1633,23 @@ H5D_alloc_storage(H5D_t *dset/*in,out*/, hid_t dxpl_id, H5D_time_alloc_t time_al
             case H5D_COMPACT:
                 /* Check if space is already allocated */
                 if(NULL == layout->storage.u.compact.buf) {
-                    /* Reserve space in layout header message for the entire array. */
-                    HDassert(layout->storage.u.compact.size > 0);
-                    if(NULL == (layout->storage.u.compact.buf = H5MM_malloc(layout->storage.u.compact.size)))
-                        HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate memory for compact dataset")
-                    if(!full_overwrite)
-                        HDmemset(layout->storage.u.compact.buf, 0, layout->storage.u.compact.size);
-                    layout->storage.u.compact.dirty = TRUE;
+                    /* Reserve space in layout header message for the entire array. 
+                     * Starting from the 1.8.7 release, we allow dataspace to have 
+                     * zero dimension size.  So the storage size can be zero.
+                     * SLU 2011/4/4 */
+                    if(layout->storage.u.compact.size > 0) {
+                        if(NULL == (layout->storage.u.compact.buf = H5MM_malloc(layout->storage.u.compact.size)))
+                            HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "unable to allocate memory for compact dataset")
+                        if(!full_overwrite)
+                            HDmemset(layout->storage.u.compact.buf, 0, layout->storage.u.compact.size);
+                        layout->storage.u.compact.dirty = TRUE;
 
-                    /* Indicate that we should initialize storage space */
-                    must_init_space = TRUE;
+                        /* Indicate that we should initialize storage space */
+                        must_init_space = TRUE;
+                    } else {
+                        layout->storage.u.compact.dirty = FALSE;
+                        must_init_space = FALSE;
+                    }
                 } /* end if */
                 break;
 
@@ -1689,7 +1703,9 @@ H5D_alloc_storage(H5D_t *dset/*in,out*/, hid_t dxpl_id, H5D_time_alloc_t time_al
          *      operation just sets the address and makes it constant)
          */
         if(time_alloc != H5D_ALLOC_CREATE && addr_set)
-            dset->shared->layout_dirty = TRUE;
+            /* Mark the layout as dirty, for later writing to the file */
+            if(H5D_mark(dset, dxpl_id, H5D_MARK_LAYOUT) < 0)
+                HGOTO_ERROR(H5E_DATASET, H5E_CANTSET, FAIL, "unable to mark dataspace as dirty")
     } /* end if */
 
 done:
@@ -2195,7 +2211,8 @@ H5D_set_extent(H5D_t *dset, const hsize_t *size, hid_t dxpl_id)
         } /* end if */
 
         /* Mark the dataspace as dirty, for later writing to the file */
-        dset->shared->space_dirty = TRUE;
+        if(H5D_mark(dset, dxpl_id, H5D_MARK_SPACE) < 0)
+            HGOTO_ERROR(H5E_DATASET, H5E_CANTSET, FAIL, "unable to mark dataspace as dirty")
     } /* end if */
 
 done:
@@ -2313,6 +2330,41 @@ done:
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5D_flush_real() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5D_mark
+ *
+ * Purpose:     Mark some aspect of a dataset as dirty
+ *
+ * Return:	Success:	Non-negative
+ *		Failure:	Negative
+ *
+ * Programmer:  Quincey Koziol
+ *              July 4, 2008
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5D_mark(H5D_t *dataset, hid_t dxpl_id, unsigned flags)
+{
+    herr_t ret_value = SUCCEED;         /* Return value */
+
+    FUNC_ENTER_NOAPI_NOINIT(H5D_mark)
+
+    /* Check args */
+    HDassert(dataset);
+    HDassert(!(flags & (unsigned)~(H5D_MARK_SPACE | H5D_MARK_LAYOUT)));
+
+    /* Mark aspects of the dataset as dirty */
+    if(flags & H5D_MARK_SPACE)
+        dataset->shared->space_dirty = TRUE;
+    if(flags & H5D_MARK_LAYOUT)
+        dataset->shared->layout_dirty = TRUE;
+
+done:
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5D_mark() */
 
 
 /*-------------------------------------------------------------------------

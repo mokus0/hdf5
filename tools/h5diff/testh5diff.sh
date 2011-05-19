@@ -68,6 +68,11 @@ EXCLUDE_FILE1_2=h5diff_exclude1-2.h5
 # different structure and obj names
 EXCLUDE_FILE2_1=h5diff_exclude2-1.h5
 EXCLUDE_FILE2_2=h5diff_exclude2-2.h5
+# compound type with multiple vlen string types
+COMP_VL_STRS_FILE=h5diff_comp_vl_strs.h5
+
+ATTR_VERBOSE_LEVEL_FILE1=h5diff_attr_v_level1.h5
+ATTR_VERBOSE_LEVEL_FILE2=h5diff_attr_v_level2.h5
 
 TESTNAME=h5diff
 EXIT_SUCCESS=0
@@ -182,10 +187,19 @@ STDOUT_FILTER() {
 #    ERROR: 0031-250  task 3: Terminated
 #    ERROR: 0031-250  task 2: Terminated
 #    ERROR: 0031-250  task 1: Terminated
+# 5. LLNL Blue-Gene mpirun prints messages like there when it exit non-zero:
+#    <Apr 12 15:01:49.075658> BE_MPI (ERROR): The error message in the job record is as follows:
+#    <Apr 12 15:01:49.075736> BE_MPI (ERROR):   "killed by exit(1) on node 0"
+
 
 STDERR_FILTER() {
     result_file=$1
     tmp_file=/tmp/h5test_tmp_$$
+    # Filter LLNL Blue-Gene error messages in both serial and parallel modes
+    # since mpirun is used in both modes.
+    cp $result_file $tmp_file
+    sed -e '/ BE_MPI (ERROR): /d' \
+	< $tmp_file > $result_file
     # Filter MPE messages
     if test -n "$pmode"; then
 	cp $result_file $tmp_file
@@ -543,10 +557,41 @@ TOOLTEST h5diff_628.txt -n 1 $FILE1 $FILE2 g1/dset3 g1/dset4
 # 6.29  non valid files
 #TOOLTEST h5diff_629.txt file1.h6 file2.h6
 
+
 # ##############################################################################
 # 7.  attributes
 # ##############################################################################
 TOOLTEST h5diff_70.txt -v $FILE5 $FILE6 
+
+# ##################################################
+#  attrs with verbose option level
+# ##################################################
+
+TOOLTEST h5diff_700.txt -v1 $FILE5 $FILE6 
+TOOLTEST h5diff_701.txt -v2 $FILE5 $FILE6 
+TOOLTEST h5diff_702.txt --verbose=1 $FILE5 $FILE6 
+TOOLTEST h5diff_703.txt --verbose=2 $FILE5 $FILE6 
+
+# same attr number , all same attr name
+TOOLTEST h5diff_704.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2 /g
+
+# same attr number , some same attr name
+TOOLTEST h5diff_705.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2 /dset
+
+# same attr number , all different attr name
+TOOLTEST h5diff_706.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2 /ntype
+
+# different attr number , same attr name (intersected)
+TOOLTEST h5diff_707.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2 /g2
+
+# different attr number , all different attr name 
+TOOLTEST h5diff_708.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2 /g3
+
+# when no attributes exist in both objects
+TOOLTEST h5diff_709.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2 /g4
+
+# file vs file
+TOOLTEST h5diff_710.txt -v2 $ATTR_VERBOSE_LEVEL_FILE1 $ATTR_VERBOSE_LEVEL_FILE2
 
 # ##############################################################################
 # 8.  all dataset datatypes
@@ -565,9 +610,17 @@ else
 fi
 
 # 11. floating point comparison
+# double value
 TOOLTEST h5diff_101.txt -v $FILE1 $FILE1 g1/d1  g1/d2 
 
+# float value
 TOOLTEST h5diff_102.txt -v $FILE1 $FILE1 g1/fp1 g1/fp2 
+
+# with --use-system-epsilon for double value 
+TOOLTEST h5diff_103.txt -v --use-system-epsilon $FILE1 $FILE1 g1/d1  g1/d2 
+
+# with --use-system-epsilon for float value
+TOOLTEST h5diff_104.txt -v --use-system-epsilon $FILE1 $FILE1 g1/fp1 g1/fp2 
 
 
 # not comparable -c flag
@@ -779,8 +832,12 @@ TOOLTEST h5diff_482.txt -v --exclude-path "/group1" --exclude-path "/dset1" $EXC
 TOOLTEST h5diff_483.txt -v --exclude-path "/group1" $EXCLUDE_FILE2_1 $EXCLUDE_FILE2_2
 
 # Exclude from group compare
-TOOLTEST h5diff_484.txt -v --exclude-path "/dset3" h5diff_exclude1-1.h5 h5diff_exclude1-2.h5 /group1
+TOOLTEST h5diff_484.txt -v --exclude-path "/dset3" $EXCLUDE_FILE1_1 $EXCLUDE_FILE1_2 /group1
 
+# ##############################################################################
+# # diff various multiple vlen and fixed strings in a compound type dataset
+# ##############################################################################
+TOOLTEST h5diff_530.txt -v  $COMP_VL_STRS_FILE $COMP_VL_STRS_FILE
 
 # ##############################################################################
 # # END

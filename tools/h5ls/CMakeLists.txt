@@ -11,8 +11,7 @@ INCLUDE_DIRECTORIES (${HDF5_PROJECT_DIR}/test)
 # Add the h5ls executable
 #-----------------------------------------------------------------------------
 ADD_EXECUTABLE (h5ls ${HDF5_TOOLS_H5LS_SOURCE_DIR}/h5ls.c)
-H5_NAMING (h5ls)
-TARGET_WIN_PROPERTIES (h5ls)
+TARGET_NAMING (h5ls ${LIB_TYPE})
 TARGET_LINK_LIBRARIES (h5ls  ${HDF5_TOOLS_LIB_TARGET} ${HDF5_LIB_TARGET})
 
 SET (H5_DEP_EXECUTABLES
@@ -63,6 +62,7 @@ IF (BUILD_TESTING)
       tsoftlinks-5.ls
       textlinksrc-nodangle-1.ls
       textlinksrc-nodangle-2.ls
+      tgrp_comments.ls
       tsoftlinks-nodangle-1.ls
       thlinks-nodangle-1.ls
       tgroup.ls
@@ -72,6 +72,9 @@ IF (BUILD_TESTING)
       thlink-1.ls
       tloop-1.ls
       tnestcomp-1.ls
+      tnestcomp-2.ls
+      tnestcomp-3.ls
+      tnestcomp-4.ls
       tsaf.ls
       tslink-1.ls
       tstr-1.ls
@@ -92,6 +95,7 @@ IF (BUILD_TESTING)
       textlinksrc.h5
       textlinktar.h5
       tgroup.h5
+      tgrp_comments.h5
       thlink.h5
       tloop.h5
       tnestedcomp.h5
@@ -132,17 +136,29 @@ IF (BUILD_TESTING)
 ##############################################################################
 
   MACRO (ADD_H5_TEST resultfile resultcode)
-    ADD_TEST (
-        NAME H5LS-${resultfile}
-        COMMAND "${CMAKE_COMMAND}"
-            -D "TEST_PROGRAM=$<TARGET_FILE:h5ls>"
-            -D "TEST_ARGS=${ARGN}"
-            -D "TEST_FOLDER=${PROJECT_BINARY_DIR}"
-            -D "TEST_OUTPUT=${resultfile}.out"
-            -D "TEST_EXPECT=${resultcode}"
-            -D "TEST_REFERENCE=${resultfile}.ls"
-            -P "${HDF5_RESOURCES_DIR}/runTest.cmake"
-    )
+    # If using memchecker add tests without using scripts
+    IF (HDF5_ENABLE_USING_MEMCHECKER)
+      ADD_TEST (NAME H5LS-${resultfile} COMMAND $<TARGET_FILE:h5ls> ${ARGN})
+      IF (${resultcode} STREQUAL "1")
+        SET_TESTS_PROPERTIES (H5LS-${resultfile} PROPERTIES WILL_FAIL "true")
+      ENDIF (${resultcode} STREQUAL "1")
+    ELSE (HDF5_ENABLE_USING_MEMCHECKER)
+      ADD_TEST (
+          NAME H5LS-${resultfile}
+          COMMAND "${CMAKE_COMMAND}"
+              -D "TEST_PROGRAM=$<TARGET_FILE:h5ls>"
+              -D "TEST_ARGS=${ARGN}"
+              -D "TEST_FOLDER=${PROJECT_BINARY_DIR}"
+              -D "TEST_OUTPUT=${resultfile}.out"
+              -D "TEST_EXPECT=${resultcode}"
+              -D "TEST_REFERENCE=${resultfile}.ls"
+              -P "${HDF5_RESOURCES_DIR}/runTest.cmake"
+      )
+    ENDIF (HDF5_ENABLE_USING_MEMCHECKER)
+    IF (NOT "${last_test}" STREQUAL "")
+      SET_TESTS_PROPERTIES (H5LS-${resultfile} PROPERTIES DEPENDS ${last_test})
+    ENDIF (NOT "${last_test}" STREQUAL "")
+    SET (last_test "H5LS-${resultfile}")
   ENDMACRO (ADD_H5_TEST file)
 
 ##############################################################################
@@ -150,6 +166,123 @@ IF (BUILD_TESTING)
 ###           T H E   T E S T S                                            ###
 ##############################################################################
 ##############################################################################
+
+  # Remove any output file left over from previous test run
+  ADD_TEST (
+      NAME H5LS-clearall-objects
+      COMMAND    ${CMAKE_COMMAND}
+          -E remove 
+          help-1.out
+          help-1.out.err
+          help-2.out
+          help-2.out.err
+          help-3.out
+          help-3.out.err
+          nosuchfile.out
+          nosuchfile.out.err
+          tall-1.out
+          tall-1.out.err
+          tall-2.out
+          tall-2.out.err
+          tarray1.out
+          tarray1.out.err
+          tattr2.out
+          tattr2.out.err
+          tcomp-1.out
+          tcomp-1.out.err
+          tdataregbe.out
+          tdataregbe.out.err
+          tdataregle.out
+          tdataregle.out.err
+          tdset-1.out
+          tdset-1.out.err
+          tempty.out
+          tempty.out.err
+          textlink-1.out
+          textlink-1.out.err
+          textlinksrc-1.out
+          textlinksrc-1.out.err
+          textlinksrc-2.out
+          textlinksrc-2.out.err
+          textlinksrc-3.out
+          textlinksrc-3.out.err
+          textlinksrc-4.out
+          textlinksrc-4.out.err
+          textlinksrc-5.out
+          textlinksrc-5.out.err
+          textlinksrc-6.out
+          textlinksrc-6.out.err
+          textlinksrc-7.out
+          textlinksrc-7.out.err
+          textlinksrc-1-old.out
+          textlinksrc-1-old.out.err
+          textlinksrc-2-old.out
+          textlinksrc-2-old.out.err
+          textlinksrc-3-old.out
+          textlinksrc-3-old.out.err
+          textlinksrc-6-old.out
+          textlinksrc-6-old.out.err
+          textlinksrc-7-old.out
+          textlinksrc-7-old.out.err
+          tgrp_comments.out
+          tgrp_comments.out.err
+          tsoftlinks-1.out
+          tsoftlinks-1.out.err
+          tsoftlinks-2.out
+          tsoftlinks-2.out.err
+          tsoftlinks-3.out
+          tsoftlinks-3.out.err
+          tsoftlinks-4.out
+          tsoftlinks-4.out.err
+          tsoftlinks-5.out
+          tsoftlinks-5.out.err
+          textlinksrc-nodangle-1.out
+          textlinksrc-nodangle-1.out.err
+          textlinksrc-nodangle-2.out
+          textlinksrc-nodangle-2.out.err
+          tsoftlinks-nodangle-1.out
+          tsoftlinks-nodangle-1.out.err
+          thlinks-nodangle-1.out
+          thlinks-nodangle-1.out.err
+          tgroup.out
+          tgroup.out.err
+          tgroup-1.out
+          tgroup-1.out.err
+          tgroup-2.out
+          tgroup-2.out.err
+          tgroup-3.out
+          tgroup-3.out.err
+          thlink-1.out
+          thlink-1.out.err
+          tloop-1.out
+          tloop-1.out.err
+          tnestcomp-1.out
+          tnestcomp-1.out.err
+          tnestcomp-2.out
+          tnestcomp-2.out.err
+          tnestcomp-3.out
+          tnestcomp-3.out.err
+          tnestcomp-4.out
+          tnestcomp-4.out.err
+          tsaf.out
+          tsaf.out.err
+          tslink-1.out
+          tslink-1.out.err
+          tstr-1.out
+          tstr-1.out.err
+          tudlink-1.out
+          tudlink-1.out.err
+          tvldtypes1.out
+          tvldtypes1.out.err
+          tvldtypes2le.out
+          tvldtypes2le.out.err
+          tvldtypes2be.out
+          tvldtypes2be.out.err
+  )
+  IF (NOT "${last_test}" STREQUAL "")
+    SET_TESTS_PROPERTIES (H5LS-clearall-objects PROPERTIES DEPENDS ${last_test})
+  ENDIF (NOT "${last_test}" STREQUAL "")
+  SET (last_test "H5LS-clearall-objects")
 
   # test the help syntax
   ADD_H5_TEST (help-1 0 -w80 -h)
@@ -167,6 +300,9 @@ IF (BUILD_TESTING)
   # and return value 1
   ADD_H5_TEST (tgroup-1 1 -w80 -r -g tgroup.h5)
   ADD_H5_TEST (tgroup-2 0 -w80 -g tgroup.h5/g1)
+
+  # test for files with groups that have long comments
+  ADD_H5_TEST (tgrp_comments 0 -w80 -v -g tgrp_comments.h5/glongcomment)
 
   # test for displaying simple space datasets
   ADD_H5_TEST (tdset-1 0 -w80 -r -d tdset.h5)
@@ -219,6 +355,12 @@ IF (BUILD_TESTING)
 
   #test for the nested compound type
   ADD_H5_TEST (tnestcomp-1 0 -w80 -r -d tnestedcomp.h5)
+
+  ADD_H5_TEST (tnestcomp-2 0 -w80 -r -d -S tnestedcomp.h5)
+
+  ADD_H5_TEST (tnestcomp-3 0 -w80 -r -d -l tnestedcomp.h5)
+
+  ADD_H5_TEST (tnestcomp-4 0 -w80 -r -d -l -S tnestedcomp.h5)
 
   # test for loop detection
   ADD_H5_TEST (tloop-1 0 -w80 -r -d tloop.h5)

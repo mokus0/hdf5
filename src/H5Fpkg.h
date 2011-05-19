@@ -125,6 +125,10 @@
         + H5F_SUPERBLOCK_VARLEN_SIZE(v, f))
 
 
+/* Forward declaration external file cache struct used below (defined in
+ * H5Fefc.c) */
+typedef struct H5F_efc_t H5F_efc_t;
+
 /* Structure for metadata & "small [raw] data" block aggregation fields */
 struct H5F_blk_aggr_t {
     unsigned long       feature_flag;   /* Feature flag type */
@@ -198,6 +202,7 @@ typedef struct H5F_file_t {
     unsigned	nrefs;		/* Ref count for times file is opened	*/
     unsigned	flags;		/* Access Permissions for file          */
     H5F_mtab_t	mtab;		/* File mount table                     */
+    H5F_efc_t   *efc;           /* External file cache                  */
 
     /* Cached values from FCPL/superblock */
     uint8_t	sizeof_addr;	/* Size of addresses in file            */
@@ -288,7 +293,7 @@ H5_DLLVAR const H5AC_class_t H5AC_SUPERBLOCK[1];
 /* General routines */
 H5_DLL herr_t H5F_init(void);
 H5_DLL haddr_t H5F_locate_signature(H5FD_t *file, hid_t dxpl_id);
-H5_DLL herr_t H5F_flush(H5F_t *f, hid_t dxpl_id);
+H5_DLL herr_t H5F_flush(H5F_t *f, hid_t dxpl_id, hbool_t closing);
 
 /* File mount related routines */
 H5_DLL herr_t H5F_close_mounts(H5F_t *f);
@@ -306,7 +311,8 @@ H5_DLL herr_t H5F_super_free(H5F_super_t *sblock);
 /* Superblock extension related routines */
 H5_DLL herr_t H5F_super_ext_open(H5F_t *f, haddr_t ext_addr, H5O_loc_t *ext_ptr);
 H5_DLL herr_t H5F_super_ext_write_msg(H5F_t *f, hid_t dxpl_id, void *mesg, unsigned id, hbool_t may_create);
-H5_DLL herr_t H5F_super_ext_close(H5F_t *f, H5O_loc_t *ext_ptr);
+H5_DLL herr_t H5F_super_ext_close(H5F_t *f, H5O_loc_t *ext_ptr, hid_t dxpl_id,
+    hbool_t was_created);
 
 /* Metadata accumulator routines */
 H5_DLL herr_t H5F_accum_read(const H5F_t *f, hid_t dxpl_id, H5FD_mem_t type,
@@ -322,6 +328,13 @@ H5_DLL herr_t H5F_accum_reset(const H5F_t *f, hid_t dxpl_id, hbool_t flush);
 H5_DLL herr_t H5F_sfile_add(H5F_file_t *shared);
 H5_DLL H5F_file_t * H5F_sfile_search(H5FD_t *lf);
 H5_DLL herr_t H5F_sfile_remove(H5F_file_t *shared);
+
+/* External file cache routines */
+H5_DLL H5F_efc_t *H5F_efc_create(unsigned max_nfiles);
+H5_DLL unsigned H5F_efc_max_nfiles(H5F_efc_t *efc);
+H5_DLL herr_t H5F_efc_release(H5F_efc_t *efc);
+H5_DLL herr_t H5F_efc_destroy(H5F_efc_t *efc);
+H5_DLL herr_t H5F_efc_try_close(H5F_t *f);
 
 /* Testing functions */
 #ifdef H5F_TESTING

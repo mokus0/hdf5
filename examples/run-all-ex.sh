@@ -20,17 +20,11 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                                                                               #
 # This script will run the scripts to compile and run the installed hdf5        #
-# examples.  By default the compile scripts h5cc, h5fc, and h5c++ with which    #
-# these examples are installed will be used to compile them.  It is also        #
-# possible to use a different set of compile scripts by setting the environment #
-# variable prefix to the path to the directory containing the bin directory     #
-# with the desired alternative compile scripts.  For example, if using compile  #
-# scripts installed in /usr/local/hdf5/bin is desired, set the environment      #
-# prefix to /usr/local/hdf5/                                                    #
+# examples.                                                                     #
 #                                                                               #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-echo "Run c examples" 
+echo "Run c examples"
 if ((cd c; sh ./run-c-ex.sh) && \
    (if test -d fortran; then   
        echo "Run fortran examples" 

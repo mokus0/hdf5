@@ -1,5 +1,5 @@
 #############################
-Expected output for 'h5dump -d /DS08BITS -M 8,1 packedbits.h5'
+Expected output for 'h5dump -d /DS08BITS -M 64,1 packedbits.h5'
 #############################
 usage: h5dump [OPTIONS] file
   OPTIONS
@@ -41,6 +41,8 @@ usage: h5dump [OPTIONS] file
      -X S, --xml-ns=S      (XML Schema) Use qualified names n the XML
                           ":": no namespace, default: "hdf5:"
                           E.g., to dump a file called `-f', use h5dump -- -f
+     --enable-error-stack Prints messages from the HDF5 error stack as they
+                          occur.
 
  Subsetting is available by using the following options with a dataset
  attribute. Subsetting is done by selecting a hyperslab from the data.
@@ -93,4 +95,4 @@ usage: h5dump [OPTIONS] file
 
       h5dump -d /dset -M 0,1,4,3 quux.h5
 
-h5dump error: Packed Bit offset value(8) must be between 0 and 7
+h5dump error: Packed Bit offset value(64) must be between 0 and 63

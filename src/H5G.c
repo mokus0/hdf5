@@ -353,6 +353,20 @@ H5Gcreate_anon(hid_t loc_id, hid_t gcpl_id, hid_t gapl_id)
 	HGOTO_ERROR(H5E_ATOM, H5E_CANTREGISTER, FAIL, "unable to register group")
 
 done:
+    /* Release the group's object header, if it was created */
+    if(grp) {
+        H5O_loc_t *oloc;         /* Object location for group */
+
+        /* Get the new group's object location */
+        if(NULL == (oloc = H5G_oloc(grp)))
+            HDONE_ERROR(H5E_SYM, H5E_CANTGET, FAIL, "unable to get object location of group")
+
+        /* Decrement refcount on group's object header in memory */
+        if(H5O_dec_rc_by_loc(oloc, H5AC_dxpl_id) < 0)
+           HDONE_ERROR(H5E_SYM, H5E_CANTDEC, FAIL, "unable to decrement refcount on newly created object")
+    } /* end if */
+
+    /* Cleanup on failure */
     if(ret_value < 0)
         if(grp && H5G_close(grp) < 0)
             HDONE_ERROR(H5E_SYM, H5E_CLOSEERROR, FAIL, "unable to release group")
@@ -829,9 +843,6 @@ H5G_term_interface(void)
 	    /* Destroy the group object id group */
 	    H5I_dec_type_ref(H5I_GROUP);
 
-            /* Free the global component buffer */
-            H5G_traverse_term_interface();
-
 	    /* Mark closed */
 	    H5_interface_initialize_g = 0;
 	    n = 1; /*H5I*/
@@ -901,6 +912,8 @@ done:
     if(ret_value == NULL) {
         /* Check if we need to release the file-oriented symbol table info */
         if(oloc_init) {
+            if(H5O_dec_rc_by_loc(&(grp->oloc), dxpl_id) < 0)
+                HDONE_ERROR(H5E_SYM, H5E_CANTDEC, NULL, "unable to decrement refcount on newly created object")
             if(H5O_close(&(grp->oloc)) < 0)
                 HDONE_ERROR(H5E_SYM, H5E_CLOSEERROR, NULL, "unable to release object header")
             if(H5O_delete(file, dxpl_id, grp->oloc.addr) < 0)
@@ -1168,9 +1181,14 @@ H5G_close(H5G_t *grp)
             HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "can't decrement count for object")
 
         /* Check reference count for this object in the top file */
-        if(H5FO_top_count(grp->oloc.file, grp->oloc.addr) == 0)
+        if(H5FO_top_count(grp->oloc.file, grp->oloc.addr) == 0) {
             if(H5O_close(&(grp->oloc)) < 0)
                 HGOTO_ERROR(H5E_SYM, H5E_CANTINIT, FAIL, "unable to close")
+        } /* end if */
+        else
+            /* Free object location (i.e. "unhold" the file if appropriate) */
+            if(H5O_loc_free(&(grp->oloc)) < 0)
+                HGOTO_ERROR(H5E_SYM, H5E_CANTRELEASE, FAIL, "problem attempting to free location")
 
         /* If this group is a mount point and the mount point is the last open
          * reference to the group, then attempt to close down the file hierarchy
@@ -1192,38 +1210,6 @@ H5G_close(H5G_t *grp)
 done:
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5G_close() */
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5G_free
- *
- * Purpose:	Free memory used by an H5G_t struct (and its H5G_shared_t).
- *          Does not close the group or decrement the reference count.
- *          Used to free memory used by the root group.
- *
- * Return:  Success:    Non-negative
- *	        Failure:    Negative
- *
- * Programmer:  James Laird
- *              Tuesday, September 7, 2004
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5G_free(H5G_t *grp)
-{
-    herr_t      ret_value = SUCCEED;       /* Return value */
-
-    FUNC_ENTER_NOAPI(H5G_free, FAIL)
-
-    HDassert(grp && grp->shared);
-
-    grp->shared = H5FL_FREE(H5G_shared_t, grp->shared);
-    grp = H5FL_FREE(H5G_t, grp);
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5G_free() */
 
 
 /*-------------------------------------------------------------------------
@@ -1296,40 +1282,6 @@ H5G_fileof(H5G_t *grp)
 
     FUNC_LEAVE_NOAPI(grp->oloc.file)
 } /* end H5G_fileof() */
-
-
-/*-------------------------------------------------------------------------
- * Function:	H5G_free_grp_name
- *
- * Purpose:	Free the 'ID to name' buffers.
- *
- * Return:	Non-negative on success/Negative on failure
- *
- * Programmer: Pedro Vicente, pvn@ncsa.uiuc.edu
- *
- * Date: August 22, 2002
- *
- * Comments: Used now only on the root group close, in H5F_close()
- *
- *-------------------------------------------------------------------------
- */
-herr_t
-H5G_free_grp_name(H5G_t *grp)
-{
-    herr_t ret_value = SUCCEED;   /* Return value */
-
-    FUNC_ENTER_NOAPI(H5G_free_grp_name, FAIL)
-
-    /* Check args */
-    HDassert(grp && grp->shared);
-    HDassert(grp->shared->fo_count > 0);
-
-    /* Free the path */
-    H5G_name_free(&(grp->path));
-
-done:
-     FUNC_LEAVE_NOAPI(ret_value)
-} /* end H5G_free_grp_name() */
 
 
 /*-------------------------------------------------------------------------

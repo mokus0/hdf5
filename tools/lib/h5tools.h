@@ -532,8 +532,8 @@ extern "C" {
     
 #ifdef H5_HAVE_H5DUMP_PACKED_BITS
 H5TOOLS_DLLVAR int     packed_bits_num;       /* number of packed bits to display */
-H5TOOLS_DLLVAR int         packed_data_offset; /* offset of packed bits to display */
-H5TOOLS_DLLVAR unsigned int packed_data_mask;  /* mask in which packed bits to display */
+H5TOOLS_DLLVAR int     packed_data_offset;    /* offset of packed bits to display */
+H5TOOLS_DLLVAR unsigned long long packed_data_mask;  /* mask in which packed bits to display */
 #endif
 
 H5TOOLS_DLLVAR FILE   *rawdatastream;       /* output stream for raw data */
@@ -559,6 +559,8 @@ H5TOOLS_DLL hid_t    h5tools_get_native_type(hid_t type);
 H5TOOLS_DLL hid_t    h5tools_get_little_endian_type(hid_t type);
 H5TOOLS_DLL hid_t    h5tools_get_big_endian_type(hid_t type);
 
+H5TOOLS_DLL htri_t   h5tools_detect_vlen(hid_t tid);
+H5TOOLS_DLL htri_t   h5tools_detect_vlen_str(hid_t tid);
 
 H5TOOLS_DLL void     h5tools_dump_simple_data(FILE *stream, const h5tool_format_t *info, hid_t container,
                          h5tools_context_t *ctx/*in,out*/, unsigned flags,
@@ -579,6 +581,7 @@ int             h5tools_print_datatype(h5tools_str_t *buffer/*in,out*/,
                          const h5tool_format_t *info, h5tools_context_t *ctx/*in,out*/,
                          hid_t type);
 int             h5tools_print_enum(h5tools_str_t *buffer/*in,out*/, hid_t type);
+
 #ifdef __cplusplus
 }
 #endif

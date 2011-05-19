@@ -13,13 +13,6 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#ifdef H5_HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 #include "hdf5.h"
 #include "H5private.h"
 #include "h5tools_utils.h"
@@ -177,8 +170,8 @@ main (int argc, const char *argv[])
   hsize_t where;
   hsize_t newubsize;
   off_t fsize;
-  struct stat sbuf;
-  struct stat sbuf2;
+  h5_stat_t sbuf;
+  h5_stat_t sbuf2;
   int res;
 
   h5tools_setprogname(PROGRAMNAME);
@@ -238,41 +231,33 @@ main (int argc, const char *argv[])
       exit (EXIT_FAILURE);
     }
 
-  H5Pclose (plist);
-  H5Fclose (ifile);
+  H5Pclose(plist);
+  H5Fclose(ifile);
 
-  ufid = HDopen (ub_file, O_RDONLY, 0);
-
-  if (ufid < 0)
-    {
+  ufid = HDopen(ub_file, O_RDONLY, 0);
+  if(ufid < 0) {
       error_msg("unable to open user block file \"%s\"\n",
 		 ub_file);
       exit (EXIT_FAILURE);
     }
 
-  res = stat (ub_file, &sbuf);
-
-  if (res < 0)
-    {
+  res = HDfstat(ufid, &sbuf);
+  if(res < 0) {
       error_msg("Can't stat file \"%s\"\n", ub_file);
       exit (EXIT_FAILURE);
     }
 
   fsize = sbuf.st_size;
 
-  h5fid = HDopen (input_file, O_RDONLY, 0);
-
-  if (h5fid < 0)
-    {
+  h5fid = HDopen(input_file, O_RDONLY, 0);
+  if(h5fid < 0) {
       error_msg("unable to open HDF5 file for read \"%s\"\n",
 		 input_file);
       exit (EXIT_FAILURE);
     }
 
-  res = stat (input_file, &sbuf2);
-
-  if (res < 0)
-    {
+  res = HDfstat(h5fid, &sbuf2);
+  if(res < 0) {
       error_msg("Can't stat file \"%s\"\n", input_file);
       exit (EXIT_FAILURE);
     }
@@ -383,7 +368,7 @@ copy_some_to_file (int infid, int outfid, hsize_t startin, hsize_t startout,
 		   ssize_t limit)
 {
   char buf[1024];
-  struct stat sbuf;
+  h5_stat_t sbuf;
   int res;
   ssize_t tot = 0;
   ssize_t howmuch = 0;
@@ -396,19 +381,15 @@ copy_some_to_file (int infid, int outfid, hsize_t startin, hsize_t startout,
   ssize_t toend;
   ssize_t fromend;
 
-  if (startin > startout)
-    {
+  if(startin > startout) {
       /* this case is prohibited */
       error_msg("copy_some_to_file: panic: startin > startout?\n");
       exit (EXIT_FAILURE);
     }
 
-  if (limit < 0)
-    {
-      res = fstat (infid, &sbuf);
-
-      if (res < 0)
-	{
+  if(limit < 0) {
+      res = HDfstat(infid, &sbuf);
+      if(res < 0) {
 	  error_msg("Can't stat file \n");
 	  exit (EXIT_FAILURE);
 	}
@@ -416,14 +397,10 @@ copy_some_to_file (int infid, int outfid, hsize_t startin, hsize_t startout,
       howmuch = sbuf.st_size;
     }
   else
-    {
       howmuch = limit;
-    }
 
-  if (howmuch == 0)
-    {
+  if(howmuch == 0)
       return 0;
-    }
 
   /* assert (howmuch > 0) */
 

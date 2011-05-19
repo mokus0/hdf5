@@ -43,8 +43,7 @@ INSTALL_FILES = h5_write.c h5_read.c h5_extend_write.c h5_chunk_read.c   \
 
 INSTALL_SCRIPT_FILES = run-c-ex.sh
 
-INSTALL_TOP_SCRIPT_FILES = run-all-ex.sh 
-INSTALL_TOP_FILES = README
+INSTALL_TOP_SCRIPT_FILES = run-all-ex.sh
 
 # How to build examples, using installed version of h5cc
 if BUILD_PARALLEL_CONDITIONAL
@@ -98,8 +97,8 @@ h5_extlink: $(srcdir)/h5_extlink.c $(EXTLINK_DIRS)
 h5_elink_unix2win: $(srcdir)/h5_elink_unix2win.c $(EXTLINK_DIRS)
 h5_shared_mesg: $(srcdir)/h5_shared_mesg.c
 
-if BUILD_SZIP_CONDITIONAL
-export LD_LIBRARY_PATH=$(LL_PATH)
+if BUILD_SHARED_SZIP_CONDITIONAL
+LD_LIBRARY_PATH=$(LL_PATH)
 endif
 
 include $(top_srcdir)/config/examples.am

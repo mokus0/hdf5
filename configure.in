@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 20092 2011-02-11 22:30:31Z nfortne2 $)
+AC_REVISION($Id: configure.in 20696 2011-05-02 15:36:18Z nfortne2 $)
 AC_PREREQ([2.53])
 
 dnl AC_INIT takes the name of the package, the version number, and an
@@ -26,7 +26,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.8.6], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.7], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AM_CONFIG_HEADER([src/H5config.h])
 
@@ -35,6 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 dnl AM_INIT_AUTOMAKE takes a list of options that should be applied to
 dnl every Makefile.am when automake is run.
 AM_INIT_AUTOMAKE([foreign])
+AM_SILENT_RULES([yes])
 
 dnl AM_MAINTAINER_MODE turns off "rebuild rules" that contain dependencies
 dnl for Makefiles, configure, src/H5config.h, etc.  If AM_MAINTAINER_MODE
@@ -93,6 +94,7 @@ AC_SUBST([H5_CFLAGS])
 AC_SUBST([H5_CPPFLAGS])
 AC_SUBST([H5_FCFLAGS])
 AC_SUBST([H5_CXXFLAGS])
+AC_SUBST([H5_LDFLAGS])
 
 dnl AM_CFLAGS (and company) are for CFLAGS that should be used on HDF5,
 dnl and WILL be exported to h5cc (or h5fc, etc) if set by configure.
@@ -248,14 +250,8 @@ dnl
 dnl If the `OS' ends with a version number then remove it. For instance,
 dnl `freebsd3.1' would become `freebsd'
 case $host_os in
-  aix4.*)
-    host_os_novers=aix4.x
-    ;;
-  aix5.*)
-    host_os_novers=aix5.x
-    ;;
-  aix6.*)
-    host_os_novers=aix6.x
+  aix*)
+    host_os_novers=aix
     ;;
   freebsd*)
     host_os_novers=freebsd
@@ -345,6 +341,28 @@ dnl Check for programs.
 dnl
 AC_PROG_CC
 CC_BASENAME="`echo $CC | cut -f1 -d' ' | xargs basename 2>/dev/null`"
+
+dnl ----------------------------------------------------------------------------
+dnl Configure disallows unsupported combinations of options. However, users
+dnl may want to override and build with unsupported combinations for their
+dnl own use. They can use the --enable-unsupported configure flag, which
+dnl ignores any errors from configure due to incompatible flags.
+AC_MSG_CHECKING([if unsupported combinations of configure options are allowed])
+AC_ARG_ENABLE([unsupported],
+              [AC_HELP_STRING([--enable-unsupported],
+                              [Allow unsupported combinations of configure options])],
+              [ALLOW_UNSUPPORTED=$enableval])
+
+case "X-$ALLOW_UNSUPPORTED" in 
+  X-|X-no)
+    AC_MSG_RESULT([no])
+    ;;
+  X-yes)
+    AC_MSG_RESULT([yes])
+    ;;
+  *)
+    ;;
+esac
 
 dnl ----------------------------------------------------------------------
 dnl Check if they would like the Fortran interface compiled
@@ -831,68 +849,74 @@ elif test "X${enable_shared}" = "Xyes" -a "X${PARALLEL}" != "X"; then
 fi
 
 dnl ----------------------------------------------------------------------
-dnl Many Fortran compilers don't support shared libraries.  Some of these
-dnl compilers include:
-dnl pgf90 version 6.0-4
-dnl Absoft 32bit Fortran 95 9.0
-dnl HP F90 v2.4
-dnl Intel Fortran Compiler 8.1
-dnl If any of these compilers is being used, disable shared libraries for
-dnl Fortran.  This prevents building shared libraries and also prevents
-dnl trying to link against shared libraries.
-if test "X${HDF_FORTRAN}" = "Xyes"; then
+dnl Fortran libraries are not currently supported on Mac. Disable them.
+dnl (this is overridable with --enable-unsupported).
+dnl
+AC_SUBST([H5_FORTRAN_SHARED])
+H5_FORTRAN_SHARED="no"
+if test "X${HDF_FORTRAN}" = "Xyes" && test "X${enable_shared}" != "Xno"; then
+  AC_MSG_CHECKING([if shared Fortran libraries are supported])
   H5_FORTRAN_SHARED="yes"
 
-  if (${FC} -V 2>&1 | grep '^pgf90') > /dev/null; then
+  dnl Disable fortran shared libraries on Mac. (MAM - 03/30/11)
+  case "`uname`" in
+    Darwin*)
     H5_FORTRAN_SHARED="no"
-  fi
+    CHECK_WARN="Shared Fortran libraries not currently supported on Mac."
+      ;;
+  esac
 
-  if (${FC} -V 2>&1 | grep '^Intel(R) Fortran') > /dev/null; then
-    if (${FC} -v 2>&1 | grep '^Version 8.') > /dev/null; then
-      H5_FORTRAN_SHARED="no"
+  dnl Report results of check(s)
+  if test "X${H5_FORTRAN_SHARED}" = "Xno"; then
+    AC_MSG_RESULT([no])
+    AC_MSG_WARN([$CHECK_WARN])
+    if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+      AC_MSG_WARN([Disabling shared Fortran libraries.])
+      AC_MSG_WARN([To override this behavior, please use --enable-unsupported configure option.])
+        if test "X${enable_static}" = "Xno"; then
+          AC_MSG_ERROR([both static and shared Fortran libraries are disabled])
+        fi
     else
-dnl echo 'adding fortran compiler flag needed for building shared libraries'
-      FCFLAGS="${FCFLAGS} -fPIC"
-      AM_FCFLAGS="${AM_FCFLAGS} -fPIC"
+      AC_MSG_WARN([Allowing unsupported Fortran shared libraries due to use of --enable-unsupported flag])
+      H5_FORTRAN_SHARED="yes"
     fi
-  fi
-  if (${FC} +version 2>&1 | grep '^HP F90') > /dev/null; then
-    H5_FORTRAN_SHARED="no"
-  fi
-
-  if (${FC} -V 2>&1 | grep '^Absoft') > /dev/null; then
-    H5_FORTRAN_SHARED="no"
-  fi
-
-  if test "X${enable_shared}" != "Xno" && test "X${H5_FORTRAN_SHARED}" = "Xno"; then
-    AC_MSG_WARN([shared libraries are not supported; disabling shared Fortran libraries])
-  fi
-
-  if test "X${enable_static}" = "Xno" && test "X${H5_FORTRAN_SHARED}" = "Xno"; then
-    AC_MSG_ERROR([both static and shared Fortran libraries are disabled])
+  else
+    AC_MSG_RESULT([yes])
   fi
 fi
 
 AM_CONDITIONAL([FORTRAN_SHARED_CONDITIONAL], [test "X$H5_FORTRAN_SHARED" = "Xyes"])
 
-dnl Disable C++ shared libraries if shared libraries are disabled.
-dnl This prevents Automake from trying to link against shared libraries,
-dnl which caused problems on tg-login
+dnl ----------------------------------------------------------------------
+dnl Disable C++ shared libraries if +DD64 flag is detected.
+dnl
+AC_SUBST([H5_CXX_SHARED])
 H5_CXX_SHARED="no"
 if test "X${HDF_CXX}" = "Xyes" && test "X${enable_shared}" != "Xno"; then
+  AC_MSG_CHECKING([if shared C++ libraries are supported])
   H5_CXX_SHARED="yes"
 
-dnl Try to detect the +DD64 flag for HPUX aCC compiler and disable C++ shared libraries if it's
-dnl being used.
-
+  dnl Disable C++ shared libraries if DD64 flag is being used.
   if (echo dummy ${CXX} ${CXXLD} ${CFLAGS} ${CXXFLAGS} ${LDFLAGS} | grep 'DD64') > /dev/null; then
-    echo "    warning: +DD64 flag detected"
-    echo "    disabling shared C++ libraries"
     H5_CXX_SHARED="no"
+    CHECK_WARN="Shared C++ libraries not currently supported with +DD64 flag."
   fi
 
-  if test "X${enable_static}" = "Xno" && test "X${H5_CXX_SHARED}" = "Xno"; then
-    AC_MSG_ERROR([both static and shared C++ libraries are disabled])
+  dnl Report results of check(s)
+  if test "X${H5_CXX_SHARED}" = "Xno"; then
+    AC_MSG_RESULT([no])
+    AC_MSG_WARN([$CHECK_WARN])
+    if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+      AC_MSG_WARN([Disabling shared C++ libraries.])
+      AC_MSG_WARN([To override this behavior, please use --enable-unsupported configure option.])
+      if test "X${enable_static}" = "Xno"; then
+        AC_MSG_ERROR([both static and shared C++ libraries are disabled])
+      fi
+    else
+      AC_MSG_WARN([Allowing unsupported C++ shared librares due to use of --enable-unsupported flag])
+    fi
+  else
+    AC_MSG_RESULT([yes])
   fi
 fi
 
@@ -909,8 +933,22 @@ if (${CC-cc} -V 2>&1 | grep '^pgcc 6.0') > /dev/null && test "X$enable_productio
 fi
 
 dnl ----------------------------------------------------------------------
-dnl Shared libraries are not currently supported under Cygwin.
-dnl
+dnl Shared libraries are not currently supported under Cygwin, so configure
+dnl disables them unless --enable-unsupported has been supplied by the user.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  case "`uname`" in
+    CYGWIN*)
+      if test "X${enable_shared}" = "Xyes"; then
+        echo '    warning: shared libraries are not supported on Cygwin!'
+        echo '    disabling shared libraries'
+        echo '    use --enable-unsupported to override this warning and keep shared libraries enabled'
+      fi
+      enable_shared="no"
+      ;;
+  esac
+fi
+
+dnl ----------------------------------------------------------------------
 dnl The GCC compiler on Cygwin running on Windows XP has rounding problem
 dnl in the data conversion dt_arith.c from unsigned long long to long 
 dnl double (see bug #1813).  I define a macro here to skip the test for
@@ -919,13 +957,13 @@ dnl 2010/5/5 - SLU
 case "`uname`" in
   CYGWIN*)
     AC_DEFINE([CYGWIN_ULLONG_TO_LDOUBLE_ROUND_PROBLEM], [1], [Define a macro for Cygwin (on XP only) where the compiler has rounding problem converting from unsigned long long to long double])
-    if test "X${enable_shared}" = "Xyes"; then
-      echo '    warning: shared libraries are not supported on Cygwin!'
-      echo '    disabling shared libraries'
-    fi
-    enable_shared="no"
     ;;
 esac
+
+dnl ----------------------------------------------------------------------
+dnl Windows won't create DLLs without the following macro.
+dnl
+AC_LIBTOOL_WIN32_DLL
 
 dnl ----------------------------------------------------------------------
 dnl Create libtool.  If shared/static libraries are going to be enabled
@@ -1216,6 +1254,27 @@ case "$host" in
     AC_CHECK_FUNCS([get_fpc_csr])
     ;;
 esac
+
+dnl ----------------------------------------------------------------------
+dnl Some platforms require that all symbols are resolved when a library
+dnl is linked. We can use the -no-undefined flag to tell libtool that
+dnl it will be able to build shared libraries on these architectures,
+dnl as it will not do so by default.
+dnl
+if test "X${enable_shared}" = "Xyes"; then
+  AC_MSG_CHECKING([if libtool needs -no-undefined flag to build shared libraries])
+  case "`uname`" in
+    CYGWIN*|MINGW*|AIX*)
+      dnl Add in the -no-undefined flag to LDFLAGS for libtool.
+      AC_MSG_RESULT([yes])
+      H5_LDFLAGS="$H5_LDFLAGS -no-undefined"
+      ;;
+    *)
+      dnl Don't add in anything.
+      AC_MSG_RESULT([no])
+      ;;
+  esac
+fi
 
 dnl ----------------------------------------------------------------------
 dnl Test for Largefile support.
@@ -1792,7 +1851,7 @@ if test "x$HAVE_SZLIB" = "xyes" -a "x$HAVE_SZLIB_H" = "xyes"; then
 
 fi
 
-AM_CONDITIONAL([BUILD_SZIP_CONDITIONAL], [test "X$USE_FILTER_SZIP" = "Xyes"])
+AM_CONDITIONAL([BUILD_SHARED_SZIP_CONDITIONAL], [test "X$USE_FILTER_SZIP" = "Xyes" && test "X$LL_PATH" != "X"])
 
 dnl Checkpoint the cache
 AC_CACHE_SAVE
@@ -1813,7 +1872,7 @@ AC_ARG_WITH([pthread],
 case "$withval" in
   yes)
     AC_CHECK_HEADERS([pthread.h])
-    AC_CHECK_LIB([pthread], [pthread_create],, [unset PTHREAD])
+    AC_CHECK_LIB([pthread], [pthread_self],, [unset PTHREAD])
     ;;
   no)
     AC_MSG_CHECKING([for pthread])
@@ -1858,11 +1917,11 @@ case "$withval" in
       saved_AM_LDFLAGS="$AM_LDFLAGS"
       LDFLAGS="$LDFLAGS -L$pthread_lib"
       AM_LDFLAGS="$AM_LDFLAGS -L$pthread_lib"
-      AC_CHECK_LIB([pthread], [pthread_create],,
+      AC_CHECK_LIB([pthread], [pthread_self],,
                    [LDFLAGS="$saved_LDFLAGS"; AM_LDFLAGS="$saved_AM_LDFLAGS"; unset PTHREAD])
 
     else
-      AC_CHECK_LIB([pthread], [pthread_create],, [unset PTHREAD])
+      AC_CHECK_LIB([pthread], [pthread_self],, [unset PTHREAD])
     fi
     ;;
 esac
@@ -1877,14 +1936,20 @@ AC_ARG_ENABLE([threadsafe],
               THREADSAFE=$enableval)
 
 dnl The --enable-threadsafe flag is not compatible with --enable-cxx.
-dnl If the user tried to specify both flags, throw an error.
-if test "X${HDF_CXX}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
-  AC_MSG_ERROR([--enable-cxx and --enable-threadsafe flags are incompatible])
+dnl If the user tried to specify both flags, throw an error, unless
+dnl they also provided the --enable-unsupported flag.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${HDF_CXX}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
+    AC_MSG_ERROR([--enable-cxx and --enable-threadsafe flags are incompatible. Use --enable-unsupported to override this error.])
+  fi
 fi
 
-dnl --enable-threadsafe is also incompatible with --enable-fortran.
-if test "X${HDF_FORTRAN}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
-  AC_MSG_ERROR([--enable-fortran and --enable-threadsafe flags are incompatible])
+dnl --enable-threadsafe is also incompatible with --enable-fortran, unless
+dnl --enable-unsupported has been specified on the configure line.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${HDF_FORTRAN}" = "Xyes" -a "X${enable_threadsafe}" = "Xyes"; then
+    AC_MSG_ERROR([--enable-fortran and --enable-threadsafe flags are incompatible. Use --enable-unsupported to override this error.])
+  fi
 fi
 
 case "X-$THREADSAFE" in
@@ -1893,7 +1958,7 @@ case "X-$THREADSAFE" in
     ;;
   X-yes)
     dnl Check that we can link a simple Pthread program.
-    AC_TRY_LINK(, [pthread_create()],
+    AC_TRY_LINK(, [pthread_self()],
                 [AC_MSG_RESULT([yes]); THREADSAFE=yes],
                 [AC_MSG_ERROR([needed pthread library not available])])
     ;;
@@ -2499,24 +2564,33 @@ AC_ARG_ENABLE([parallel],
                               [Search for MPI-IO and MPI support files])])
 
 dnl The --enable-parallel flag is not compatible with --enable-cxx.
-dnl If the user tried to specify both flags, throw an error.
-if test "X${HDF_CXX}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
-  AC_MSG_ERROR([--enable-cxx and --enable-parallel flags are incompatible])
+dnl If the user tried to specify both flags, throw an error, unless
+dnl they also provided the --enable-unsupported flag.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${HDF_CXX}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
+    AC_MSG_ERROR([--enable-cxx and --enable-parallel flags are incompatible. Use --enable-unsupported to override this error.])
+  fi
 fi
 
-dnl --enable-parallel is also incompatible with --enable-threadsafe.
-if test "X${THREADSAFE}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
-  AC_MSG_ERROR([--enable-threadsafe and --enable-parallel flags are incompatible])
+dnl --enable-parallel is also incompatible with --enable-threadsafe, unless
+dnl --enable-unsupported has been specified on the configure line.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${THREADSAFE}" = "Xyes" -a "X${enable_parallel}" = "Xyes"; then
+    AC_MSG_ERROR([--enable-threadsafe and --enable-parallel flags are incompatible. Use --enable-unsupported to override this error.])
+  fi
 fi
 
 dnl It's possible to build in parallel by specifying a parallel compiler
 dnl without using the --enable-parallel flag.  This isn't allowed with
-dnl C++ or threadsafe, either.
-if test "X${PARALLEL}" != "X" -a "X${enable_cxx}" = "Xyes" ; then
-  AC_MSG_ERROR([An MPI compiler is being used; --enable-cxx is not allowed])
-fi
-if test "X${PARALLEL}" != "X" -a "X${THREADSAFE}" = "Xyes"; then
-  AC_MSG_ERROR([An MPI compiler is being used; --enable-threadsafe is not allowed])
+dnl C++ or threadsafe, either, unless the --enable-unsupported flag
+dnl has also been specified.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${PARALLEL}" != "X" -a "X${enable_cxx}" = "Xyes" ; then
+    AC_MSG_ERROR([An MPI compiler is being used; --enable-cxx is not allowed. Use --enable-unsupported to override this error.])
+  fi
+  if test "X${PARALLEL}" != "X" -a "X${THREADSAFE}" = "Xyes"; then
+    AC_MSG_ERROR([An MPI compiler is being used; --enable-threadsafe is not allowed. Use --enable-unsupported to override this error.])
+  fi
 fi
 
 AC_MSG_CHECKING([for parallel support files])
@@ -2958,6 +3032,7 @@ if test "$DIRECT_VFD" = "yes"; then
 	  #include <sys/types.h>
 	  #include <sys/stat.h>
 	  #include <fcntl.h>
+	  #include <stdlib.h>
           int main(void)
           {
              int fid; 
@@ -4142,11 +4217,14 @@ else
 fi
 
 dnl It's an error to try to disable deprecated public API symbols while
-dnl choosing an older version of the public API as the default.
-if test "X${DEFAULT_API_VERSION}" != "Xv18" -a "X${DEPRECATED_SYMBOLS}" = "Xno" ; then
-  AC_MSG_ERROR([Removing old public API symbols not allowed when using them as default public API symbols])
+dnl choosing an older version of the public API as the default. However,
+dnl if the user insists on doing this via the --enable-unsupported configure
+dnl flag, we'll let them.
+if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
+  if test "X${DEFAULT_API_VERSION}" != "Xv18" -a "X${DEPRECATED_SYMBOLS}" = "Xno" ; then
+    AC_MSG_ERROR([Removing old public API symbols not allowed when using them as default public API symbols. Use --enable-unsupported to override this error.])
+  fi
 fi
-
 
 dnl ----------------------------------------------------------------------
 dnl Enable strict file format checks
@@ -4341,6 +4419,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  test/testerror.sh
                  test/H5srcdir_str.h
                  test/testlibinfo.sh
+                 test/testlinks_env.sh
                  testpar/Makefile
                  testpar/testph5.sh
                  perform/Makefile
@@ -4402,6 +4481,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  hl/fortran/examples/run-hlfortran-ex.sh])
 
 AC_OUTPUT
+LT_OUTPUT
 no_create=$saved_no_create
 
 # Then the stamp2 file for H5config.h

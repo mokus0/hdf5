@@ -23,8 +23,8 @@
 #include <string.h>
 
 
-H5_DLL char*  HD5f2cstring (_fcd fdesc, int len);
-H5_DLL void HD5packFstring (char *src, char *dest, size_t len);
+H5_FCDLL char*  HD5f2cstring (_fcd fdesc, int len);
+H5_FCDLL void HD5packFstring (char *src, char *dest, size_t len);
 
 
 /*
@@ -34,40 +34,88 @@ H5_DLL void HD5packFstring (char *src, char *dest, size_t len);
 #   define nh5ltmake_dataset_int1_c  H5_FC_FUNC_(h5ltmake_dataset_int1_c, H5LTMAKE_DATASET_INT1_C)
 #   define nh5ltmake_dataset_int2_c  H5_FC_FUNC_(h5ltmake_dataset_int2_c, H5LTMAKE_DATASET_INT2_C)
 #   define nh5ltmake_dataset_int3_c  H5_FC_FUNC_(h5ltmake_dataset_int3_c, H5LTMAKE_DATASET_INT3_C)
+#   define nh5ltmake_dataset_int4_c  H5_FC_FUNC_(h5ltmake_dataset_int4_c, H5LTMAKE_DATASET_INT4_C)
+#   define nh5ltmake_dataset_int5_c  H5_FC_FUNC_(h5ltmake_dataset_int5_c, H5LTMAKE_DATASET_INT5_C)
+#   define nh5ltmake_dataset_int6_c  H5_FC_FUNC_(h5ltmake_dataset_int6_c, H5LTMAKE_DATASET_INT6_C)
+#   define nh5ltmake_dataset_int7_c  H5_FC_FUNC_(h5ltmake_dataset_int7_c, H5LTMAKE_DATASET_INT7_C)
 #   define nh5ltmake_dataset_fl1_c   H5_FC_FUNC_(h5ltmake_dataset_fl1_c, H5LTMAKE_DATASET_FL1_C)
 #   define nh5ltmake_dataset_fl2_c   H5_FC_FUNC_(h5ltmake_dataset_fl2_c, H5LTMAKE_DATASET_FL2_C)
 #   define nh5ltmake_dataset_fl3_c   H5_FC_FUNC_(h5ltmake_dataset_fl3_c, H5LTMAKE_DATASET_FL3_C)
+#   define nh5ltmake_dataset_fl4_c   H5_FC_FUNC_(h5ltmake_dataset_fl4_c, H5LTMAKE_DATASET_FL4_C)
+#   define nh5ltmake_dataset_fl5_c   H5_FC_FUNC_(h5ltmake_dataset_fl5_c, H5LTMAKE_DATASET_FL5_C)
+#   define nh5ltmake_dataset_fl6_c   H5_FC_FUNC_(h5ltmake_dataset_fl6_c, H5LTMAKE_DATASET_FL6_C)
+#   define nh5ltmake_dataset_fl7_c   H5_FC_FUNC_(h5ltmake_dataset_fl7_c, H5LTMAKE_DATASET_FL7_C)
 #   define nh5ltmake_dataset_dl1_c   H5_FC_FUNC_(h5ltmake_dataset_dl1_c, H5LTMAKE_DATASET_DL1_C)
 #   define nh5ltmake_dataset_dl2_c   H5_FC_FUNC_(h5ltmake_dataset_dl2_c, H5LTMAKE_DATASET_DL2_C)
 #   define nh5ltmake_dataset_dl3_c   H5_FC_FUNC_(h5ltmake_dataset_dl3_c, H5LTMAKE_DATASET_DL3_C)
+#   define nh5ltmake_dataset_dl4_c   H5_FC_FUNC_(h5ltmake_dataset_dl4_c, H5LTMAKE_DATASET_DL4_C)
+#   define nh5ltmake_dataset_dl5_c   H5_FC_FUNC_(h5ltmake_dataset_dl5_c, H5LTMAKE_DATASET_DL5_C)
+#   define nh5ltmake_dataset_dl6_c   H5_FC_FUNC_(h5ltmake_dataset_dl6_c, H5LTMAKE_DATASET_DL6_C)
+#   define nh5ltmake_dataset_dl7_c   H5_FC_FUNC_(h5ltmake_dataset_dl7_c, H5LTMAKE_DATASET_DL7_C)
 #   define nh5ltmake_dataset_nint1_c H5_FC_FUNC_(h5ltmake_dataset_nint1_c, H5LTMAKE_DATASET_NINT1_C)
 #   define nh5ltmake_dataset_nint2_c H5_FC_FUNC_(h5ltmake_dataset_nint2_c, H5LTMAKE_DATASET_NINT2_C)
 #   define nh5ltmake_dataset_nint3_c H5_FC_FUNC_(h5ltmake_dataset_nint3_c, H5LTMAKE_DATASET_NINT3_C)
+#   define nh5ltmake_dataset_nint4_c H5_FC_FUNC_(h5ltmake_dataset_nint4_c, H5LTMAKE_DATASET_NINT4_C)
+#   define nh5ltmake_dataset_nint5_c H5_FC_FUNC_(h5ltmake_dataset_nint5_c, H5LTMAKE_DATASET_NINT5_C)
+#   define nh5ltmake_dataset_nint6_c H5_FC_FUNC_(h5ltmake_dataset_nint6_c, H5LTMAKE_DATASET_NINT6_C)
+#   define nh5ltmake_dataset_nint7_c H5_FC_FUNC_(h5ltmake_dataset_nint7_c, H5LTMAKE_DATASET_NINT7_C)
 #   define nh5ltmake_dataset_nfl1_c  H5_FC_FUNC_(h5ltmake_dataset_nfl1_c, H5LTMAKE_DATASET_NFL1_C)
 #   define nh5ltmake_dataset_nfl2_c  H5_FC_FUNC_(h5ltmake_dataset_nfl2_c, H5LTMAKE_DATASET_NFL2_C)
 #   define nh5ltmake_dataset_nfl3_c  H5_FC_FUNC_(h5ltmake_dataset_nfl3_c, H5LTMAKE_DATASET_NFL3_C)
+#   define nh5ltmake_dataset_nfl4_c  H5_FC_FUNC_(h5ltmake_dataset_nfl4_c, H5LTMAKE_DATASET_NFL4_C)
+#   define nh5ltmake_dataset_nfl5_c  H5_FC_FUNC_(h5ltmake_dataset_nfl5_c, H5LTMAKE_DATASET_NFL5_C)
+#   define nh5ltmake_dataset_nfl6_c  H5_FC_FUNC_(h5ltmake_dataset_nfl6_c, H5LTMAKE_DATASET_NFL6_C)
+#   define nh5ltmake_dataset_nfl7_c  H5_FC_FUNC_(h5ltmake_dataset_nfl7_c, H5LTMAKE_DATASET_NFL7_C)
 #   define nh5ltmake_dataset_ndl1_c  H5_FC_FUNC_(h5ltmake_dataset_ndl1_c, H5LTMAKE_DATASET_NDL1_C)
 #   define nh5ltmake_dataset_ndl2_c  H5_FC_FUNC_(h5ltmake_dataset_ndl2_c, H5LTMAKE_DATASET_NDL2_C)
 #   define nh5ltmake_dataset_ndl3_c  H5_FC_FUNC_(h5ltmake_dataset_ndl3_c, H5LTMAKE_DATASET_NDL3_C)
+#   define nh5ltmake_dataset_ndl4_c  H5_FC_FUNC_(h5ltmake_dataset_ndl4_c, H5LTMAKE_DATASET_NDL4_C)
+#   define nh5ltmake_dataset_ndl5_c  H5_FC_FUNC_(h5ltmake_dataset_ndl5_c, H5LTMAKE_DATASET_NDL5_C)
+#   define nh5ltmake_dataset_ndl6_c  H5_FC_FUNC_(h5ltmake_dataset_ndl6_c, H5LTMAKE_DATASET_NDL6_C)
+#   define nh5ltmake_dataset_ndl7_c  H5_FC_FUNC_(h5ltmake_dataset_ndl7_c, H5LTMAKE_DATASET_NDL7_C)
 #   define nh5ltread_dataset_c       H5_FC_FUNC_(h5ltread_dataset_c, H5LTREAD_DATASET_C)
 #   define nh5ltread_dataset_int1_c         H5_FC_FUNC_(h5ltread_dataset_int1_c, H5LTREAD_DATASET_INT1_C)
 #   define nh5ltread_dataset_int2_c         H5_FC_FUNC_(h5ltread_dataset_int2_c, H5LTREAD_DATASET_INT2_C)
 #   define nh5ltread_dataset_int3_c         H5_FC_FUNC_(h5ltread_dataset_int3_c, H5LTREAD_DATASET_INT3_C)
+#   define nh5ltread_dataset_int4_c         H5_FC_FUNC_(h5ltread_dataset_int4_c, H5LTREAD_DATASET_INT4_C)
+#   define nh5ltread_dataset_int5_c         H5_FC_FUNC_(h5ltread_dataset_int5_c, H5LTREAD_DATASET_INT5_C)
+#   define nh5ltread_dataset_int6_c         H5_FC_FUNC_(h5ltread_dataset_int6_c, H5LTREAD_DATASET_INT6_C)
+#   define nh5ltread_dataset_int7_c         H5_FC_FUNC_(h5ltread_dataset_int7_c, H5LTREAD_DATASET_INT7_C)
 #   define nh5ltread_dataset_fl1_c         H5_FC_FUNC_(h5ltread_dataset_fl1_c, H5LTREAD_DATASET_FL1_C)
 #   define nh5ltread_dataset_fl2_c         H5_FC_FUNC_(h5ltread_dataset_fl2_c, H5LTREAD_DATASET_FL2_C)
 #   define nh5ltread_dataset_fl3_c         H5_FC_FUNC_(h5ltread_dataset_fl3_c, H5LTREAD_DATASET_FL3_C)
+#   define nh5ltread_dataset_fl4_c         H5_FC_FUNC_(h5ltread_dataset_fl4_c, H5LTREAD_DATASET_FL4_C)
+#   define nh5ltread_dataset_fl5_c         H5_FC_FUNC_(h5ltread_dataset_fl5_c, H5LTREAD_DATASET_FL5_C)
+#   define nh5ltread_dataset_fl6_c         H5_FC_FUNC_(h5ltread_dataset_fl6_c, H5LTREAD_DATASET_FL6_C)
+#   define nh5ltread_dataset_fl7_c         H5_FC_FUNC_(h5ltread_dataset_fl7_c, H5LTREAD_DATASET_FL7_C)
 #   define nh5ltread_dataset_dl1_c         H5_FC_FUNC_(h5ltread_dataset_dl1_c, H5LTREAD_DATASET_DL1_C)
 #   define nh5ltread_dataset_dl2_c         H5_FC_FUNC_(h5ltread_dataset_dl2_c, H5LTREAD_DATASET_DL2_C)
 #   define nh5ltread_dataset_dl3_c         H5_FC_FUNC_(h5ltread_dataset_dl3_c, H5LTREAD_DATASET_DL3_C)
+#   define nh5ltread_dataset_dl4_c         H5_FC_FUNC_(h5ltread_dataset_dl4_c, H5LTREAD_DATASET_DL4_C)
+#   define nh5ltread_dataset_dl5_c         H5_FC_FUNC_(h5ltread_dataset_dl5_c, H5LTREAD_DATASET_DL5_C)
+#   define nh5ltread_dataset_dl6_c         H5_FC_FUNC_(h5ltread_dataset_dl6_c, H5LTREAD_DATASET_DL6_C)
+#   define nh5ltread_dataset_dl7_c         H5_FC_FUNC_(h5ltread_dataset_dl7_c, H5LTREAD_DATASET_DL7_C)
 #   define nh5ltread_dataset_nint1_c         H5_FC_FUNC_(h5ltread_dataset_nint1_c, H5LTREAD_DATASET_NINT1_C)
 #   define nh5ltread_dataset_nint2_c         H5_FC_FUNC_(h5ltread_dataset_nint2_c, H5LTREAD_DATASET_NINT2_C)
 #   define nh5ltread_dataset_nint3_c         H5_FC_FUNC_(h5ltread_dataset_nint3_c, H5LTREAD_DATASET_NINT3_C)
+#   define nh5ltread_dataset_nint4_c         H5_FC_FUNC_(h5ltread_dataset_nint4_c, H5LTREAD_DATASET_NINT4_C)
+#   define nh5ltread_dataset_nint5_c         H5_FC_FUNC_(h5ltread_dataset_nint5_c, H5LTREAD_DATASET_NINT5_C)
+#   define nh5ltread_dataset_nint6_c         H5_FC_FUNC_(h5ltread_dataset_nint6_c, H5LTREAD_DATASET_NINT6_C)
+#   define nh5ltread_dataset_nint7_c         H5_FC_FUNC_(h5ltread_dataset_nint7_c, H5LTREAD_DATASET_NINT7_C)
 #   define nh5ltread_dataset_nfl1_c         H5_FC_FUNC_(h5ltread_dataset_nfl1_c, H5LTREAD_DATASET_NFL1_C)
 #   define nh5ltread_dataset_nfl2_c         H5_FC_FUNC_(h5ltread_dataset_nfl2_c, H5LTREAD_DATASET_NFL2_C)
 #   define nh5ltread_dataset_nfl3_c         H5_FC_FUNC_(h5ltread_dataset_nfl3_c, H5LTREAD_DATASET_NFL3_C)
+#   define nh5ltread_dataset_nfl4_c         H5_FC_FUNC_(h5ltread_dataset_nfl4_c, H5LTREAD_DATASET_NFL4_C)
+#   define nh5ltread_dataset_nfl5_c         H5_FC_FUNC_(h5ltread_dataset_nfl5_c, H5LTREAD_DATASET_NFL5_C)
+#   define nh5ltread_dataset_nfl6_c         H5_FC_FUNC_(h5ltread_dataset_nfl6_c, H5LTREAD_DATASET_NFL6_C)
+#   define nh5ltread_dataset_nfl7_c         H5_FC_FUNC_(h5ltread_dataset_nfl7_c, H5LTREAD_DATASET_NFL7_C)
 #   define nh5ltread_dataset_ndl1_c         H5_FC_FUNC_(h5ltread_dataset_ndl1_c, H5LTREAD_DATASET_NDL1_C)
 #   define nh5ltread_dataset_ndl2_c         H5_FC_FUNC_(h5ltread_dataset_ndl2_c, H5LTREAD_DATASET_NDL2_C)
 #   define nh5ltread_dataset_ndl3_c         H5_FC_FUNC_(h5ltread_dataset_ndl3_c, H5LTREAD_DATASET_NDL3_C)
+#   define nh5ltread_dataset_ndl4_c         H5_FC_FUNC_(h5ltread_dataset_ndl4_c, H5LTREAD_DATASET_NDL4_C)
+#   define nh5ltread_dataset_ndl5_c         H5_FC_FUNC_(h5ltread_dataset_ndl5_c, H5LTREAD_DATASET_NDL5_C)
+#   define nh5ltread_dataset_ndl6_c         H5_FC_FUNC_(h5ltread_dataset_ndl6_c, H5LTREAD_DATASET_NDL6_C)
+#   define nh5ltread_dataset_ndl7_c         H5_FC_FUNC_(h5ltread_dataset_ndl7_c, H5LTREAD_DATASET_NDL7_C)
 #   define nh5ltmake_dataset_string_c  H5_FC_FUNC_(h5ltmake_dataset_string_c, H5LTMAKE_DATASET_STRING_C)
 #   define nh5ltread_dataset_string_c  H5_FC_FUNC_(h5ltread_dataset_string_c, H5LTREAD_DATASET_STRING_C)
 
@@ -139,7 +187,7 @@ H5_DLL void HD5packFstring (char *src, char *dest, size_t len);
 #   define nh5tbget_table_info_c       H5_FC_FUNC_(h5tbget_table_info_c, H5TBGET_TABLE_INFO_C)
 #   define nh5tbget_field_info_c       H5_FC_FUNC_(h5tbget_field_info_c, H5TBGET_FIELD_INFO_C)
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_c (hid_t_f *loc_id,
                      int_f *namelen,
@@ -149,7 +197,7 @@ nh5ltmake_dataset_c (hid_t_f *loc_id,
                      hid_t_f *type_id,
                      void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_int1_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -159,7 +207,7 @@ nh5ltmake_dataset_int1_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_int2_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -169,7 +217,7 @@ nh5ltmake_dataset_int2_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_int3_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -179,7 +227,48 @@ nh5ltmake_dataset_int3_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_int4_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_int5_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_int6_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_int7_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_fl1_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -189,7 +278,7 @@ nh5ltmake_dataset_fl1_c (hid_t_f *loc_id,
                          hid_t_f *type_id,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_fl2_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -199,7 +288,7 @@ nh5ltmake_dataset_fl2_c (hid_t_f *loc_id,
                          hid_t_f *type_id,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_fl3_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -209,7 +298,48 @@ nh5ltmake_dataset_fl3_c (hid_t_f *loc_id,
                          hid_t_f *type_id,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_fl4_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_fl5_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_fl6_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_fl7_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_dl1_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -219,7 +349,7 @@ nh5ltmake_dataset_dl1_c (hid_t_f *loc_id,
                          hid_t_f *type_id,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_dl2_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -229,7 +359,7 @@ nh5ltmake_dataset_dl2_c (hid_t_f *loc_id,
                          hid_t_f *type_id,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_dl3_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -239,7 +369,47 @@ nh5ltmake_dataset_dl3_c (hid_t_f *loc_id,
                          hid_t_f *type_id,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_dl4_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_dl5_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_dl6_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_dl7_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         int_f *rank,
+                         hsize_t_f *dims,
+                         hid_t_f *type_id,
+                         void *buf);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_nint1_c (hid_t_f *loc_id,
                            int_f *namelen,
@@ -249,7 +419,7 @@ nh5ltmake_dataset_nint1_c (hid_t_f *loc_id,
                            hid_t_f *type_id,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_nint2_c (hid_t_f *loc_id,
                            int_f *namelen,
@@ -259,7 +429,7 @@ nh5ltmake_dataset_nint2_c (hid_t_f *loc_id,
                            hid_t_f *type_id,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_nint3_c (hid_t_f *loc_id,
                            int_f *namelen,
@@ -269,7 +439,47 @@ nh5ltmake_dataset_nint3_c (hid_t_f *loc_id,
                            hid_t_f *type_id,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nint4_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           int_f *rank,
+                           hsize_t_f *dims,
+                           hid_t_f *type_id,
+                           void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nint5_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           int_f *rank,
+                           hsize_t_f *dims,
+                           hid_t_f *type_id,
+                           void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nint6_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           int_f *rank,
+                           hsize_t_f *dims,
+                           hid_t_f *type_id,
+                           void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nint7_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           int_f *rank,
+                           hsize_t_f *dims,
+                           hid_t_f *type_id,
+                           void *buf);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_nfl1_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -279,7 +489,7 @@ nh5ltmake_dataset_nfl1_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_nfl2_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -289,7 +499,7 @@ nh5ltmake_dataset_nfl2_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_nfl3_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -299,7 +509,47 @@ nh5ltmake_dataset_nfl3_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nfl4_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nfl5_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nfl6_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_nfl7_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_ndl1_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -309,7 +559,7 @@ nh5ltmake_dataset_ndl1_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_ndl2_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -319,7 +569,7 @@ nh5ltmake_dataset_ndl2_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_ndl3_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -329,7 +579,47 @@ nh5ltmake_dataset_ndl3_c (hid_t_f *loc_id,
                           hid_t_f *type_id,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_ndl4_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_ndl5_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_ndl6_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltmake_dataset_ndl7_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          int_f *rank,
+                          hsize_t_f *dims,
+                          hid_t_f *type_id,
+                          void *buf);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_c (hid_t_f *loc_id,
                      int_f *namelen,
@@ -339,7 +629,7 @@ nh5ltread_dataset_c (hid_t_f *loc_id,
                      hsize_t_f *dims);
 
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_int1_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -348,7 +638,7 @@ nh5ltread_dataset_int1_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_int2_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -357,7 +647,7 @@ nh5ltread_dataset_int2_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_int3_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -366,7 +656,43 @@ nh5ltread_dataset_int3_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_int4_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_int5_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_int6_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_int7_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_fl1_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -375,7 +701,7 @@ nh5ltread_dataset_fl1_c (hid_t_f *loc_id,
                          void *buf,
                          hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_fl2_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -384,7 +710,7 @@ nh5ltread_dataset_fl2_c (hid_t_f *loc_id,
                          void *buf,
                          hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_fl3_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -393,7 +719,44 @@ nh5ltread_dataset_fl3_c (hid_t_f *loc_id,
                          void *buf,
                          hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_fl4_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_fl5_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_fl6_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_fl7_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_dl1_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -402,7 +765,7 @@ nh5ltread_dataset_dl1_c (hid_t_f *loc_id,
                          void *buf,
                          hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_dl2_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -411,7 +774,7 @@ nh5ltread_dataset_dl2_c (hid_t_f *loc_id,
                          void *buf,
                          hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_dl3_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -420,7 +783,43 @@ nh5ltread_dataset_dl3_c (hid_t_f *loc_id,
                          void *buf,
                          hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_dl4_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_dl5_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_dl6_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_dl7_c (hid_t_f *loc_id,
+                         int_f *namelen,
+                         _fcd name,
+                         hid_t_f *type_id,
+                         void *buf,
+                         hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_nint1_c (hid_t_f *loc_id,
                            int_f *namelen,
@@ -429,7 +828,7 @@ nh5ltread_dataset_nint1_c (hid_t_f *loc_id,
                            void *buf,
                            hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_nint2_c (hid_t_f *loc_id,
                            int_f *namelen,
@@ -438,7 +837,7 @@ nh5ltread_dataset_nint2_c (hid_t_f *loc_id,
                            void *buf,
                            hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_nint3_c (hid_t_f *loc_id,
                            int_f *namelen,
@@ -447,7 +846,43 @@ nh5ltread_dataset_nint3_c (hid_t_f *loc_id,
                            void *buf,
                            hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nint4_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           hid_t_f *type_id,
+                           void *buf,
+                           hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nint5_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           hid_t_f *type_id,
+                           void *buf,
+                           hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nint6_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           hid_t_f *type_id,
+                           void *buf,
+                           hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nint7_c (hid_t_f *loc_id,
+                           int_f *namelen,
+                           _fcd name,
+                           hid_t_f *type_id,
+                           void *buf,
+                           hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_nfl1_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -456,7 +891,7 @@ nh5ltread_dataset_nfl1_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_nfl2_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -465,7 +900,7 @@ nh5ltread_dataset_nfl2_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_nfl3_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -474,7 +909,43 @@ nh5ltread_dataset_nfl3_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nfl4_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nfl5_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nfl6_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_nfl7_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_ndl1_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -483,7 +954,7 @@ nh5ltread_dataset_ndl1_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_ndl2_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -492,7 +963,7 @@ nh5ltread_dataset_ndl2_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_ndl3_c (hid_t_f *loc_id,
                           int_f *namelen,
@@ -501,7 +972,43 @@ nh5ltread_dataset_ndl3_c (hid_t_f *loc_id,
                           void *buf,
                           hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_ndl4_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_ndl5_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_ndl6_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
+int_f
+nh5ltread_dataset_ndl7_c (hid_t_f *loc_id,
+                          int_f *namelen,
+                          _fcd name,
+                          hid_t_f *type_id,
+                          void *buf,
+                          hsize_t_f *dims);
+
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltset_attribute_int_c(hid_t_f *loc_id,
                          int_f *namelen,
@@ -511,7 +1018,7 @@ nh5ltset_attribute_int_c(hid_t_f *loc_id,
                          size_t_f *size,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltset_attribute_float_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -521,7 +1028,7 @@ nh5ltset_attribute_float_c(hid_t_f *loc_id,
                            size_t_f *size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltset_attribute_double_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -531,7 +1038,7 @@ nh5ltset_attribute_double_c(hid_t_f *loc_id,
                             size_t_f *size,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltset_attribute_string_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -542,7 +1049,7 @@ nh5ltset_attribute_string_c(hid_t_f *loc_id,
                             void *buf);
 
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_attribute_int_c(hid_t_f *loc_id,
                          int_f *namelen,
@@ -551,7 +1058,7 @@ nh5ltget_attribute_int_c(hid_t_f *loc_id,
                          _fcd attrname,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_attribute_float_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -560,7 +1067,7 @@ nh5ltget_attribute_float_c(hid_t_f *loc_id,
                            _fcd attrname,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_attribute_double_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -569,7 +1076,7 @@ nh5ltget_attribute_double_c(hid_t_f *loc_id,
                             _fcd attrname,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_attribute_string_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -578,20 +1085,20 @@ nh5ltget_attribute_string_c(hid_t_f *loc_id,
                             _fcd attrname,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_dataset_ndims_c(hid_t_f *loc_id,
                          int_f *namelen,
                          _fcd name,
                          int_f *rank);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltfind_dataset_c(hid_t_f *loc_id,
                     int_f *namelen,
                     _fcd name);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_dataset_info_c(hid_t_f *loc_id,
                         int_f *namelen,
@@ -600,7 +1107,7 @@ nh5ltget_dataset_info_c(hid_t_f *loc_id,
                         int_f *type_class,
                         size_t_f *type_size);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_attribute_ndims_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -608,7 +1115,7 @@ nh5ltget_attribute_ndims_c(hid_t_f *loc_id,
                            int_f *attrnamelen,
                            _fcd attrname,
                            int_f *rank);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltget_attribute_info_c(hid_t_f *loc_id,
                           int_f *namelen,
@@ -619,7 +1126,7 @@ nh5ltget_attribute_info_c(hid_t_f *loc_id,
                           int_f *type_class,
                           size_t_f *type_size);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltmake_dataset_string_c (hid_t_f *loc_id,
                             int_f *namelen,
@@ -627,7 +1134,7 @@ nh5ltmake_dataset_string_c (hid_t_f *loc_id,
                             int_f *buflen,
                             char *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5ltread_dataset_string_c (hid_t_f *loc_id,
                             int_f *namelen,
@@ -639,7 +1146,7 @@ nh5ltread_dataset_string_c (hid_t_f *loc_id,
 *-------------------------------------------------------------------------
 */
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5immake_image_8bit_c (hid_t_f *loc_id,
                         int_f *namelen,
@@ -647,14 +1154,14 @@ nh5immake_image_8bit_c (hid_t_f *loc_id,
                         hsize_t_f *width,
                         hsize_t_f *height,
                         int_f *buf);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imread_image_c (hid_t_f *loc_id,
                    int_f *namelen,
                    _fcd name,
                    int_f *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5immake_image_24bit_c (hid_t_f *loc_id,
                          int_f *namelen,
@@ -664,7 +1171,7 @@ nh5immake_image_24bit_c (hid_t_f *loc_id,
                          hsize_t_f *width,
                          hsize_t_f *height,
                          void *buf);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imget_image_info_c(hid_t_f *loc_id,
                       int_f *namelen,
@@ -677,14 +1184,14 @@ nh5imget_image_info_c(hid_t_f *loc_id,
                       _fcd interlace);
 
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imis_image_c(hid_t_f *loc_id,
                 int_f *namelen,
                 _fcd name);
 
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5immake_palette_c (hid_t_f *loc_id,
                      int_f *namelen,
@@ -692,7 +1199,7 @@ nh5immake_palette_c (hid_t_f *loc_id,
                      hsize_t_f *dims,
                      void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imlink_palette_c (hid_t_f *loc_id,
                      int_f *namelen,
@@ -700,7 +1207,7 @@ nh5imlink_palette_c (hid_t_f *loc_id,
                      int_f *ilen,
                      _fcd pal_name);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imunlink_palette_c (hid_t_f *loc_id,
                        int_f *namelen,
@@ -708,7 +1215,7 @@ nh5imunlink_palette_c (hid_t_f *loc_id,
                        int_f *ilen,
                        _fcd pal_name);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imget_npalettes_c(hid_t_f *loc_id,
                      int_f *namelen,
@@ -716,7 +1223,7 @@ nh5imget_npalettes_c(hid_t_f *loc_id,
                      hsize_t_f *npals);
 
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imget_palette_info_c(hid_t_f *loc_id,
                         int_f *namelen,
@@ -724,7 +1231,7 @@ nh5imget_palette_info_c(hid_t_f *loc_id,
                         int_f *pal_number,
                         hsize_t_f *dims);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imget_palette_c(hid_t_f *loc_id,
                    int_f *namelen,
@@ -732,7 +1239,7 @@ nh5imget_palette_c(hid_t_f *loc_id,
                    int_f *pal_number,
                    void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5imis_palette_c(hid_t_f *loc_id,
                   int_f *namelen,
@@ -745,7 +1252,7 @@ nh5imis_palette_c(hid_t_f *loc_id,
 *-------------------------------------------------------------------------
 */
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbmake_table_c(int_f *namelen1,
                   _fcd name1,
@@ -759,10 +1266,11 @@ nh5tbmake_table_c(int_f *namelen1,
                   hid_t_f *field_types,
                   hsize_t_f *chunk_size,
                   int_f *compress,
-                  int_f *len,       /* field_names lenghts */
+                  int_f *char_len_field_names, /* field_names lenghts */
+      int_f *max_char_size_field_names, /* char len of fields */
                   _fcd buf);          /* field_names */
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_name_c(hid_t_f *loc_id,
                         int_f *namelen,
@@ -774,7 +1282,7 @@ nh5tbwrite_field_name_c(hid_t_f *loc_id,
                         size_t_f *type_size,
                         void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_name_int_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -786,7 +1294,7 @@ nh5tbwrite_field_name_int_c(hid_t_f *loc_id,
                             size_t_f *type_size,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_name_fl_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -798,7 +1306,7 @@ nh5tbwrite_field_name_fl_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_name_dl_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -810,7 +1318,7 @@ nh5tbwrite_field_name_dl_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_name_st_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -822,7 +1330,7 @@ nh5tbwrite_field_name_st_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_name_c(hid_t_f *loc_id,
                        int_f *namelen,
@@ -834,7 +1342,7 @@ nh5tbread_field_name_c(hid_t_f *loc_id,
                        size_t_f *type_size,
                        void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_name_int_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -846,7 +1354,7 @@ nh5tbread_field_name_int_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_name_fl_c(hid_t_f *loc_id,
                           int_f *namelen,
@@ -858,7 +1366,7 @@ nh5tbread_field_name_fl_c(hid_t_f *loc_id,
                           size_t_f *type_size,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_name_dl_c(hid_t_f *loc_id,
                           int_f *namelen,
@@ -870,7 +1378,7 @@ nh5tbread_field_name_dl_c(hid_t_f *loc_id,
                           size_t_f *type_size,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_name_st_c(hid_t_f *loc_id,
                           int_f *namelen,
@@ -882,7 +1390,7 @@ nh5tbread_field_name_st_c(hid_t_f *loc_id,
                           size_t_f *type_size,
                           void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_index_c(hid_t_f *loc_id,
                          int_f *namelen,
@@ -893,7 +1401,7 @@ nh5tbwrite_field_index_c(hid_t_f *loc_id,
                          size_t_f *type_size,
                          void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_index_int_c(hid_t_f *loc_id,
                              int_f *namelen,
@@ -904,7 +1412,7 @@ nh5tbwrite_field_index_int_c(hid_t_f *loc_id,
                              size_t_f *type_size,
                              void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_index_fl_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -915,7 +1423,7 @@ nh5tbwrite_field_index_fl_c(hid_t_f *loc_id,
                             size_t_f *type_size,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_index_dl_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -926,7 +1434,7 @@ nh5tbwrite_field_index_dl_c(hid_t_f *loc_id,
                             size_t_f *type_size,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbwrite_field_index_st_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -937,7 +1445,7 @@ nh5tbwrite_field_index_st_c(hid_t_f *loc_id,
                             size_t_f *type_size,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_index_c(hid_t_f *loc_id,
                         int_f *namelen,
@@ -948,7 +1456,7 @@ nh5tbread_field_index_c(hid_t_f *loc_id,
                         size_t_f *type_size,
                         void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_index_int_c(hid_t_f *loc_id,
                             int_f *namelen,
@@ -959,7 +1467,7 @@ nh5tbread_field_index_int_c(hid_t_f *loc_id,
                             size_t_f *type_size,
                             void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_index_fl_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -970,7 +1478,7 @@ nh5tbread_field_index_fl_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_index_dl_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -981,7 +1489,7 @@ nh5tbread_field_index_dl_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbread_field_index_st_c(hid_t_f *loc_id,
                            int_f *namelen,
@@ -992,7 +1500,7 @@ nh5tbread_field_index_st_c(hid_t_f *loc_id,
                            size_t_f *type_size,
                            void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbinsert_field_c(hid_t_f *loc_id,
                     int_f *namelen,
@@ -1003,7 +1511,7 @@ nh5tbinsert_field_c(hid_t_f *loc_id,
                     int_f *position,
                     void *buf);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbinsert_field_int_c(hid_t_f *loc_id,
                         int_f *namelen,
@@ -1013,7 +1521,7 @@ nh5tbinsert_field_int_c(hid_t_f *loc_id,
                         hid_t_f *field_type,
                         int_f *position,
                         void *buf);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbinsert_field_fl_c(hid_t_f *loc_id,
                        int_f *namelen,
@@ -1023,7 +1531,7 @@ nh5tbinsert_field_fl_c(hid_t_f *loc_id,
                        hid_t_f *field_type,
                        int_f *position,
                        void *buf);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbinsert_field_dl_c(hid_t_f *loc_id,
                        int_f *namelen,
@@ -1033,7 +1541,7 @@ nh5tbinsert_field_dl_c(hid_t_f *loc_id,
                        hid_t_f *field_type,
                        int_f *position,
                        void *buf);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbinsert_field_st_c(hid_t_f *loc_id,
                        int_f *namelen,
@@ -1043,7 +1551,7 @@ nh5tbinsert_field_st_c(hid_t_f *loc_id,
                        hid_t_f *field_type,
                        int_f *position,
                        void *buf);
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbdelete_field_c(hid_t_f *loc_id,
                     int_f *namelen,
@@ -1052,7 +1560,7 @@ nh5tbdelete_field_c(hid_t_f *loc_id,
                     _fcd field_name);
 
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbget_table_info_c(hid_t_f *loc_id,
                       int_f *namelen,
@@ -1060,7 +1568,7 @@ nh5tbget_table_info_c(hid_t_f *loc_id,
                       hsize_t_f *nfields,
                       hsize_t_f *nrecords);
 
-H5_DLL
+HDF5_HL_F90CSTUBDLL
 int_f
 nh5tbget_field_info_c(hid_t_f *loc_id,
                       int_f *namelen,
@@ -1069,10 +1577,10 @@ nh5tbget_field_info_c(hid_t_f *loc_id,
                       size_t_f *field_sizes,
                       size_t_f *field_offsets,
                       size_t_f *type_size,
-                      int_f *namelen2,       /* field_names lenghts */
-                      _fcd field_names) ;     /* field_names */
-
-
+                      int_f *namelen2,
+          int_f *lenmax,
+                      _fcd field_names,
+          int_f *maxlen_out);    
 
 
 #endif /* _H5LTf90proto_H */

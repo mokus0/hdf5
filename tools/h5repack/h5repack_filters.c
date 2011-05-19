@@ -14,9 +14,16 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "h5repack.h"
-#include "h5test.h"
 #include "h5tools.h"
 
+/* number of members in an array */
+#ifndef NELMTS
+#    define NELMTS(X)		(sizeof(X)/sizeof(X[0]))
+#endif
+
+/* minimum of two values */
+#undef MIN
+#define MIN(a,b)		(((a)<(b)) ? (a) : (b))
 
 /*-------------------------------------------------------------------------
  * Function: aux_find_obj
@@ -37,13 +44,13 @@ int aux_find_obj(const char* name,          /* object name from traverse list */
 
  for ( i=0; i<options->op_tbl->nelems; i++)
  {
-     if (strcmp(options->op_tbl->objs[i].path,name)==0)
+     if (HDstrcmp(options->op_tbl->objs[i].path,name)==0)
      {
          *obj =  options->op_tbl->objs[i];
          return i;
      }
 
-     pdest  = strstr(name,options->op_tbl->objs[i].path);
+     pdest  = HDstrstr(name,options->op_tbl->objs[i].path);
      result = (int)(pdest - name);
 
      /* found at position 1, meaning without '/' */

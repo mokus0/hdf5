@@ -888,7 +888,7 @@ test_4 (hid_t fapl)
     if((fid = H5Fopen(filename, H5F_ACC_RDONLY, fapl)) < 0)
         goto error;
 
-    /* Open the external link */
+    /* Open the external link which is "/ link" as created previously via H5Lcreate_external() */
     if((xid = H5Gopen2(fid, "/ link", H5P_DEFAULT)) < 0)
         goto error;
 
@@ -966,6 +966,10 @@ main (void)
     nerrors += test_2(fapl);
     nerrors += test_3(fapl);
     nerrors += test_4(fapl);
+
+    /* Verify symbol table messages are cached */
+    nerrors += (h5_verify_cached_stabs(FILENAME, fapl) < 0 ? 1 : 0);
+
     if (nerrors>0) goto error;
 
     if (H5Fclose(file) < 0) goto error;

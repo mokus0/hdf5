@@ -95,10 +95,12 @@ $ type sys$input
 $ run  dtypes
 $ type sys$input
 
-$ type sys$input
--------			Running efc    		-------
-$ run  efc
-$ type sys$input
+$! Skip this test for now because it opens the same file many times.
+$! Please see Issue 7620 in Jira about it.
+$! type sys$input
+$! -------                 Running efc             -------
+$! run  efc
+$! type sys$input
 
 $ type sys$input
 -------			Running enum     	-------
@@ -175,11 +177,10 @@ $ type sys$input
 $ run  links
 $ type sys$input
 
-$! Skip it because it needs a script file to run
-$! type sys$input
-$!-------			Running links_env    	-------
-$! run  links_env
-$! type sys$input
+$ type sys$input
+-------			Running links_env    	-------
+$ run  links_env
+$ type sys$input
 
 $ type sys$input
 -------			Running mf    	-------
@@ -224,11 +225,6 @@ $ type sys$input
 $ type sys$input
 -------			Running set_extent     	-------
 $ run  set_extent
-$ type sys$input
-
-$ type sys$input
--------			Running space_overflow 	-------
-$ run  space_overflow
 $ type sys$input
 
 $ type sys$input

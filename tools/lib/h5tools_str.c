@@ -281,12 +281,14 @@ h5tools_str_fmt(h5tools_str_t *str/*in,out*/, size_t start, const char *fmt)
      * don't bother because we don't need a temporary copy.
      */
     if (strchr(fmt, '%')) {
-        if (str->len - start + 1 > sizeof(_temp)) {
-            temp = malloc(str->len - start + 1);
+        size_t n = sizeof(_temp);
+        if (str->len - start + 1 > n) {
+            n = str->len - start + 1; 
+            temp = malloc(n);
             assert(temp);
         }
 
-        strcpy(temp, str->s + start);
+        HDstrncpy(temp, str->s + start, n);
     }
 
     /* Reset the output string and append a formatted version */
@@ -388,8 +390,12 @@ h5tools_str_region_prefix(h5tools_str_t *str, const h5tool_format_t *info,
             p_prod[i - 1] = (max_idx[i]) * p_prod[i];
 
         for (i = 0; i < (size_t) ndims; i++) {
-            ctx->pos[i] = curr_pos / p_prod[i];
-            curr_pos -= p_prod[i] * ctx->pos[i];
+            if(curr_pos > 0) {
+                ctx->pos[i] = curr_pos / p_prod[i];
+                curr_pos -= p_prod[i] * ctx->pos[i];
+            }
+            else
+                ctx->pos[i] = 0;
             ctx->pos[i] += (unsigned long) ptdata[ctx->sm_pos+i];
         }
 
@@ -641,6 +647,14 @@ h5tools_print_char(h5tools_str_t *str, const h5tool_format_t *info, char ch)
  *
  *  PVN, 28 March 2006
  *  added H5T_NATIVE_LDOUBLE case
+ * 
+ *  Raymond Lu, 2011-09-01
+ *  CLANG compiler complained about the line (about 800):
+ *  	tempint = (tempint >> packed_data_offset) & packed_data_mask;
+ *  The right shift may cause undefined behavior if PACKED_DATA_OFFSET is 
+ *  32-bit or more. For every kind of native integers, I changed the code 
+ *  to make it zero if PACKED_DATA_OFFSET is greater than or equal to the
+ *  size of integer.
  *-------------------------------------------------------------------------
  */
 char *
@@ -669,8 +683,8 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
 
     /* Build default formats for long long types */
     if (!fmt_llong[0]) {
-        sprintf(fmt_llong, "%%%sd", H5_PRINTF_LL_WIDTH);
-        sprintf(fmt_ullong, "%%%su", H5_PRINTF_LL_WIDTH);
+        HDsnprintf(fmt_llong, sizeof(fmt_llong), "%%%sd", H5_PRINTF_LL_WIDTH);
+        HDsnprintf(fmt_ullong, sizeof(fmt_ullong), "%%%su", H5_PRINTF_LL_WIDTH);
     }
 
     /* Append value depending on data type */
@@ -795,98 +809,112 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
     }
     else if (H5Tequal(type, H5T_NATIVE_INT)) {
         HDmemcpy(&tempint, vp, sizeof(int));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempint = (tempint >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(int))
+                tempint = 0;
+            else
+                tempint = (tempint >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_int, "%d"), tempint);
     }
     else if (H5Tequal(type, H5T_NATIVE_UINT)) {
         HDmemcpy(&tempuint, vp, sizeof(unsigned int));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempuint = (tempuint >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(unsigned int))
+                tempuint = 0;
+            else
+                tempuint = (tempuint >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_uint, "%u"), tempuint);
     }
     else if (H5Tequal(type, H5T_NATIVE_SCHAR)) {
-        char               tempchar;
+        signed char        tempchar;
         HDmemcpy(&tempchar, cp_vp, sizeof(char));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempchar = (tempchar >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(char))
+                tempchar = 0;
+            else
+                tempchar = (tempchar >> packed_data_offset) & packed_data_mask;
         }
-#endif
+#ifdef H5_VMS
+        h5tools_str_append(str, OPT(info->fmt_schar, "%hd"), tempchar);
+#else
         h5tools_str_append(str, OPT(info->fmt_schar, "%hhd"), tempchar);
+#endif
     }
     else if (H5Tequal(type, H5T_NATIVE_UCHAR)) {
         unsigned char      tempuchar;
         HDmemcpy(&tempuchar, ucp_vp, sizeof(unsigned char));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempuchar = (tempuchar >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(unsigned char))
+                tempuchar = 0;
+            else
+                tempuchar = (tempuchar >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_uchar, "%u"), tempuchar);
     }
     else if (H5Tequal(type, H5T_NATIVE_SHORT)) {
         short tempshort;
 
         HDmemcpy(&tempshort, vp, sizeof(short));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempshort = (tempshort >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(short))
+                tempshort = 0;
+            else
+                tempshort = (tempshort >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_short, "%d"), tempshort);
     }
     else if (H5Tequal(type, H5T_NATIVE_USHORT)) {
         unsigned short tempushort;
 
         HDmemcpy(&tempushort, vp, sizeof(unsigned short));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempushort = (tempushort >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(unsigned short))
+                tempushort = 0;
+            else
+                tempushort = (tempushort >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_ushort, "%u"), tempushort);
     }
     else if (H5Tequal(type, H5T_NATIVE_LONG)) {
         HDmemcpy(&templong, vp, sizeof(long));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            templong = (templong >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(long))
+                templong = 0;
+            else
+                templong = (templong >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_long, "%ld"), templong);
     }
     else if (H5Tequal(type, H5T_NATIVE_ULONG)) {
         HDmemcpy(&tempulong, vp, sizeof(unsigned long));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempulong = (tempulong >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(unsigned long))
+                tempulong = 0;
+            else
+                tempulong = (tempulong >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_ulong, "%lu"), tempulong);
     }
     else if (H5Tequal(type, H5T_NATIVE_LLONG)) {
         HDmemcpy(&templlong, vp, sizeof(long long));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            templlong = (templlong >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(long long))
+                templlong = 0;
+            else
+                templlong = (templlong >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_llong, fmt_llong), templlong);
     }
     else if (H5Tequal(type, H5T_NATIVE_ULLONG)) {
         HDmemcpy(&tempullong, vp, sizeof(unsigned long long));
-#ifdef H5_HAVE_H5DUMP_PACKED_BITS
         if(packed_bits_num) {
-            tempullong = (tempullong >> packed_data_offset) & packed_data_mask;
+            if(packed_data_offset >= 8*sizeof(unsigned long long))
+                tempullong = 0;
+            else
+                tempullong = (tempullong >> packed_data_offset) & packed_data_mask;
         }
-#endif
         h5tools_str_append(str, OPT(info->fmt_ullong, fmt_ullong), tempullong);
     }
     else if (H5Tequal(type, H5T_NATIVE_HSSIZE)) {
@@ -1056,6 +1084,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
     else if (H5Tget_class(type) == H5T_ARRAY) {
         int k, ndims;
         hsize_t i, dims[H5S_MAX_RANK], temp_nelmts;
+        static int is_next_arry_elmt=0;
 
         /* Get the array's base datatype for each element */
         memb = H5Tget_super(type);
@@ -1091,12 +1120,31 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
                 for (x = 0; x < ctx->indent_level + 1; x++)
                     h5tools_str_append(str, "%s", OPT(info->line_indent, ""));
             } /* end if */
-            else if (i && info->arr_sep)
-                h5tools_str_append(str, " ");
+            else if (i && info->arr_sep) {
+                /* if next element begin, add next line with indent */
+                if (is_next_arry_elmt) {
+                    int x;
+                    is_next_arry_elmt = 0;
+
+                    h5tools_str_append(str, "%s", "\n ");
+
+                    if (ctx->indent_level >= 0)
+                        if (!info->pindex)
+                            h5tools_str_append(str, "%s", OPT(info->line_pre, ""));
+
+                    for (x = 0; x < ctx->indent_level + 1; x++)
+                        h5tools_str_append(str, "%s", OPT(info->line_indent, ""));
+                }
+                /* otherwise just add space */
+                else
+                    h5tools_str_append(str, " ");
+                
+            } /* end else if */
 
             ctx->indent_level++;
 
-            /* Dump the array element */
+            /* Dump values in an array element */
+            is_next_arry_elmt = 0; /* dump all values in the array element, so turn it off */
             h5tools_str_sprint(str, info, container, memb, cp_vp + i * size, ctx);
 
             ctx->indent_level--;
@@ -1104,6 +1152,7 @@ h5tools_str_sprint(h5tools_str_t *str, const h5tool_format_t *info, hid_t contai
 
         /* Print the closing bracket */
         h5tools_str_append(str, "%s", OPT(info->arr_suf, "]"));
+        is_next_arry_elmt = 1; /* set for begining of next array element */
         H5Tclose(memb);
     }
     else if (H5Tget_class(type) == H5T_VLEN) {
@@ -1272,7 +1321,7 @@ h5tools_escape(char *s/*in,out*/, size_t size)
             break;
         default:
             if (!isprint(s[i])) {
-                sprintf(octal, "\\%03o", (unsigned char) s[i]);
+                HDsnprintf(octal, sizeof(octal), "\\%03o", (unsigned char) s[i]);
                 escape = octal;
             }
             else {

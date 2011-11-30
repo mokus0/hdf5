@@ -64,6 +64,7 @@
 ./bin/mkdirs
 ./bin/mkinstalldirs
 ./bin/newer
+./bin/output_filter.sh
 ./bin/reconfigure      _DO_NOT_DISTRIBUTE_
 ./bin/release
 ./bin/runtest        _DO_NOT_DISTRIBUTE_
@@ -98,7 +99,6 @@
 ./config/linux-gnulibc1
 ./config/linux-gnulibc2
 ./config/lt_vers.am
-./config/mpich
 ./config/nec-superux14.1
 ./config/Makefile.am.blank
 ./config/pgi-fflags
@@ -145,10 +145,14 @@
 ./fortran/Makefile.am
 ./fortran/Makefile.in
 
+./fortran/robodoc.rc
+
 ./fortran/examples/Makefile.am
 ./fortran/examples/Makefile.in
 ./fortran/examples/attrexample.f90
 ./fortran/examples/compound.f90
+./fortran/examples/compound_fortran2003.f90
+./fortran/examples/compound_complex_fortran2003.f90
 ./fortran/examples/dsetexample.f90
 ./fortran/examples/fileexample.f90
 ./fortran/examples/groupexample.f90
@@ -164,17 +168,28 @@
 ./fortran/examples/rwdsetexample.f90
 ./fortran/examples/selectele.f90
 ./fortran/examples/testh5fc.sh.in
+./fortran/examples/nested_derived_type.f90
+./fortran/examples/rwdset_fortran2003.f90
+
 
 ./fortran/src/H5_f.c
 ./fortran/src/H5_ff.f90
+./fortran/src/H5_ff_F90.f90
+./fortran/src/H5_ff_F03.f90
 ./fortran/src/H5_DBLE_InterfaceInclude.f90
 ./fortran/src/H5_DBLE_InterfaceExclude.f90
 ./fortran/src/H5Af.c
 ./fortran/src/H5Aff.f90
+./fortran/src/H5Aff_F90.f90
+./fortran/src/H5Aff_F03.f90
 ./fortran/src/H5Df.c
 ./fortran/src/H5Dff.f90
+./fortran/src/H5Dff_F90.f90
+./fortran/src/H5Dff_F03.f90
 ./fortran/src/H5Ef.c
 ./fortran/src/H5Eff.f90
+./fortran/src/H5Eff_F90.f90
+./fortran/src/H5Eff_F03.f90
 ./fortran/src/H5FDmpiof.c
 ./fortran/src/H5FDmpioff.f90
 ./fortran/src/H5Ff.c
@@ -185,16 +200,26 @@
 ./fortran/src/H5Iff.f90
 ./fortran/src/H5Lf.c
 ./fortran/src/H5Lff.f90
+./fortran/src/H5Lff_F90.f90
+./fortran/src/H5Lff_F03.f90
 ./fortran/src/H5Of.c
 ./fortran/src/H5Off.f90
+./fortran/src/H5Off_F90.f90
+./fortran/src/H5Off_F03.f90
 ./fortran/src/H5Pf.c
 ./fortran/src/H5Pff.f90
+./fortran/src/H5Pff_F90.f90
+./fortran/src/H5Pff_F03.f90
 ./fortran/src/H5Rf.c
 ./fortran/src/H5Rff.f90
+./fortran/src/H5Rff_F90.f90
+./fortran/src/H5Rff_F03.f90
 ./fortran/src/H5Sf.c
 ./fortran/src/H5Sff.f90
 ./fortran/src/H5Tf.c
 ./fortran/src/H5Tff.f90
+./fortran/src/H5Tff_F90.f90
+./fortran/src/H5Tff_F03.f90
 ./fortran/src/H5Zf.c
 ./fortran/src/H5Zff.f90
 ./fortran/src/H5f90.h
@@ -213,6 +238,7 @@
 ./fortran/src/README_DEVELOPEMENT   _DO_NOT_DISTRIBUTE_
 ./fortran/src/h5fc.in
 ./fortran/src/hdf5_fortrandll.def
+./fortran/src/phdf5_fortrandll.def
 
 ./fortran/test/Makefile.am
 ./fortran/test/Makefile.in
@@ -220,22 +246,27 @@
 ./fortran/test/fflush2.f90
 ./fortran/test/fortranlib_test.f90
 ./fortran/test/fortranlib_test_1_8.f90
+./fortran/test/fortranlib_test_F03.f90
 ./fortran/test/t.c
 ./fortran/test/t.h
 ./fortran/test/tf.f90
 ./fortran/test/tH5A.f90
 ./fortran/test/tH5A_1_8.f90
 ./fortran/test/tH5D.f90
+./fortran/test/tH5E_F03.f90
 ./fortran/test/tH5E.f90
 ./fortran/test/tH5F.f90
 ./fortran/test/tH5G.f90
 ./fortran/test/tH5G_1_8.f90
 ./fortran/test/tH5I.f90
+./fortran/test/tH5L_F03.f90
 ./fortran/test/tH5O.f90
+./fortran/test/tH5P_F03.f90
 ./fortran/test/tH5P.f90
 ./fortran/test/tH5R.f90
 ./fortran/test/tH5S.f90
 ./fortran/test/tH5Sselect.f90
+./fortran/test/tH5T_F03.f90
 ./fortran/test/tH5T.f90
 ./fortran/test/tH5VL.f90
 ./fortran/test/tH5Z.f90
@@ -417,6 +448,7 @@
 ./release_docs/CMake.txt
 ./release_docs/INSTALL_parallel
 ./release_docs/RELEASE.txt
+./release_docs/Using_CMake.txt
 
 ./src/.indent.pro      _DO_NOT_DISTRIBUTE_
 ./src/hdf5.lnt        _DO_NOT_DISTRIBUTE_
@@ -507,6 +539,7 @@
 ./src/H5Eterm.h
 ./src/H5F.c
 ./src/H5Faccum.c
+./src/H5Fcwfs.c
 ./src/H5Fdbg.c
 ./src/H5Fefc.c
 ./src/H5Ffake.c
@@ -608,6 +641,7 @@
 ./src/H5HGpkg.h
 ./src/H5HGprivate.h
 ./src/H5HGpublic.h
+./src/H5HGquery.c
 ./src/H5HL.c
 ./src/H5HLcache.c
 ./src/H5HLdbg.c
@@ -810,6 +844,7 @@
 ./test/external.c
 ./test/error_test.c
 ./test/err_compat.c
+./test/filter_error.h5
 ./test/links_env.c
 ./test/family_v16_00000.h5
 ./test/family_v16_00001.h5
@@ -859,6 +894,8 @@
 ./test/mf.c
 ./test/mount.c
 ./test/mtime.c
+./test/multi_file_v16-r.h5
+./test/multi_file_v16-s.h5
 ./test/noencoder.h5
 ./test/ntypes.c
 ./test/ohdr.c
@@ -918,7 +955,6 @@
 ./test/tvltypes.c
 ./test/unlink.c
 ./test/vfd.c
-./test/vms_data.h5
 ./test/test_filters_le.hdf5
 ./test/test_filters_be.hdf5
 ./test/gen_filters.c
@@ -971,45 +1007,47 @@
 ./tools/h5import/h5import.c
 ./tools/h5import/h5importtest.c
 ./tools/h5import/h5importtestutil.sh
-./tools/h5import/testfiles/binfp32.conf
-./tools/h5import/testfiles/binfp64.conf
-./tools/h5import/testfiles/binin16.conf
-./tools/h5import/testfiles/binin32.conf
-./tools/h5import/testfiles/binin8.conf
-./tools/h5import/testfiles/binuin16.conf
-./tools/h5import/testfiles/binuin32.conf
-./tools/h5import/testfiles/fp1.txt
-./tools/h5import/testfiles/fp2.txt
-./tools/h5import/testfiles/in1.txt
-./tools/h5import/testfiles/textfp32.conf
-./tools/h5import/testfiles/textfp64.conf
-./tools/h5import/testfiles/textin16.conf
-./tools/h5import/testfiles/textin32.conf
-./tools/h5import/testfiles/textin8.conf
-./tools/h5import/testfiles/textuin16.conf
-./tools/h5import/testfiles/textuin32.conf
-./tools/h5import/testfiles/test1.h5
-./tools/h5import/testfiles/test2.h5
-./tools/h5import/testfiles/test3.h5
-./tools/h5import/testfiles/test4.h5
-./tools/h5import/testfiles/test5.h5
-./tools/h5import/testfiles/test6.h5
-./tools/h5import/testfiles/test7.h5
-./tools/h5import/testfiles/test8.h5
-./tools/h5import/testfiles/test9.h5
-./tools/h5import/testfiles/test10.h5
-./tools/h5import/testfiles/test11.h5
-./tools/h5import/testfiles/test12.h5
-./tools/h5import/testfiles/test13.h5
-./tools/h5import/testfiles/test14.h5
-./tools/h5import/testfiles/test15.h5
-./tools/h5import/testfiles/textstr.conf
-./tools/h5import/testfiles/str.txt
-./tools/h5import/testfiles/textpfe.conf
-./tools/h5import/testfiles/in64.txt
-./tools/h5import/testfiles/in32.txt
-./tools/h5import/testfiles/in16.txt
 
+# testfiles for h5import
+./tools/h5import/testfiles/binin32.h5
+./tools/h5import/testfiles/binin16.h5
+./tools/h5import/testfiles/txtfp32.txt
+./tools/h5import/testfiles/txtstr.conf
+./tools/h5import/testfiles/txtfp32.conf
+./tools/h5import/testfiles/binin8w.conf
+./tools/h5import/testfiles/binin8.h5
+./tools/h5import/testfiles/txtfp64.conf
+./tools/h5import/testfiles/binuin32.conf
+./tools/h5import/testfiles/txtuin32.txt
+./tools/h5import/testfiles/binuin16.conf
+./tools/h5import/testfiles/txtstr.h5
+./tools/h5import/testfiles/txtfp32.h5
+./tools/h5import/testfiles/txtin32.h5
+./tools/h5import/testfiles/txtin16.h5
+./tools/h5import/testfiles/binin8w.h5
+./tools/h5import/testfiles/txtin32.txt
+./tools/h5import/testfiles/binfp64.conf
+./tools/h5import/testfiles/binin8.conf
+./tools/h5import/testfiles/txtin8.conf
+./tools/h5import/testfiles/binfp64.h5
+./tools/h5import/testfiles/txtstr.txt
+./tools/h5import/testfiles/txtin32.conf
+./tools/h5import/testfiles/txtin16.conf
+./tools/h5import/testfiles/txtin8.h5
+./tools/h5import/testfiles/txtuin32.conf
+./tools/h5import/testfiles/txtuin16.conf
+./tools/h5import/testfiles/binin32.conf
+./tools/h5import/testfiles/binin16.conf
+./tools/h5import/testfiles/txtfp64.h5
+./tools/h5import/testfiles/txtin16.txt
+./tools/h5import/testfiles/txtfp64.txt
+./tools/h5import/testfiles/binuin32.h5
+./tools/h5import/testfiles/binuin16.h5
+./tools/h5import/testfiles/txtuin32.h5
+./tools/h5import/testfiles/txtuin16.h5
+./tools/h5import/testfiles/textpfe.conf
+./tools/h5import/testfiles/textpfe64.txt
+./tools/h5import/testfiles/textpfe.h5
 
 # h5diff sources
 ./tools/h5diff/Makefile.am
@@ -1134,6 +1172,7 @@
 ./tools/testfiles/filter_fail.h5
 ./tools/testfiles/filter_fail.ddl
 ./tools/testfiles/packedbits.ddl
+./tools/testfiles/h5dump-help.txt
 ./tools/testfiles/tall-1.ddl
 ./tools/testfiles/tall-2.ddl
 ./tools/testfiles/tall-3.ddl
@@ -1325,7 +1364,6 @@
 ./tools/testfiles/tbigdims.h5
 ./tools/testfiles/thyperslab.h5
 # h5dump packed bits validation
-./tools/testfiles/tnofilename-with-packed-bits.ddl
 ./tools/testfiles/tpbitsLengthPositive.ddl
 ./tools/testfiles/tpbitsMaxExceeded.ddl
 ./tools/testfiles/tpbitsSigned.ddl
@@ -1396,7 +1434,8 @@
 ./tools/testfiles/tfpformat.h5
 # h5dump h5repack validation
 ./tools/testfiles/h5repack_filters.h5.ddl
-
+./tools/testfiles/zerodim.ddl
+./tools/testfiles/zerodim.h5
 
 # Expected output from h5ls tests
 ./tools/testfiles/nosuchfile.ls
@@ -1556,6 +1595,7 @@
 ./tools/h5diff/testfiles/h5diff_26.txt
 ./tools/h5diff/testfiles/h5diff_27.txt
 ./tools/h5diff/testfiles/h5diff_28.txt
+./tools/h5diff/testfiles/h5diff_30.txt
 ./tools/h5diff/testfiles/h5diff_50.txt
 ./tools/h5diff/testfiles/h5diff_51.txt
 ./tools/h5diff/testfiles/h5diff_52.txt
@@ -1592,6 +1632,15 @@
 ./tools/h5diff/testfiles/h5diff_627.txt
 ./tools/h5diff/testfiles/h5diff_628.txt
 ./tools/h5diff/testfiles/h5diff_629.txt
+./tools/h5diff/testfiles/h5diff_630.txt
+./tools/h5diff/testfiles/h5diff_631.txt
+./tools/h5diff/testfiles/h5diff_640.txt
+./tools/h5diff/testfiles/h5diff_641.txt
+./tools/h5diff/testfiles/h5diff_642.txt
+./tools/h5diff/testfiles/h5diff_643.txt
+./tools/h5diff/testfiles/h5diff_644.txt
+./tools/h5diff/testfiles/h5diff_645.txt
+./tools/h5diff/testfiles/h5diff_646.txt
 ./tools/h5diff/testfiles/h5diff_70.txt
 ./tools/h5diff/testfiles/h5diff_700.txt
 ./tools/h5diff/testfiles/h5diff_701.txt
@@ -1624,6 +1673,10 @@
 ./tools/h5diff/testfiles/h5diff_205.txt
 ./tools/h5diff/testfiles/h5diff_206.txt
 ./tools/h5diff/testfiles/h5diff_207.txt
+./tools/h5diff/testfiles/h5diff_208.txt
+./tools/h5diff/testfiles/h5diff_220.txt
+./tools/h5diff/testfiles/h5diff_221.txt
+./tools/h5diff/testfiles/h5diff_222.txt
 ./tools/h5diff/testfiles/h5diff_300.txt
 ./tools/h5diff/testfiles/h5diff_400.txt
 ./tools/h5diff/testfiles/h5diff_401.txt
@@ -1686,6 +1739,7 @@
 ./tools/h5diff/testfiles/h5diff_517.txt
 ./tools/h5diff/testfiles/h5diff_518.txt
 ./tools/h5diff/testfiles/h5diff_530.txt
+./tools/h5diff/testfiles/h5diff_540.txt
 
 ./tools/h5diff/testfiles/h5diff_attr1.h5
 ./tools/h5diff/testfiles/h5diff_attr2.h5
@@ -1720,8 +1774,13 @@
 ./tools/h5diff/testfiles/h5diff_exclude2-1.h5
 ./tools/h5diff/testfiles/h5diff_exclude2-2.h5
 ./tools/h5diff/testfiles/h5diff_comp_vl_strs.h5
-
-
+./tools/h5diff/testfiles/h5diff_dset_zero_dim_size1.h5
+./tools/h5diff/testfiles/h5diff_dset_zero_dim_size2.h5
+./tools/h5diff/testfiles/h5diff_enum_invalid_values.h5
+./tools/h5diff/testfiles/compounds_array_vlen1.h5
+./tools/h5diff/testfiles/compounds_array_vlen2.h5
+./tools/h5diff/testfiles/non_comparables1.h5
+./tools/h5diff/testfiles/non_comparables2.h5
 
 
 #test files for h5repack
@@ -1740,6 +1799,7 @@
 ./tools/h5repack/testfiles/h5repack_filters.h5
 ./tools/h5repack/testfiles/h5repack_soffset.h5
 ./tools/h5repack/testfiles/h5repack_attr.h5
+./tools/h5repack/testfiles/h5repack_attr_refs.h5
 ./tools/h5repack/testfiles/h5repack_early.h5
 ./tools/h5repack/testfiles/h5repack_layout.h5
 ./tools/h5repack/testfiles/h5repack_layouto.h5
@@ -1760,13 +1820,16 @@
 ./tools/h5jam/getub.c
 
 # test files for jam
+./tools/h5jam/testfiles/h5jam-help.txt
+./tools/h5jam/testfiles/h5unjam-help.txt
 ./tools/h5jam/testfiles/twithub.h5
+./tools/h5jam/testfiles/twithub513.h5
 ./tools/h5jam/testfiles/u10.txt
 ./tools/h5jam/testfiles/tall.h5
 ./tools/h5jam/testfiles/u511.txt
 ./tools/h5jam/testfiles/u512.txt
-./tools/h5jam/testfiles/twithub513.h5
 ./tools/h5jam/testfiles/u513.txt
+./tools/h5jam/testfiles/h5jam-ub-nohdf5.txt
 
 # test files for h5copy
 ./tools/h5copy/testfiles/h5copytst.h5
@@ -1901,8 +1964,11 @@
 ./hl/fortran/Makefile.in
 ./hl/fortran/examples/Makefile.am
 ./hl/fortran/examples/Makefile.in
+./hl/fortran/examples/ex_ds1.f90
 ./hl/fortran/examples/exlite.f90
 ./hl/fortran/examples/run-hlfortran-ex.sh.in
+./hl/fortran/src/H5DSfc.c
+./hl/fortran/src/H5DSff.f90
 ./hl/fortran/src/H5IMcc.c
 ./hl/fortran/src/H5IMcc.h
 ./hl/fortran/src/H5IMfc.c
@@ -1916,6 +1982,7 @@
 ./hl/fortran/src/Makefile.in
 ./hl/fortran/test/Makefile.am
 ./hl/fortran/test/Makefile.in
+./hl/fortran/test/tstds.f90
 ./hl/fortran/test/tstimage.f90
 ./hl/fortran/test/tstlite.f90
 ./hl/fortran/test/tsttable.f90
@@ -2009,6 +2076,7 @@
 ./config/cmake/mccacheinit.cmake
 ./config/cmake/CTest.cmake
 ./config/cmake/grepTest.cmake
+./config/cmake/prunTest.cmake
 ./config/cmake/runTest.cmake
 ./config/cmake/userblockTest.cmake
 ./config/cmake/vfdTest.cmake
@@ -2016,6 +2084,7 @@
 ./config/cmake/ConfigureChecks.cmake
 ./config/cmake/CPack.cmake
 ./config/cmake/NSIS.template.in
+./config/cmake/NSIS.InstallOptions.ini.in
 ./CMakeLists.txt
 ./CTestConfig.cmake
 ./c++/CMakeLists.txt

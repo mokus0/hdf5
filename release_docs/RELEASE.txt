@@ -1,25 +1,25 @@
-HDF5 version 1.8.7 released on Tue May 10 09:24:44 CDT 2011
+HDF5 version 1.8.8 released on 2011-11-15
 ================================================================================
 
 INTRODUCTION
 ============
 
-This document describes the differences between HDF5-1.8.6 and 
-HDF5 1.8.7, and contains information on the platforms tested and 
-known problems in HDF5-1.8.7. 
+This document describes the differences between HDF5-1.8.7 and 
+HDF5 1.8.8, and contains information on the platforms tested and 
+known problems in HDF5-1.8.8. 
 For more details, see the files HISTORY-1_0-1_8_0_rc3.txt 
 and HISTORY-1_8.txt in the release_docs/ directory of the HDF5 source.
 
-Links to the HDF5 1.8.7 source code, documentation, and additional materials
+Links to the HDF5 1.8.8 source code, documentation, and additional materials
 can be found on the HDF5 web page at:
 
      http://www.hdfgroup.org/products/hdf5/
 
-The HDF5 1.8.7 release can be obtained from:
+The HDF5 1.8.8 release can be obtained from:
 
      http://www.hdfgroup.org/HDF5/release/obtain5.html
 
-User documentation for 1.8.7 can be accessed directly at this location: 
+User documentation for 1.8.8 can be accessed directly at this location: 
 
      http://www.hdfgroup.org/HDF5/doc/
 
@@ -30,8 +30,8 @@ in 1.8.0?" document:
      http://www.hdfgroup.org/HDF5/doc/ADGuide/WhatsNew180.html
 
 All new and modified APIs are listed in detail in the "HDF5 Software Changes 
-from Release to Release" document, in the section "Release 1.8.7 (current 
-release) versus Release 1.8.6":
+from Release to Release" document, in the section "Release 1.8.8 (current 
+release) versus Release 1.8.7":
 
      http://www.hdfgroup.org/HDF5/doc/ADGuide/Changes.html
 
@@ -45,7 +45,7 @@ CONTENTS
 
 - New Features
 - Support for New Platforms, Languages, and Compilers
-- Bug Fixes since HDF5-1.8.6
+- Bug Fixes since HDF5-1.8.7
 - Platforms Tested
 - Supported Configuration Features Summary
 - Known Problems
@@ -56,67 +56,86 @@ New Features
 
     Configuration
     -------------
-    - Configure now generates Makefiles that build in "silent make mode"
-      by default in which compile and link lines are significantly
-      simplified for clarity. To override this and view actual compile and
-      link lines during building, the --disable-silent-rules flag can be used
-      at configure time, or the 'make' command can be followed by V=1, to
-      indicate a "verbose" make. (MAM - 2011/4/14).
-    - Added mpicc and mpif90 as the default C and Fortran compilers for Linux
-      systems when --enable-parallel is specified but no $CC or $FC is defined.
-      (AKC - 2011/2/7)
-    - Added a new configure option, "--enable-unsupported", which can
-      be used to stop configure from preventing the use of unsupported
-      configure option combinations, such as c++ in parallel or Fortran
-      with threadsafe. Use at your own risk, as it may result in a 
-      library that won't compile or run as expected!
-      (MAM - 2010/11/17 - Bug 2061)
-
+    - Added the --enable-fortran2003 flag to enable Fortran2003 support 
+      in the HDF5 Fortran library. The flag should be used along with the
+      --enable-fortran flag and takes affect only when the Fortran compiler 
+      is Fortran2003 compliant. (EIP - 2011/11/14)
+    - Added checks for clock_gettime and mach/mach_time.h to both configure and
+      CMake.  This will support the move from gettimeofday to clock_gettime's
+      monotonic timer in the profiling code in a future release.
+      (DER - 2011/10/12)
+    
     Library
     -------
-    - The library allows the dimension size of a dataspace to be zero.  In 
-      the past, the library would allow this only if the maximal dimension 
-      size was unlimited. Now there is no such restriction, but no data 
-      can be written to this kind of dataset. (SLU - 2011/4/20)
-    - We added two new macros, H5_VERSION_GE and H5_VERSION_LE, to let users
-      compare certain version numbers with the library being used. (SLU -
-      2011/4/20) 
-    - Added ability to cache files opened through external links.  Added new
-      public functions H5Pset_elink_file_cache_size(),
-      H5Pget_elink_file_cache_size(), and H5Fclear_elink_file_cache().
-      (NAF - 2011/02/17)
-    - Finished implementing all options for 'log' VFD.  (QAK - 2011/1/25)
-    - Removed all old code for Metrowerks compilers, bracketed by
-      __MWERKS__). Metrowerks compiler is long gone. (AKC - 2010/11/17) 
-
+    - The Windows VFD code has been removed with the exception of the functions
+      which set it (H5Pset_fapl_windows, for example).  Setting the Windows
+      VFD now really sets the SEC2 VFD.  The WINDOWS_MAX_BUF and
+      WINDOWS_USE_STDIO configuration options and #defines have also been
+      removed. NOTE: Since the Windows VFD was a clone of the SEC2 VFD, this
+      change should be transparent to users.
+      (DER - 2011/10/12 - HDFFV-7740, HDFFV-7744)
+    - H5Tcreate now supports the string type (fixed-length and variable-
+      length). (SLU - 2011/05/20)
+ 
     Parallel Library
     ----------------
-    - None
+    - Added new H5Pget_mpio_actual_chunk_opt_mode and
+      H5Pget_mpio_actual_io_mode API routines for querying whether/how
+      a collective I/O operation completed.  (QAK - 2011/10/12)
  
     Tools
     -----
-     - h5diff: Added new "verbose with levels" option, '-vN, --verbose=N'.
-       The old '-v, --verbose' option is deprecated but remains available;
-       it is exactly equivalent to '-v0, --verbose=0'.
-       The new levels 1 ('-v1' or '--verbose=1') and 2 ('-v2' or 
-       '--verbose=2') can be specified to view more information regarding 
-       attributes differences.  Bug #2121 (JKM 2011/3/23)
-     - h5dump: Added new option --enable-error-stack. This option will 
-       display error stack information in the output stream. This is 
-       useful when the "h5dump: Unable to print data" message is output.
-       (ADB - 2011/03/03)
+    - None
 
     High-Level APIs
     ---------------
-    - Fortran LT make datasets routines (H5LTmake_dataset_f, 
-      h5ltmake_dataset_int_f, h5ltmake_dataset_float_f, h5ltmake_dataset_double_f) 
-      and LT read datasets routines (h5ltread_dataset_f,h5ltread_dataset_int_f,
-      h5ltread_dataset_float_f, 5ltread_dataset_double_f) can now handle 
-      4-dimensional to 7-dimensional rank datasets. HDFFV-1217 (MSB-2011/4/24/2011)
+    - Added the following Fortran wrappers for the Dimension Scale APIs:
+        h5dsset_scale_f
+        h5dsattach_scale_f
+        h5dsdetach_scale_f
+        h5dsis_attached_f
+        h5dsis_scale_f
+        h5dsset_label_f
+        h5dsget_label_f
+        h5dsget_scale_name_f
+        h5dsget_num_scales_f
+      (EIP for SB - 2011/10/13 - HDFFV-3797)
 
-    F90 API
-    -------
-     - None
+    Fortran API
+    -----------
+    - The HDF5 Fortran library was enhanced to support the Fortran 2003 standard.
+      The following features are available when the HDF5 library is configured
+      using the --enable-fortran and --enable-fortran2003 configure flags AND
+      if the Fortran compiler is Fortran 2003 compliant:
+
+      - Subroutines overloaded with the C_PTR derived type:
+          h5pget_f
+          h5pget_fill_value_f
+          h5pinsert_f
+          h5pregister_f
+          h5pset_f
+          h5pset_fill_value_f
+          h5rcreate_f
+          h5rderefrence_f
+          h5rget_name_f
+          h5rget_obj_type_f
+      - Subroutines overloaded with the C_PTR derived type 
+        and simplified signatures: 
+          h5aread_f
+          h5awrite_f
+          h5dread_f
+          h5dwrite_f
+      - New subroutines
+          h5dvlen_reclaim_f
+          h5literate_by_name_f
+          h5literate_f
+          h5ovisit_f
+          h5tconvert_f
+          h5pset_nbit_f
+          h5pset_scaleoffset_f
+      - Subroutines with additional optional parameters:
+          h5pcreate_class_f
+      (EIP - 2011/10/14)
 
     C++ API
     -------
@@ -125,116 +144,169 @@ New Features
 
 Support for New Platforms, Languages, and Compilers
 ===================================================
-    - Intel V11.1 uses now -O3 optimization in production mode (EIP - 2010/10/08)
-             
+    - None
 
-
-Bug Fixes since HDF5-1.8.6
+Bug Fixes since HDF5-1.8.7
 ==========================
 
     Configuration
     -------------
-    - Shared C++ and HL libraries on AIX should now be working correctly.
-      Note that Fortran shared libraries are still not working on AIX. 
-      (See the Known Problems section, below). (MAM - 2011/4/20)
-    - Removed config/ibm-aix6.x. All IBM-AIX settings are in one file,
-      ibm-aix. (AKC - 2011/4/14)
-    - Shared C libraries are no longer disabled on Mac when Fortran
-      is enabled. Shared Fortran libraries are still not supported on Mac,
-      so configure will disable them by default, but this is overrideable
-      with the new --enable-unsupported configure option. The configure
-      summary has been updated to reflect the fact that the shared-ness of 
-      the C++/Fortran wrapper libraries may not align with the C library.
-      (MAM - 2011/04/11 - HDFFV-4353).
+    - Changed the size of H5_SIZEOF_OFF_T to 4 bytes (was 8) in the VMS
+      h5pubconf.h based on the output of a test program.  (DER - 2011/10/12)
+    - The Windows and VMS versions of H5pubconf.h were brought into sync with
+      the linux/posix version. (DER - 2011/10/12)
+    - Fixed a bug in the bin/trace Perl script where API functions
+      that take a variable number of arguments were not processed for
+      trace statement fixup. (DER - 2011/08/25)
+    - The --enable-h5dump-packed-bits configure option has been removed.
+      The h5dump code that this option conditionally enabled is now always
+      compiled into h5dump. Please refer to the h5dump reference manual for 
+      usage of the packed bits feature. (MAM - 2011/06/23 - HDFFV-7592)
+    - Configure now uses the same flags and symbols in its tests that are
+      used to build the library. (DER - 2011/05/24)
 
     Library
     -------
-    - Changed assertion failure when decoding a compound datatype with no
-      fields into a normal error failure.  Also prohibit using this sort
-      of datatype for creating an attribute (as is already the case for
-      datasets and committed (named) datatypes).  (QAK - 2011/04/15, Jira 
-      issue #HDFFV-2766)
-    - Tell the VFL flush call that the file will be closing, allowing
-      the VFDs to avoid sync'ing the file (particularly valuable in parallel).
-      (QAK - 2011/03/09)
-    - The datatype handler created with H5Tencode/decode used to have the 
-      reference count 0 (zero); it now has the reference count 1 (one).
-      (SLU - 2011/2/18)
-    - Fixed the definition of H5_HAVE_GETTIMEOFDAY on Windows so that
-      HDgettimeofday() is defined and works properly.  Bug HDFFV-5931
-      (DER - 2011/04/14)
-    - Added basic VFD tests for the Windows, STDIO and log VFD tests.
-      (DER - 2011/04/11)
+    - Corrected the error when copying attributes between files which are using
+      different versions of the file format. (QAK - 2011/10/20 - HDFFV-7718)
+    - Corrected the error when loading local heaps from the file, which could
+      cause the size of the local heap's data block to increase dramatically.
+      (QAK - 2011/10/14 - HDFFV-7767)
+    - An application does not need to do H5O_move_msgs_forward() when writing
+      attributes. Tests were checked into the performance suite.
+      (VC - 2011/10/13 - HDFFV-7640)
+    - Fixed a bug that occurred when using H5Ocopy on a committed datatype
+      containing an attribute using that committed datatype.
+      (NAF - 2011/10/13 - HDFFV-5854)
+    - Added generic VFD I/O types to the SEC2 and log VFDs to ensure correct
+      I/O sizes (and remove compiler warnings) between Windows and true POSIX
+      systems.  (DER - 2011/10/12)
+    - Corrected some Windows behavior in the SEC2 and log VFDs.  This mainly
+      involved datatype correctness fixes, Windows API call error checks, 
+      and adding the volume serial number to the VFD cmp functions.
+      (DER - 2011/10/12)
+    - Converted post-checks for the appropriate POSIX I/O sizes to pre-checks 
+      in order to avoid platform-specific or undefined behavior.  
+      (DER - 2011/10/12)
+    - #ifdef _WIN32 instances have been changed to #ifdef H5_HAVE_WIN32_API. 
+      H5_HAVE_VISUAL_STUDIO checks have been added where necessary. This is in 
+      CMake only as configure never sets _WIN32. (ADB - 2011/09/12)
+    - CLANG compiler with the options -fcatch-undefined-behavior and -ftrapv
+      discovered 3 problems in tests and tools' library:
+        1. In dsets.c, left shifting an unsigned int for 32 bits or more
+           caused undefined behavior.
+        2. In dt_arith.c, the INIT_INTEGER macro definition has an overflow
+           when the value is a negative minimal and is being subtracted from one.
+        3. In tools/lib/h5tools_str.c, right shifting an int value for 32 bits 
+           or more caused undefined behavior.
+      All the problems have been corrected. (SLU - 2011/09/02 - HDFFV-7674)
+    - H5Epush2() now has the correct trace functionality (this is related to the
+      bin/trace Perl script bug noted in the configure section).
+      (DER - 2011/08/25)
+    - Corrected mismatched function name typo of h5pget_dxpl_mpio_c and
+      h5pfill_value_defined_c. (AKC - 2011/08/22 - HDFFV-7641)
+    - Corrected an internal error in the library where objects that use committed 
+      (named) datatypes and were accessed from two different file IDs could confuse
+      the two and cause erroneous failures. (QAK - 2011/07/18 - HDFFV-7638)
+    - In v1.6 of the library, there was an EOA for the whole MULTI file saved in the 
+      super block.  We took it out in v1.8 of the library because it's meaningless 
+      for the MULTI file. v1.8 of the library saves the EOA for the metadata file 
+      instead, but this caused a backward compatibility problem.
+      A v1.8 library couldn't open the file created with the v1.6 library. We
+      fixed the problem by checking the EOA value to detect the file
+      created with v1.6 library. (SLU - 2011/06/22) 
+    - When a dataset had filters and reading data failed, the error message 
+      didn't say which filter wasn't registered. It's fixed now. (SLU - 2011/06/03)
 
     Parallel Library
     ----------------
-    - None
+    - The Special Collective IO (IO when some processes do not contribute to the
+      IO) and the Complex Derived Datatype MPI functionalities are no longer
+      conditionally enabled in the library by configure. They are always
+      enabled in order to take advantage of performance boosts from these
+      behaviors. Older MPI implementations that do not allow for these
+      functionalities can no longer by used by HDF5.
+      (MAM - 2011/07/08 - HDFFV-7639).
 
     Tools
     -----
-    - Updated h5dump test case script to prevent entire test failure when 
-      source directory is read-only. Bug #HDFFV-4342 (JKM 2011/4/12)
-    - Fixed h5dump displaying incorrect values for H5T_STD_I8BE type data in
-      attribute on Big-Endian machine. H5T_STD_I8BE is unsigned 8bit type,
-      so h5dump is supposed to display -2 instead of 254. It worked correctly
-      on Little-Endian system , but not on Big-Endian system.  Bug #HDFFV-4358
-      (JKM 04/08/2011)
-    - Updated some HDF5 tools to standardize the option name as 
-      '--enable-error-stack' for printing HDF5 error stack messages. h5ls and 
-      h5dump have been updated. For h5ls, this replaces "-e/--errors" option, 
-      which is deprecated. For h5dump, this is a new option. Bug #2182 
-      (JKM 2011/3/30)
-    - Fixed the h5diff --use-system-epsilon option. The formula used in the 
-      calculation was changed from ( |a - b| / b ) to ( |a - b| ). 
-      This was done to improve performance. Bug #2184 (JKM 2011/3/24)
-    - Fixed output for H5T_REFERENCE in h5dump. According to the BNF document
-      the output of a H5T_REFERENCE should be followed by the type;
-      <reference> ::= H5T_REFERENCE { <ref_type> }
-      <ref_type> ::= H5T_STD_REF_OBJECT | H5T_STD_REF_DSETREG
-      Previously this was only displayed if the -R option was used.
-      Bug #1725 (ADB 2011/3/28)
-    - Fixed two h5diff issues. 1) h5diff compared attributes correctly only 
-      when two objects had the same number of attributes and the attribute 
-      names were identical. 2) h5diff did not display useful information about 
-      attribute differences. Bug #2121 (JKM 2011/3/17)
-    - Fixed a memory leak in h5diff that occurred when accessing symbolic links 
-      with the --follow-symlink option. Bug #2214  (JKM 2011/3/18)
-    - Fixed a memory leak in h5diff that occurred when accessing variable length 
-      string data. Bug #2216 (JKM 2011/3/18)
-    - Fixed and improved the help page for h5ls -a, --address option. 
-      Bug #1904 (JKM 2011/3/11)
-    - Fixed h5copy to enable copying an object into the same HDF5 file.
-      Previously h5copy displayed an error message when the target file 
-      was the same as the source file. (XCAO 2011/3/8)
-    - Fixed an h5dump problem that caused the tool to skip some data elements 
-      in large datasets with a large array datatype on Windows. This issue 
-      arose only on Windows due to the different return behavior of the 
-      _vsnprintf() function.  Bug #2161 (JKM 2011/3/3)
-    - Fixed h5dump which was skipping some array indices in large datasets 
-      with a relatively large array datatype. The interval of skipped indices
-      varied according to the size of the array. Bug #2092 (JKM 2011/2/15)
-    - Fixed h5diff which was segfaulting when comparing compound datasets
-      with a combination of fixed-length string datatypes and variable-length
-      string datatypes in certain orders. Bug #2089 (JKM 2010/12/28)
-    - Improved h5diff performance. 1) Now use HDmemcmp() before comparing two 
-      elements. 2) Replace expensive H5Tequals() calls. 3) Retrieve datatype
-      information at dataset level, not at each element level for compound 
-      datasets. HDFFV-7516 (JKM 2011/4/18) 
-    - Fixed h5ls to display nested compound types with curly brackets 
-      when -S (--simple) option is used with -l (--label), so it shows  
-      which members (in curly brackets) belong to which nested compound type, 
-      making the output clearer.  Bug #1979 (JKM 2010/11/09)
-    - Fixed h5diff to handle variable-length strings in a compound dataset 
-      and variable-length string arrays in a compound dataset correctly.
-      Garbage values were previously displayed when h5diff compared multiple 
-      variable-length strings in a compound type dataset. 
-      Bug #1989 (JKM 2010/10/28)
-    - Fixed h5copy to fail gracefully when copying an object to a non-
-      existing group without the -p option. Bug #2040 (JKM 2010/10/18)
+    - h5diff: fixed segfault over non-comparable attribute with different 
+      dimention or rank, along with '-c' option to display details.
+      (JKM - 2011/10/24 - HDFFV-7770)
+    - Fixed h5diff to display all the comparable objects and attributes 
+      regardless of detecting non-comparables. (JKM - 2011/09/16 - HDFFV-7693)
+    - Fixed h5repack to update the values of references(object and region) of 
+      attributes in h5repack for 1) references, 2) arrays of references, 
+      3) variable-length references, and 4) compound references. 
+      (PC - 2011/09/14 - HDFFV-5932)
+    - h5diff: fixed a segfault over a dataset with container types 
+      array and variable-length (vlen) along with multiple nested compound types. 
+      Example: compound->array->compound, compound->vlen->compound.
+      (JKM - 2011/09/01 - HDFFV-7712)
+    - h5repack: added macro to handle a failure in H5Dread/write when memory
+      allocation failed inside the library. (PC - 2011/08/19)
+    - Fixed h5jam to not to allow the specifying of an HDF5 formatted file as 
+      an input file for the -u (user block file) option. The original HDF5 file 
+      would not be accessible if this behavior was allowed. 
+      (JKM - 2011/08/19 - HDFFV-5941)
+    - Revised the command help pages of h5jam and h5unjam. The descriptions
+      were not up to date and some were missing. 
+      (JKM - 2011/08/15 - HDFFV-7515)
+    - Fixed h5dump to correct the schema location: 
+      <hdf5:HDF5-File 
+      xmlns:hdf5="http://hdfgroup.org/HDF5/XML/schema/HDF5-File" 
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+      xsi:schemaLocation="http://hdfgroup.org/HDF5/XML/schema/HDF5-File 
+      http://www.hdfgroup.org/HDF5/XML/schema/HDF5-File.xsd">
+      (ADB - 2011/08/10)
+    - h5repack: h5repack failed to copy a dataset if the layout is changed 
+      from chunked with unlimited dimensions to contiguous.
+      (PC - 2011/07/15 - HDFFV-7649)
+    - Fixed h5diff: the "--delta" option considers two NaN of the same type 
+      are different. This is wrong based on the h5diff description in the 
+      Reference Manual. (PC - 2011/07/15 - HDFFV-7656)
+    - Fixed h5diff to display an instructive error message and exit with
+      an instructive error message when mutually exclusive options 
+      (-d, -p and --use-system-epsilon) are used together. 
+      (JKM - 2011/07/07 - HDFFV-7600)
+    - Fixed h5dump so that it displays the first line of each element in correct
+      position for multiple dimention array types. Before this fix, 
+      the first line of each element in an array was
+      displayed after the last line of previous element without
+      moving to the next line (+indentation).
+      (JKM - 2011/06/15 - HDFFV-5878)
+    - Fixed h5dump so that it will display the correct value for 
+      H5T_STD_I8LE datasets on the Blue-gene system (ppc64, linux, Big-Endian, 
+      clustering). (AKC & JKM - 2011/05/12 - HDFFV-7594)
+    - Fixed h5diff to compare a file to itself correctly. Previously h5diff
+      reported either the files were different or not compatible in certain 
+      cases even when comparing a file to itself. This fix also improves 
+      performance when comparing the same target objects through verifying 
+      the object and file addresses before comparing the details 
+      in the objects. Examples of details are datasets and attributes. 
+      (XCAO & JKM - 2011/05/06 - HDFFV-5928)
 
     F90 API
-    ------
-    - None
+    -------
+    - Modified the h5open_f and h5close_f subroutines to not to call H5open 
+      and H5close correspondingly. While the H5open call just adds overhead, 
+      the H5close call called by a Fortran application shuts down the HDF5 
+      library. This makes the library inaccessible to the application. 
+      (EIP & SB - 2011/10/13 - HDFFV-915)
+    - Fixed h5tget_tag_f where the length of the C string was used to 
+      repack the C string into the Fortran string. This lead to memory 
+      corruption in the calling program. (SB - 2011/07/26)
+    - Added defined constants:
+        H5T_ORDER_MIXED_F (HDFFV-2767)
+        H5Z_SO_FLOAT_DSCALE_F
+        H5Z_SO_FLOAT_ESCALE_F
+        H5Z_SO_INT_F
+        H5Z_SO_INT_MINBITS_DEFAULT_F
+        H5O_TYPE_UNKNOWN_F
+        H5O_TYPE_GROUP_F
+        H5O_TYPE_DATASET_F
+        H5O_TYPE_NAMED_DATATYPE_F
+        H5O_TYPE_NTYPES_F
 
     C++ API
     ------
@@ -242,29 +314,27 @@ Bug Fixes since HDF5-1.8.6
 
     High-Level APIs:
     ------
-    - None
+    - Fixed the H5LTdtype_to_text function.  It had some memory problems when 
+      dealing with some complicated data types. (SLU - 2011/10/19 - HDFFV-7701)
+    - Fixed H5DSset_label seg faulting when retrieving the length of a 
+      dimension label that was not set. (SB - 2011/08/07 - HDFFV-7673)
+    - Fixed a dimension scale bug where if you create a dimscale, attach two 
+      datasets to it, and then unattach them, you get an error if they are 
+      unattached in order, but no error if you unattach them in reverse order. 
+      (SB - 2011/06/07 - HDFFV-7605)
 
     Fortran High-Level APIs:
     ------
-    -  h5tbmake_table_f: Fixed error in passing an array of characters with different 
-       length field names.
-    -  h5tget_field_info_f: Fixed error with packing the C strings into a Fortran 
-       array of strings. Added optional argument called 'maxlen_out' which returns 
-       the maximum string character length in a field name element.
-       Bug HDFFV-1255 (MSB- 4/17/2011)
-
-
+    - None
 
 
 Platforms Tested
 ================
 The following platforms and compilers have been tested for this release.
 
-    AIX 6.1                       xlc 11.1.0.3
-    (NCSA BP)                     xlC 11.1.0.3
-                                  xlf90 13.1.0.3
-                                  mpcc_r 11.1.0.3
-                                  mpxlf90_r 13.1.0.3
+    AIX 5.3                       xlc 10.1.0.5
+    (NASA G-ADA)                  xlC 10.1.0.5
+                                  xlf90 12.1.0.6
 
     FreeBSD 8.2-STABLE i386       gcc 4.2.1 [FreeBSD] 20070719
     (loyalty)                     g++ 4.2.1 [FreeBSD] 20070719
@@ -278,10 +348,23 @@ The following platforms and compilers have been tested for this release.
                                   g++ 4.6.1 20110422
                                   gfortran 4.6.1 20110422
 
+    IBM Blue Gene/P               bgxlc 9.0.0.9
+    (LLNL uDawn)                  bgxlf90 11.1.0.7
+                                  bgxlC 9.0.0.9
+
+    Linux 2.6.16.60-0.54.5-smp    Intel(R) C, C++, Fortran Compilers
+    x86_64                            Version 11.1 20090630
+    (INL Icestorm)                   
+
+    Linux 2.6.18-194.el5 x86_64   Intel(R) C, C++, Fortran Compilers
+    (INL Fission)                     Version 12.0.2 20110112
+
+    Linux 2.6.18-108chaos x86_64  Intel(R) C, C++, Fortran Compilers
+    (LLNL Aztec)                      Version 11.1 20090630
+
     Linux 2.6.18-194.3.1.el5PAE   gcc (GCC) 4.1.2 and 4.4.2
-    #1 SMP i686 i686 i386         G95 (GCC 4.0.3 (g95 0.93!) Apr 21 2010)
-    (jam)                         GNU Fortran (GCC) 4.1.2 20080704 
-                                      (Red Hat 4.1.2-48) and 4.4.2
+    #1 SMP i686 i686 i386         GNU Fortran (GCC) 4.1.2 20080704
+    (jam)                             (Red Hat 4.1.2-48) and 4.4.2 
                                   PGI C, Fortran, C++ 10.4-0 32-bit
                                   PGI C, Fortran, C++ 10.6-0 32-bit
                                   Intel(R) C Compiler for 32-bit
@@ -290,15 +373,13 @@ The following platforms and compilers have been tested for this release.
                                       applications, Version 11.1
                                   Intel(R) Fortran Compiler for 32-bit
                                       applications, Version 11.1
-                                  Absoft 32-bit Fortran 95 10.0.7
                                   MPICH mpich2-1.3.1 compiled with
                                       gcc 4.1.2 and gfortran 4.1.2
 
-    Linux 2.6.18-194.17.1.el5     gcc 4.1.2 and 4.4.2
-    #1 SMP x86_64 GNU/Linux       G95 (GCC 4.0.3 (g95 0.93!) Apr 21 2010)
-    (amani)                           tested for both 32- and 64-bit binaries
-                                  GNU Fortran (GCC) 4.1.2 20080704
-                                      (Red Hat 4.1.2-46) and 4.4.2
+    Linux 2.6.18-238.12.1.el5     gcc 4.1.2 and 4.4.2
+    #1 SMP x86_64 GNU/Linux       GNU Fortran (GCC) 4.1.2 20080704
+    (koala)                           (Red Hat 4.1.2-46) and 4.4.2
+                                      tested for both 32- and 64-bit binaries
                                   Intel(R) C, C++, Fortran Compilers for 
                                       applications running on Intel(R) 64, 
                                       Version 11.1.
@@ -307,34 +388,30 @@ The following platforms and compilers have been tested for this release.
                                   MPICH mpich2-1.3.1 compiled with
                                       gcc 4.1.2 and gfortran 4.1.2
 
-    SGI ProPack 7 Linux           Intel(R) C++ Version 11.1 20100806
-    2.6.32.24-0.2.1.2230.2.PTF-   Intel(R) Fortran Version 11.1 20100806
-    default #1 SMP                SGI MPT 2.01
-    SGI Altix UV
+    SGI Altix UV                  Intel(R) C, Fortran Compilers
+    SGI ProPack 7 Linux               Version 11.1 20100806
+    2.6.32.24-0.2.1.2230.2.PTF-   SGI MPT 2.02
+    default #1 SMP                
     (NCSA ember)
 
-    SunOS 5.10 32- and 64-bit     Sun C 5.9 Sun OS_sparc Patch 124867-16
-    (linew)                       Sun Fortran 95 8.3 Sun OS_sparc Patch 127000-13
-                                  Sun C++ 5.9 Sun OS_sparc Patch 124863-26
-                                  Sun C 5.10 SunOS_sparc Patch 141861-07
-                                  Sun Fortran 95 8.4 SunOS_sparc Patch 128231-06
-                                  Sun C++ 5.10 SunOS_sparc 128228-11
+    Dell NVIDIA Cluster           Intel(R) C, Fortran Compilers
+    Red Hat Enterprise Linux 6        Version 12.0.4 20110427
+    2.6.32-131.4.1.el6.x86_64     mvapich2 1.7rc1-intel-12.0.4
+    (NCSA forge)
 
-    Intel Xeon Linux 2.6.18-      gcc 4.2.4
-    92.1.10.el5_lustre.1.6.6smp-  Intel(R) C++ Version 10.1.017
-    perfctr #8 SMP                Intel(R) Fortran Compiler Version 10.1.017
-    (NCSA abe)                    Open MPI 1.3.2
-                                  MVAPICH2-1.5.1_pgi-10.8
+    SunOS 5.10 32- and 64-bit     Sun C 5.11 SunOS_sparc 2010/08/13
+                                  Sun Fortran 95 8.5 SunOS_sparc 2010/08/13
+                                  Sun C++ 5.11 SunOS_sparc 2010/08/13
 
     Windows XP                    Visual Studio 2008 w/ Intel Fortran 10.1 (project files)
                                   Visual Studio 2008 w/ Intel Fortran 11.1 (cmake)
                                   Visual Studio 2010 (cmake)
-                                  Cygwin(1.7.7 native gcc(4.3.4) compiler and gfortran)
+                                  Cygwin(1.7.9 native gcc(4.5.3) compiler and gfortran)
 
     Windows XP x64                Visual Studio 2008 w/ Intel Fortran 10.1 (project files)
                                   Visual Studio 2008 w/ Intel Fortran 11.1 (cmake)
                                   Visual Studio 2010 (cmake)
-                                  Cygwin(1.7.7 native gcc(4.3.4) compiler and gfortran)
+                                  Cygwin(1.7.9 native gcc(4.5.3) compiler and gfortran)
 
     Windows Vista                 Visual Studio 2008 w/ Intel Fortran 11.1 (cmake)
 
@@ -344,56 +421,61 @@ The following platforms and compilers have been tested for this release.
 
     Windows 7 x64                 Visual Studio 2008 w/ Intel Fortran 11.1 (cmake)
 
-    Mac OS X 10.7.0 (Intel 64-bit) i686-apple-darwin10-gcc-4.2.1 (GCC) 4.2.1
-    Darwin Kernel Version 10.7.0  GNU Fortran (GCC) 4.6.0 20101106 (experimental)
-                                  Intel C, C++ and Fortran compilers 12.0.1.122 20101110
+    Mac OS X 10.8.0 (Intel 64-bit) i686-apple-darwin10-gcc-4.2.1 (GCC) 4.2.1 (Apple Inc. build 5666) (dot 3)
+    Darwin Kernel Version 10.8.0  GNU Fortran (GCC) 4.6.1
+                                  Intel C, C++ and Fortran compilers 12.1.0
 
-    Mac OS X 10.7.0 (Intel 32-bit) i686-apple-darwin10-gcc-4.2.1 (GCC) 4.2.1 (Apple Inc. build 5666) (dot 3)
-    Darwin Kernel Version 10.7.0  GNU Fortran (GCC) version 4.4.0 20090123 (experimental) 
-							[trunk revision 143587]
+    Mac OS X 10.8.0 (Intel 32-bit) i686-apple-darwin10-gcc-4.2.1 (GCC) 4.2.1 (Apple Inc. build 5666) (dot 3)
+    Darwin Kernel Version 10.8.0  GNU Fortran (GCC) version 4.6.1
+          Intel C, C++ and Fortran compilers 12.1.0
 
     Fedora 12 2.6.32.16-150.fc12.ppc64 #1 SMP ppc64 GNU/Linux
                                   gcc (GCC) 4.4.4 20100630 (Red Hat 4.4.4-10)
                                   GNU Fortran (GCC) 4.4.4 20100630 (Red Hat 4.4.4-10)
 
-    Debian6.01 2.6.32-5-686 #1 SMP i686 GNU/Linux
+    Debian6.0.3 2.6.32-5-686 #1 SMP i686 GNU/Linux
                                   gcc (Debian 4.4.5-8) 4.4.5
                                   GNU Fortran (Debian 4.4.5-8) 4.4.5
 
-    Debian6.01 2.6.32-5-amd64 #1 SMP x86_64 GNU/Linux
+    Debian6.0.3 2.6.32-5-amd64 #1 SMP x86_64 GNU/Linux
                                   gcc (Debian 4.4.5-8) 4.4.5
                                   GNU Fortran (Debian 4.4.5-8) 4.4.5
 
-    Fedora14 2.6.35.12-88.fc14.i686.PAE #1 SMP i686 i686 i386 GNU/Linux
-                                  gcc (GCC) 4.5.1 20100924 (Red Hat 4.5.1-4)
-                                  GNU Fortran (GCC) 4.5.1 20100924 (Red Hat 4.5.1-4)
+    Fedora15 2.6.40.6-0.fc15.i686.PAE #1 SMP i686 i686 i386 GNU/Linux
+                                  gcc (GCC) 4.6.1 20110908 (Red Hat 4.6.1-9)
+                                  GNU Fortran (GCC) 4.6.1 20110908 (Red Hat 4.6.1-9)
 
-    Fedora14 2.6.35.12-88.fc14.x86_64 #1 SMP x86_64 x86_64 x86_64 GNU/Linux
-                                  gcc (GCC) 4.5.1 20100924 (Red Hat 4.5.1-4)
-                                  GNU Fortran (GCC) 4.5.1 20100924 (Red Hat 4.5.1-4)
+    Fedora15 2.6.40.6-0.fc15.x86_64 #1 SMP x86_64 x86_64 x86_64 GNU/Linux
+                                  gcc (GCC) 4.6.1 20110908 (Red Hat 4.6.1-9)
+                                  GNU Fortran (GCC) 4.6.1 20110908 (Red Hat 4.6.1-9)
 
-    SUSE 11.4 2.6.37.1-1.2-desktop #1 SMP PREEMPT i686 i686 i386 GNU/Linux
+    SUSE 11.4 2.6.37.6-0.7-desktop #1 SMP PREEMPT i686 i686 i386 GNU/Linux
                                   gcc (SUSE Linux) 4.5.1 20101208
                                   GNU Fortran (SUSE Linux) 4.5.1 20101208
 
-    SUSE 11.4 2.6.37.1-1.2-desktop #1 SMP PREEMPT x86_64 x86_64 x86_64 GNU/Linux
+    SUSE 11.4 2.6.37.6-0.7-desktop #1 SMP PREEMPT x86_64 x86_64 x86_64 GNU/Linux
                                   gcc (SUSE Linux) 4.5.1 20101208
                                   GNU Fortran (SUSE Linux) 4.5.1 20101208
 
-    Ubuntu 10.10 2.6.35-28-generic #50-Ubuntu SMP i686 GNU/Linux
-                                  gcc (Ubuntu/Linaro 4.4.4-14ubuntu5) 4.4.5
-                                  GNU Fortran (Ubuntu/Linaro 4.4.4-14ubuntu5) 4.4.5
+    Ubuntu 11.10 3.0.0-12-generic #20-Ubuntu SMP i686 GNU/Linux
+                                  gcc (Ubuntu/Linaro 4.6.1-9ubuntu3) 4.6.1
+                                  GNU Fortran (Ubuntu/Linaro 4.6.4-9ubuntu3) 4.6.1
 
-    Ubuntu 10.10 2.6.35-28-generic #50-Ubuntu SMP x86_64 GNU/Linux
-                                  gcc (Ubuntu/Linaro 4.4.4-14ubuntu5) 4.4.5
-                                  GNU Fortran (Ubuntu/Linaro 4.4.4-14ubuntu5) 4.4.5
+    Ubuntu 11.10 3.0.0-12-generic #20-Ubuntu SMP x86_64 GNU/Linux
+                                  gcc (Ubuntu/Linaro 4.6.1-9ubuntu3) 4.6.1
+                                  GNU Fortran (Ubuntu/Linaro 4.6.1-9ubuntu3) 4.6.1
     
     OpenVMS Alpha 8.3             HP C V7.3-009
                                   HP Fortran V8.2-104679-48H9K
                                   HP C++ V7.3-009
 
+    Cray Linux Environment (CLE)  PrgEnv-pgi 2.2.74
+    hopper.nersc.gov              pgcc 11.7-0 64-bit target on x86-64 Linux -tp k8e
+    franklin.nersc.gov            pgf90 11.7-0 64-bit target on x86-64 Linux -tp k8e
+                                  pgCC 11.7-0 64-bit target on x86-64 Linux -tp k8e
+
 Tested Configuration Features Summary
-========================================
+=====================================
 
     In the tables below
           y   = tested 
@@ -407,26 +489,28 @@ Tested Configuration Features Summary
 
 Platform                                 C        F90    F90      C++   zlib  SZIP
                                          parallel        parallel
-Solaris2.10 32-bit                         n        y      n        y     y     y
-Solaris2.10 64-bit                         n        y      n        y     y     y
-Windows XP                                 n        y(4)   n        y     y     y
-Windows XP x64                             n        y(4)   n        y     y     y
-Windows Vista                              n        y(4)   n        y     y     y
-Windows Vista x64                          n        y(4)   n        y     y     y
-OpenVMS Alpha                              n        y      n        y     y     n
-Mac OS X 10.7 Intel 32-bit                 n        y      n        y     y     y
-Mac OS X 10.7 Intel 64-bit                 n        y      n        y     y     y
-AIX 6.1 32- and 64-bit                     y        y      y        y     y     y
-FreeBSD 8.2-STABLE 32&64 bit               n        x      n        x     y     y
-CentOS 5.5 Linux 2.6.18-194 i686 GNU (1)W  y        y(2)   y        y     y     y
-CentOS 5.5 Linux 2.6.18-194 i686 Intel  W  n        y      n        y     y     n
-CentOS 5.5 Linux 2.6.18-194 i686 PGI    W  n        y      n        y     y     n
-CentOS 5.5 Linux 2.6.16 x86_64 GNU (1)  W  y        y(3)   y        y     y     y
-CentOS 5.5 Linux 2.6.16 x86_64 Intel    W  n        y      n        y     y     n
-CentOS 5.5 Linux 2.6.16 x86_64 PGI      W  n        y      n        y     y     y
-RedHat EL4 2.6.18 Xeon Lustre           C  y        y      y        y     y     n
-Fedora 12 Linux 2.6.32.16-150.fc12.ppc64   n        y      n        y     y     y
-SGI Linux 2.6.32.19                        y        y      y        y     y     y
+Solaris2.10 32-bit                         n        y      n        y     y    y
+Solaris2.10 64-bit                         n        y      n        y     y    y
+Windows XP                                 n        y(4)   n        y     y    y
+Windows XP x64                             n        y(4)   n        y     y    y
+Windows Vista                              n        y(4)   n        y     y    y
+Windows Vista x64                          n        y(4)   n        y     y    y
+OpenVMS Alpha                              n        y      n        y     y    n
+Mac OS X 10.8 Intel 32-bit                 n        y      n        y     y    y
+Mac OS X 10.8 Intel 64-bit                 n        y      n        y     y    y
+AIX 5.3 32- and 64-bit                     n        y      n        y     y    y
+FreeBSD 8.2-STABLE 32&64 bit               n        x      n        x     y    y
+CentOS 5.5 Linux 2.6.18-194 i686 GNU (1)W  y        y(2)   y        y     y    y
+CentOS 5.5 Linux 2.6.18-194 i686 Intel  W  n        y      n        y     y    n
+CentOS 5.5 Linux 2.6.18-194 i686 PGI    W  n        y      n        y     y    n
+CentOS 5.5 Linux 2.6.16 x86_64 GNU (1)  W  y        y(3)   y        y     y    y
+CentOS 5.5 Linux 2.6.16 x86_64 Intel    W  n        y      n        y     y    n
+CentOS 5.5 Linux 2.6.16 x86_64 PGI      W  n        y      n        y     y    y
+Fedora 12 Linux 2.6.32.16-150.fc12.ppc64   n        y      n        y     y    y
+SGI ProPack 7 Linux 2.6.32.24              y        y      y        y     y    y
+Red Hat Enterprise Linux 6                 y        y      y        y     y    y
+CLE hopper.nersc.gov                       y        y(3)   y        y     y    n  
+CLE franklin.nersc.gov                     y        y(3)   y        y     y    n  
 
 
 Platform                                 Shared  Shared    Shared    Thread-  
@@ -438,9 +522,9 @@ Windows XP x64                             y       y(4)      y         n
 Windows Vista                              y       y(4)      y         y
 Windows Vista x64                          y       y(4)      y         y
 OpenVMS Alpha                              n       n         n         n
-Mac OS X 10.7 Intel 32-bit                 y(5)    n         y         n        
-Mac OS X 10.7 Intel 64-bit                 y(5)    n         y         n        
-AIX 6.1 32- and 64-bit                     n       n         n         y        
+Mac OS X 10.8 Intel 32-bit                 y(5)    n         y         n        
+Mac OS X 10.8 Intel 64-bit                 y(5)    n         y         n        
+AIX 5.3 32- and 64-bit                     n       n         n         y        
 FreeBSD 8.2-STABLE 32&64 bit               y       x         x         y        
 CentOS 5.5 Linux 2.6.18-128 i686 GNU (1)W  y       y(2)      y         y        
 CentOS 5.5 Linux 2.6.18-128 i686 Intel  W  y       y         y         n        
@@ -448,9 +532,11 @@ CentOS 5.5 Linux 2.6.18-128 i686 PGI    W  y       y         y         n
 CentOS 5.5 Linux 2.6.16 x86_64 GNU (1)  W  y       y         y         y        
 CentOS 5.5 Linux 2.6.16 x86_64 Intel    W  y       y         y         n        
 CentOS 5.5 Linux 2.6.16 x86_64 PGI      W  y       y         y         n        
-RedHat EL4 2.6.18 Xeon Lustre           C  y       y         y         n
 Fedora 12 Linux 2.6.32.16-150.fc12.ppc64   y       y         y         y 
-SGI Linux 2.6.32.19                        y       y         y         y 
+SGI ProPack 7 Linux 2.6.32.24              y       y         y         n 
+Red Hat Enterprise Linux 6                 y       y         y         n
+CLE hopper.nersc.gov                       n       n         n         n
+CLE franklin.nersc.gov                     n       n         n         n
 
            (1) Fortran compiled with gfortran.
            (2) With PGI and Absoft compilers.
@@ -463,13 +549,30 @@ SGI Linux 2.6.32.19                        y       y         y         y
 
 Known Problems
 ==============
+
+* The STDIO VFD does not work on some architectures, possibly due to 32/64
+  bit or large file issues.  The basic STDIO VFD test is known to fail on
+  64-bit SunOS 5.10 on SPARC when built with -m64 and 32-bit OS X/Darwin
+  10.7.0.  The STDIO VFD test has been disabled while we investigate and
+  a fix should appear in a future release, possibly 1.8.9.
+  (DER - 2011/10/14)
+
+* h5diff can report inconsistent results when comparing datasets of enum type
+  that contain invalid values.  This is due to how enum types are handled in
+  the library and will be addressed in the next release.
+  (DER - 2011/10/14 - HDFFV-7527)
+
+* The links test can fail under the stdio VFD due to some issues with external
+  links.  This will be investigated and fixed in a future release.
+  (DER - 2011/10/14 - HDFFV-7768)
+
 * After the shared library support was fixed for some bugs, it was discovered
   that "make prefix=XXX install" no longer works for shared libraries. It
   still works correctly for static libraries. Therefore, if you want to
   install the HDF5 shared libraries in a location such as /usr/local/hdf5,
   you need to specify the location via the --prefix option during configure 
   time. E.g, ./configure --prefix=/usr/local/hdf5 ...
-  (AKC - 2011/05/07 HDFFV-7583)
+  (AKC - 2011/05/07 - HDFFV-7583)
 
 * The parallel test, t_shapesame, in testpar/, may run for a long time and may
   be terminated by the alarm signal.  If that happens, one can increase the
@@ -488,13 +591,7 @@ Known Problems
   tests fail. We are looking into the issue. HL and C++ shared libraries
   should now be working as intended, however. (MAM - 2011/04/20)
 
-* The --with-mpe configure option does not work with Mpich2. AKC - 2011/03/10
-
-* If parallel gmake (e.g., gmake -j 4) is used, the "gmake clean" command
-  sometimes fails in the perform directory due to the attempt to remove the
-  executable of h5perf or h5perf_serial by two "parallel" commands. This error
-  has no consequence on the functionality of the HDF5 library or install. It
-  is fixed in the next release. AKC - 2011/01/25
+* The --with-mpe configure option does not work with Mpich2. (AKC - 2011/03/10)
 
 * While working on the 1.8.6 release of HDF5, a bug was discovered that can
   occur when reading from a dataset in parallel shortly after it has been
@@ -507,12 +604,13 @@ Known Problems
   They should be run across multiple nodes with a varying number of processes.
   These programs can be found at:
   http://www.hdfgroup.org/ftp/HDF5/examples/known_problems/
+  (NAF - 2011/01/19)
 
 * The library's test dt_arith.c showed a compiler's rounding problem on
   Cygwin when converting from unsigned long long to long double.  The 
   library's own conversion works fine.  We defined a macro for Cygwin to
-  skip this test until we can solve the problem.  Please see bug #1813.
-  SLU - 2010/5/5 
+  skip this test until we can solve the problem.
+  (SLU - 2010/05/05 - HDFFV-1264)
 
 * All the VFL drivers aren't backward compatible.  In H5FDpublic.h, the
   structure H5FD_class_t changed in 1.8.  There is new parameter added to
@@ -522,21 +620,30 @@ Known Problems
   for 1.6 and try to plug in 1.8 library.  Because there's only one user 
   complaining about it, we (Elena, Quincey, and I) decided to leave it as 
   it is (see bug report #1279).  Quincey will make a plan for 1.10.
-  SLU - 2010/2/2
+  (SLU - 2010/02/02)
 
 * MinGW has a missing libstdc++.dll.a library file and will not successfully link
   C++ applications/tests. Do not use the enable-cxx configure option. Read all of
-  the INSTALL_MINGW.txt file for all restrictions. ADB - 2009/11/11
+  the INSTALL_MINGW.txt file for all restrictions. (ADB - 2009/11/11)
+
+* The --enable-static-exec configure flag will only statically link libraries
+  if the static version of that library is present. If only the shared version
+  of a library exists (i.e., most system libraries on Solaris, AIX, and Mac,
+  for example, only have shared versions), the flag should still result in a 
+  successful compilation, but note that the installed executables will not be 
+  fully static. Thus, the only guarantee on these systems is that the 
+  executable is statically linked with just the HDF5 library.
+  (MAM - 2009/11/04)
   
 * The PathScale MPI implementation, accessing a Panasas file system, would
   cause H5Fcreate() with H5F_ACC_EXCL to fail even when the file does not
   exist. This is due to the MPI_File_open() call failing if the mode has
-  the MPI_MODE_EXCL bit set. (See bug 1468 for details.) AKC - 2009/8/11
+  the MPI_MODE_EXCL bit set. (AKC - 2009/08/11 - HDFFV-988)
  
 * Parallel tests failed with 16 processes with data inconsistency at testphdf5
   / dataset_readAll. Parallel tests also failed with 32 and 64 processes with
   collective abort of all ranks at t_posix_compliant / allwrite_allread_blocks
-  with MPI IO. CMC - 2009/04/28
+  with MPI IO. (CMC - 2009/04/28)
 
 * For Red Storm, a Cray XT3 system, the tools/h5ls/testh5ls.sh and
   tools/h5copy/testh5copy.sh will fail some of its sub-tests. These sub-tests
@@ -566,13 +673,13 @@ Known Problems
   echo SKIP TOOLTEST_FAIL -i $TESTFILE -o $FILEOUT -vp -s /grp_nested -d /G/H/grp_nested
   echo SKIP H5LSTEST $FILEOUT
   ==================================================
-  AKC - 2008/11/10
-
+  (AKC - 2008/11/10)
+  
 * For Red Storm, a Cray XT3 system, the yod command sometimes gives the
   message,  "yod allocation delayed for node recovery".  This interferes with
   test suites that do not expect to see this message.  See the section of "Red
   Storm" in file INSTALL_parallel for a way to deal with this problem.
-  AKC - 2008/05/28
+  (AKC - 2008/05/28)
 
 * On an Intel 64 Linux cluster (RH 4, Linux 2.6.9) with Intel 10.0 compilers, 
   use -mp -O1 compilation flags to build the libraries. A higher level of 
@@ -591,7 +698,7 @@ Known Problems
   However, after fixing the bug, the checksum value was no longer the same as 
   before on little-endian system.  Library releases after 1.6.4 can still read 
   datasets created or rewritten with an HDF5 library of v1.6.2 or before.  
-  SLU - 2005/6/30
+  (SLU - 2005/06/30)
 
 * On IBM AIX systems, parallel HDF5 mode will fail some tests with error
   messages like "INFO: 0031-XXX ...".  This is from the command `poe'.
@@ -605,26 +712,4 @@ Known Problems
   These are sockets used by the poe command and left behind due to failed 
   commands.  First, ask your system administrator to clean them out.  
   Lastly, request IBM to provide a means to run poe without the debug socket.
-
-* The --enable-static-exec configure flag will only statically link libraries
-  if the static version of that library is present. If only the shared version
-  of a library exists (i.e., most system libraries on Solaris, AIX, and Mac,
-  for example, only have shared versions), the flag should still result in a 
-  successful compilation, but note that the installed executables will not be 
-  fully static. Thus, the only guarantee on these systems is that the 
-  executable is statically linked with just the HDF5 library.
-
-* There is also a configure error on Altix machines that incorrectly reports 
-  when a version of Szip without an encoder is being used.
-
-* On cobalt, an SGI Altix SMP ia64 system, Intel compiler version 10.1 (which
-  is the default on that system) does not work properly and results in
-  failures during make check (in a static build) and make installcheck (during
-  a shared build). This appears to be a compiler optimization problem.
-  Reducing optimization by setting CFLAGS to -O1 or below resolves the issue.
-  Alternatively, using a newer version of the compiler (11.0) also works as
-  intended. MAM - 2010/06/01
-
-* h5diff will not report enum value differences when one or both of the values
-  is not a valid enumeration value.  The source of this bug has been identified
-  and it will be fixed in 1.8.8. DER - 2011/04/27
+  (AKC - 2004/12/08)

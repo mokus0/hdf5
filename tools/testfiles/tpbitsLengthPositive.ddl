@@ -1,6 +1,3 @@
-#############################
-Expected output for 'h5dump -d /DS08BITS -M 4,0 packedbits.h5'
-#############################
 usage: h5dump [OPTIONS] file
   OPTIONS
      -h, --help           Print a usage message and exit
@@ -80,7 +77,7 @@ usage: h5dump [OPTIONS] file
 
   1) Attribute foo of the group /bar_none in file quux.h5
 
-     	h5dump -a /bar_none/foo quux.h5
+      h5dump -a /bar_none/foo quux.h5
 
   2) Selecting a subset from dataset /foo in file quux.h5
 

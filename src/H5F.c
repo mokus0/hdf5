@@ -2929,3 +2929,149 @@ done:
     FUNC_LEAVE_API(ret_value)
 } /* end H5Fclear_elink_file_cache() */
 
+
+/*-------------------------------------------------------------------------
+ * Function:    H5F_set_grp_btree_shared
+ *
+ * Purpose:     Set the grp_btree_shared field with a valid ref-count pointer.
+ *
+ * Return:      Success:        SUCCEED
+ *              Failure:        FAIL
+ *
+ * Programmer:  Quincey Koziol
+ *              7/19/11
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5F_set_grp_btree_shared(H5F_t *f, H5RC_t *rc)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_grp_btree_shared)
+
+    /* Sanity check */
+    HDassert(f);
+    HDassert(f->shared);
+    HDassert(rc);
+
+    f->shared->grp_btree_shared = rc;
+
+    FUNC_LEAVE_NOAPI(SUCCEED)
+} /* H5F_set_grp_btree_shared() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5F_set_sohm_addr
+ *
+ * Purpose:     Set the sohm_addr field with a new value.
+ *
+ * Return:      Success:        SUCCEED
+ *              Failure:        FAIL
+ *
+ * Programmer:  Quincey Koziol
+ *              7/20/11
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5F_set_sohm_addr(H5F_t *f, haddr_t addr)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_sohm_addr)
+
+    /* Sanity check */
+    HDassert(f);
+    HDassert(f->shared);
+
+    f->shared->sohm_addr = addr;
+
+    FUNC_LEAVE_NOAPI(SUCCEED)
+} /* H5F_set_sohm_addr() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5F_set_sohm_vers
+ *
+ * Purpose:     Set the sohm_vers field with a new value.
+ *
+ * Return:      Success:        SUCCEED
+ *              Failure:        FAIL
+ *
+ * Programmer:  Quincey Koziol
+ *              7/20/11
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5F_set_sohm_vers(H5F_t *f, unsigned vers)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_sohm_vers)
+
+    /* Sanity check */
+    HDassert(f);
+    HDassert(f->shared);
+
+    f->shared->sohm_vers = vers;
+
+    FUNC_LEAVE_NOAPI(SUCCEED)
+} /* H5F_set_sohm_vers() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5F_set_sohm_nindexes
+ *
+ * Purpose:     Set the sohm_nindexes field with a new value.
+ *
+ * Return:      Success:        SUCCEED
+ *              Failure:        FAIL
+ *
+ * Programmer:  Quincey Koziol
+ *              7/20/11
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5F_set_sohm_nindexes(H5F_t *f, unsigned nindexes)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_sohm_nindexes)
+
+    /* Sanity check */
+    HDassert(f);
+    HDassert(f->shared);
+
+    f->shared->sohm_nindexes = nindexes;
+
+    FUNC_LEAVE_NOAPI(SUCCEED)
+} /* H5F_set_sohm_nindexes() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5F_set_store_msg_crt_idx
+ *
+ * Purpose:     Set the store_msg_crt_idx field with a new value.
+ *
+ * Return:      Success:        SUCCEED
+ *              Failure:        FAIL
+ *
+ * Programmer:  Quincey Koziol
+ *              7/20/11
+ *
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5F_set_store_msg_crt_idx(H5F_t *f, hbool_t flag)
+{
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_store_msg_crt_idx)
+
+    /* Sanity check */
+    HDassert(f);
+    HDassert(f->shared);
+
+    f->shared->store_msg_crt_idx = flag;
+
+    FUNC_LEAVE_NOAPI(SUCCEED)
+} /* H5F_set_store_msg_crt_idx() */
+

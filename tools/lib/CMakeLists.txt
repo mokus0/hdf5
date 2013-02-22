@@ -1,11 +1,9 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.6)
 PROJECT (HDF5_TOOLS_LIB)
 
 #-----------------------------------------------------------------------------
 # Define Sources
 #-----------------------------------------------------------------------------
-#INCLUDE_DIRECTORIES (${HDF5_TOOLS_SRC_DIR}/lib)
-#INCLUDE_DIRECTORIES (${HDF5_PROJECT_DIR}/test)
 
 SET (H5_TOOLS_LIB_SRCS
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5diff.c
@@ -14,6 +12,7 @@ SET (H5_TOOLS_LIB_SRCS
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5diff_dset.c
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5diff_util.c
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools.c
+    ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_dump.c
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_filters.c
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_ref.c
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_str.c
@@ -25,6 +24,7 @@ SET (H5_TOOLS_LIB_SRCS
 SET (H5_TOOLS_LIB_HDRS
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5trav.h
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools.h
+    ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_dump.h
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_utils.h
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_str.h
     ${HDF5_TOOLS_LIB_SOURCE_DIR}/h5tools_ref.h
@@ -40,6 +40,7 @@ H5_SET_LIB_OPTIONS (
     HDF5_TOOLS_LIB_NAME_RELEASE
   HDF5_TOOLS_LIB_NAME_DEBUG
 )
+SET_TARGET_PROPERTIES (hdf5_tools PROPERTIES FOLDER libraries/tools)
 
 ##############################################################################
 ##############################################################################

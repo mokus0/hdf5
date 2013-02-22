@@ -85,12 +85,12 @@ int h5repack(const char* infile,
 *
 *-------------------------------------------------------------------------
 */
-
-int h5repack_init (pack_opt_t *options,
+int h5repack_init(pack_opt_t *options,
                    int verbose)
 {
     int k, n;
-    memset(options,0,sizeof(pack_opt_t));
+
+    HDmemset(options, 0, sizeof(pack_opt_t));
     options->min_comp = 1024;
     options->verbose  = verbose;
 
@@ -154,7 +154,7 @@ int h5repack_addfilter(const char* str,
         if(options->n_filter_g > H5_REPACK_MAX_NFILTERS)
         {
             error_msg("maximum number of filters exceeded for <%s>\n", str);
-            free(obj_list);
+            HDfree(obj_list);
             return -1;
         }
 
@@ -163,7 +163,7 @@ int h5repack_addfilter(const char* str,
     else
         options_add_filter(obj_list, n_objs, filter, options->op_tbl);
 
-    free(obj_list);
+    HDfree(obj_list);
     return 0;
 }
 
@@ -201,10 +201,12 @@ int h5repack_addlayout(const char* str,
     if (obj_list==NULL)
         return -1;
 
-    /* set global layout option */
+    /* set layout option */
+    options->layout_g = pack.layout;
+
+    /* no individual dataset specified */
     if (options->all_layout==1 )
     {
-        options->layout_g=pack.layout;
         if (pack.layout==H5D_CHUNKED)
         {
             /* -2 means the NONE option, remove chunking
@@ -223,13 +225,14 @@ int h5repack_addlayout(const char* str,
         }
     }
 
+    /* individual dataset specified */
     if (options->all_layout==0)
         options_add_layout(obj_list,
         n_objs,
         &pack,
         options->op_tbl);
 
-    free(obj_list);
+    HDfree(obj_list);
     return 0;
 }
 
@@ -499,7 +502,7 @@ int copy_attr(hid_t loc_in,
         if (type_class == H5T_COMPOUND) {
         	int nmembers = H5Tget_nmembers(wtype_id) ;
         	for (j=0; j<nmembers; j++) {
-        		hid_t mtid = H5Tget_member_type( wtype_id, j );
+        		hid_t mtid = H5Tget_member_type( wtype_id, (unsigned) j );
         		H5T_class_t mtclass = H5Tget_class(mtid);
         		H5Tclose(mtid);
 
@@ -541,9 +544,9 @@ int copy_attr(hid_t loc_in,
             if(H5Aclose(attr_out) < 0)
                 goto error;
 
-            /* Check if we have VL data in the attribute's  datatype that must
+            /* Check if we have VL data and string in the attribute's  datatype that must
              * be reclaimed */
-            if(TRUE == H5Tdetect_class(wtype_id, H5T_VLEN))
+            if (TRUE == h5tools_detect_vlen(wtype_id))
                 H5Dvlen_reclaim(wtype_id, space_id, H5P_DEFAULT, buf);
             HDfree(buf);
             buf = NULL;
@@ -573,13 +576,13 @@ int copy_attr(hid_t loc_in,
 error:
     H5E_BEGIN_TRY {
         if(buf) {
-            /* Check if we have VL data in the attribute's  datatype that must
+            /* Check if we have VL data and string in the attribute's  datatype that must
              * be reclaimed */
-            if(TRUE == H5Tdetect_class(wtype_id, H5T_VLEN))
+            if (TRUE == h5tools_detect_vlen(wtype_id))
                 H5Dvlen_reclaim(wtype_id, space_id, H5P_DEFAULT, buf);
 
             /* Free buf */
-            free(buf);
+            HDfree(buf);
         } /* end if */
 
         H5Tclose(ftype_id);
@@ -627,20 +630,20 @@ static int check_options(pack_opt_t *options)
             switch (options->layout_g)
             {
             case H5D_COMPACT:
-                HDstrcpy(slayout,"compact");
+                strcpy(slayout,"compact");
                 break;
             case H5D_CONTIGUOUS:
-                HDstrcpy(slayout,"contiguous");
+                strcpy(slayout,"contiguous");
                 break;
             case H5D_CHUNKED:
-                HDstrcpy(slayout,"chunked");
+                strcpy(slayout,"chunked");
                 break;
             case H5D_LAYOUT_ERROR:
             case H5D_NLAYOUTS:
                 error_msg("invalid layout\n");
                 return -1;
             default:
-                HDstrcpy(slayout,"invalid layout\n");
+                strcpy(slayout,"invalid layout\n");
                 return -1;
             }
             printf(" Apply %s layout to all\n", slayout);
@@ -999,7 +1002,7 @@ static const char* get_sfilter(H5Z_filter_t filtn)
         return "SOFF";
     else {
         error_msg("input error in filter type\n");
-        exit(EXIT_FAILURE);
+        HDexit(EXIT_FAILURE);
     }
 }
 

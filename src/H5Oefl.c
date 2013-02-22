@@ -36,8 +36,8 @@ static void *H5O_efl_copy(const void *_mesg, void *_dest);
 static size_t H5O_efl_size(const H5F_t *f, hbool_t disable_shared, const void *_mesg);
 static herr_t H5O_efl_reset(void *_mesg);
 static void *H5O_efl_copy_file(H5F_t *file_src, void *mesg_src,
-    H5F_t *file_dst, hbool_t *recompute_size, H5O_copy_t *cpy_info,
-    void *udata, hid_t dxpl_id);
+    H5F_t *file_dst, hbool_t *recompute_size, unsigned *mesg_flags,
+    H5O_copy_t *cpy_info, void *udata, hid_t dxpl_id);
 static herr_t H5O_efl_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg, FILE * stream,
 			    int indent, int fwidth);
 
@@ -99,7 +99,7 @@ H5O_efl_decode(H5F_t *f, hid_t dxpl_id, H5O_t UNUSED *open_oh,
     size_t		u;      /* Local index variable */
     void *ret_value;            /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_efl_decode)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* Check args */
     HDassert(f);
@@ -197,7 +197,7 @@ H5O_efl_encode(H5F_t *f, hbool_t UNUSED disable_shared, uint8_t *p, const void *
     const H5O_efl_t	*mesg = (const H5O_efl_t *)_mesg;
     size_t		u;      /* Local index variable */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_efl_encode)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* check args */
     HDassert(f);
@@ -261,7 +261,7 @@ H5O_efl_copy(const void *_mesg, void *_dest)
     size_t		u;              /* Local index variable */
     void                *ret_value;     /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_efl_copy)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* check args */
     HDassert(mesg);
@@ -345,7 +345,7 @@ H5O_efl_size(const H5F_t *f, hbool_t UNUSED disable_shared, const void *_mesg)
     const H5O_efl_t	*mesg = (const H5O_efl_t *) _mesg;
     size_t		ret_value = 0;
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_efl_size)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* check args */
     HDassert(f);
@@ -382,7 +382,7 @@ H5O_efl_reset(void *_mesg)
     H5O_efl_t	*mesg = (H5O_efl_t *) _mesg;
     size_t	u;              /* Local index variable */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_efl_reset)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* check args */
     HDassert(mesg);
@@ -420,7 +420,7 @@ H5O_efl_total_size (H5O_efl_t *efl)
 {
     hsize_t	ret_value = 0, tmp;
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_efl_total_size)
+    FUNC_ENTER_NOAPI_NOINIT
 
     if(efl->nused > 0 && H5O_EFL_UNLIMITED == efl->slot[efl->nused - 1].size)
 	ret_value = H5O_EFL_UNLIMITED;
@@ -455,8 +455,8 @@ done:
  */
 static void *
 H5O_efl_copy_file(H5F_t UNUSED *file_src, void *mesg_src, H5F_t *file_dst,
-    hbool_t UNUSED *recompute_size, H5O_copy_t UNUSED *cpy_info,
-    void UNUSED *_udata, hid_t dxpl_id)
+    hbool_t UNUSED *recompute_size, unsigned UNUSED *mesg_flags,
+    H5O_copy_t UNUSED *cpy_info, void UNUSED *_udata, hid_t dxpl_id)
 {
     H5O_efl_t   *efl_src = (H5O_efl_t *) mesg_src;
     H5O_efl_t   *efl_dst = NULL;
@@ -464,7 +464,7 @@ H5O_efl_copy_file(H5F_t UNUSED *file_src, void *mesg_src, H5F_t *file_dst,
     size_t      idx, size, name_offset, heap_size;
     void        *ret_value;          /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_efl_copy_file)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* check args */
     HDassert(efl_src);
@@ -548,7 +548,7 @@ H5O_efl_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *_mesg, FILE * s
     char		    buf[64];
     size_t		    u;
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_efl_debug)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* check args */
     HDassert(f);

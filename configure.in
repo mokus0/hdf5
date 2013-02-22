@@ -16,7 +16,7 @@ dnl access to either file, you may request a copy from help@hdfgroup.org.
 dnl ----------------------------------------------------------------------
 dnl Initialize configure.
 dnl
-AC_REVISION($Id: configure.in 21758 2011-11-15 15:47:24Z mamcgree $)
+AC_REVISION($Id: configure.in 22270 2012-04-09 19:54:57Z mamcgree $)
 AC_PREREQ([2.53])
 
 dnl AC_INIT takes the name of the package, the version number, and an
@@ -26,7 +26,7 @@ dnl
 dnl NOTE: Don't forget to change the version number here when we do a
 dnl release!!!
 dnl
-AC_INIT([HDF5], [1.8.8], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.9], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AM_CONFIG_HEADER([src/H5config.h])
 
@@ -1038,24 +1038,6 @@ dnl or disabled, it should happen before these macros.
 LT_PREREQ([2.2])
 LT_INIT([dlopen])
 
-dnl Post processing to patch up some deficiencies in libtool (as of
-dnl Libtool 1.5.14)
-case $host_os in
-  linux* | freebsd* )
-    # If gcc is not used, need to set $wl to use "-Wl,"
-    if $CC -v 2>&1 | grep '^gcc' > /dev/null ; then
-      : using gcc
-    else
-      echo 'fixing $wl in' $ofile
-ed - $ofile <<EOF 2> /dev/null
-/^wl=""/s//wl="-Wl,"/
-w
-q
-EOF
-    fi
-    ;;
-esac
-
 dnl ----------------------------------------------------------------------
 dnl Check if we should install only statically linked executables.
 dnl   This check needs to occur after libtool is initialized because
@@ -1496,8 +1478,8 @@ case "$host_cpu-$host_vendor-$host_os" in
     dnl correctly in <stdio.h>
     dnl Linking to the bsd-compat library is required as per the gcc manual:
     dnl http://www.gnu.org/s/libc/manual/html_node/Feature-Test-Macros.html
-    dnl though we do not do this as it breaks the big test on older versions
-    dnl of linux (CentOS 4.6) using newer versions of gcc (4.6.2).
+    dnl though we don't do this due to the big test failing on older CentOS
+    dnl systems when compiled with gcc 4.6.2.
     AM_CPPFLAGS="-D_BSD_SOURCE $AM_CPPFLAGS"
     ;;
 esac
@@ -4515,6 +4497,23 @@ touch ./config/stamp2
 
 # Finally the makefiles
 test "$no_create" = yes || ${CONFIG_SHELL-/bin/sh} $CONFIG_STATUS || exit 1
+
+dnl Post processing to patch up some deficiencies in libtool
+case $host_os in
+  linux* | freebsd* )
+    # If gcc is not used, need to set $wl to use "-Wl,"
+    if $CC -v 2>&1 | grep '^gcc' > /dev/null ; then
+      : using gcc
+    else
+      echo 'fixing $wl in' $ofile
+ed - $ofile <<EOF 2> /dev/null
+g/^wl=""/s//wl="-Wl,"/
+w
+q
+EOF
+    fi
+    ;;
+esac
 
 dnl Are we compiling static libraries, shared libraries, or both?  This
 dnl is only used for the libhdf5.settings file. We can't just look at

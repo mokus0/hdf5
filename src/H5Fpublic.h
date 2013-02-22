@@ -169,6 +169,7 @@ H5_DLL herr_t H5Fmount(hid_t loc, const char *name, hid_t child, hid_t plist);
 H5_DLL herr_t H5Funmount(hid_t loc, const char *name);
 H5_DLL hssize_t H5Fget_freespace(hid_t file_id);
 H5_DLL herr_t H5Fget_filesize(hid_t file_id, hsize_t *size);
+H5_DLL ssize_t H5Fget_file_image(hid_t file_id, void * buf_ptr, size_t buf_len);
 H5_DLL herr_t H5Fget_mdc_config(hid_t file_id,
 				H5AC_cache_config_t * config_ptr);
 H5_DLL herr_t H5Fset_mdc_config(hid_t file_id,
@@ -183,6 +184,10 @@ H5_DLL herr_t H5Freset_mdc_hit_rate_stats(hid_t file_id);
 H5_DLL ssize_t H5Fget_name(hid_t obj_id, char *name, size_t size);
 H5_DLL herr_t H5Fget_info(hid_t obj_id, H5F_info_t *bh_info);
 H5_DLL herr_t H5Fclear_elink_file_cache(hid_t file_id);
+#ifdef H5_HAVE_PARALLEL
+H5_DLL herr_t H5Fset_mpi_atomicity(hid_t file_id, hbool_t flag);
+H5_DLL herr_t H5Fget_mpi_atomicity(hid_t file_id, hbool_t *flag);
+#endif /* H5_HAVE_PARALLEL */
 
 #ifdef __cplusplus
 }

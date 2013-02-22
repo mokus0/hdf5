@@ -65,7 +65,7 @@ typedef struct H5F_olist_t {
 } H5F_olist_t;
 
 /* PRIVATE PROTOTYPES */
-static size_t H5F_get_objects(const H5F_t *f, unsigned types, size_t max_objs, hid_t *obj_id_list, hbool_t app_ref);
+static herr_t H5F_get_objects(const H5F_t *f, unsigned types, size_t max_index, hid_t *obj_id_list, hbool_t app_ref, size_t *obj_id_count_ptr);
 static int H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key);
 static H5F_t *H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id,
                       H5FD_t *lf);
@@ -99,7 +99,7 @@ H5F_init(void)
 {
     herr_t ret_value = SUCCEED;   /* Return value */
 
-    FUNC_ENTER_NOAPI(H5F_init, FAIL)
+    FUNC_ENTER_NOAPI(FAIL)
     /* FUNC_ENTER() does all the work */
 
 done:
@@ -125,7 +125,7 @@ H5F_init_interface(void)
 {
     herr_t ret_value = SUCCEED;                 /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_init_interface)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /*
      * Initialize the atom group for the file IDs.
@@ -161,7 +161,7 @@ H5F_term_interface(void)
 {
     int	n = 0;
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_term_interface)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     if(H5_interface_initialize_g) {
 	if((n = H5I_nmembers(H5I_FILE)) != 0) {
@@ -202,7 +202,7 @@ H5Fget_create_plist(hid_t file_id)
     H5P_genplist_t *plist;      /* Property list */
     hid_t ret_value;            /* Return value */
 
-    FUNC_ENTER_API(H5Fget_create_plist, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("i", "i", file_id);
 
     /* check args */
@@ -247,7 +247,7 @@ H5Fget_access_plist(hid_t file_id)
     H5F_t *f;           /* File info */
     hid_t ret_value;    /* Return value */
 
-    FUNC_ENTER_API(H5Fget_access_plist, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("i", "i", file_id);
 
     /* Check args */
@@ -295,7 +295,7 @@ H5F_get_access_plist(H5F_t *f, hbool_t app_ref)
     unsigned            efc_size = 0;
     hid_t		ret_value = SUCCEED;
 
-    FUNC_ENTER_NOAPI(H5F_get_access_plist, FAIL)
+    FUNC_ENTER_NOAPI(FAIL)
 
     /* Check args */
     HDassert(f);
@@ -376,11 +376,6 @@ done:
  *
  * Programmer:	Raymond Lu
  *		Wednesday, Dec 5, 2001
- * Modification:
- *              Raymond Lu
- *              24 September 2008
- *              Changed the return value to ssize_t to  accommadate
- *              potential large number of objects.
  *
  *-------------------------------------------------------------------------
  */
@@ -388,18 +383,24 @@ ssize_t
 H5Fget_obj_count(hid_t file_id, unsigned types)
 {
     H5F_t    *f = NULL;         /* File to query */
-    ssize_t  ret_value;            /* Return value */
+    size_t  obj_count = 0;      /* Number of opened objects */
+    ssize_t  ret_value;         /* Return value */
 
-    FUNC_ENTER_API(H5Fget_obj_count, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("Zs", "iIu", file_id, types);
 
+    /* Check arguments */
     if(file_id != (hid_t)H5F_OBJ_ALL && (NULL == (f = (H5F_t *)H5I_object_verify(file_id, H5I_FILE))))
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not a file id")
     if(0 == (types & H5F_OBJ_ALL))
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not an object type")
 
-    /* H5F_get_obj_count doesn't fail */
-    ret_value = (ssize_t)H5F_get_obj_count(f, types, TRUE);
+    /* Perform the query */
+    if(H5F_get_obj_count(f, types, TRUE, &obj_count) < 0)
+	HGOTO_ERROR(H5E_INTERNAL, H5E_BADITER, FAIL, "H5F_get_obj_count failed")
+
+    /* Set the return value */
+    ret_value = (ssize_t)obj_count;
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -412,31 +413,30 @@ done:
  * Purpose:	Private function return the number of opened object IDs
  *		(files, datasets, groups, datatypes) in the same file.
  *
- * Return:      Non-negative on success; can't fail.
+ * Return:      SUCCEED on success, FAIL on failure.
  *
  * Programmer:  Raymond Lu
  *              Wednesday, Dec 5, 2001
  *
- * Modification:
- *              Raymond Lu
- *              24 September 2008
- *              Changed the return value to size_t to accommadate
- *              potential large number of objects.
- *
  *-------------------------------------------------------------------------
  */
-size_t
-H5F_get_obj_count(const H5F_t *f, unsigned types, hbool_t app_ref)
+herr_t
+H5F_get_obj_count(const H5F_t *f, unsigned types, hbool_t app_ref, size_t *obj_id_count_ptr)
 {
-    size_t   ret_value;            /* Return value */
+    herr_t   ret_value = SUCCEED;
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_obj_count)
+    FUNC_ENTER_NOAPI(FAIL)
 
-    /* H5F_get_objects doesn't fail */
-    ret_value = H5F_get_objects(f, types, 0, NULL, app_ref);
+    /* Sanity check */
+    HDassert(obj_id_count_ptr);
 
+    /* Perform the query */
+    if((ret_value = H5F_get_objects(f, types, 0, NULL, app_ref, obj_id_count_ptr)) < 0)
+        HGOTO_ERROR(H5E_INTERNAL, H5E_BADITER, FAIL, "H5F_get_objects failed")
+
+done:
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5F_get_obj_count() */
 
 
 /*-------------------------------------------------------------------------
@@ -461,19 +461,25 @@ ssize_t
 H5Fget_obj_ids(hid_t file_id, unsigned types, size_t max_objs, hid_t *oid_list)
 {
     H5F_t    *f = NULL;         /* File to query */
-    ssize_t   ret_value;         /* Return value */
+    size_t    obj_id_count = 0; /* Number of open objects */
+    ssize_t   ret_value;        /* Return value */
 
-    FUNC_ENTER_API(H5Fget_obj_ids, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE4("Zs", "iIuz*i", file_id, types, max_objs, oid_list);
 
+    /* Check arguments */
     if(file_id != (hid_t)H5F_OBJ_ALL && (NULL == (f = (H5F_t *)H5I_object_verify(file_id, H5I_FILE))))
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not a file id")
     if(0 == (types & H5F_OBJ_ALL))
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not an object type")
     HDassert(oid_list);
 
-    /* H5F_get_objects doesn't fail */
-    ret_value = (ssize_t)H5F_get_obj_ids(f, types, max_objs, oid_list, TRUE);
+    /* Perform the query */
+    if(H5F_get_obj_ids(f, types, max_objs, oid_list, TRUE, &obj_id_count) < 0)
+        HGOTO_ERROR(H5E_INTERNAL, H5E_BADITER, FAIL, "H5F_get_obj_ids failed")
+
+    /* Set the return value */
+    ret_value = (ssize_t)obj_id_count;
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -490,26 +496,25 @@ done:
  * Programmer:  Raymond Lu
  *              Wednesday, Dec 5, 2001
  *
- * Modification:
- *              Raymond Lu
- *              24 September 2008
- *              Changed the return value and MAX_OBJTS to size_t to accommadate
- *              potential large number of objects.
- *
  *-------------------------------------------------------------------------
  */
-size_t
-H5F_get_obj_ids(const H5F_t *f, unsigned types, size_t max_objs, hid_t *oid_list, hbool_t app_ref)
+herr_t
+H5F_get_obj_ids(const H5F_t *f, unsigned types, size_t max_objs, hid_t *oid_list, hbool_t app_ref, size_t *obj_id_count_ptr)
 {
-    size_t ret_value;              /* Return value */
+    herr_t ret_value = SUCCEED;              /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_obj_ids)
+    FUNC_ENTER_NOAPI(FAIL)
 
-    /* H5F_get_objects doesn't fail */
-    ret_value = H5F_get_objects(f, types, max_objs, oid_list, app_ref);
+    /* Sanity check */
+    HDassert(obj_id_count_ptr);
 
+    /* Perform the query */
+    if((ret_value = H5F_get_objects(f, types, max_objs, oid_list, app_ref, obj_id_count_ptr)) < 0)
+        HGOTO_ERROR(H5E_INTERNAL, H5E_BADITER, FAIL, "H5F_get_objects failed")
+
+done:
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5F_get_obj_ids() */
 
 
 /*---------------------------------------------------------------------------
@@ -525,14 +530,18 @@ H5F_get_obj_ids(const H5F_t *f, unsigned types, size_t max_objs, hid_t *oid_list
  *
  *---------------------------------------------------------------------------
  */
-static size_t
-H5F_get_objects(const H5F_t *f, unsigned types, size_t max_index, hid_t *obj_id_list, hbool_t app_ref)
+static herr_t
+H5F_get_objects(const H5F_t *f, unsigned types, size_t max_index, hid_t *obj_id_list, hbool_t app_ref, size_t *obj_id_count_ptr)
 {
     size_t obj_id_count=0;      /* Number of open IDs */
     H5F_olist_t olist;          /* Structure to hold search results */
-    size_t ret_value;          /* Return value */
+    htri_t type_exists;         /* Whether objects of a type are open */
+    herr_t ret_value = SUCCEED; /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_get_objects)
+    FUNC_ENTER_NOAPI_NOINIT
+
+    /* Sanity check */
+    HDassert(obj_id_count_ptr);
 
     /* Set up search information */
     olist.obj_id_list  = (max_index==0 ? NULL : obj_id_list);
@@ -550,45 +559,50 @@ H5F_get_objects(const H5F_t *f, unsigned types, size_t max_index, hid_t *obj_id_
         olist.file_info.ptr.shared = f ? f->shared : NULL;
     } /* end else */
 
-    /* Search through file IDs to count the number, and put their
-     * IDs on the object list.  H5I_search returns NULL if no object
-     * is found, so don't return failure in this function. */
+    /* Iterate through file IDs to count the number, and put their
+     * IDs on the object list.  */
     if(types & H5F_OBJ_FILE) {
         olist.obj_type = H5I_FILE;
-        (void)H5I_search(H5I_FILE, H5F_get_objects_cb, &olist, app_ref);
+        if(H5I_iterate(H5I_FILE, H5F_get_objects_cb, &olist, app_ref) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_BADITER, FAIL, "iteration failed(1)")
     } /* end if */
 
     /* Search through dataset IDs to count number of datasets, and put their
      * IDs on the object list */
     if(types & H5F_OBJ_DATASET) {
         olist.obj_type = H5I_DATASET;
-        (void)H5I_search(H5I_DATASET, H5F_get_objects_cb, &olist, app_ref);
-    }
+        if(H5I_iterate(H5I_DATASET, H5F_get_objects_cb, &olist, app_ref) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_BADITER, FAIL, "iteration failed(2)")
+    } /* end if */
 
     /* Search through group IDs to count number of groups, and put their
      * IDs on the object list */
     if(types & H5F_OBJ_GROUP) {
         olist.obj_type = H5I_GROUP;
-        (void)H5I_search(H5I_GROUP, H5F_get_objects_cb, &olist, app_ref);
-    }
+        if(H5I_iterate(H5I_GROUP, H5F_get_objects_cb, &olist, app_ref) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_BADITER, FAIL, "iteration failed(3)")
+    } /* end if */
 
     /* Search through datatype IDs to count number of named datatypes, and put their
      * IDs on the object list */
     if(types & H5F_OBJ_DATATYPE) {
         olist.obj_type = H5I_DATATYPE;
-        (void)H5I_search(H5I_DATATYPE, H5F_get_objects_cb, &olist, app_ref);
-    }
+        if(H5I_iterate(H5I_DATATYPE, H5F_get_objects_cb, &olist, app_ref) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_BADITER, FAIL, "iteration failed(4)")
+    } /* end if */
 
     /* Search through attribute IDs to count number of attributes, and put their
      * IDs on the object list */
     if(types & H5F_OBJ_ATTR) {
         olist.obj_type = H5I_ATTR;
-        (void)H5I_search(H5I_ATTR, H5F_get_objects_cb, &olist, app_ref);
-    }
+        if(H5I_iterate(H5I_ATTR, H5F_get_objects_cb, &olist, app_ref) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_BADITER, FAIL, "iteration failed(5)")
+    } /* end if */
 
     /* Set the number of objects currently open */
-    ret_value = obj_id_count;
+    *obj_id_count_ptr = obj_id_count;
 
+done:
     FUNC_LEAVE_NOAPI(ret_value)
 } /* end H5F_get_objects() */
 
@@ -606,8 +620,6 @@ H5F_get_objects(const H5F_t *f, unsigned types, size_t max_index, hid_t *obj_id_
  * Programmer:  Raymond Lu
  *              Wednesday, Dec 5, 2001
  *
- * Modification:
- *
  *-------------------------------------------------------------------------
  */
 static int
@@ -616,7 +628,7 @@ H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key)
     H5F_olist_t *olist = (H5F_olist_t *)key;    /* Alias for search info */
     int      ret_value = FALSE;    /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_get_objects_cb)
+    FUNC_ENTER_NOAPI_NOINIT
 
     HDassert(obj_ptr);
     HDassert(olist);
@@ -639,8 +651,8 @@ H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key)
 
             /* Check if we've filled up the array.  Return TRUE only if
              * we have filled up the array. Otherwise return FALSE(RET_VALUE is
-             * preset to FALSE) because H5I_search needs the return value of FALSE
-             * to continue searching. */
+             * preset to FALSE) because H5I_iterate needs the return value of 
+ 	     * FALSE to continue the iteration. */
             if(olist->max_index>0 && olist->list_index>=olist->max_index)
                 HGOTO_DONE(TRUE)  /* Indicate that the iterator should stop */
 	}
@@ -704,8 +716,8 @@ H5F_get_objects_cb(void *obj_ptr, hid_t obj_id, void *key)
 
             /* Check if we've filled up the array.  Return TRUE only if
              * we have filled up the array. Otherwise return FALSE(RET_VALUE is
-             * preset to FALSE) because H5I_search needs the return value of FALSE
-             * to continue searching. */
+             * preset to FALSE) because H5I_iterate needs the return value of 
+	     * FALSE to continue iterating. */
             if(olist->max_index>0 && olist->list_index>=olist->max_index)
                 HGOTO_DONE(TRUE)  /* Indicate that the iterator should stop */
     	} /* end if */
@@ -736,7 +748,7 @@ H5Fget_vfd_handle(hid_t file_id, hid_t fapl, void **file_handle)
     H5F_t               *file;          /* File to query */
     herr_t              ret_value = SUCCEED;      /* Return value */
 
-    FUNC_ENTER_API(H5Fget_vfd_handle, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE3("e", "ii**x", file_id, fapl, file_handle);
 
     /* Check args */
@@ -782,7 +794,7 @@ H5Fis_hdf5(const char *name)
     H5FD_t	*file = NULL;           /* Low-level file struct */
     htri_t	ret_value;              /* Return value */
 
-    FUNC_ENTER_API(H5Fis_hdf5, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("t", "*s", name);
 
     /* Check args and all the boring stuff. */
@@ -833,7 +845,7 @@ H5F_new(H5F_file_t *shared, hid_t fcpl_id, hid_t fapl_id, H5FD_t *lf)
 {
     H5F_t	*f = NULL, *ret_value;
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_new)
+    FUNC_ENTER_NOAPI_NOINIT
 
     if(NULL == (f = H5FL_CALLOC(H5F_t)))
 	HGOTO_ERROR(H5E_FILE, H5E_NOSPACE, NULL, "can't allocate top file structure")
@@ -990,7 +1002,7 @@ H5F_dest(H5F_t *f, hid_t dxpl_id, hbool_t flush)
 {
     herr_t	   ret_value = SUCCEED;         /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_dest)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* Sanity check */
     HDassert(f);
@@ -1174,7 +1186,7 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id,
     H5F_close_degree_t  fc_degree;          /*file close degree             */
     H5F_t              *ret_value;          /*actual return value           */
 
-    FUNC_ENTER_NOAPI(H5F_open, NULL)
+    FUNC_ENTER_NOAPI(NULL)
 
     /*
      * If the driver has a `cmp' method then the driver is capable of
@@ -1395,7 +1407,7 @@ H5Fcreate(const char *filename, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
     H5F_t	*new_file = NULL;	/*file struct for new file	*/
     hid_t	ret_value;	        /*return value			*/
 
-    FUNC_ENTER_API(H5Fcreate, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE4("i", "*sIuii", filename, flags, fcpl_id, fapl_id);
 
     /* Check/fix arguments */
@@ -1501,7 +1513,7 @@ H5Fopen(const char *filename, unsigned flags, hid_t fapl_id)
     H5F_t	*new_file = NULL;	/*file struct for new file	*/
     hid_t	ret_value;	        /*return value			*/
 
-    FUNC_ENTER_API(H5Fopen, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE3("i", "*sIui", filename, flags, fapl_id);
 
     /* Check/fix arguments. */
@@ -1557,7 +1569,7 @@ H5Fflush(hid_t object_id, H5F_scope_t scope)
     H5O_loc_t	*oloc = NULL;           /* Object location for ID */
     herr_t      ret_value = SUCCEED;    /* Return value */
 
-    FUNC_ENTER_API(H5Fflush, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "iFs", object_id, scope);
 
     switch(H5I_get_type(object_id)) {
@@ -1674,7 +1686,7 @@ H5F_flush(H5F_t *f, hid_t dxpl_id, hbool_t closing)
 {
     herr_t   ret_value = SUCCEED;       /* Return value */
 
-    FUNC_ENTER_NOAPI(H5F_flush, FAIL)
+    FUNC_ENTER_NOAPI(FAIL)
 
     /* Sanity check arguments */
     HDassert(f);
@@ -1743,7 +1755,7 @@ H5F_close(H5F_t *f)
 {
     herr_t	        ret_value = SUCCEED;    /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_close)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* Sanity check */
     HDassert(f);
@@ -1792,8 +1804,6 @@ done:
  * Programmer:	Quincey Koziol
  *		Tuesday, July 19, 2005
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -1803,7 +1813,7 @@ H5F_try_close(H5F_t *f)
     unsigned            nopen_objs = 0;         /* Number of open objects in file/mount hierarchy */
     herr_t	        ret_value = SUCCEED;    /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_try_close)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* Sanity check */
     HDassert(f);
@@ -1875,27 +1885,36 @@ H5F_try_close(H5F_t *f)
         if(f->nopen_objs > 0) {
             size_t obj_count;       /* # of open objects */
             hid_t objs[128];        /* Array of objects to close */
+            herr_t result;          /* Local result from obj ID query */
             size_t u;               /* Local index variable */
 
             /* Get the list of IDs of open dataset, group, & attribute objects */
-            while((obj_count = H5F_get_obj_ids(f, H5F_OBJ_LOCAL|H5F_OBJ_DATASET|H5F_OBJ_GROUP|H5F_OBJ_ATTR, (int)(sizeof(objs)/sizeof(objs[0])), objs, FALSE)) != 0) {
+            while((result = H5F_get_obj_ids(f, H5F_OBJ_LOCAL | H5F_OBJ_DATASET | H5F_OBJ_GROUP | H5F_OBJ_ATTR, (int)(sizeof(objs) / sizeof(objs[0])), objs, FALSE, &obj_count)) <= 0
+                    && obj_count != 0 ) {
+
                 /* Try to close all the open objects in this file */
                 for(u = 0; u < obj_count; u++)
                     if(H5I_dec_ref(objs[u]) < 0)
                         HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
             } /* end while */
+            if(result < 0)
+                HGOTO_ERROR(H5E_INTERNAL, H5E_BADITER, FAIL, "H5F_get_obj_ids failed(1)")
 
             /* Get the list of IDs of open named datatype objects */
             /* (Do this separately from the dataset & attribute IDs, because
              * they could be using one of the named datatypes and then the
              * open named datatype ID will get closed twice)
              */
-            while((obj_count = H5F_get_obj_ids(f, H5F_OBJ_LOCAL|H5F_OBJ_DATATYPE, (int)(sizeof(objs)/sizeof(objs[0])), objs, FALSE)) != 0) {
+            while((result = H5F_get_obj_ids(f, H5F_OBJ_LOCAL | H5F_OBJ_DATATYPE, (int)(sizeof(objs) / sizeof(objs[0])), objs, FALSE, &obj_count)) <= 0
+                    && obj_count != 0) {
+
                 /* Try to close all the open objects in this file */
                 for(u = 0; u < obj_count; u++)
                     if(H5I_dec_ref(objs[u]) < 0)
                         HGOTO_ERROR(H5E_ATOM, H5E_CLOSEERROR, FAIL, "can't close object")
             } /* end while */
+            if(result < 0)
+                HGOTO_ERROR(H5E_INTERNAL, H5E_BADITER, FAIL, "H5F_get_obj_ids failed(2)")
         } /* end if */
     } /* end if */
 
@@ -1962,7 +1981,7 @@ H5Fclose(hid_t file_id)
     int         nref;
     herr_t	ret_value = SUCCEED;
 
-    FUNC_ENTER_API(H5Fclose, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("e", "i", file_id);
 
     /* Check/fix arguments. */
@@ -2024,7 +2043,7 @@ H5Freopen(hid_t file_id)
     H5F_t	*new_file = NULL;
     hid_t	ret_value;
 
-    FUNC_ENTER_API(H5Freopen, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("i", "i", file_id);
 
     /* Check arguments */
@@ -2075,7 +2094,7 @@ H5Fget_intent(hid_t file_id, unsigned *intent_flags)
 {
     herr_t ret_value = SUCCEED;
 
-    FUNC_ENTER_API(H5Fget_intent, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*Iu", file_id, intent_flags);
 
     /* If no intent flags were passed in, exit quietly */
@@ -2119,7 +2138,7 @@ H5F_get_id(H5F_t *file, hbool_t app_ref)
 {
     hid_t       ret_value;
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_get_id)
+    FUNC_ENTER_NOAPI_NOINIT
 
     HDassert(file);
 
@@ -2158,8 +2177,8 @@ done:
 unsigned
 H5F_incr_nopen_objs(H5F_t *f)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_incr_nopen_objs)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(f);
 
@@ -2185,8 +2204,8 @@ H5F_incr_nopen_objs(H5F_t *f)
 unsigned
 H5F_decr_nopen_objs(H5F_t *f)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_decr_nopen_objs)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(f);
 
@@ -2216,7 +2235,7 @@ H5F_build_actual_name(const H5F_t *f, const H5P_genplist_t *fapl, const char *na
     hid_t       new_fapl_id = -1;       /* ID for duplicated FAPL */
     herr_t      ret_value = SUCCEED;    /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5F_build_actual_name)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* Sanity check */
     HDassert(f);
@@ -2326,8 +2345,8 @@ H5F_addr_encode_len(size_t addr_len, uint8_t **pp/*in,out*/, haddr_t addr)
 {
     unsigned    u;              /* Local index variable */
 
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_addr_encode_len)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(addr_len);
     HDassert(pp && *pp);
@@ -2365,8 +2384,8 @@ H5F_addr_encode_len(size_t addr_len, uint8_t **pp/*in,out*/, haddr_t addr)
 void
 H5F_addr_encode(const H5F_t *f, uint8_t **pp/*in,out*/, haddr_t addr)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_addr_encode)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(f);
 
@@ -2399,8 +2418,8 @@ H5F_addr_decode_len(size_t addr_len, const uint8_t **pp/*in,out*/, haddr_t *addr
     hbool_t	    all_zero = TRUE;    /* True if address was all zeroes */
     unsigned	    u;          /* Local index variable */
 
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_addr_decode_len)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(addr_len);
     HDassert(pp && *pp);
@@ -2464,8 +2483,8 @@ H5F_addr_decode_len(size_t addr_len, const uint8_t **pp/*in,out*/, haddr_t *addr
 void
 H5F_addr_decode(const H5F_t *f, const uint8_t **pp/*in,out*/, haddr_t *addr_p/*out*/)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_addr_decode)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(f);
 
@@ -2496,7 +2515,7 @@ H5Fget_freespace(hid_t file_id)
     hsize_t	tot_space;	/* Amount of free space in the file */
     hssize_t    ret_value;      /* Return value */
 
-    FUNC_ENTER_API(H5Fget_freespace, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("Hs", "i", file_id);
 
     /* Check args */
@@ -2539,7 +2558,7 @@ H5Fget_filesize(hid_t file_id, hsize_t *size)
     haddr_t    eof;                     /* End of file address */
     herr_t     ret_value = SUCCEED;     /* Return value */
 
-    FUNC_ENTER_API(H5Fget_filesize, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*h", file_id, size);
 
     /* Check args */
@@ -2555,6 +2574,139 @@ H5Fget_filesize(hid_t file_id, hsize_t *size)
 done:
     FUNC_LEAVE_API(ret_value)
 } /* end H5Fget_filesize() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    H5Fget_file_image
+ *
+ * Purpose:     If a buffer is provided (via the buf_ptr argument) and is 
+ *		big enough (size in buf_len argument), load *buf_ptr with
+ *		an image of the open file whose ID is provided in the 
+ *		file_id parameter, and return the number of bytes copied
+ *		to the buffer.
+ *
+ *		If the buffer exists, but is too small to contain an image
+ *		of the indicated file, return a negative number.
+ *
+ *		Finally, if no buffer is provided, return the size of the 
+ *		buffer needed.  This value is simply the eoa of the target 
+ *		file.
+ *
+ *		Note that any user block is skipped.
+ *
+ *		Also note that the function may not be used on files 
+ *		opened with either the split/multi file driver or the
+ *		family file driver.
+ *
+ *		In the former case, the sparse address space makes the 
+ *		get file image operation impractical, due to the size of
+ *		the image typically required.
+ *
+ *		In the case of the family file driver, the problem is
+ *		the driver message in the super block, which will prevent
+ *		the image being opened with any driver other than the
+ *		family file driver -- which negates the purpose of the 
+ *		operation.  This can be fixed, but no resources for 
+ *		this now.
+ *
+ * Return:      Success:        Bytes copied / number of bytes needed.
+ *              Failure:        negative value
+ *
+ * Programmer:  John Mainzer
+ *              11/15/11
+ *
+ *-------------------------------------------------------------------------
+ */
+ssize_t
+H5Fget_file_image(hid_t file_id, void *buf_ptr, size_t buf_len)
+{
+    H5F_t      *file;                   /* File object for file ID */
+    H5FD_t     *fd_ptr;                 /* file driver */
+    haddr_t     eoa;                    /* End of file address */
+    ssize_t     ret_value;              /* Return value */
+
+    FUNC_ENTER_API(FAIL)
+    H5TRACE3("Zs", "i*xz", file_id, buf_ptr, buf_len);
+
+    /* Check args */
+    if(NULL == (file = (H5F_t *)H5I_object_verify(file_id, H5I_FILE)))
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not a file ID")
+    if(!file || !file->shared || !file->shared->lf)
+        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "file_id yields invalid file pointer")
+    fd_ptr = file->shared->lf;
+    if(!fd_ptr->cls)
+        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "fd_ptr yields invalid class pointer")
+
+    /* the address space used by the split and multi file drivers is not
+     * a good fit for this call.  Since the plan is to depreciate these
+     * drivers anyway, don't bother to do a "force fit".
+     *
+     * The following clause tests for the multi file driver, and fails
+     * if the supplied file has the multi file driver as its top level
+     * file driver.  However, this test will not work if there is some
+     * other file driver sitting on top of the multi file driver.
+     *
+     * I'm not sure if this is possible at present, but in all likelyhood,
+     * it will become possible in the future.  On the other hand, we may
+     * remove the split/multi file drivers before then.
+     *
+     * I am leaving this solution in for now, but we should review it,
+     * and improve the solution if necessary.
+     *
+     *                                          JRM -- 11/11/22
+     */
+    if(HDstrcmp(fd_ptr->cls->name, "multi") == 0)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "Not supported for multi file driver.")
+
+    /* While the family file driver is conceptually fully compatible 
+     * with the get file image operation, it sets a file driver message
+     * in the super block that prevents the image being opened with any
+     * driver other than the family file driver.  Needless to say, this
+     * rather defeats the purpose of the get file image operation.
+     *
+     * While this problem is quire solvable, the required time and 
+     * resources are lacking at present.  Hence, for now, we don't
+     * allow the get file image operation to be perfomed on files 
+     * opened with the family file driver.
+     *
+     * Observe that the following test only looks at the top level 
+     * driver, and fails if there is some other driver sitting on to
+     * of the family file driver.  
+     *
+     * I don't think this can happen at present, but that may change
+     * in the future.
+     *                                   JRM -- 12/21/11
+     */
+    if(HDstrcmp(fd_ptr->cls->name, "family") == 0)
+        HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "Not supported for family file driver.")
+
+
+    /* Go get the actual file size */
+    if(HADDR_UNDEF == (eoa = H5FD_get_eoa(file->shared->lf, H5FD_MEM_DEFAULT)))
+        HGOTO_ERROR(H5E_FILE, H5E_CANTGET, FAIL, "unable to get file size")
+
+    /* set ret_value = to eoa -- will overwrite this if appropriate */
+    ret_value = (ssize_t)eoa;
+
+    /* test to see if a buffer was provided -- if not, we are done */
+    if(buf_ptr != NULL) {
+        size_t	space_needed;		/* size of file image */
+
+        /* Check for buffer too small */
+        if((haddr_t)buf_len < eoa)
+            HGOTO_ERROR(H5E_FILE, H5E_BADVALUE, FAIL, "supplied buffer too small")
+
+        space_needed = (size_t)eoa;
+
+        /* read in the file image */
+        /* (Note compensation for base address addition in internal routine) */
+        if(H5FD_read(fd_ptr, H5AC_ind_dxpl_id, H5FD_MEM_DEFAULT, 0, space_needed, buf_ptr) < 0)
+            HGOTO_ERROR(H5E_FILE, H5E_READERROR, FAIL, "file image read request failed")
+    } /* end if */
+    
+done:
+    FUNC_LEAVE_API(ret_value)
+} /* H5Fget_file_image() */
 
 
 /*-------------------------------------------------------------------------
@@ -2581,7 +2733,7 @@ H5Fget_mdc_config(hid_t file_id, H5AC_cache_config_t *config_ptr)
     H5F_t      *file;                   /* File object for file ID */
     herr_t     ret_value = SUCCEED;     /* Return value */
 
-    FUNC_ENTER_API(H5Fget_mdc_config, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*x", file_id, config_ptr);
 
     /* Check args */
@@ -2620,7 +2772,7 @@ H5Fset_mdc_config(hid_t file_id, H5AC_cache_config_t *config_ptr)
     H5F_t      *file;                   /* File object for file ID */
     herr_t     ret_value = SUCCEED;     /* Return value */
 
-    FUNC_ENTER_API(H5Fset_mdc_config, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*x", file_id, config_ptr);
 
     /* Check args */
@@ -2658,7 +2810,7 @@ H5Fget_mdc_hit_rate(hid_t file_id, double *hit_rate_ptr)
     H5F_t      *file;                   /* File object for file ID */
     herr_t     ret_value = SUCCEED;     /* Return value */
 
-    FUNC_ENTER_API(H5Fget_mdc_hit_rate, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*d", file_id, hit_rate_ptr);
 
     /* Check args */
@@ -2702,7 +2854,7 @@ H5Fget_mdc_size(hid_t file_id, size_t *max_size_ptr, size_t *min_clean_size_ptr,
     int32_t    cur_num_entries;
     herr_t     ret_value = SUCCEED;     /* Return value */
 
-    FUNC_ENTER_API(H5Fget_mdc_size, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE5("e", "i*z*z*z*Is", file_id, max_size_ptr, min_clean_size_ptr,
              cur_size_ptr, cur_num_entries_ptr);
 
@@ -2749,7 +2901,7 @@ H5Freset_mdc_hit_rate_stats(hid_t file_id)
     H5F_t      *file;                   /* File object for file ID */
     herr_t     ret_value = SUCCEED;     /* Return value */
 
-    FUNC_ENTER_API(H5Freset_mdc_hit_rate_stats, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("e", "i", file_id);
 
     /* Check args */
@@ -2794,7 +2946,7 @@ H5Fget_name(hid_t obj_id, char *name/*out*/, size_t size)
     size_t        len;
     ssize_t       ret_value;
 
-    FUNC_ENTER_API (H5Fget_name, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE3("Zs", "ixz", obj_id, name, size);
 
     /* For file IDs, get the file object directly */
@@ -2851,7 +3003,7 @@ H5Fget_info(hid_t obj_id, H5F_info_t *finfo)
     H5F_t *f;                           /* Top file in mount hierarchy */
     herr_t ret_value = SUCCEED;         /* Return value */
 
-    FUNC_ENTER_API(H5Fget_info, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*x", obj_id, finfo);
 
     /* Check args */
@@ -2913,7 +3065,7 @@ H5Fclear_elink_file_cache(hid_t file_id)
     H5F_t         *file;        /* File */
     herr_t        ret_value = SUCCEED; /* Return value */
 
-    FUNC_ENTER_API(H5Fclear_elink_file_cache, FAIL)
+    FUNC_ENTER_API(FAIL)
     H5TRACE1("e", "i", file_id);
 
     /* Check args */
@@ -2946,8 +3098,8 @@ done:
 herr_t
 H5F_set_grp_btree_shared(H5F_t *f, H5RC_t *rc)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_grp_btree_shared)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Sanity check */
     HDassert(f);
@@ -2976,8 +3128,8 @@ H5F_set_grp_btree_shared(H5F_t *f, H5RC_t *rc)
 herr_t
 H5F_set_sohm_addr(H5F_t *f, haddr_t addr)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_sohm_addr)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Sanity check */
     HDassert(f);
@@ -3005,8 +3157,8 @@ H5F_set_sohm_addr(H5F_t *f, haddr_t addr)
 herr_t
 H5F_set_sohm_vers(H5F_t *f, unsigned vers)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_sohm_vers)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Sanity check */
     HDassert(f);
@@ -3034,8 +3186,8 @@ H5F_set_sohm_vers(H5F_t *f, unsigned vers)
 herr_t
 H5F_set_sohm_nindexes(H5F_t *f, unsigned nindexes)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_sohm_nindexes)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Sanity check */
     HDassert(f);
@@ -3063,8 +3215,8 @@ H5F_set_sohm_nindexes(H5F_t *f, unsigned nindexes)
 herr_t
 H5F_set_store_msg_crt_idx(H5F_t *f, hbool_t flag)
 {
-    /* Use FUNC_ENTER_NOAPI_NOINIT_NOFUNC here to avoid performance issues */
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5F_set_store_msg_crt_idx)
+    /* Use FUNC_ENTER_NOAPI_NOINIT_NOERR here to avoid performance issues */
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Sanity check */
     HDassert(f);

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.6)
 PROJECT (HDF5_TOOLS_H5REPACK)
 
 #-----------------------------------------------------------------------------
@@ -23,6 +23,7 @@ SET (REPACK_COMMON_SRCS
 ADD_EXECUTABLE (h5repack ${REPACK_COMMON_SRCS} ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/h5repack_main.c)
 TARGET_NAMING (h5repack ${LIB_TYPE})
 TARGET_LINK_LIBRARIES (h5repack  ${HDF5_TOOLS_LIB_TARGET} ${HDF5_LIB_TARGET})
+SET_TARGET_PROPERTIES (h5repack PROPERTIES FOLDER tools)
 
 SET (H5_DEP_EXECUTABLES h5repack)
 
@@ -39,10 +40,12 @@ IF (BUILD_TESTING)
   ADD_EXECUTABLE (testh5repack_detect_szip ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testh5repack_detect_szip.c)
   TARGET_NAMING (testh5repack_detect_szip ${LIB_TYPE})
   TARGET_LINK_LIBRARIES (testh5repack_detect_szip ${HDF5_LIB_TARGET} ${HDF5_TOOLS_LIB_TARGET} ${HDF5_TEST_LIB_TARGET})
+  SET_TARGET_PROPERTIES (testh5repack_detect_szip PROPERTIES FOLDER tools)
 
   ADD_EXECUTABLE (h5repacktest ${REPACK_COMMON_SRCS} ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/h5repacktst.c)
   TARGET_NAMING (h5repacktest ${LIB_TYPE})
   TARGET_LINK_LIBRARIES (h5repacktest  ${HDF5_TOOLS_LIB_TARGET} ${HDF5_TEST_LIB_TARGET})
+  SET_TARGET_PROPERTIES (h5repacktest PROPERTIES FOLDER tools)
 
   IF (HDF5_TEST_VFD)
     SET (VFD_LIST
@@ -78,73 +81,95 @@ IF (BUILD_TESTING)
   ENDIF (HDF5_TEST_VFD)
     
   # --------------------------------------------------------------------
-  # Copy all the HDF5 files from the test directory into the source directory
+  # Copy all the HDF5 files from the source directory into the test directory
   # --------------------------------------------------------------------
-  SET (HDF5_REFERENCE_TEST_FILES
-      h5repack_ext.bin
-      ublock.bin
-      h5repack.info
-      h5repack_attr.h5
-      h5repack_deflate.h5
-      h5repack_early.h5
-      h5repack_ext.h5
-      h5repack_fill.h5
-      h5repack_filters.h5
-      h5repack_fletcher.h5
-      h5repack_hlink.h5
-      h5repack_layout.h5
-      h5repack_layouto.h5
-      h5repack_layout2.h5
-      h5repack_named_dtypes.h5
-      h5repack_nbit.h5
-      h5repack_objs.h5
-      h5repack_refs.h5
-      h5repack_shuffle.h5
-      h5repack_soffset.h5
-      h5repack_szip.h5
-  )
-  SET (HDF5_COMMON_TEST_FILES
-      tfamily00000.h5
-      tfamily00001.h5
-      tfamily00002.h5
-      tfamily00003.h5
-      tfamily00004.h5
-      tfamily00005.h5
-      tfamily00006.h5
-      tfamily00007.h5
-      tfamily00008.h5
-      tfamily00009.h5
-      tfamily00010.h5
-      h5repack_filters.h5.ddl
+  SET (LIST_HDF5_TEST_FILES
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_attr.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_attr_refs.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_deflate.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_early.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_ext.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_fill.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_filters.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_fletcher.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_hlink.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_layout.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_layouto.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_layout2.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_layout3.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_named_dtypes.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_nbit.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_objs.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_refs.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_shuffle.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_soffset.h5
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_szip.h5
+      # h5diff/testfile
+      ${HDF5_TOOLS_H5DIFF_SOURCE_DIR}/testfiles/h5diff_attr1.h5
+      # tools/testfiles
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00000.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00001.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00002.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00003.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00004.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00005.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00006.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00007.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00008.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00009.h5
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/tfamily00010.h5
   )
 
-  FOREACH (h5_file ${HDF5_REFERENCE_TEST_FILES})
-    SET (dest "${PROJECT_BINARY_DIR}/testfiles/${h5_file}")
+  SET (LIST_OTHER_TEST_FILES
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack_ext.bin
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/ublock.bin
+      ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/h5repack.info
+      # tools/testfiles
+      ${HDF5_TOOLS_SRC_DIR}/testfiles/h5repack_filters.h5.ddl
+  )
+
+  FOREACH (h5_file ${LIST_HDF5_TEST_FILES} ${LIST_OTHER_TEST_FILES})
+    GET_FILENAME_COMPONENT(fname "${h5_file}" NAME)
+    SET (dest "${PROJECT_BINARY_DIR}/testfiles/${fname}")
     #MESSAGE (STATUS " Copying ${h5_file}")
     ADD_CUSTOM_COMMAND (
         TARGET     h5repack
         POST_BUILD
         COMMAND    ${CMAKE_COMMAND}
-        ARGS       -E copy_if_different ${HDF5_TOOLS_H5REPACK_SOURCE_DIR}/testfiles/${h5_file} ${dest}
+        ARGS       -E copy_if_different ${h5_file} ${dest}
     )
-  ENDFOREACH (h5_file ${HDF5_REFERENCE_TEST_FILES})
+  ENDFOREACH (h5_file ${LIST_HDF5_TEST_FILES} ${LIST_OTHER_TEST_FILES})
 
-  FOREACH (h5c_file ${HDF5_COMMON_TEST_FILES})
-    SET (dest "${PROJECT_BINARY_DIR}/testfiles/${h5c_file}")
-    #MESSAGE (STATUS " Copying ${h5_file}")
-    ADD_CUSTOM_COMMAND (
-        TARGET     h5repack
-        POST_BUILD
-        COMMAND    ${CMAKE_COMMAND}
-        ARGS       -E copy_if_different ${HDF5_TOOLS_SRC_DIR}/testfiles/${h5c_file} ${dest}
-    )
-  ENDFOREACH (h5c_file ${HDF5_COMMON_TEST_FILES})
-  
 ##############################################################################
 ##############################################################################
 ###           T H E   T E S T S  M A C R O S                               ###
 ##############################################################################
 ##############################################################################
+
+  MACRO (ADD_H5_TEST_OLD testname testtype testfile)
+    IF (${testtype} STREQUAL "SKIP")
+      IF (NOT HDF5_ENABLE_USING_MEMCHECKER)
+        ADD_TEST (
+            NAME H5REPACK-${testname}-SKIPPED
+            COMMAND ${CMAKE_COMMAND} -E echo "SKIP ${ARGN} -i ${PROJECT_BINARY_DIR}/testfiles/${testfile} -o ${PROJECT_BINARY_DIR}/testfiles/out.${testfile}"
+        )
+      ENDIF (NOT HDF5_ENABLE_USING_MEMCHECKER)
+    ELSE (${testtype} STREQUAL "SKIP")
+      ADD_TEST (
+          NAME H5REPACK-${testname}
+          COMMAND $<TARGET_FILE:h5repack> ${ARGN} -i ${PROJECT_BINARY_DIR}/testfiles/${testfile} -o ${PROJECT_BINARY_DIR}/testfiles/out.${testfile}
+      )
+      IF (NOT "${last_test}" STREQUAL "")
+        SET_TESTS_PROPERTIES (H5REPACK-${testname} PROPERTIES DEPENDS ${last_test})
+      ENDIF (NOT "${last_test}" STREQUAL "")
+      ADD_TEST (
+          NAME H5REPACK-DIFF_${testname}
+          COMMAND $<TARGET_FILE:h5diff> ${PROJECT_BINARY_DIR}/testfiles/${testfile} ${PROJECT_BINARY_DIR}/testfiles/out.${testfile}
+      )
+      SET_TESTS_PROPERTIES (H5REPACK-DIFF_${testname} PROPERTIES DEPENDS H5REPACK-${testname})
+      SET (last_test "H5REPACK-DIFF_${testname}")
+    ENDIF (${testtype} STREQUAL "SKIP")
+  ENDMACRO (ADD_H5_TEST_OLD)
 
   MACRO (ADD_H5_TEST testname testtype testfile)
     IF (${testtype} STREQUAL "SKIP")
@@ -190,7 +215,7 @@ IF (BUILD_TESTING)
                 -D "TEST_PROGRAM=$<TARGET_FILE:h5repack>"
                 -D "TEST_ARGS:STRING=${ARGN};testfiles/${resultfile};testfiles/out.${resultfile}"
                 -D "TEST_FOLDER=${PROJECT_BINARY_DIR}"
-                -D "TEST_OUTPUT=${resultfile}.out"
+                -D "TEST_OUTPUT=./testfiles/${resultfile}.out"
                 -D "TEST_EXPECT=${resultcode}"
                 -D "TEST_FILTER:STRING=${testfilter}"
                 -D "TEST_REFERENCE=testfiles/${resultfile}.ddl"
@@ -221,7 +246,7 @@ IF (BUILD_TESTING)
                   -D "TEST_PROGRAM=$<TARGET_FILE:h5dump>"
                   -D "TEST_ARGS:STRING=-d;${testdset};-pH;testfiles/out.${testfile}"
                   -D "TEST_FOLDER=${PROJECT_BINARY_DIR}"
-                  -D "TEST_OUTPUT=${testfile}-v.out"
+                  -D "TEST_OUTPUT=./testfiles/${testfile}-v.out"
                   -D "TEST_EXPECT=${resultcode}"
                   -D "TEST_FILTER:STRING=${testfilter}"
                   -D "TEST_REFERENCE=${testfilter}"
@@ -247,7 +272,7 @@ IF (BUILD_TESTING)
                   -D "TEST_PROGRAM=$<TARGET_FILE:h5dump>"
                   -D "TEST_ARGS:STRING=-pH;testfiles/out.${testfile}"
                   -D "TEST_FOLDER=${PROJECT_BINARY_DIR}"
-                  -D "TEST_OUTPUT=${testfile}-v.out"
+                  -D "TEST_OUTPUT=./testfiles/${testfile}-v.out"
                   -D "TEST_EXPECT=${resultcode}"
                   -D "TEST_FILTER:STRING=${nottestfilter}"
                   -D "TEST_REFERENCE=${testfilter}"
@@ -262,6 +287,29 @@ IF (BUILD_TESTING)
     ENDIF (${testtype} STREQUAL "SKIP")
   ENDMACRO (ADD_H5_VERIFY_TEST)
 
+  MACRO (ADD_H5_TEST_META testname testfile)
+      ADD_TEST (
+          NAME H5REPACK-${testname}_N
+          COMMAND $<TARGET_FILE:h5repack> ${PROJECT_BINARY_DIR}/testfiles/${testfile} ${PROJECT_BINARY_DIR}/testfiles/out_N.${testname}.h5
+      )
+      IF (NOT "${last_test}" STREQUAL "")
+        SET_TESTS_PROPERTIES (H5REPACK-${testname}_N PROPERTIES DEPENDS ${last_test})
+      ENDIF (NOT "${last_test}" STREQUAL "")
+      ADD_TEST (
+          NAME H5REPACK-${testname}_M
+          COMMAND $<TARGET_FILE:h5repack> ${ARGN} ${PROJECT_BINARY_DIR}/testfiles/${testfile} ${PROJECT_BINARY_DIR}/testfiles/out_M.${testname}.h5
+      )
+      IF (NOT "${last_test}" STREQUAL "")
+        SET_TESTS_PROPERTIES (H5REPACK-${testname}_M PROPERTIES DEPENDS ${last_test})
+      ENDIF (NOT "${last_test}" STREQUAL "")
+      ADD_TEST (NAME H5REPACK-${testname} COMMAND ${CMAKE_COMMAND} -E compare_files ${PROJECT_BINARY_DIR}/testfiles/out_N.${testname}.h5 ${PROJECT_BINARY_DIR}/testfiles/out_M.${testname}.h5)
+      SET_TESTS_PROPERTIES (H5REPACK-${testname} PROPERTIES WILL_FAIL "true")
+      IF (NOT "${last_test}" STREQUAL "")
+        SET_TESTS_PROPERTIES (H5REPACK-${testname} PROPERTIES DEPENDS ${last_test})
+      ENDIF (NOT "${last_test}" STREQUAL "")
+      SET (last_test "H5REPACK-${testname}")
+  ENDMACRO (ADD_H5_TEST_META)
+
 ##############################################################################
 ##############################################################################
 ###           T H E   T E S T S                                            ###
@@ -273,64 +321,79 @@ IF (BUILD_TESTING)
       NAME H5REPACK-clearall-objects
       COMMAND    ${CMAKE_COMMAND}
           -E remove 
-          h5repack_attr.h5.out
-          h5repack_attr.h5.out.err
-          h5repack_deflate.h5.out
-          h5repack_deflate.h5.out.err
-          h5repack_early.h5.out
-          h5repack_early.h5.out.err
-          h5repack_ext.h5.out
-          h5repack_ext.h5.out.err
-          h5repack_fill.h5.out
-          h5repack_fill.h5.out.err
-          h5repack_filters.h5.out
-          h5repack_filters.h5.out.err
-          h5repack_fletcher.h5.out
-          h5repack_fletcher.h5.out.err
-          h5repack_hlink.h5.out
-          h5repack_hlink.h5.out.err
-          h5repack_layout.h5.out
-          h5repack_layout.h5.out.err
-          h5repack_layout.h5-v.out
-          h5repack_layout.h5-v.out.err
-          h5repack_layouto.h5.out
-          h5repack_layouto.h5.out.err
-          h5repack_layout2.h5-v.out
-          h5repack_layout2.h5-v.out.err
-          h5repack_named_dtypes.h5.out
-          h5repack_named_dtypes.h5.out.err
-          h5repack_nbit.h5.out
-          h5repack_nbit.h5.out.err
-          h5repack_objs.h5.out
-          h5repack_objs.h5.out.err
-          h5repack_refs.h5.out
-          h5repack_refs.h5.out.err
-          h5repack_shuffle.h5.out
-          h5repack_shuffle.h5.out.err
-          h5repack_soffset.h5.out
-          h5repack_soffset.h5.out.err
-          h5repack_szip.h5.out
-          h5repack_szip.h5.out.err
-          h5repack_attr_out.h5
-          h5repack_deflate_out.h5
-          h5repack_early_out.h5
-          h5repack_ext_out.h5
-          h5repack_fill_out.h5
-          h5repack_filters_out.h5
-          h5repack_fletcher_out.h5
-          h5repack_hlink_out.h5
-          h5repack_layout_out.h5
-          h5repack_layouto_out.h5
-          h5repack_layout2_out.h5
-          h5repack_named_dtypes_out.h5
-          h5repack_nbit_out.h5
-          h5repack_objs_out.h5
-          h5repack_refs_out.h5
-          h5repack_shuffle_out.h5
-          h5repack_soffset_out.h5
-          h5repack_szip_out.h5
-          h5repack_ub.h5
-          h5repack_ub_out.h5
+         ./testfiles/h5repack_filters.h5.out
+         ./testfiles/h5repack_filters.h5.out.err
+         ./testfiles/h5repack_layout.h5-v.out
+         ./testfiles/h5repack_layout.h5-v.out.err
+         ./testfiles/h5repack_layout2.h5-v.out
+         ./testfiles/h5repack_layout2.h5-v.out.err
+         ./testfiles/h5repack_layout3.h5-v.out
+         ./testfiles/h5repack_layout3.h5-v.out.err
+         ./testfiles/out.tfamily%05d.h5
+         ./testfiles/out.h5diff_attr1.h5
+         ./testfiles/out.h5repack_attr.h5
+         ./testfiles/out.h5repack_attr_refs.h5
+         ./testfiles/out.h5repack_deflate.h5
+         ./testfiles/out.h5repack_early.h5
+         ./testfiles/out.h5repack_fill.h5
+         ./testfiles/out.h5repack_filters.h5
+         ./testfiles/out.h5repack_fletcher.h5
+         ./testfiles/out.h5repack_hlink.h5
+         ./testfiles/out.h5repack_layout.h5
+         ./testfiles/out.h5repack_layouto.h5
+         ./testfiles/out.h5repack_layout2.h5
+         ./testfiles/out.h5repack_layout3.h5
+         ./testfiles/out.h5repack_named_dtypes.h5
+         ./testfiles/out.h5repack_nbit.h5
+         ./testfiles/out.h5repack_objs.h5
+         ./testfiles/out.h5repack_refs.h5
+         ./testfiles/out.h5repack_shuffle.h5
+         ./testfiles/out.h5repack_soffset.h5
+         ./testfiles/out_M.meta_short.h5
+         ./testfiles/out_N.meta_short.h5
+         ./testfiles/out_M.meta_long.h5
+         ./testfiles/out_N.meta_long.h5
+         # from the h5repacktst
+         h5repack_attr.h5
+         h5repack_attr_out.h5
+         h5repack_attr_refs.h5
+         h5repack_big.h5
+         h5repack_deflate.h5 
+         h5repack_deflate_out.h5
+         h5repack_early2.h5
+         h5repack_early.h5
+         h5repack_early_out.h5
+         h5repack_ext.h5
+         h5repack_ext_out.h5
+         h5repack_fill.h5
+         h5repack_fill_out.h5
+         h5repack_filters.h5
+         h5repack_filters_out.h5
+         h5repack_fletcher.h5
+         h5repack_fletcher_out.h5
+         h5repack_hlink.h5
+         h5repack_hlink_out.h5
+         h5repack_layout.h5
+         h5repack_layout_out.h5
+         h5repack_layout2.h5
+         h5repack_layout3.h5
+         h5repack_named_dtypes.h5
+         h5repack_named_dtypes_out.h5
+         h5repack_nbit.h5
+         h5repack_nbit_out.h5
+         h5repack_objs.h5
+         h5repack_objs_out.h5
+         h5repack_refs.h5
+         h5repack_shuffle.h5
+         h5repack_shuffle_out.h5
+         h5repack_soffset.h5 
+         h5repack_soffset_out.h5
+         h5repack_szip.h5
+         h5repack_szip_out.h5
+         h5repack_ub.h5
+         h5repack_ub_out.h5
+         h5repack_ext.bin
+         ublock.bin
   )
   IF (NOT "${last_test}" STREQUAL "")
     SET_TESTS_PROPERTIES (H5REPACK-clearall-objects PROPERTIES DEPENDS ${last_test})
@@ -360,6 +423,7 @@ IF (BUILD_TESTING)
   SET (FILE16 tfamily%05d.h5)           # located in common testfiles folder
   SET (FILE18 h5repack_layout2.h5)
   SET (FILE_REF h5repack_refs.h5)
+  SET (FILE_ATTR_REF h5repack_attr_refs.h5)
 
   ADD_TEST (NAME H5REPACK-testh5repack_detect_szip COMMAND $<TARGET_FILE:testh5repack_detect_szip>)
   IF (HDF5_ENABLE_SZIP_SUPPORT)
@@ -718,6 +782,24 @@ IF (BUILD_TESTING)
   ADD_H5_TEST (contig_small_fixed_compa "TEST" ${FILE18} -l chunked_small_fixed:COMPA)
   ADD_H5_VERIFY_TEST (contig_small_fixed_compa "TEST" 0 ${FILE18} chunked_small_fixed COMPACT)
 
+#--------------------------------------------------------------------------- 
+# Test file contains chunked datasets (need multiple dsets) with 
+# unlimited max dims.   (HDFFV-7933)
+# Use first dset to test.
+#---------------------------------------------------------------------------
+# chunk to chunk - specify chunk dim bigger than any current dim
+ADD_H5_TEST (chunk2chunk "TEST" h5repack_layout3.h5 -l chunk_unlimit1:CHUNK=100x300)
+ADD_H5_VERIFY_TEST (chunk2chunk "TEST" 0 h5repack_layout3.h5 chunk_unlimit1 CHUNK)
+
+# chunk to contiguous 
+ADD_H5_TEST (chunk2conti "TEST" h5repack_layout3.h5 -l chunk_unlimit1:CONTI)
+ADD_H5_VERIFY_TEST (chunk2conti "TEST" 0 h5repack_layout3.h5 chunk_unlimit1 CONTI)
+
+# chunk to compact - convert big dataset (should be > 64k) for this purpose, 
+# should remain as original layout (chunk)
+ADD_H5_TEST (chunk2compa "TEST" h5repack_layout3.h5 -l chunk_unlimit1:COMPA)
+ADD_H5_VERIFY_TEST (chunk2compa "TEST" 0 h5repack_layout3.h5 chunk_unlimit1 CHUNK)
+
 # Native option
 # Do not use FILE1, as the named dtype will be converted to native, and h5diff will
 # report a difference.
@@ -757,7 +839,7 @@ IF (BUILD_TESTING)
   IF (NOT USE_FILTER_DEFLATE)
     SET (TESTTYPE "SKIP")
   ENDIF (NOT USE_FILTER_DEFLATE)
-#  ADD_H5_TEST (old_style_layout_short_switches ${TESTTYPE} ${arg})
+  ADD_H5_TEST_OLD (old_style_layout_short_switches ${TESTTYPE} ${arg})
 
 # add a userblock to file
   SET (arg ${FILE1} -u ${PROJECT_BINARY_DIR}/testfiles/ublock.bin -b 2048)
@@ -778,10 +860,25 @@ IF (BUILD_TESTING)
   ADD_H5_TEST (committed_dt "TEST" ${FILE15})
 
 # tests family driver (file is located in common testfiles folder, uses TOOLTEST1
-#  ADD_H5_TEST ( family "FAMILY" ${FILE16})
+  ADD_H5_TEST (family "TEST" ${FILE16})
 
-# test various references (bug 1814)
+# test various references (bug 1814 and 1726)
   ADD_H5_TEST (bug1814 "TEST" ${FILE_REF})
+
+# test attribute with various references (bug1797 / HDFFV-5932)
+# the references in attribute of compund or vlen datatype 
+  ADD_H5_TEST (HDFFV-5932 "TEST" ${FILE_ATTR_REF})
+
+# Add test for memory leak in attirbute. This test is verified by CTEST.   
+# 1. leak from vlen string  
+# 2. leak from compound type without reference member
+# (HDFFV-7840, )
+# Note: this test is experimental for sharing test file among tools
+  ADD_H5_TEST (HDFFV-7840 "TEST" h5diff_attr1.h5)
+
+# tests for metadata block size option ('-M')
+  ADD_H5_TEST_META (meta_short h5repack_layout.h5 -M 8192)
+  ADD_H5_TEST_META (meta_long h5repack_layout.h5 --metadata_block_size=8192)
 
   IF (HDF5_TEST_VFD)
     # Run test with different Virtual File Driver

@@ -61,6 +61,7 @@ static herr_t H5O_pline_debug(H5F_t *f, hid_t dxpl_id, const void *_mesg,
 #undef H5O_SHARED_COPY_FILE_REAL
 #define H5O_SHARED_POST_COPY_FILE	H5O_pline_shared_post_copy_file
 #undef H5O_SHARED_POST_COPY_FILE_REAL
+#undef  H5O_SHARED_POST_COPY_FILE_UPD
 #define H5O_SHARED_DEBUG		H5O_pline_shared_debug
 #define H5O_SHARED_DEBUG_REAL		H5O_pline_debug
 #include "H5Oshared.h"			/* Shared Object Header Message Callbacks */
@@ -117,7 +118,7 @@ H5O_pline_decode(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, H5O_t UNUSED *open_oh,
     size_t		i;                      /* Local index variable */
     void		*ret_value;             /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_pline_decode)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* check args */
     HDassert(p);
@@ -242,7 +243,7 @@ H5O_pline_encode(H5F_t UNUSED *f, uint8_t *p/*out*/, const void *mesg)
     const       H5Z_filter_info_t *filter;      /* Filter to encode */
     size_t	i, j;                   /* Local index variables */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_pline_encode)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Check args */
     HDassert(p);
@@ -345,7 +346,7 @@ H5O_pline_copy(const void *_src, void *_dst/*out*/)
     size_t		i;                      /* Local index variable */
     H5O_pline_t		*ret_value;             /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_pline_copy)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* Allocate pipeline message, if not provided */
     if(!dst && NULL == (dst = H5FL_MALLOC(H5O_pline_t)))
@@ -438,7 +439,7 @@ H5O_pline_size(const H5F_t UNUSED *f, const void *mesg)
     size_t i;                   /* Local index variable */
     size_t ret_value;           /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_pline_size)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Message header */
     ret_value = 1 +			/*version			*/
@@ -497,7 +498,7 @@ H5O_pline_reset(void *mesg)
     H5O_pline_t	*pline = (H5O_pline_t*)mesg;    /* Pipeline message */
     size_t	i;                              /* Local index variable */
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_pline_reset)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(pline);
 
@@ -542,7 +543,7 @@ H5O_pline_reset(void *mesg)
 static herr_t
 H5O_pline_free(void *mesg)
 {
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_pline_free)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     HDassert(mesg);
 
@@ -575,7 +576,7 @@ H5O_pline_pre_copy_file(H5F_t UNUSED *file_src, const void *mesg_src,
     H5O_copy_file_ud_common_t *udata = (H5O_copy_file_ud_common_t *)_udata; /* Object copying user data */
     herr_t             ret_value = SUCCEED;                     /* Return value */
 
-    FUNC_ENTER_NOAPI_NOINIT(H5O_pline_pre_copy_file)
+    FUNC_ENTER_NOAPI_NOINIT
 
     /* check args */
     HDassert(pline_src);
@@ -614,7 +615,7 @@ H5O_pline_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *s
     const H5O_pline_t	*pline = (const H5O_pline_t *)mesg;
     size_t		i, j;
 
-    FUNC_ENTER_NOAPI_NOINIT_NOFUNC(H5O_pline_debug)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* check args */
     HDassert(f);
@@ -681,7 +682,7 @@ H5O_pline_debug(H5F_t UNUSED *f, hid_t UNUSED dxpl_id, const void *mesg, FILE *s
 herr_t
 H5O_pline_set_latest_version(H5O_pline_t *pline)
 {
-    FUNC_ENTER_NOAPI_NOFUNC(H5O_pline_set_latest_version)
+    FUNC_ENTER_NOAPI_NOINIT_NOERR
 
     /* Sanity check */
     HDassert(pline);

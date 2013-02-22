@@ -1824,7 +1824,6 @@ static int test_valid_path(void)
   herr_t status;
   FILE *fp = NULL;
   htri_t path_valid;
-  char path[10];
   const char *data_string_in = "test";
   
   TESTING("H5LTpath_valid");
@@ -2161,8 +2160,11 @@ int main( void )
     /* test attribute functions */
     nerrors += test_attr();
 
-    /* test text-dtype functions */
+    /* test valid path functions */
     nerrors += test_valid_path();
+
+    /* test text-dtype functions */
+    nerrors += test_text_dtype();
 
     /* check for errors */
     if (nerrors)

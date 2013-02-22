@@ -486,8 +486,8 @@ H5O_expunge_chunks_test(const H5O_loc_t *loc, hid_t dxpl_id)
 {
     H5O_t *oh = NULL;           /* Object header */
     haddr_t chk_addr[16];       /* Array of chunk addresses */
-    unsigned nchunks;           /* Number of chunks in object header */
-    unsigned u;                 /* Local index variable */
+    size_t nchunks;             /* Number of chunks in object header */
+    size_t u;                   /* Local index variable */
     herr_t ret_value = SUCCEED; /* Return value */
 
     FUNC_ENTER_NOAPI(FAIL)
@@ -498,7 +498,7 @@ H5O_expunge_chunks_test(const H5O_loc_t *loc, hid_t dxpl_id)
 
     /* Safety check */
     nchunks = oh->nchunks;
-    HDassert(nchunks < NELMTS(chk_addr));
+    HDassert(0 < nchunks && nchunks < NELMTS(chk_addr));
 
     /* Iterate over all the chunks, saving the chunk addresses */
     for(u = 0; u < oh->nchunks; u++)

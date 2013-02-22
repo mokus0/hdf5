@@ -15,6 +15,8 @@
 #
 # Tests for the h5dump tool
 
+srcdir=@srcdir@
+
 # Determine which filters are available
 USE_FILTER_SZIP="@USE_FILTER_SZIP@"
 USE_FILTER_DEFLATE="@USE_FILTER_DEFLATE@"
@@ -33,14 +35,12 @@ STAT_BIN=`pwd`/$STAT    # The path of the tool binary
 CMP='cmp -s'
 DIFF='diff -c'
 CP='cp'
+DIRNAME='dirname'
+LS='ls'
+AWK='awk'
 
 nerrors=0
 verbose=yes
-
-# The build (current) directory might be different than the source directory.
-if test -z "$srcdir"; then
-   srcdir=.
-fi
 
 # source dirs
 SRC_TOOLS="$srcdir/.."
@@ -77,6 +77,7 @@ $SRC_H5STAT_TESTFILES/h5stat_newgrat.h5
 LIST_OTHER_TEST_FILES="
 $SRC_H5STAT_TESTFILES/h5stat_help1.ddl
 $SRC_H5STAT_TESTFILES/h5stat_help2.ddl
+$SRC_H5STAT_TESTFILES/h5stat_notexist.ddl
 $SRC_H5STAT_TESTFILES/h5stat_filters.ddl
 $SRC_H5STAT_TESTFILES/h5stat_filters-file.ddl
 $SRC_H5STAT_TESTFILES/h5stat_filters-F.ddl
@@ -105,12 +106,20 @@ COPY_TESTFILES_TO_TESTDIR()
         echo $tstfile | tr -d ' ' | grep '^#' > /dev/null
         RET=$?
         if [ $RET -eq 1 ]; then
-            if [ -a $tstfile ]; then
-                $CP -f $tstfile $TESTDIR
-            else
-                echo "Error: FAILED to copy $tstfile"
-                echo "       $tstfile doesn't exist!"
-                exit $EXIT_FAILURE
+            # skip cp if srcdir is same as destdir
+            # this occurs when build/test performed in source dir and
+            # make cp fail
+            SDIR=`$DIRNAME $tstfile`
+            INODE_SDIR=`$LS -i -d $SDIR | $AWK -F' ' '{print $1}'`
+            INODE_DDIR=`$LS -i -d $TESTDIR | $AWK -F' ' '{print $1}'`
+            if [ "$INODE_SDIR" != "$INODE_DDIR" ]; then
+    	        $CP -f $tstfile $TESTDIR
+                if [ $? -ne 0 ]; then
+                    echo "Error: FAILED to copy $tstfile ."
+                
+                    # Comment out this to CREATE expected file
+                    exit $EXIT_FAILURE
+                fi
             fi
         fi
     done
@@ -124,6 +133,9 @@ TESTING() {
    echo "Testing $* $SPACES" | cut -c1-70 | tr -d '\012'
 }
 
+# Source in the output filter function definitions.
+. $srcdir/../../bin/output_filter.sh
+
 # Run a test and print PASS or *FAIL*.  If a test fails then increment
 # the `nerrors' global variable and (if $verbose is set) display the
 # difference between the actual output and the expected output. The
@@ -136,6 +148,8 @@ TOOLTEST() {
    expect="$TESTDIR/$1"
    actual="$TESTDIR/`basename $1 .ddl`.out"
    actual_err="$TESTDIR/`basename $1 .ddl`.err"
+   actual_sav=${actual}-sav
+   actual_err_sav=${actual_err}-sav
    shift
 
    # Run test.
@@ -147,8 +161,13 @@ TOOLTEST() {
       cd $TESTDIR
       $RUNSERIAL $STAT_BIN $@
    ) >$actual 2>$actual_err
-   cat $actual_err >> $actual
 
+   # save actual and actual_err in case they are needed later.
+   cp $actual $actual_sav
+   STDOUT_FILTER $actual
+   cp $actual_err $actual_err_sav
+   STDERR_FILTER $actual_err
+   cat $actual_err >> $actual
 
    if [ ! -f $expect ]; then
     # Create the expect file if it doesn't yet exist.
@@ -165,7 +184,7 @@ TOOLTEST() {
 
    # Clean up output file
    if test -z "$HDF5_NOCLEANUP"; then
-      rm -f $actual $actual_err
+      rm -f $actual $actual_err $actual_sav $actual_err_sav
    fi
 }
 
@@ -189,6 +208,8 @@ COPY_TESTFILES_TO_TESTDIR
 # Test for help flag
 TOOLTEST h5stat_help1.ddl -h
 TOOLTEST h5stat_help2.ddl --help
+# Test when h5stat a file that does not exist
+TOOLTEST h5stat_notexist.ddl notexist.h5
 
 # Test file with groups, compressed datasets, user-applied fileters, etc.
 # h5stat_filters.h5 is a copy of ../../testfiles/tfilters.h5 as of release 1.8.0-alpha4

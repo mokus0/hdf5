@@ -74,6 +74,8 @@
 #define H5D_XFER_MPIO_CHUNK_OPT_RATIO_NAME "mpio_chunk_opt_ratio"
 #define H5D_MPIO_ACTUAL_CHUNK_OPT_MODE_NAME "actual_chunk_opt_mode"
 #define H5D_MPIO_ACTUAL_IO_MODE_NAME    "actual_io_mode"
+#define H5D_MPIO_LOCAL_NO_COLLECTIVE_CAUSE_NAME "local_no_collective_cause"  /* cause of broken collective I/O in each process */
+#define H5D_MPIO_GLOBAL_NO_COLLECTIVE_CAUSE_NAME "global_no_collective_cause"  /* cause of broken collective I/O in all processes */
 #endif /* H5_HAVE_PARALLEL */
 #define H5D_XFER_EDC_NAME               "err_detect"    /* EDC */
 #define H5D_XFER_FILTER_CB_NAME         "filter_cb"     /* Filter callback function */
@@ -169,14 +171,8 @@ H5_DLL herr_t H5D_flush(const H5F_t *f, hid_t dxpl_id);
 H5_DLL herr_t H5D_vlen_reclaim(hid_t type_id, H5S_t *space, hid_t plist_id,
     void *buf);
 
-/* Functions that operate on contiguous storage */
-H5_DLL herr_t H5D_contig_delete(H5F_t *f, hid_t dxpl_id,
-    const H5O_storage_t *store);
-
 /* Functions that operate on chunked storage */
 H5_DLL herr_t H5D_chunk_idx_reset(H5O_storage_chunk_t *storage, hbool_t reset_addr);
-H5_DLL herr_t H5D_chunk_delete(H5F_t *f, hid_t dxpl_id, H5O_t *oh,
-    H5O_storage_t *store);
 
 /* Functions that operate on indexed storage */
 H5_DLL herr_t H5D_btree_debug(H5F_t *f, hid_t dxpl_id, haddr_t addr, FILE * stream,

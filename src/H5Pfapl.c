@@ -67,7 +67,7 @@
 #define H5F_ACS_DATA_CACHE_BYTE_SIZE_DEF        (1024*1024)
 /* Definition for preemption read chunks first */
 #define H5F_ACS_PREEMPT_READ_CHUNKS_SIZE        sizeof(double)
-#define H5F_ACS_PREEMPT_READ_CHUNKS_DEF         0.75
+#define H5F_ACS_PREEMPT_READ_CHUNKS_DEF         0.75f
 /* Definition for threshold for alignment */
 #define H5F_ACS_ALIGN_THRHD_SIZE                sizeof(hsize_t)
 #define H5F_ACS_ALIGN_THRHD_DEF                 1
@@ -145,12 +145,6 @@
 /* Local Prototypes */
 /********************/
 
-/* General routines */
-static herr_t H5P_set_family_offset(H5P_genplist_t *plist, hsize_t offset);
-static herr_t H5P_get_family_offset(H5P_genplist_t *plist, hsize_t *offset);
-static herr_t H5P_set_multi_type(H5P_genplist_t *plist, H5FD_mem_t type);
-static herr_t H5P_get_multi_type(H5P_genplist_t *plist, H5FD_mem_t *type);
-
 /* Property class callbacks */
 static herr_t H5P_facc_reg_prop(H5P_genclass_t *pclass);
 static herr_t H5P_facc_create(hid_t fapl_id, void *copy_data);
@@ -161,6 +155,7 @@ static herr_t H5P_file_image_info_del(hid_t prop_id, const char *name, size_t si
 static herr_t H5P_file_image_info_copy(const char *name, size_t size, void *value);
 static herr_t H5P_file_image_info_close(const char *name, size_t size, void *value);
 
+
 /*********************/
 /* Package Variables */
 /*********************/
@@ -168,6 +163,7 @@ static herr_t H5P_file_image_info_close(const char *name, size_t size, void *val
 /* File access property list class library initialization object */
 const H5P_libclass_t H5P_CLS_FACC[1] = {{
     "file access",		/* Class name for debugging     */
+    H5P_TYPE_FILE_ACCESS,       /* Class type                   */
     &H5P_CLS_ROOT_g,		/* Parent class ID              */
     &H5P_CLS_FILE_ACCESS_g,	/* Pointer to class ID          */
     &H5P_LST_FILE_ACCESS_g,	/* Pointer to default property list ID */
@@ -233,88 +229,88 @@ H5P_facc_reg_prop(H5P_genclass_t *pclass)
 
     /* Register the initial metadata cache resize configuration */
     if(H5P_register_real(pclass, H5F_ACS_META_CACHE_INIT_CONFIG_NAME, H5F_ACS_META_CACHE_INIT_CONFIG_SIZE, &mdc_initCacheCfg, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the size of raw data chunk cache (elements) */
     if(H5P_register_real(pclass, H5F_ACS_DATA_CACHE_NUM_SLOTS_NAME, H5F_ACS_DATA_CACHE_NUM_SLOTS_SIZE, &rdcc_nslots, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the size of raw data chunk cache(bytes) */
     if(H5P_register_real(pclass, H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME, H5F_ACS_DATA_CACHE_BYTE_SIZE_SIZE, &rdcc_nbytes, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the preemption for reading chunks */
     if(H5P_register_real(pclass, H5F_ACS_PREEMPT_READ_CHUNKS_NAME, H5F_ACS_PREEMPT_READ_CHUNKS_SIZE, &rdcc_w0, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the threshold for alignment */
     if(H5P_register_real(pclass, H5F_ACS_ALIGN_THRHD_NAME, H5F_ACS_ALIGN_THRHD_SIZE, &threshold, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the alignment */
     if(H5P_register_real(pclass, H5F_ACS_ALIGN_NAME, H5F_ACS_ALIGN_SIZE, &alignment, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the minimum metadata allocation block size */
     if(H5P_register_real(pclass, H5F_ACS_META_BLOCK_SIZE_NAME, H5F_ACS_META_BLOCK_SIZE_SIZE, &meta_block_size, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the maximum sieve buffer size */
     if(H5P_register_real(pclass, H5F_ACS_SIEVE_BUF_SIZE_NAME, H5F_ACS_SIEVE_BUF_SIZE_SIZE, &sieve_buf_size, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the minimum "small data" allocation block size */
     if(H5P_register_real(pclass, H5F_ACS_SDATA_BLOCK_SIZE_NAME, H5F_ACS_SDATA_BLOCK_SIZE_SIZE, &sdata_block_size, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the garbage collection reference */
     if(H5P_register_real(pclass, H5F_ACS_GARBG_COLCT_REF_NAME, H5F_ACS_GARBG_COLCT_REF_SIZE, &gc_ref, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the file driver ID */
     if(H5P_register_real(pclass, H5F_ACS_FILE_DRV_ID_NAME, H5F_ACS_FILE_DRV_ID_SIZE, &driver_id, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the file driver info */
     if(H5P_register_real(pclass, H5F_ACS_FILE_DRV_INFO_NAME, H5F_ACS_FILE_DRV_INFO_SIZE, &driver_info, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the file close degree */
     if(H5P_register_real(pclass, H5F_ACS_CLOSE_DEGREE_NAME, H5F_CLOSE_DEGREE_SIZE, &close_degree, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the offset of family driver info */
     if(H5P_register_real(pclass, H5F_ACS_FAMILY_OFFSET_NAME, H5F_ACS_FAMILY_OFFSET_SIZE, &family_offset, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the private property of new family file size. It's used by h5repart only. */
     if(H5P_register_real(pclass, H5F_ACS_FAMILY_NEWSIZE_NAME, H5F_ACS_FAMILY_NEWSIZE_SIZE, &family_newsize, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the private property of whether convert family to sec2 driver. It's used by h5repart only. */
     if(H5P_register_real(pclass, H5F_ACS_FAMILY_TO_SEC2_NAME, H5F_ACS_FAMILY_TO_SEC2_SIZE, &family_to_sec2, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the data type of multi driver info */
     if(H5P_register_real(pclass, H5F_ACS_MULTI_TYPE_NAME, H5F_ACS_MULTI_TYPE_SIZE, &mem_type, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the 'use the latest version of the format' flag */
     if(H5P_register_real(pclass, H5F_ACS_LATEST_FORMAT_NAME, H5F_ACS_LATEST_FORMAT_SIZE, &latest_format, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the private property of whether to retrieve the file descriptor from the core VFD */
     /* (used internally to the library only) */
     if(H5P_register_real(pclass, H5F_ACS_WANT_POSIX_FD_NAME, H5F_ACS_WANT_POSIX_FD_SIZE, &want_posix_fd, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the external file cache size */
     if(H5P_register_real(pclass, H5F_ACS_EFC_SIZE_NAME, H5F_ACS_EFC_SIZE_SIZE, &efc_size, NULL, NULL, NULL, NULL, NULL, NULL, NULL) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
     /* Register the initial file image info */
     if(H5P_register_real(pclass, H5F_ACS_FILE_IMAGE_INFO_NAME, H5F_ACS_FILE_IMAGE_INFO_SIZE, &file_image_info, NULL, NULL, NULL, H5F_ACS_FILE_IMAGE_INFO_DEL, H5F_ACS_FILE_IMAGE_INFO_COPY, NULL, H5F_ACS_FILE_IMAGE_INFO_CLOSE) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTINSERT, FAIL, "can't insert property into class")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -513,18 +509,18 @@ H5Pset_alignment(hid_t fapl_id, hsize_t threshold, hsize_t alignment)
     H5TRACE3("e", "ihh", fapl_id, threshold, alignment);
 
     /* Check args */
-    if (alignment<1)
-        HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "alignment must be positive");
+    if(alignment < 1)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "alignment must be positive")
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Set values */
     if(H5P_set(plist, H5F_ACS_ALIGN_THRHD_NAME, &threshold) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set threshold");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set threshold")
     if(H5P_set(plist, H5F_ACS_ALIGN_NAME, &alignment) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set alignment");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set alignment")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -543,47 +539,40 @@ done:
  * Programmer:	Robb Matzke
  *              Tuesday, June  9, 1998
  *
- * Modifications:
- *
- *		Raymond Lu
- *		Tuesday, Oct 23, 2001
- *		Changed the file access list design to the new generic
- *		property list.
- *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Pget_alignment(hid_t fapl_id, hsize_t *threshold/*out*/,
-		  hsize_t *alignment/*out*/)
+    hsize_t *alignment/*out*/)
 {
-    H5P_genplist_t *plist;      /* Property list pointer */
-    herr_t      ret_value = SUCCEED;       /* Return value */
+    H5P_genplist_t *plist;              /* Property list pointer */
+    herr_t      ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_API(FAIL)
     H5TRACE3("e", "ixx", fapl_id, threshold, alignment);
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Get values */
-    if (threshold)
+    if(threshold)
         if(H5P_get(plist, H5F_ACS_ALIGN_THRHD_NAME, threshold) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get threshold");
-    if (alignment)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get threshold")
+    if(alignment)
         if(H5P_get(plist, H5F_ACS_ALIGN_NAME, alignment) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get alignment");
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get alignment")
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
+} /* end H5Pget_alignment() */
 
 
 /*-------------------------------------------------------------------------
  * Function:	H5P_set_driver
  *
- * Purpose:	Set the file driver (DRIVER_ID) for a file access or data
- *		transfer property list (PLIST_ID) and supply an optional
+ * Purpose:	Set the file driver (DRIVER_ID) for a file access 
+ *		property list (PLIST_ID) and supply an optional
  *		struct containing the driver-specific properites
  *		(DRIVER_INFO).  The driver properties will be copied into the
  *		property list and the reference count on the driver will be
@@ -591,18 +580,10 @@ done:
  *		still use the property list.
  *
  * Return:	Success:	Non-negative
- *
  *		Failure:	Negative
  *
  * Programmer:	Robb Matzke
  *              Tuesday, August  3, 1999
- *
- * Modifications:
- *
- * 		Raymond Lu
- * 		Tuesday, Oct 23, 2001
- *		Changed the file access list design to the new generic
- *		property list.
  *
  *-------------------------------------------------------------------------
  */
@@ -611,7 +592,7 @@ H5P_set_driver(H5P_genplist_t *plist, hid_t new_driver_id, const void *new_drive
 {
     hid_t driver_id;            /* VFL driver ID */
     void *driver_info;          /* VFL driver info */
-    herr_t ret_value = SUCCEED;   /* Return value */
+    herr_t ret_value = SUCCEED; /* Return value */
 
     FUNC_ENTER_NOAPI(FAIL)
 
@@ -626,29 +607,15 @@ H5P_set_driver(H5P_genplist_t *plist, hid_t new_driver_id, const void *new_drive
             HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL,"can't get driver info")
 
         /* Close the driver for the property list */
-        if(H5FD_fapl_close(driver_id, driver_info)<0)
+        if(H5FD_fapl_close(driver_id, driver_info) < 0)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't reset driver")
 
         /* Set the driver for the property list */
-        if(H5FD_fapl_open(plist, new_driver_id, new_driver_info)<0)
+        if(H5FD_fapl_open(plist, new_driver_id, new_driver_info) < 0)
             HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set driver")
-    } else if(TRUE == H5P_isa_class(plist->plist_id, H5P_DATASET_XFER)) {
-        /* Get the current driver information */
-        if(H5P_get(plist, H5D_XFER_VFL_ID_NAME, &driver_id) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't retrieve VFL driver ID")
-        if(H5P_get(plist, H5D_XFER_VFL_INFO_NAME, &driver_info) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't retrieve VFL driver info")
-
-        /* Close the driver for the property list */
-        if(H5FD_dxpl_close(driver_id, driver_info) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't reset driver")
-
-        /* Set the driver for the property list */
-        if(H5FD_dxpl_open(plist, new_driver_id, new_driver_info) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set driver")
-    } else {
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access or data transfer property list")
-    }
+    } /* end if */
+    else
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access property list")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -658,8 +625,8 @@ done:
 /*-------------------------------------------------------------------------
  * Function:	H5Pset_driver
  *
- * Purpose:	Set the file driver (DRIVER_ID) for a file access or data
- *		transfer property list (PLIST_ID) and supply an optional
+ * Purpose:	Set the file driver (DRIVER_ID) for a file access 
+ *		property list (PLIST_ID) and supply an optional
  *		struct containing the driver-specific properites
  *		(DRIVER_INFO).  The driver properties will be copied into the
  *		property list and the reference count on the driver will be
@@ -667,18 +634,10 @@ done:
  *		still use the property list.
  *
  * Return:	Success:	Non-negative
- *
  *		Failure:	Negative
  *
  * Programmer:	Robb Matzke
  *              Tuesday, August  3, 1999
- *
- * Modifications:
- *
- * 		Raymond Lu
- * 		Tuesday, Oct 23, 2001
- *		Changed the file access list design to the new generic
- *		property list.
  *
  *-------------------------------------------------------------------------
  */
@@ -710,7 +669,7 @@ done:
  * Function:	H5P_get_driver
  *
  * Purpose:	Return the ID of the low-level file driver.  PLIST_ID should
- *		be a file access property list or data transfer propert list.
+ *		be a file access property list.
  *
  * Return:	Success:	A low-level driver ID which is the same ID
  *				used when the driver was set for the property
@@ -721,55 +680,37 @@ done:
  *
  * Programmer:	Robb Matzke
  *		Thursday, February 26, 1998
- *
- * Modifications:
- *		Robb Matzke, 1999-08-03
- *		Rewritten to use the virtual file layer.
- *
- * 		Robb Matzke, 1999-08-05
- *		If the driver ID is H5FD_VFD_DEFAULT then substitute the
- *              current value of H5FD_SEC2.
- *
- * 		Quincey Koziol 2000-11-28
- *		Added internal function..
- *
- *		Raymond Lu, 2001-10-23
- *		Changed the file access list design to the new generic
- *		property list.
  *
  *-------------------------------------------------------------------------
  */
 hid_t
 H5P_get_driver(H5P_genplist_t *plist)
 {
-    hid_t	ret_value=FAIL;         /* Return value */
+    hid_t ret_value = FAIL;     /* Return value */
 
     FUNC_ENTER_NOAPI(FAIL)
 
     /* Get the current driver ID */
-    if(TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS) ) {
+    if(TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS)) {
         if(H5P_get(plist, H5F_ACS_FILE_DRV_ID_NAME, &ret_value) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get driver ID");
-    } else if( TRUE == H5P_isa_class(plist->plist_id, H5P_DATASET_XFER) ) {
-        if(H5P_get(plist, H5D_XFER_VFL_ID_NAME, &ret_value)<0)
-            HGOTO_ERROR (H5E_PLIST, H5E_CANTGET, FAIL, "Can't retrieve VFL driver ID");
-    } else {
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access or data transfer property list");
-    }
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get driver ID")
+    } /* end if */
+    else
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access property list")
 
-    if (H5FD_VFD_DEFAULT==ret_value)
+    if(H5FD_VFD_DEFAULT == ret_value)
         ret_value = H5_DEFAULT_VFD;
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5P_get_driver() */
 
 
 /*-------------------------------------------------------------------------
  * Function:	H5Pget_driver
  *
  * Purpose:	Return the ID of the low-level file driver.  PLIST_ID should
- *		be a file access property list or data transfer propert list.
+ *		be a file access property list.
  *
  * Return:	Success:	A low-level driver ID which is the same ID
  *				used when the driver was set for the property
@@ -781,16 +722,6 @@ done:
  * Programmer:	Robb Matzke
  *		Thursday, February 26, 1998
  *
- * Modifications:
- *		Robb Matzke, 1999-08-03
- *		Rewritten to use the virtual file layer.
- *
- * 		Robb Matzke, 1999-08-05
- *		If the driver ID is H5FD_VFD_DEFAULT then substitute the current value of
- *		H5FD_SEC2.
- *
- * 		Quincey Koziol 2000-11-28
- *		Added internal function..
  *-------------------------------------------------------------------------
  */
 hid_t
@@ -805,7 +736,9 @@ H5Pget_driver(hid_t plist_id)
     if(NULL == (plist = (H5P_genplist_t *)H5I_object_verify(plist_id, H5I_GENPROP_LST)))
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a property list")
 
-    ret_value = H5P_get_driver(plist);
+    /* Get the driver */
+    if((ret_value = H5P_get_driver(plist)) < 0)
+         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get driver")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -816,7 +749,7 @@ done:
  * Function:	H5P_get_driver_info
  *
  * Purpose:	Returns a pointer directly to the file driver-specific
- *		information of a file access or data transfer property list.
+ *		information of a file access.
  *
  * Return:	Success:	Ptr to *uncopied* driver specific data
  *				structure if any.
@@ -829,32 +762,22 @@ done:
  * Programmer:	Robb Matzke
  *              Wednesday, August  4, 1999
  *
- * Modifications:
- *
- *		Raymond Lu
- *		Tuesday, Oct 23, 2001
- *		Changed the file access list design to the new generic
- *		property list.
- *
  *-------------------------------------------------------------------------
  */
 void *
 H5P_get_driver_info(H5P_genplist_t *plist)
 {
-    void	*ret_value=NULL;
+    void *ret_value = NULL;     /* Return value */
 
     FUNC_ENTER_NOAPI(NULL)
 
     /* Get the current driver info */
-    if( TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS) ) {
+    if(TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS)) {
         if(H5P_get(plist, H5F_ACS_FILE_DRV_INFO_NAME, &ret_value) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,NULL,"can't get driver info");
-    } else if( TRUE == H5P_isa_class(plist->plist_id, H5P_DATASET_XFER) ) {
-        if(H5P_get(plist, H5D_XFER_VFL_INFO_NAME, &ret_value)<0)
-            HGOTO_ERROR (H5E_PLIST, H5E_CANTGET, NULL, "Can't retrieve VFL driver ID");
-    } else {
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, NULL, "not a file access or data transfer property list");
-    }
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get driver info")
+    } /* end if */
+    else
+        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, NULL, "not a file access property list")
 
 done:
     FUNC_LEAVE_NOAPI(ret_value)
@@ -865,7 +788,7 @@ done:
  * Function:	H5Pget_driver_info
  *
  * Purpose:	Returns a pointer directly to the file driver-specific
- *		information of a file access or data transfer property list.
+ *		information of a file access.
  *
  * Return:	Success:	Ptr to *uncopied* driver specific data
  *				structure if any.
@@ -878,26 +801,20 @@ done:
  * Programmer:	Robb Matzke
  *              Wednesday, August  4, 1999
  *
- * Modifications:
- *
- *		Raymond Lu
- *		Tuesday, Oct 23, 2001
- *		Changed the file access list design to the new generic
- *		property list.
- *
  *-------------------------------------------------------------------------
  */
 void *
 H5Pget_driver_info(hid_t plist_id)
 {
     H5P_genplist_t *plist;      /* Property list pointer */
-    void	*ret_value;     /* Return value */
+    void *ret_value;            /* Return value */
 
     FUNC_ENTER_API(NULL)
 
     if(NULL == (plist = (H5P_genplist_t *)H5I_object_verify(plist_id, H5I_GENPROP_LST)))
         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, NULL, "not a property list")
 
+    /* Get the driver info */
     if(NULL == (ret_value = H5P_get_driver_info(plist)))
         HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, NULL, "can't get driver info")
 
@@ -914,13 +831,10 @@ done:
  *              to retrieve VFD file handle.
  *
  * Return:      Success:        Non-negative value.
- *
  *              Failure:        Negative value.
  *
  * Programmer:  Raymond Lu
  *              Sep 17, 2002
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
 */
@@ -928,59 +842,24 @@ herr_t
 H5Pset_family_offset(hid_t fapl_id, hsize_t offset)
 {
     H5P_genplist_t      *plist;                 /* Property list pointer */
-    herr_t              ret_value = SUCCEED;      /* return value */
+    herr_t              ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "ih", fapl_id, offset);
 
     /* Get the plist structure */
     if(H5P_DEFAULT == fapl_id)
-        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list");
-    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
-    /* Set values */
-    if((ret_value=H5P_set_family_offset(plist, offset)) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set family offset");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list")
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
+
+    /* Set value */
+    if(H5P_set(plist, H5F_ACS_FAMILY_OFFSET_NAME, &offset) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set offset for family file")
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5P_set_family_offset
- *
- * Purpose:     Set offset for family driver.  Private function for
- *              H5Pset_family_offset
- *
- * Return:      Success:        Non-negative value.
- *
- *              Failure:        Negative value.
- *
- * Programmer:  Raymond Lu
- *              Sep 17, 2002
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5P_set_family_offset(H5P_genplist_t *plist, hsize_t offset)
-{
-    herr_t      ret_value = SUCCEED;
-
-    FUNC_ENTER_NOAPI(FAIL)
-
-    if( TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS) ) {
-         if(H5P_set(plist, H5F_ACS_FAMILY_OFFSET_NAME, &offset) < 0)
-              HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL,"can't set offset for family file");
-    } else {
-         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access or data transfer property list");
-    }
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5Pset_family_offset() */
 
 
 /*-------------------------------------------------------------------------
@@ -991,13 +870,10 @@ done:
  *              to retrieve VFD file handle.
  *
  * Return:      Success:        Non-negative value.
- *
  *              Failure:        Negative value.
  *
  * Programmer:  Raymond Lu
  *              Sep 17, 2002
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -1005,59 +881,26 @@ herr_t
 H5Pget_family_offset(hid_t fapl_id, hsize_t *offset)
 {
     H5P_genplist_t      *plist;                 /* Property list pointer */
-    herr_t              ret_value = SUCCEED;      /* return value */
+    herr_t              ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*h", fapl_id, offset);
 
     /* Get the plist structure */
     if(H5P_DEFAULT == fapl_id)
-        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list");
-    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
-    /* Set values */
-    if((ret_value=H5P_get_family_offset(plist, offset)) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't get family offset");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list")
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
+
+    /* Get value */
+    if(offset) {
+        if(H5P_get(plist, H5F_ACS_FAMILY_OFFSET_NAME, offset) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set offset for family file")
+    } /* end if */
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5P_get_family_offset
- *
- * Purpose:     Get offset for family driver.  Private function for
- *              H5Pget_family_offset
- *
- * Return:      Success:        Non-negative value.
- *
- *              Failure:        Negative value.
- *
- * Programmer:  Raymond Lu
- *              Sep 17, 2002
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5P_get_family_offset(H5P_genplist_t *plist, hsize_t *offset)
-{
-    herr_t      ret_value = SUCCEED;
-
-    FUNC_ENTER_NOAPI(FAIL)
-
-    if( TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS) ) {
-        if(H5P_get(plist, H5F_ACS_FAMILY_OFFSET_NAME, offset) < 0)
-             HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL,"can't set offset for family file");
-    } else {
-        HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access or data transfer property list");
-    }
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5Pget_family_offset() */
 
 
 /*-------------------------------------------------------------------------
@@ -1068,13 +911,10 @@ done:
  *              to retrieve VFD file handle.
  *
  * Return:      Success:        Non-negative value.
- *
  *              Failure:        Negative value.
  *
  * Programmer:  Raymond Lu
  *              Sep 17, 2002
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -1089,52 +929,17 @@ H5Pset_multi_type(hid_t fapl_id, H5FD_mem_t type)
 
     /* Get the plist structure */
     if(H5P_DEFAULT == fapl_id)
-        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list");
-    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
-    /* Set values */
-    if((ret_value=H5P_set_multi_type(plist, type)) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set data type for multi driver");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list")
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
+
+    /* Set value */
+     if(H5P_set(plist, H5F_ACS_MULTI_TYPE_NAME, &type) < 0)
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set type for multi driver")
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5P_set_multi_type
- *
- * Purpose:     Set data type for multi file driver.  Private function for
- *              H5Pset_multi_type.
- *
- * Return:      Success:        Non-negative value.
- *
- *              Failure:        Negative value.
- *
- * Programmer:  Raymond Lu
- *              Sep 17, 2002
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5P_set_multi_type(H5P_genplist_t *plist, H5FD_mem_t type)
-{
-    herr_t      ret_value = SUCCEED;
-
-    FUNC_ENTER_NOAPI(FAIL)
-
-    if( TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS) ) {
-         if(H5P_set(plist, H5F_ACS_MULTI_TYPE_NAME, &type) < 0)
-                HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL,"can't set type for multi driver");
-    } else {
-         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access or data transfer property list");
-    }
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5Pset_multi_type() */
 
 
 /*-------------------------------------------------------------------------
@@ -1145,13 +950,10 @@ done:
  *              to retrieve VFD file handle.
  *
  * Return:      Success:        Non-negative value.
- *
  *              Failure:        Negative value.
  *
  * Programmer:  Raymond Lu
  *              Sep 17, 2002
- *
- * Modifications:
  *
  *-------------------------------------------------------------------------
  */
@@ -1159,59 +961,26 @@ herr_t
 H5Pget_multi_type(hid_t fapl_id, H5FD_mem_t *type)
 {
     H5P_genplist_t      *plist;                 /* Property list pointer */
-    herr_t              ret_value = SUCCEED;      /* return value */
+    herr_t              ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*Mt", fapl_id, type);
 
     /* Get the plist structure */
     if(H5P_DEFAULT == fapl_id)
-        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list");
-    if(NULL == (plist = H5P_object_verify(fapl_id,H5P_FILE_ACCESS)))
-         HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
-    /* Set values */
-    if((ret_value=H5P_get_multi_type(plist, type)) < 0)
-         HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't get data type for multi driver");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "can't modify default property list")
+    if(NULL == (plist = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
+
+    /* Get value */
+    if(type) {
+        if(H5P_get(plist, H5F_ACS_MULTI_TYPE_NAME, type) < 0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't get type for multi driver")
+    } /* end if */
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
-
-
-/*-------------------------------------------------------------------------
- * Function:    H5P_get_multi_type
- *
- * Purpose:     Get data type for multi file driver.  Private function for
- *              H5Pget_multi_type.
- *
- * Return:      Success:        Non-negative value.
- *
- *              Failure:        Negative value.
- *
- * Programmer:  Raymond Lu
- *              Sep 17, 2002
- *
- * Modifications:
- *
- *-------------------------------------------------------------------------
- */
-static herr_t
-H5P_get_multi_type(H5P_genplist_t *plist, H5FD_mem_t *type)
-{
-    herr_t      ret_value = SUCCEED;
-
-    FUNC_ENTER_NOAPI(FAIL)
-
-    if( TRUE == H5P_isa_class(plist->plist_id, H5P_FILE_ACCESS) ) {
-         if(H5P_get(plist, H5F_ACS_MULTI_TYPE_NAME, type) < 0)
-             HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL,"can't get type for multi driver");
-    } else {
-         HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a file access property list");
-    }
-
-done:
-    FUNC_LEAVE_NOAPI(ret_value)
-}
+} /* end H5Pget_multi_type() */
 
 
 /*-------------------------------------------------------------------------
@@ -1234,17 +1003,6 @@ done:
  * Programmer:	Robb Matzke
  *              Tuesday, May 19, 1998
  *
- * Modifications:
- *
- *		Raymond Lu
- *		Tuesday, Oct 23, 2001
- *		Changed the file access list to the new generic property list.
- *
- *		J. Mainzer
- *		Thurs. 3/17/05
- *		The mdc_nelmts entry is no more in the FAPL, so I modified
- * 		the code to ignore it.
- *
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -1259,24 +1017,24 @@ H5Pset_cache(hid_t plist_id, int UNUSED mdc_nelmts,
              rdcc_w0);
 
     /* Check arguments */
-    if (rdcc_w0<0.0 || rdcc_w0>1.0)
-        HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "raw data cache w0 value must be between 0.0 and 1.0 inclusive");
+    if(rdcc_w0 < 0.0 || rdcc_w0 > 1.0)
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "raw data cache w0 value must be between 0.0 and 1.0 inclusive")
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Set sizes */
     if(H5P_set(plist, H5F_ACS_DATA_CACHE_NUM_SLOTS_NAME, &rdcc_nslots) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL, "can't set data cache number of slots");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL, "can't set data cache number of slots")
     if(H5P_set(plist, H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME, &rdcc_nbytes) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL, "can't set data cache byte size");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL, "can't set data cache byte size")
     if(H5P_set(plist, H5F_ACS_PREEMPT_READ_CHUNKS_NAME, &rdcc_w0) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL, "can't set preempt read chunks");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET,FAIL, "can't set preempt read chunks")
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
+} /* end H5Pset_cache() */
 
 
 /*-------------------------------------------------------------------------
@@ -1293,18 +1051,6 @@ done:
  * Programmer:	Robb Matzke
  *              Tuesday, May 19, 1998
  *
- * Modifications:
- *
- *		Raymond Lu
- *		Tuesday, Oct 23, 2001
- *		Changed the file access list to the new generic property
- *		list.
- *
- *		J Mainzer
- *		Thurs, 3/17/05
- *		The mdc_nelmts fapl entry is no more, so we now just
- *		return a constant when that value is requested.
- *
  *-------------------------------------------------------------------------
  */
 herr_t
@@ -1320,27 +1066,27 @@ H5Pget_cache(hid_t plist_id, int *mdc_nelmts,
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Get sizes */
 
     /* the mdc_nelmts FAPL entry no longer exists, so just return a constant */
-    if (mdc_nelmts)
+    if(mdc_nelmts)
         *mdc_nelmts = 0;
 
-    if (rdcc_nslots)
+    if(rdcc_nslots)
         if(H5P_get(plist, H5F_ACS_DATA_CACHE_NUM_SLOTS_NAME, rdcc_nslots) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL, "can't get data cache number of slots");
-    if (rdcc_nbytes)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL, "can't get data cache number of slots")
+    if(rdcc_nbytes)
         if(H5P_get(plist, H5F_ACS_DATA_CACHE_BYTE_SIZE_NAME, rdcc_nbytes) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL, "can't get data cache byte size");
-    if (rdcc_w0)
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL, "can't get data cache byte size")
+    if(rdcc_w0)
         if(H5P_get(plist, H5F_ACS_PREEMPT_READ_CHUNKS_NAME, rdcc_w0) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL, "can't get preempt read chunks");
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET,FAIL, "can't get preempt read chunks")
 
 done:
     FUNC_LEAVE_API(ret_value)
-}
+} /* end H5Pget_cache() */
 
 
 /*-------------------------------------------------------------------------
@@ -1480,11 +1226,11 @@ H5Pset_gc_references(hid_t plist_id, unsigned gc_ref)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Set values */
     if(H5P_set(plist, H5F_ACS_GARBG_COLCT_REF_NAME, &gc_ref) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set garbage collect reference");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set garbage collect reference")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1522,12 +1268,12 @@ H5Pget_gc_references(hid_t plist_id, unsigned *gc_ref/*out*/)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Get values */
-    if (gc_ref)
+    if(gc_ref)
         if(H5P_get(plist, H5F_ACS_GARBG_COLCT_REF_NAME, gc_ref) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get garbage collect reference");
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get garbage collect reference")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1645,11 +1391,11 @@ H5Pset_meta_block_size(hid_t plist_id, hsize_t size)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Set values */
     if(H5P_set(plist, H5F_ACS_META_BLOCK_SIZE_NAME, &size) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set meta data block size");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set meta data block size")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1687,12 +1433,12 @@ H5Pget_meta_block_size(hid_t plist_id, hsize_t *size/*out*/)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Get values */
-    if (size) {
+    if(size) {
         if(H5P_get(plist, H5F_ACS_META_BLOCK_SIZE_NAME, size) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get meta data block size");
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get meta data block size")
     } /* end if */
 
 done:
@@ -1740,11 +1486,11 @@ H5Pset_sieve_buf_size(hid_t plist_id, size_t size)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Set values */
     if(H5P_set(plist, H5F_ACS_SIEVE_BUF_SIZE_NAME, &size) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set sieve buffer size");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set sieve buffer size")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1782,12 +1528,12 @@ H5Pget_sieve_buf_size(hid_t plist_id, size_t *size/*out*/)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Get values */
-    if (size)
+    if(size)
         if(H5P_get(plist, H5F_ACS_SIEVE_BUF_SIZE_NAME, size) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get sieve buffer size");
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get sieve buffer size")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1829,11 +1575,11 @@ H5Pset_small_data_block_size(hid_t plist_id, hsize_t size)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Set values */
     if(H5P_set(plist, H5F_ACS_SDATA_BLOCK_SIZE_NAME, &size) < 0)
-        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set 'small data' block size");
+        HGOTO_ERROR(H5E_PLIST, H5E_CANTSET, FAIL, "can't set 'small data' block size")
 
 done:
     FUNC_LEAVE_API(ret_value)
@@ -1866,12 +1612,12 @@ H5Pget_small_data_block_size(hid_t plist_id, hsize_t *size/*out*/)
 
     /* Get the plist structure */
     if(NULL == (plist = H5P_object_verify(plist_id,H5P_FILE_ACCESS)))
-        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID");
+        HGOTO_ERROR(H5E_ATOM, H5E_BADATOM, FAIL, "can't find object for ID")
 
     /* Get values */
-    if (size) {
+    if(size) {
         if(H5P_get(plist, H5F_ACS_SDATA_BLOCK_SIZE_NAME, size) < 0)
-            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get 'small data' block size");
+            HGOTO_ERROR(H5E_PLIST, H5E_CANTGET, FAIL, "can't get 'small data' block size")
     } /* end if */
 
 done:
@@ -2143,7 +1889,7 @@ H5Pset_file_image(hid_t fapl_id, void *buf_ptr, size_t buf_len)
 
     /* validate parameters */
     if(!(((buf_ptr == NULL) && (buf_len == 0)) || ((buf_ptr != NULL) && (buf_len > 0))))
-        HGOTO_ERROR (H5E_ARGS, H5E_BADVALUE, FAIL, "inconsistant buf_ptr and buf_len");
+        HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "inconsistant buf_ptr and buf_len")
    
     /* Get the plist structure */
     if(NULL == (fapl = H5P_object_verify(fapl_id, H5P_FILE_ACCESS)))
@@ -2493,12 +2239,13 @@ done:
 herr_t
 H5P_file_image_info_copy(const char UNUSED *name, size_t UNUSED size, void *value)
 {
-    H5FD_file_image_info_t *info;       /* Image info struct */
     herr_t ret_value = SUCCEED;         /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT
 
     if(value) {
+        H5FD_file_image_info_t *info;   /* Image info struct */
+
         info = (H5FD_file_image_info_t *)value;
 
         /* verify file image field consistancy */
@@ -2532,16 +2279,17 @@ H5P_file_image_info_copy(const char UNUSED *name, size_t UNUSED size, void *valu
 	    else
                 HDmemcpy(info->buffer, old_buffer, info->size);
         } /* end if */
-    } /* end if */
 
-    /* Copy udata if it exists */
-    if(info->callbacks.udata) {
-        void *old_udata = info->callbacks.udata;
+        /* Copy udata if it exists */
+        if(info->callbacks.udata) {
+            void *old_udata = info->callbacks.udata;
 
-        if(NULL == info->callbacks.udata_copy)
-            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "udata_copy not defined")
+            if(NULL == info->callbacks.udata_copy)
+                HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "udata_copy not defined")
 
-        info->callbacks.udata = info->callbacks.udata_copy(old_udata);
+            info->callbacks.udata = info->callbacks.udata_copy(old_udata);
+        } /* end if */
+
     } /* end if */
 
 done:
@@ -2566,32 +2314,33 @@ done:
 herr_t
 H5P_file_image_info_close(const char UNUSED *name, size_t UNUSED size, void *value)
 {
-    H5FD_file_image_info_t info;        /* Image info struct */
     herr_t ret_value = SUCCEED;         /* Return value */
 
     FUNC_ENTER_NOAPI_NOINIT
 
     if(value) {
-        info = *(H5FD_file_image_info_t *)value;
+        H5FD_file_image_info_t *info;        /* Image info struct */
+
+        info = (H5FD_file_image_info_t *)value;
              
-        if(info.buffer != NULL && info.size > 0) { 
+        if(info->buffer != NULL && info->size > 0) { 
             /* Free buffer */
-            if(info.callbacks.image_free) {
-                if(info.callbacks.image_free(info.buffer, H5FD_FILE_IMAGE_OP_PROPERTY_LIST_CLOSE,
-                        info.callbacks.udata) < 0)
+            if(info->callbacks.image_free) {
+                if(info->callbacks.image_free(info->buffer, H5FD_FILE_IMAGE_OP_PROPERTY_LIST_CLOSE,
+                        info->callbacks.udata) < 0)
 		    HGOTO_ERROR(H5E_RESOURCE, H5E_CANTFREE, FAIL, "image_free callback failed")
             } /* end if */
             else
-                H5MM_xfree(info.buffer);
+                H5MM_xfree(info->buffer);
         } /* end if */
-    } /* end if */
 
-    /* Free udata if it exists */
-    if(info.callbacks.udata) {
-        if(NULL == info.callbacks.udata_free)
-            HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "udata_free not defined")
-        if(info.callbacks.udata_free(info.callbacks.udata) < 0)
-            HGOTO_ERROR(H5E_RESOURCE, H5E_CANTFREE, FAIL, "udata_free callback failed")
+        /* Free udata if it exists */
+        if(info->callbacks.udata) {
+            if(NULL == info->callbacks.udata_free)
+                HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "udata_free not defined")
+            if(info->callbacks.udata_free(info->callbacks.udata) < 0)
+                HGOTO_ERROR(H5E_RESOURCE, H5E_CANTFREE, FAIL, "udata_free callback failed")
+        } /* end if */
     } /* end if */
 
 done:

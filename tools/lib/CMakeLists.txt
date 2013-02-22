@@ -2,6 +2,11 @@ cmake_minimum_required (VERSION 2.8.6)
 PROJECT (HDF5_TOOLS_LIB)
 
 #-----------------------------------------------------------------------------
+# Apply Definitions to compiler in this directory and below
+#-----------------------------------------------------------------------------
+ADD_DEFINITIONS (${HDF5_EXTRA_C_FLAGS})
+
+#-----------------------------------------------------------------------------
 # Define Sources
 #-----------------------------------------------------------------------------
 
@@ -79,6 +84,9 @@ ENDIF (APPLE)
 # Add Target(s) to CMake Install for import into other projects
 #-----------------------------------------------------------------------------
 IF (HDF5_EXPORTED_TARGETS)
+
+  INSTALL_TARGET_PDB (${HDF5_TOOLS_LIB_TARGET} ${HDF5_INSTALL_LIB_DIR} toolslibraries)
+  
   INSTALL (
       TARGETS
           ${HDF5_TOOLS_LIB_TARGET}

@@ -94,13 +94,13 @@
 
 /*
  * If a program may include both `time.h' and `sys/time.h' then
- * TIME_WITH_SYS_TIME is defined (see AC_HEADER_TIME in configure.in).
+ * TIME_WITH_SYS_TIME is defined (see AC_HEADER_TIME in configure.ac).
  * On some older systems, `sys/time.h' includes `time.h' but `time.h' is not
  * protected against multiple inclusion, so programs should not explicitly
  * include both files. This macro is useful in programs that use, for example,
  * `struct timeval' or `struct timezone' as well as `struct tm'.  It is best
  * used in conjunction with `HAVE_SYS_TIME_H', whose existence is checked
- * by `AC_CHECK_HEADERS(sys/time.h)' in configure.in.
+ * by `AC_CHECK_HEADERS(sys/time.h)' in configure.ac.
  */
 #if defined(H5_TIME_WITH_SYS_TIME)
 #   include <sys/time.h>
@@ -155,7 +155,7 @@
 #define WIN32_LEAN_AND_MEAN    /* Exclude rarely-used stuff from Windows headers */
 #define NOGDI                  /* Exclude Graphic Display Interface macros */
 
-#ifdef H5_HAVE_WINSOCK_H
+#ifdef H5_HAVE_WINSOCK2_H
 #include <winsock2.h>
 #endif
 
@@ -425,6 +425,24 @@
 #define  HSIZET_MAX  ((hsize_t)ULLONG_MAX)
 #define  HSSIZET_MAX  ((hssize_t)LLONG_MAX)
 #define HSSIZET_MIN  (~(HSSIZET_MAX))
+
+/*
+ * Types and max sizes for POSIX I/O.
+ * OS X (Darwin) is odd since the max I/O size does not match the types.
+ */
+#if defined(H5_HAVE_WIN32_API)
+#   define h5_posix_io_t                unsigned int
+#   define h5_posix_io_ret_t            int
+#   define H5_POSIX_MAX_IO_BYTES        INT_MAX
+#elif defined(H5_HAVE_DARWIN)
+#   define h5_posix_io_t                size_t
+#   define h5_posix_io_ret_t            ssize_t
+#   define H5_POSIX_MAX_IO_BYTES        INT_MAX
+#else
+#   define h5_posix_io_t                size_t
+#   define h5_posix_io_ret_t            ssize_t
+#   define H5_POSIX_MAX_IO_BYTES        SSIZET_MAX
+#endif
 
 /*
  * A macro to portably increment enumerated types.
@@ -1899,15 +1917,15 @@ static herr_t    H5_INTERFACE_INIT_FUNC(void);
     H5_PUSH_FUNC                                                              \
     {
 
-/* Use the following macro as replacement for the FUNC_ENTER_PACKAGE
- * macro when the function needs to set up a metadata tag. */
-#define FUNC_ENTER_PACKAGE_TAG(dxpl_id, tag, err) {                           \
-    haddr_t prev_tag = HADDR_UNDEF;                                           \
-    hid_t tag_dxpl_id = dxpl_id;                                              \
-                                                                              \
+/* Use this macro for all "normal" staticly-scoped functions */
+#define FUNC_ENTER_STATIC {                                                   \
     FUNC_ENTER_COMMON(H5_IS_PKG(FUNC));                                       \
-    if(H5AC_tag(tag_dxpl_id, tag, &prev_tag) < 0)                             \
-        HGOTO_ERROR(H5E_CACHE, H5E_CANTTAG, err, "unable to apply metadata tag") \
+    H5_PUSH_FUNC                                                              \
+    {
+
+/* Use this macro for staticly-scoped functions which propgate errors, but don't issue them */
+#define FUNC_ENTER_STATIC_NOERR {                                             \
+    FUNC_ENTER_COMMON_NOERR(H5_IS_PKG(FUNC));                                 \
     H5_PUSH_FUNC                                                              \
     {
 

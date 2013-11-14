@@ -14,8 +14,8 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef _H5Exception_H
-#define _H5Exception_H
+#ifndef __H5Exception_H
+#define __H5Exception_H
 
 #include <string>
 
@@ -28,6 +28,11 @@ namespace H5 {
 #endif
 #endif
 
+/*! \class Exception
+    \brief Exception provides wrappers of HDF5 error handling functions.
+
+    Many classes are derived from Exception for specific HDF5 C interfaces.
+*/
 class H5_DLLCPP Exception {
    public:
 	// Creates an exception with a function name where the failure occurs
@@ -161,4 +166,4 @@ class H5_DLLCPP IdComponentException : public Exception {
 }
 #endif
 
-#endif // _H5Exception_H
+#endif // __H5Exception_H

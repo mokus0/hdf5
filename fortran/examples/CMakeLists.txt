@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5_F90_EXAMPLES C CXX Fortran)
 # --------------------------------------------------------------------
 # Notes: When creating examples they should be prefixed
@@ -14,16 +14,17 @@ INCLUDE_DIRECTORIES (${CMAKE_Fortran_MODULE_DIRECTORY} ${HDF5_F90_BINARY_DIR} ${
 # Define Sources
 #-----------------------------------------------------------------------------
 SET (examples
-    dsetexample
-    fileexample
-    rwdsetexample
-    attrexample
-    groupexample
-    grpsexample
-    grpdsetexample
+    h5_cmprss
+    h5_crtdat
+    h5_rdwt
+    h5_crtatt
+    h5_crtgrp
+    h5_crtgrpar
+    h5_crtgrpd
+    h5_extend
+    h5_subset
     hyperslab
     selectele
-    grpit
     refobjexample
     refregexample
     mountexample
@@ -40,7 +41,7 @@ SET (F2003_examples
 FOREACH (example ${examples})
   ADD_EXECUTABLE (f90_ex_${example} ${HDF5_F90_EXAMPLES_SOURCE_DIR}/${example}.f90)
   TARGET_NAMING (f90_ex_${example} ${LIB_TYPE})
-  TARGET_FORTRAN_WIN_PROPERTIES (f90_ex_${example} "")
+  TARGET_FORTRAN_PROPERTIES (f90_ex_${example} " " " ")
   IF (WIN32 AND NOT CYGWIN)
     SET_PROPERTY (TARGET f90_ex_${example} 
         APPEND PROPERTY COMPILE_DEFINITIONS 
@@ -53,22 +54,13 @@ FOREACH (example ${examples})
   )
   SET_TARGET_PROPERTIES (f90_ex_${example} PROPERTIES LINKER_LANGUAGE Fortran)
   SET_TARGET_PROPERTIES (f90_ex_${example} PROPERTIES FOLDER examples/fortran)
-
-  IF (BUILD_TESTING)
-    ADD_TEST (NAME f90_ex_${example} COMMAND $<TARGET_FILE:f90_ex_${example}>)
-    IF (NOT "${last_test}" STREQUAL "")
-      SET_TESTS_PROPERTIES (f90_ex_${example} PROPERTIES DEPENDS ${last_test})
-    ENDIF (NOT "${last_test}" STREQUAL "")
-    SET (last_test "f90_ex_${example}")
-  ENDIF (BUILD_TESTING)
-
 ENDFOREACH (example ${examples})
 
-IF (FORTRAN_HAVE_ISO_C_BINDING AND HDF5_ENABLE_F2003)
+IF (HDF5_ENABLE_F2003)
   FOREACH (example ${F2003_examples})
     ADD_EXECUTABLE (f03_ex_${example} ${HDF5_F90_EXAMPLES_SOURCE_DIR}/${example}.f90)
     TARGET_NAMING (f03_ex_${example} ${LIB_TYPE})
-    TARGET_FORTRAN_WIN_PROPERTIES (f03_ex_${example} "")
+    TARGET_FORTRAN_PROPERTIES (f03_ex_${example} " " " ")
     IF (WIN32 AND NOT CYGWIN)
       SET_PROPERTY (TARGET f03_ex_${example} 
           APPEND PROPERTY COMPILE_DEFINITIONS HDF5F90_WINDOWS
@@ -80,21 +72,13 @@ IF (FORTRAN_HAVE_ISO_C_BINDING AND HDF5_ENABLE_F2003)
     )
     SET_TARGET_PROPERTIES (f03_ex_${example} PROPERTIES LINKER_LANGUAGE Fortran)
     SET_TARGET_PROPERTIES (f03_ex_${example} PROPERTIES FOLDER examples/fortran03)
-
-    IF (BUILD_TESTING)
-      ADD_TEST (NAME f03_ex_${example} COMMAND $<TARGET_FILE:f03_ex_${example}>)
-      IF (NOT "${last_test}" STREQUAL "")
-        SET_TESTS_PROPERTIES (f03_ex_${example} PROPERTIES DEPENDS ${last_test})
-      ENDIF (NOT "${last_test}" STREQUAL "")
-      SET (last_test "f03_ex_${example}")
-    ENDIF (BUILD_TESTING)
   ENDFOREACH (example ${F2003_examples})
-ENDIF (FORTRAN_HAVE_ISO_C_BINDING AND HDF5_ENABLE_F2003)
+ENDIF (HDF5_ENABLE_F2003)
 
 IF (H5_HAVE_PARALLEL AND MPI_Fortran_FOUND)
   ADD_EXECUTABLE (f90_ex_ph5example ${HDF5_F90_EXAMPLES_SOURCE_DIR}/ph5example.f90)
   TARGET_NAMING (f90_ex_ph5example ${LIB_TYPE})
-  TARGET_FORTRAN_WIN_PROPERTIES (f90_ex_ph5example "")
+  TARGET_FORTRAN_PROPERTIES (f90_ex_ph5example " " " ")
   IF (WIN32 AND NOT CYGWIN)
     SET_PROPERTY (TARGET f90_ex_ph5example 
         APPEND PROPERTY COMPILE_DEFINITIONS 
@@ -108,9 +92,8 @@ IF (H5_HAVE_PARALLEL AND MPI_Fortran_FOUND)
   )
   SET_TARGET_PROPERTIES (f90_ex_ph5example PROPERTIES LINKER_LANGUAGE Fortran)
   SET_TARGET_PROPERTIES (f90_ex_ph5example PROPERTIES FOLDER examples/fortran)
-
-  IF (BUILD_TESTING)
-    ADD_TEST (NAME f90_ex_ph5example COMMAND ${MPIEXEC} ${MPIEXEC_PREFLAGS} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ${MPIEXEC_POSTFLAGS} $<TARGET_FILE:f90_ex_ph5example>)
-  ENDIF (BUILD_TESTING)
-
 ENDIF (H5_HAVE_PARALLEL AND MPI_Fortran_FOUND)
+
+IF (BUILD_TESTING)
+  INCLUDE (CMakeTests.cmake)
+ENDIF (BUILD_TESTING)

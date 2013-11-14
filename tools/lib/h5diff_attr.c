@@ -108,17 +108,17 @@ static void table_attrs_free( table_attrs_t *table )
  *------------------------------------------------------------------------*/
 static void table_attr_mark_exist(unsigned *exist, char *name, table_attrs_t *table)
 {
-    unsigned int new;
+    size_t new_val;
 
     if(table->nattrs == table->size) {
         table->size = MAX(1, table->size * 2);
         table->attrs = (match_attr_t *)HDrealloc(table->attrs, table->size * sizeof(match_attr_t));
     } /* end if */
 
-    new = table->nattrs++;
-    table->attrs[new].exist[0] = exist[0];
-    table->attrs[new].exist[1] = exist[1];
-    table->attrs[new].name = (char *)HDstrdup(name);
+    new_val = table->nattrs++;
+    table->attrs[new_val].exist[0] = exist[0];
+    table->attrs[new_val].exist[1] = exist[1];
+    table->attrs[new_val].name = (char *)HDstrdup(name);
 }
 
 /*-------------------------------------------------------------------------
@@ -169,7 +169,7 @@ static herr_t build_match_list_attrs(hid_t loc1_id, hid_t loc2_id, table_attrs_t
         if((attr1_id = H5Aopen_by_idx(loc1_id, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)curr1, H5P_DEFAULT, H5P_DEFAULT)) < 0)
             goto error;
         /* get name */
-        if(H5Aget_name(attr1_id, ATTR_NAME_MAX, name1) < 0)
+        if(H5Aget_name(attr1_id, (size_t)ATTR_NAME_MAX, name1) < 0)
             goto error;
 
         /*------------------ 
@@ -177,7 +177,7 @@ static herr_t build_match_list_attrs(hid_t loc1_id, hid_t loc2_id, table_attrs_t
         if((attr2_id = H5Aopen_by_idx(loc2_id, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)curr2, H5P_DEFAULT, H5P_DEFAULT)) < 0)
             goto error;
         /* get name */
-        if(H5Aget_name(attr2_id, ATTR_NAME_MAX, name2) < 0)
+        if(H5Aget_name(attr2_id, (size_t)ATTR_NAME_MAX, name2) < 0)
             goto error;
 
         /* criteria is string compare */
@@ -225,7 +225,7 @@ static herr_t build_match_list_attrs(hid_t loc1_id, hid_t loc2_id, table_attrs_t
         if((attr1_id = H5Aopen_by_idx(loc1_id, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)curr1, H5P_DEFAULT, H5P_DEFAULT)) < 0)
             goto error;
         /* get name */
-        if(H5Aget_name(attr1_id, ATTR_NAME_MAX, name1) < 0)
+        if(H5Aget_name(attr1_id, (size_t)ATTR_NAME_MAX, name1) < 0)
             goto error;
 
         table_attr_mark_exist(infile, name1, table_lp);
@@ -247,7 +247,7 @@ static herr_t build_match_list_attrs(hid_t loc1_id, hid_t loc2_id, table_attrs_t
         if((attr2_id = H5Aopen_by_idx(loc2_id, ".", H5_INDEX_NAME, H5_ITER_INC, (hsize_t)curr2, H5P_DEFAULT, H5P_DEFAULT)) < 0)
             goto error;
         /* get name */
-        if(H5Aget_name(attr2_id, ATTR_NAME_MAX, name2) < 0)
+        if(H5Aget_name(attr2_id, (size_t)ATTR_NAME_MAX, name2) < 0)
             goto error;
 
         table_attr_mark_exist(infile, name2, table_lp);
@@ -350,6 +350,13 @@ hsize_t diff_attr(hid_t loc1_id,
     if( build_match_list_attrs(loc1_id, loc2_id, &match_list_attrs, options) < 0)
         goto error;
 
+    /* if detect any unique extra attr */
+    if(match_list_attrs->nattrs_only1 || match_list_attrs->nattrs_only2)
+    {
+        /* exit will be 1 */
+        options->contents = 0;
+    }
+
     for(u = 0; u < (unsigned)match_list_attrs->nattrs; u++)
     {
         if( (match_list_attrs->attrs[u].exist[0]) && (match_list_attrs->attrs[u].exist[1]) )
@@ -440,8 +447,8 @@ hsize_t diff_attr(hid_t loc1_id,
         for(j = 0; j < rank1; j++)
             nelmts1 *= dims1[j];
 
-        buf1 = (void *)HDmalloc((unsigned)(nelmts1 * msize1));
-        buf2 = (void *)HDmalloc((unsigned)(nelmts1 * msize2));
+        buf1 = (void *)HDmalloc((size_t)(nelmts1 * msize1));
+        buf2 = (void *)HDmalloc((size_t)(nelmts1 * msize2));
         if(buf1 == NULL || buf2 == NULL) {
             parallel_print( "cannot read into memory\n" );
             goto error;
@@ -452,8 +459,8 @@ hsize_t diff_attr(hid_t loc1_id,
             goto error;
 
         /* format output string */
-        sprintf(np1,"%s of <%s>",name1,path1);
-        sprintf(np2,"%s of <%s>",name2,path2);
+        HDsnprintf(np1, sizeof(np1), "%s of <%s>", name1, path1);
+        HDsnprintf(np2, sizeof(np1), "%s of <%s>", name2, path2);
 
         /*---------------------------------------------------------------------
         * array compare

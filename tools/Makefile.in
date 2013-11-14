@@ -228,6 +228,7 @@ H5_VERSION = @H5_VERSION@
 HADDR_T = @HADDR_T@
 HAVE_DMALLOC = @HAVE_DMALLOC@
 HAVE_FORTRAN_2003 = @HAVE_FORTRAN_2003@
+HAVE_PTHREAD = @HAVE_PTHREAD@
 HDF5_HL = @HDF5_HL@
 HDF5_INTERFACES = @HDF5_INTERFACES@
 HDF_CXX = @HDF_CXX@
@@ -279,7 +280,6 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PARALLEL = @PARALLEL@
 PATH_SEPARATOR = @PATH_SEPARATOR@
 PERL = @PERL@
-PTHREAD = @PTHREAD@
 RANLIB = @RANLIB@
 ROOT = @ROOT@
 RUNPARALLEL = @RUNPARALLEL@
@@ -425,7 +425,7 @@ CHECK_CLEANFILES = *.chkexe *.chklog *.clog
 CONFIG = ordered
 
 # All subdirectories
-SUBDIRS = lib h5diff h5ls misc h5import h5repack h5jam h5copy h5stat h5dump
+SUBDIRS = lib h5diff h5ls h5dump misc h5import h5repack h5jam h5copy h5stat
 
 # Automake needs to be taught how to build lib, progs, and tests targets.
 # These will be filled in automatically for the most part (e.g.,

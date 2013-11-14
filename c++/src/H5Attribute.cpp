@@ -44,6 +44,7 @@ namespace H5 {
 #endif  // H5_NO_STD
 #endif
 
+class H5_DLLCPP H5Object;  // forward declaration for UserData4Aiterate
 //--------------------------------------------------------------------------
 // Function:	Attribute default constructor
 ///\brief	Default constructor: Creates a stub attribute
@@ -385,8 +386,34 @@ hsize_t Attribute::getStorageSize() const
 }
 
 //--------------------------------------------------------------------------
+// Function:	Attribute::flush
+///\brief	Flushes all buffers associated with a file specified by
+///		this attribute, to disk.
+///\param	scope - IN: Specifies the scope of the flushing action,
+///		which can be either of these values:
+///		\li \c H5F_SCOPE_GLOBAL - Flushes the entire virtual file
+///		\li \c H5F_SCOPE_LOCAL - Flushes only the specified file
+///\exception	H5::AttributeIException
+///\par Description
+///		This attribute is used to identify the file to be flushed.
+// Programmer	Binh-Minh Ribler - 2013
+// Modification
+//	Mar 2013 - BMR
+//		Duplicated from H5Location
+//--------------------------------------------------------------------------
+void Attribute::flush(H5F_scope_t scope) const
+{
+   herr_t ret_value = H5Fflush(getId(), scope);
+   if( ret_value < 0 )
+   {
+      throw AttributeIException("Attribute::flush", "H5Fflush failed");
+   }
+}
+
+//--------------------------------------------------------------------------
 // Function:    Attribute::getId
-// Purpose:     Get the id of this attribute
+///\brief	Get the id of this attribute
+///\return	Attribute identifier
 // Description:
 //		Class hierarchy is revised to address bugzilla 1068.  Class
 //		AbstractDS and Attribute are moved out of H5Object.  In

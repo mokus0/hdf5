@@ -1,5 +1,21 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5_F90_SRC C CXX Fortran)
+
+#-----------------------------------------------------------------------------
+# configure def file for shared libs on windows
+IF (WIN32 AND NOT CYGWIN)
+  IF (BUILD_SHARED_LIBS)
+    IF (MSVC)
+      IF (NOT H5_HAVE_PARALLEL)
+        SET (H5_NOPAREXP ";")
+      ENDIF (NOT H5_HAVE_PARALLEL)
+      IF (NOT HDF5_ENABLE_F2003)
+        SET (H5_NOF03EXP ";")
+      ENDIF (NOT HDF5_ENABLE_F2003)
+      CONFIGURE_FILE (${HDF5_F90_SRC_SOURCE_DIR}/hdf5_fortrandll.def.in ${HDF5_F90_SRC_BINARY_DIR}/hdf5_fortrandll.def @ONLY)
+    ENDIF (MSVC)
+  ENDIF (BUILD_SHARED_LIBS)
+ENDIF (WIN32 AND NOT CYGWIN)
 
 #-----------------------------------------------------------------------------
 # Setup the Fortran auto-detection utilities
@@ -117,6 +133,7 @@ SET (f90CStub_C_HDRS
 )
 
 ADD_LIBRARY (${HDF5_F90_C_LIB_TARGET} ${LIB_TYPE} ${f90CStub_C_SRCS} ${f90CStub_C_HDRS})
+TARGET_C_PROPERTIES (${HDF5_F90_C_LIB_TARGET} " " " ")
 TARGET_LINK_LIBRARIES (${HDF5_F90_C_LIB_TARGET} ${HDF5_LIB_TARGET} ${LINK_LIBS})
 SET_GLOBAL_VARIABLE (HDF5_LIBRARIES_TO_EXPORT "${HDF5_LIBRARIES_TO_EXPORT};${HDF5_F90_C_LIB_TARGET}")
 H5_SET_LIB_OPTIONS (${HDF5_F90_C_LIB_TARGET} ${HDF5_F90_C_LIB_NAME} ${LIB_TYPE})
@@ -126,13 +143,13 @@ SET_TARGET_PROPERTIES (${HDF5_F90_C_LIB_TARGET} PROPERTIES LINKER_LANGUAGE C)
 #-----------------------------------------------------------------------------
 # Fortran 2003 standard
 #-----------------------------------------------------------------------------
-IF (FORTRAN_HAVE_ISO_C_BINDING AND HDF5_ENABLE_F2003)
+IF (HDF5_ENABLE_F2003)
   # default real is 4 bytes, so include double signatures
   SET (F_STATUS "_F03")
-ELSE (FORTRAN_HAVE_ISO_C_BINDING AND HDF5_ENABLE_F2003)
+ELSE (HDF5_ENABLE_F2003)
   # default real is 8 bytes, so exclude double signatures
   SET (F_STATUS "_F90")
-ENDIF (FORTRAN_HAVE_ISO_C_BINDING AND HDF5_ENABLE_F2003)
+ENDIF (HDF5_ENABLE_F2003)
 
 #-----------------------------------------------------------------------------
 # Fortran Real Size
@@ -172,6 +189,7 @@ SET (f90_F_SRCS
     ${HDF5_F90_SRC_SOURCE_DIR}/H5Aff${F_STATUS}.f90
     ${HDF5_F90_SRC_SOURCE_DIR}/H5Dff${F_STATUS}.f90
     ${HDF5_F90_SRC_SOURCE_DIR}/H5Eff${F_STATUS}.f90
+    ${HDF5_F90_SRC_SOURCE_DIR}/H5Fff${F_STATUS}.f90
     ${HDF5_F90_SRC_SOURCE_DIR}/H5Lff${F_STATUS}.f90
     ${HDF5_F90_SRC_SOURCE_DIR}/H5Off${F_STATUS}.f90
     ${HDF5_F90_SRC_SOURCE_DIR}/H5Pff${F_STATUS}.f90
@@ -208,11 +226,7 @@ IF (WIN32 AND NOT CYGWIN)
         BUILD_HDF5_DLL
     )
     IF (MSVC)
-      IF (H5_HAVE_PARALLEL)
-        SET (SHARED_LINK_FLAGS "/DLL /DEF:${HDF5_F90_SRC_SOURCE_DIR}/phdf5_fortrandll.def")
-      ELSE (H5_HAVE_PARALLEL)
-        SET (SHARED_LINK_FLAGS "/DLL /DEF:${HDF5_F90_SRC_SOURCE_DIR}/hdf5_fortrandll.def")
-      ENDIF (H5_HAVE_PARALLEL)
+      SET (SHARED_LINK_FLAGS "/DLL /DEF:${HDF5_F90_SRC_BINARY_DIR}/hdf5_fortrandll.def")
     ENDIF (MSVC)
   ENDIF (BUILD_SHARED_LIBS)
   SET_PROPERTY (TARGET ${HDF5_F90_LIB_TARGET}
@@ -220,7 +234,7 @@ IF (WIN32 AND NOT CYGWIN)
         HDF5F90_WINDOWS
   )
 ENDIF (WIN32 AND NOT CYGWIN)
-TARGET_FORTRAN_WIN_PROPERTIES (${HDF5_F90_LIB_TARGET} ${SHARED_LINK_FLAGS})
+TARGET_FORTRAN_PROPERTIES (${HDF5_F90_LIB_TARGET} " " ${SHARED_LINK_FLAGS})
 SET_TARGET_PROPERTIES (${HDF5_F90_LIB_TARGET} PROPERTIES LINKER_LANGUAGE Fortran)
 TARGET_LINK_LIBRARIES (${HDF5_F90_LIB_TARGET} ${HDF5_F90_C_LIB_TARGET} ${HDF5_LIB_TARGET})
 IF (H5_HAVE_PARALLEL AND MPI_Fortran_FOUND)
@@ -241,7 +255,7 @@ INSTALL (
         ${HDF5_F90_BINARY_DIR}/H5f90i_gen.h
         ${HDF5_F90_BINARY_DIR}/H5fortran_types.f90
     DESTINATION 
-        ${HDF5_INSTALL_INCLUDE_DIR}/fortran 
+        ${HDF5_INSTALL_INCLUDE_DIR}
     COMPONENT 
         fortheaders
 )
@@ -251,7 +265,7 @@ IF (WIN32 AND NOT CYGWIN)
       DIRECTORY
           ${CMAKE_Fortran_MODULE_DIRECTORY}/\${BUILD_TYPE}/
       DESTINATION
-          ${HDF5_INSTALL_INCLUDE_DIR}/fortran
+          ${HDF5_INSTALL_INCLUDE_DIR}
       COMPONENT
           fortheaders
   )
@@ -260,7 +274,7 @@ ELSE (WIN32 AND NOT CYGWIN)
       DIRECTORY
           ${CMAKE_Fortran_MODULE_DIRECTORY}/
       DESTINATION
-          ${HDF5_INSTALL_INCLUDE_DIR}/fortran
+          ${HDF5_INSTALL_INCLUDE_DIR}
       COMPONENT
           fortheaders
   )

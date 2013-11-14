@@ -37,12 +37,7 @@ ENDMACRO (IDE_SOURCE_PROPERTIES)
 MACRO (TARGET_NAMING libtarget libtype)
   IF (WIN32)
     IF (${libtype} MATCHES "SHARED")
-      IF (HDF_LEGACY_NAMING)
-        SET_TARGET_PROPERTIES (${libtarget} PROPERTIES OUTPUT_NAME "dll")
-        SET_TARGET_PROPERTIES (${libtarget} PROPERTIES PREFIX "${libtarget}")
-      ELSE (HDF_LEGACY_NAMING)
-        SET_TARGET_PROPERTIES (${libtarget} PROPERTIES OUTPUT_NAME "${libtarget}dll")
-      ENDIF (HDF_LEGACY_NAMING)
+      SET_TARGET_PROPERTIES (${libtarget} PROPERTIES OUTPUT_NAME "${libtarget}dll")
     ENDIF (${libtype} MATCHES "SHARED")
   ENDIF (WIN32)
 ENDMACRO (TARGET_NAMING)
@@ -83,26 +78,16 @@ MACRO (HDF_SET_LIB_OPTIONS libtarget libname libtype)
   # message (STATUS "${libname} libtype: ${libtype}")
   IF (${libtype} MATCHES "SHARED")
     IF (WIN32)
-      IF (HDF_LEGACY_NAMING)
-        SET (LIB_RELEASE_NAME "${libname}dll")
-        SET (LIB_DEBUG_NAME "${libname}ddll")
-      ELSE (HDF_LEGACY_NAMING)
-        SET (LIB_RELEASE_NAME "${libname}")
-        SET (LIB_DEBUG_NAME "${libname}_D")
-      ENDIF (HDF_LEGACY_NAMING)
+      SET (LIB_RELEASE_NAME "${libname}")
+      SET (LIB_DEBUG_NAME "${libname}_D")
     ELSE (WIN32)
       SET (LIB_RELEASE_NAME "${libname}")
       SET (LIB_DEBUG_NAME "${libname}_debug")
     ENDIF (WIN32)
   ELSE (${libtype} MATCHES "SHARED")
     IF (WIN32)
-      IF (HDF_LEGACY_NAMING)
-        SET (LIB_RELEASE_NAME "${libname}")
-        SET (LIB_DEBUG_NAME "${libname}d")
-      ELSE (HDF_LEGACY_NAMING)
-        SET (LIB_RELEASE_NAME "lib${libname}")
-        SET (LIB_DEBUG_NAME "lib${libname}_D")
-      ENDIF (HDF_LEGACY_NAMING)
+      SET (LIB_RELEASE_NAME "lib${libname}")
+      SET (LIB_DEBUG_NAME "lib${libname}_D")
     ELSE (WIN32)
       # if the generator supports configuration types or if the CMAKE_BUILD_TYPE has a value
       IF (CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
@@ -136,20 +121,67 @@ MACRO (HDF_SET_LIB_OPTIONS libtarget libname libtype)
 ENDMACRO (HDF_SET_LIB_OPTIONS)
 
 #-------------------------------------------------------------------------------
-MACRO (TARGET_FORTRAN_WIN_PROPERTIES forttarget addlinkflags)
-  IF (WIN32 AND MSVC)
+MACRO (TARGET_C_PROPERTIES wintarget addcompileflags addlinkflags)
+  IF (MSVC)
+    TARGET_MSVC_PROPERTIES (${wintarget} "${addcompileflags} ${WIN_COMPILE_FLAGS}" "${addlinkflags} ${WIN_LINK_FLAGS}")
+  ELSE (MSVC)
+    IF (BUILD_SHARED_LIBS)
+      SET_TARGET_PROPERTIES (${wintarget}
+          PROPERTIES
+              COMPILE_FLAGS "${addcompileflags}"
+              LINK_FLAGS "${addlinkflags}"
+      ) 
+    ELSE (BUILD_SHARED_LIBS)
+      SET_TARGET_PROPERTIES (${wintarget}
+          PROPERTIES
+              COMPILE_FLAGS "${addcompileflags}"
+              LINK_FLAGS "${addlinkflags}"
+      ) 
+    ENDIF (BUILD_SHARED_LIBS)
+  ENDIF (MSVC)
+ENDMACRO (TARGET_C_PROPERTIES)
+
+#-------------------------------------------------------------------------------
+MACRO (TARGET_MSVC_PROPERTIES wintarget addcompileflags addlinkflags)
+  IF (MSVC)
+    IF (BUILD_SHARED_LIBS)
+      SET_TARGET_PROPERTIES (${wintarget}
+          PROPERTIES
+              COMPILE_FLAGS "${addcompileflags}"
+              LINK_FLAGS "${addlinkflags}"
+      ) 
+    ELSE (BUILD_SHARED_LIBS)
+      SET_TARGET_PROPERTIES (${wintarget}
+          PROPERTIES
+              COMPILE_FLAGS "${addcompileflags}"
+              LINK_FLAGS "${addlinkflags}"
+      ) 
+    ENDIF (BUILD_SHARED_LIBS)
+  ENDIF (MSVC)
+ENDMACRO (TARGET_MSVC_PROPERTIES)
+
+#-------------------------------------------------------------------------------
+MACRO (TARGET_FORTRAN_PROPERTIES forttarget addcompileflags addlinkflags)
+  IF (WIN32)
+    TARGET_FORTRAN_WIN_PROPERTIES (${forttarget} "${addcompileflags} ${WIN_COMPILE_FLAGS}" "${addlinkflags} ${WIN_LINK_FLAGS}")
+  ENDIF (WIN32)
+ENDMACRO (TARGET_FORTRAN_PROPERTIES)
+
+#-------------------------------------------------------------------------------
+MACRO (TARGET_FORTRAN_WIN_PROPERTIES forttarget addcompileflags addlinkflags)
+  IF (MSVC)
     IF (BUILD_SHARED_LIBS)
       SET_TARGET_PROPERTIES (${forttarget}
           PROPERTIES
-              COMPILE_FLAGS "/dll"
+              COMPILE_FLAGS "/dll ${addcompileflags}"
               LINK_FLAGS "/SUBSYSTEM:CONSOLE ${addlinkflags}"
       ) 
     ELSE (BUILD_SHARED_LIBS)
       SET_TARGET_PROPERTIES (${forttarget}
           PROPERTIES
-              COMPILE_FLAGS "/MD"
+              COMPILE_FLAGS "${addcompileflags}"
               LINK_FLAGS "/SUBSYSTEM:CONSOLE ${addlinkflags}"
       ) 
     ENDIF (BUILD_SHARED_LIBS)
-  ENDIF (WIN32 AND MSVC)
+  ENDIF (MSVC)
 ENDMACRO (TARGET_FORTRAN_WIN_PROPERTIES)

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5_HL_F90_EXAMPLES C CXX Fortran)
 
 #-----------------------------------------------------------------------------
@@ -18,7 +18,7 @@ SET (examples
 FOREACH (example ${examples})
   ADD_EXECUTABLE (hl_f90_ex_${example} ${HDF5_HL_F90_EXAMPLES_SOURCE_DIR}/${example}.f90)
   TARGET_NAMING (hl_f90_ex_${example} ${LIB_TYPE})
-  TARGET_FORTRAN_WIN_PROPERTIES (hl_f90_ex_${example} "")
+  TARGET_FORTRAN_PROPERTIES (hl_f90_ex_${example} " " " ")
   TARGET_LINK_LIBRARIES (hl_f90_ex_${example} 
       ${HDF5_HL_F90_LIB_TARGET}
       ${HDF5_F90_LIB_TARGET}
@@ -27,8 +27,10 @@ FOREACH (example ${examples})
   SET_TARGET_PROPERTIES (hl_f90_ex_${example} PROPERTIES LINKER_LANGUAGE Fortran)
   SET_TARGET_PROPERTIES (hl_f90_ex_${example} PROPERTIES FOLDER examples/hl/fortran)
 
-  IF (BUILD_TESTING)
-    ADD_TEST (NAME hl_f90_ex_${example} COMMAND $<TARGET_FILE:hl_f90_ex_${example}>)
-  ENDIF (BUILD_TESTING)
-
 ENDFOREACH (example ${examples})
+
+IF (BUILD_TESTING)
+
+  INCLUDE (CMakeTests.cmake)
+
+ENDIF (BUILD_TESTING)

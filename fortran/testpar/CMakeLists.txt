@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5_FORTRAN_TESTPAR C CXX Fortran)
 
 #-----------------------------------------------------------------------------
@@ -17,7 +17,7 @@ ADD_EXECUTABLE (parallel_test
     mdset.f90
 )
 TARGET_NAMING (parallel_test ${LIB_TYPE})
-TARGET_FORTRAN_WIN_PROPERTIES (parallel_test "")
+TARGET_FORTRAN_PROPERTIES (parallel_test " " " ")
 TARGET_LINK_LIBRARIES (parallel_test 
     ${HDF5_F90_TEST_LIB_TARGET}
     ${HDF5_F90_LIB_TARGET}
@@ -30,4 +30,4 @@ ENDIF (WIN32 AND MSVC)
 SET_TARGET_PROPERTIES (parallel_test PROPERTIES LINKER_LANGUAGE Fortran)
 SET_TARGET_PROPERTIES (parallel_test PROPERTIES FOLDER test/fortran)
 
-ADD_TEST (NAME parallel_test COMMAND ${MPIEXEC} ${MPIEXEC_PREFLAGS} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ${MPIEXEC_POSTFLAGS} $<TARGET_FILE:parallel_test>)
+INCLUDE (CMakeTests.cmake)

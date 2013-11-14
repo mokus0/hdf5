@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5_HL_CPP_EXAMPLES)
 
 #-----------------------------------------------------------------------------
@@ -12,6 +12,7 @@ INCLUDE_DIRECTORIES (${HDF5_HL_CPP_SRC_DIR}/src)
 # --------------------------------------------------------------------
 ADD_EXECUTABLE (ptExampleFL ${HDF5_HL_CPP_EXAMPLES_SOURCE_DIR}/ptExampleFL.cpp)
 TARGET_NAMING (ptExampleFL ${LIB_TYPE})
+TARGET_C_PROPERTIES (ptExampleFL " " " ")
 TARGET_LINK_LIBRARIES (
     ptExampleFL
     ${HDF5_HL_CPP_LIB_TARGET}
@@ -20,17 +21,6 @@ TARGET_LINK_LIBRARIES (
 )
 SET_TARGET_PROPERTIES (ptExampleFL PROPERTIES FOLDER examples/hl/cpp)
 
-ADD_EXECUTABLE (ptExampleVL ${HDF5_HL_CPP_EXAMPLES_SOURCE_DIR}/ptExampleVL.cpp)
-TARGET_NAMING (ptExampleVL ${LIB_TYPE})
-TARGET_LINK_LIBRARIES (
-    ptExampleVL
-    ${HDF5_HL_CPP_LIB_TARGET}
-    ${HDF5_HL_LIB_TARGET}
-    ${HDF5_LIB_TARGET}
-)
-SET_TARGET_PROPERTIES (ptExampleVL PROPERTIES FOLDER examples/hl/cpp)
-
 IF (BUILD_TESTING)
-  ADD_TEST (NAME cpp_hl_ex_ptExampleFL COMMAND $<TARGET_FILE:ptExampleFL>)
-  ADD_TEST (NAME cpp_hl_ex_ptExampleVL COMMAND $<TARGET_FILE:ptExampleVL>)
+  INCLUDE (CMakeTests.cmake)
 ENDIF (BUILD_TESTING)

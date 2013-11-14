@@ -14,14 +14,19 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef _H5File_H
-#define _H5File_H
+#ifndef __H5File_H
+#define __H5File_H
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
 
-class H5_DLLCPP H5File : public IdComponent, public CommonFG {
+/*! \class H5File
+    \brief Class H5File represents an HDF5 file.
+
+    It inherits from H5Location and CommonFG.
+*/
+class H5_DLLCPP H5File : public H5Location, public CommonFG {
    public:
 	// Creates or opens an HDF5 file.
 	H5File( const char* name, unsigned int flags,
@@ -40,17 +45,11 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	// Close this file.
 	virtual void close();
 
-	// Flushes all buffers associated with this file to disk
-	void flush(H5F_scope_t scope) const;
-
 	// Gets the access property list of this file.
 	FileAccPropList getAccessPlist() const;
 
 	// Gets the creation property list of this file.
 	FileCreatPropList getCreatePlist() const;
-
-	// Gets the name of this file.
-	H5std_string getFileName() const;
 
 	// Retrieves the file size of an opened file.
 	hsize_t getFileSize() const;
@@ -67,14 +66,6 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 	// and datatypes) in the same file.
 	void getObjIDs(unsigned types, size_t max_objs, hid_t *oid_list) const;
 
-#ifndef H5_NO_DEPRECATED_SYMBOLS
-	// Retrieves the type of object that an object reference points to.
-	H5G_obj_t getObjType(void *ref, H5R_type_t ref_type = H5R_OBJECT) const;
-#endif /* H5_NO_DEPRECATED_SYMBOLS */
-
-	// Retrieves a dataspace with the region pointed to selected.
-	DataSpace getRegion(void *ref, H5R_type_t ref_type = H5R_DATASET_REGION) const;
-
 	// Returns the pointer to the file handle of the low-level file driver.
 	void getVFDHandle(FileAccPropList& fapl, void **file_handle) const;
 	void getVFDHandle(void **file_handle) const;
@@ -85,23 +76,19 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 
 	// Reopens this file.
 	void reOpen();	// added for better name
-	void reopen();
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+	void reopen();  // obsolete in favor of reOpen()
 
-	// Creates a reference to a named HDF5 object or to a dataset region
-	// in this object.
-	void reference(void* ref, const char* name, const DataSpace& dataspace,
-			H5R_type_t ref_type = H5R_DATASET_REGION) const;
-	void reference(void* ref, const char* name) const;
-	void reference(void* ref, const H5std_string& name) const;
+	// Gets the file id
+	virtual hid_t getLocId() const;
 
-	///\brief Returns this class name
+#endif // DOXYGEN_SHOULD_SKIP_THIS
+
+	///\brief Returns this class name.
 	virtual H5std_string fromClass () const { return("H5File"); }
 
 	// Throw file exception.
 	virtual void throwException(const H5std_string& func_name, const H5std_string& msg) const;
-
-	// Gets the file id
-	virtual hid_t getLocId() const;
 
 	// Default constructor
 	H5File();
@@ -118,24 +105,12 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
    private:
 	hid_t id;	// HDF5 file id
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-
 	// This function is private and contains common code between the
 	// constructors taking a string or a char*
 	void p_get_file( const char* name, unsigned int flags, const FileCreatPropList& create_plist, const FileAccPropList& access_plist );
 
-	// Creates a reference to an HDF5 object or a dataset region.
-	void p_reference(void* ref, const char* name, hid_t space_id, H5R_type_t ref_type) const;
-
-#ifndef H5_NO_DEPRECATED_SYMBOLS
-	// Retrieves the type of object that an object reference points to.
-	H5G_obj_t p_get_obj_type(void *ref, H5R_type_t ref_type) const;
-#endif /* H5_NO_DEPRECATED_SYMBOLS */
-
-	// Retrieves a dataspace with the region pointed to selected.
-	hid_t p_get_region(void *ref, H5R_type_t ref_type) const;
-
    protected:
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	// Sets the HDF5 file id.
 	virtual void p_setId(const hid_t new_id);
 
@@ -145,4 +120,4 @@ class H5_DLLCPP H5File : public IdComponent, public CommonFG {
 #ifndef H5_NO_NAMESPACE
 }
 #endif
-#endif
+#endif // __H5File_H

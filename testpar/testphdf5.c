@@ -440,7 +440,7 @@ int main(int argc, char **argv)
   "linked chunk collective IO without optimization",PARATESTFILE);
     AddTest((mpi_size < 3)? "-cchunk6" : "cchunk6",
   coll_chunk6,NULL,
-  "multi-chunk collective IO without optimization",PARATESTFILE);
+  "multi-chunk collective IO with direct request",PARATESTFILE);
     AddTest((mpi_size < 3)? "-cchunk7" : "cchunk7",
   coll_chunk7,NULL,
   "linked chunk collective IO with optimization",PARATESTFILE);
@@ -528,6 +528,10 @@ int main(int argc, char **argv)
         AddTest("atomicity", dataset_atomicity, NULL,
                 "dataset atomic updates", PARATESTFILE);
     }
+
+    AddTest("denseattr", test_dense_attr, NULL,
+	    "Store Dense Attributes", NULL);
+
 
     /* Display testing information */
     TestInfo(argv[0]);

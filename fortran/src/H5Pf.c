@@ -1937,28 +1937,29 @@ DONE:
 
 /****if* H5Pf/h5pset_external_c
  * NAME
- *        h5pset_external_c
+ *  h5pset_external_c
  * PURPOSE
- *     Call H5Pset_external to add an external file to the
- *              list of external files.
+ *  Call H5Pset_external to add an external file to the
+ *  list of external files.
  * INPUTS
- *      prp_id - property list identifier
- *              name - Name of an external file
- *              namelen - length of name
- *              offset - Offset, in bytes, from the beginning of the file
- *                       to the location in the file where the data starts.
- *              bytes - Number of bytes reserved in the file for the data.
+ *  prp_id  - property list identifier
+ *  name    - Name of an external file
+ *  namelen - length of name
+ *  offset  - Offset, in bytes, from the beginning of the file
+ *            to the location in the file where the data starts.
+ *  bytes   - Number of bytes reserved in the file for the data.
  * RETURNS
- *     0 on success, -1 on failure
+ *  0 on success, -1 on failure
  * AUTHOR
  *  Xiangyang Su
- *              Wednesday, February 23, 2000
+ *  Wednesday, February 23, 2000
  * HISTORY
- *
+ *  Changed type of 'offset' from int_f to off_t_f -- MSB January 9, 2012
+ *  
  * SOURCE
 */
 int_f
-nh5pset_external_c (hid_t_f *prp_id, _fcd name, int_f* namelen, int_f* offset, hsize_t_f*bytes)
+nh5pset_external_c (hid_t_f *prp_id, _fcd name, int_f* namelen, off_t_f* offset, hsize_t_f*bytes)
 /******/
 {
      int ret_value = -1;
@@ -2029,14 +2030,14 @@ nh5pget_external_count_c (hid_t_f *prp_id, int_f* count)
 
 /****if* H5Pf/h5pget_external_c
  * NAME
- *        h5pget_external_c
+ *  h5pget_external_c
  * PURPOSE
- *     Call H5Pget_external to get nformation about an external file.
+ *  Call H5Pget_external to get nformation about an external file.
  * INPUTS
  *    prp_id - property list identifier
  * name_size - length of name
  *       idx - External file index.
- *OUTPUT
+ * OUTPUT
  *      name - Name of an external file
  *    offset - Offset, in bytes, from the beginning of the file
  *             to the location in the file where the data starts.
@@ -2047,11 +2048,12 @@ nh5pget_external_count_c (hid_t_f *prp_id, int_f* count)
  *  Xiangyang Su
  *  Wednesday, February 23, 2000
  * HISTORY
+ *  Changed type of 'offset' from integer to off_t -- MSB January 9, 2012
  *
  * SOURCE
 */
 int_f
-nh5pget_external_c(hid_t_f *prp_id, int_f *idx, size_t_f* name_size, _fcd name, int_f* offset, hsize_t_f*bytes)
+nh5pget_external_c(hid_t_f *prp_id, int_f *idx, size_t_f* name_size, _fcd name, off_t_f* offset, hsize_t_f*bytes)
 /******/
 {
      int ret_value = -1;
@@ -2079,7 +2081,7 @@ nh5pget_external_c(hid_t_f *prp_id, int_f *idx, size_t_f* name_size, _fcd name, 
 
      if (status < 0) goto DONE;
 
-     *offset = (int_f)c_offset;
+     *offset = (off_t_f)c_offset;
      *bytes = (hsize_t_f)size;
      /* Note: if the size of the fortran buffer is larger then the returned string
       *       from the function then we need to give HD5packFstring the fortran buffer size so
@@ -3368,14 +3370,15 @@ nh5pclose_class_c(hid_t_f *cls)
      ret_value = 0;
      return ret_value;
 }
+
 /****if* H5Pf/h5pget_class_name_c
  * NAME
  *        h5pget_class_name_c
  * PURPOSE
  *     Call H5Pget_class_name to get property class name
  * INPUTS
- *      cls - identifier of property class
- *              name   - ibuffer to retrieve name in
+ *              cls - identifier of property class
+ *              name - buffer to retrieve name in
  *              name_len - length of the "name" buffer
  * RETURNS
  *     0 on success, -1 on failure
@@ -3391,30 +3394,25 @@ nh5pget_class_name_c(hid_t_f *cls, _fcd name, int_f *name_len)
 /******/
 {
      int_f ret_value = -1;
-     char *c_name = NULL;          /* Buffer to hold C string */
-     size_t c_size;
 
-     c_size = (size_t)*name_len + 1;
-
-     /*
-      * Allocate buffer to hold name
-      */
-     if(NULL == (c_name = (char *)HDmalloc(c_size)))
-       goto DONE;
+     /* Buffer to return name by C function */
+     char *c_name;
 
      /*
-      * Call H5Pget_class_name function.
+      * Call H5Pget_class_name function. c_name is allocated by the library, 
+      * has to be freed by application.
       */
-     c_name = H5Pget_class_name((hid_t)*cls);
-     if(c_name == NULL) goto DONE;
+     if(NULL == (c_name = H5Pget_class_name((hid_t)*cls)))
+         goto DONE;
 
      HD5packFstring(c_name, _fcdtocp(name), (size_t)*name_len);
      ret_value = (int_f)HDstrlen(c_name);
+     HDfree(c_name);
 
 DONE:
-     HDfree(c_name);
      return ret_value;
 }
+
 /****if* H5Pf/h5psetc_c
  * NAME
  *        h5psetc_c

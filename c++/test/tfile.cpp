@@ -109,24 +109,19 @@ static void test_file_create()
 	file1 = new H5File (FILE1, H5F_ACC_EXCL);
 
 	// try to create the same file with H5F_ACC_TRUNC. This should fail
-	// because file1 is the same file and is currently open.
-
-/* These three are failing with new/PGI compiler, HDFFV-8067
-   The line "H5File file2 (FILE1, H5F_ACC_TRUNC);  // should throw E"
-   Results in this message:
-       "terminate called without an active exception
-        Command terminated by signal 6"
-   Commenting it out until it's fixed  LK 20120626. 
+	// because file1 is the same file and is currently open. Skip it on
+        // OpenVMS because it creates another version of the file.
 #ifndef H5_HAVE_FILE_VERSIONS
 	try {
 	    H5File file2 (FILE1, H5F_ACC_TRUNC);  // should throw E
+
 	    // Should FAIL but didn't, so throw an invalid action exception
 	    throw InvalidActionException("H5File constructor", "Attempted to create an existing file.");
 	}
 	catch( FileIException E ) // catch truncating existing file
 	{} // do nothing, FAIL expected
+#endif /*H5_HAVE_FILE_VERSIONS*/
 
-#endif
 	// Close file1
 	delete file1;
 	file1 = NULL;
@@ -141,12 +136,14 @@ static void test_file_create()
 	}
 	catch( FileIException E ) // catching creating existing file
 	{} // do nothing, FAIL expected
+
     	// Test create with H5F_ACC_TRUNC. This will truncate the existing file.
 	file1 = new H5File (FILE1, H5F_ACC_TRUNC);
 
+	// Try to create first file again. This should fail because file1
+	// is the same file and is currently open. Skip it on OpenVMS because
+        // it creates another version of the file.
 #ifndef H5_HAVE_FILE_VERSIONS
-	// Try to truncate first file again. This should fail because file1
-	// is the same file and is currently open.
     	try {
 	    H5File file2 (FILE1, H5F_ACC_TRUNC);   // should throw E
 
@@ -155,19 +152,18 @@ static void test_file_create()
 	}
 	catch( FileIException E ) // catching truncating opened file
 	{} // do nothing, FAIL expected
-#endif
+
      	// Try with H5F_ACC_EXCL. This should fail too because the file already
-     	// exists.
+     	// exists. Skip it on OpenVMS because it creates another version of the file.
     	try {
-//	    H5File file3 (FILE1, H5F_ACC_EXCL);  // should throw E
+	    H5File file3 (FILE1, H5F_ACC_EXCL);  // should throw E
 
 	    // Should FAIL but didn't, so throw an invalid action exception
 	    throw InvalidActionException("H5File constructor", "H5F_ACC_EXCL attempt on an existing file.");
     	}
 	catch( FileIException E ) // catching H5F_ACC_EXCL on existing file
 	{} // do nothing, FAIL expected
-*/
-   std::cerr << "SKIPPED for HDFFV-8067" << std::endl;
+#endif /*H5_HAVE_FILE_VERSIONS*/
 
     	// Get the file-creation template
 	FileCreatPropList tmpl1 = file1->getCreatePlist();
@@ -333,6 +329,7 @@ static void test_file_open()
         tmpl1.getSymk( iparm1, iparm2);
         verify_val(iparm1, F2_SYM_INTERN_K, "FileCreatPropList::getSymk", __LINE__, __FILE__);
         verify_val(iparm2, F2_SYM_LEAF_K, "FileCreatPropList::getSymk", __LINE__, __FILE__);
+
 	PASSED();
     }   // end of try block
 
@@ -381,8 +378,16 @@ static void test_file_size()
         hsize_t file_size = file4.getFileSize();
 
         // Check if file size is reasonable.  It's supposed to be 2KB now.
-        if(file_size<1*KB || file_size>4*KB)
-            issue_fail_msg("test_file_size()", __LINE__, __FILE__);
+        if (file_size < 1*KB || file_size > 4*KB)
+            issue_fail_msg("test_file_size()", __LINE__, __FILE__, "getFileSize() returned unreasonable value");
+
+	// Get the amount of free space in the file
+	hssize_t free_space = file4.getFreeSpace();
+
+	// Check if it's reasonable.  It's 0 now.
+	if (free_space < 0 || free_space > 4*KB)
+	    issue_fail_msg("test_file_size()", __LINE__, __FILE__, "getFreeSpace returned unreasonable value");
+
 	PASSED();
     }   // end of try block
 
@@ -415,7 +420,8 @@ const int	NX = 4;
 const int	NY = 5;
 const H5std_string	GROUPNAME ("group");
 const H5std_string	DSETNAME ("dataset");
-const H5std_string	ATTRNAME ("attribute");
+const H5std_string	DATTRNAME ("dataset attribute");
+const H5std_string	FATTRNAME ("file attribute");
 const H5std_string	DTYPENAME ("compound");
 
 // Compound datatype
@@ -426,7 +432,7 @@ typedef struct s1_t {
 
 static void test_file_name()
 {
-    // Output message about test being performed
+    // Output message about test being performed.
     SUBTEST("File Name");
 
     H5std_string file_name;
@@ -438,42 +444,42 @@ static void test_file_name()
         file_name = file4.getFileName();
 	verify_val(file_name, FILE4, "H5File::getFileName", __LINE__, __FILE__);
 
-	// Create a group in the root group
+	// Create a group in the root group.
 	Group group(file4.createGroup(GROUPNAME, 0));
 
-	// Get and verify file name
+	// Get and verify file name via a group.
 	file_name = group.getFileName();
 	verify_val(file_name, FILE4, "Group::getFileName", __LINE__, __FILE__);
 
-	// Create the data space
+	// Create the data space.
 	hsize_t dims[RANK] = {NX, NY};
 	DataSpace space(RANK, dims);
 
-	// Create a new dataset
+	// Create a new dataset.
 	DataSet dataset(file4.createDataSet (DSETNAME, PredType::NATIVE_INT, space));
 
-	// Get and verify file name
+	// Get and verify file name via a dataset.
 	file_name = dataset.getFileName();
 	verify_val(file_name, FILE4, "DataSet::getFileName", __LINE__, __FILE__);
 
-	// Create an attribute for the dataset
-	Attribute attr(dataset.createAttribute(ATTRNAME, PredType::NATIVE_INT, space));
+	// Create an attribute for the dataset.
+	Attribute attr(dataset.createAttribute(DATTRNAME, PredType::NATIVE_INT, space));
 
-	// Get and verify file name
+	// Get and verify file name via an attribute.
 	file_name = attr.getFileName();
 	verify_val(file_name, FILE4, "Attribute::getFileName", __LINE__, __FILE__);
 
-	// Create a compound datatype
+	// Create a compound datatype.
 	CompType comp_type (sizeof(s1_t));
 
-	// Insert fields
+	// Insert fields.
 	comp_type.insertMember("a", HOFFSET(s1_t, a), PredType::NATIVE_INT);
 	comp_type.insertMember("b", HOFFSET(s1_t, b), PredType::NATIVE_FLOAT);
 
-	// Save it on file
+	// Save it on file.
 	comp_type.commit(file4, DTYPENAME);
 
-	// Get and verify file name
+	// Get and verify file name via a committed datatype.
 	comp_type.getFileName();
 	verify_val(file_name, FILE4, "CompType::getFileName", __LINE__, __FILE__);
 	PASSED();
@@ -485,6 +491,116 @@ static void test_file_name()
 
 }   // test_file_name()
 
+
+#define NUM_OBJS	4
+#define NUM_ATTRS	3
+const int	RANK1 = 1;
+const int	ATTR1_DIM1 = 3;
+const H5std_string	FILE5("tfattrs.h5");
+const H5std_string	FATTR1_NAME ("file attribute 1");
+const H5std_string	FATTR2_NAME ("file attribute 2");
+int fattr_data[ATTR1_DIM1]={512,-234,98123}; /* Test data for file attribute */
+int dattr_data[ATTR1_DIM1]={256,-123,1000}; /* Test data for dataset attribute */
+static void test_file_attribute()
+{
+    int rdata[ATTR1_DIM1];
+    int i;
+
+    // Output message about test being performed
+    SUBTEST("File Attribute");
+
+    H5std_string file_name;
+    try {
+        // Create a file using default properties.
+	H5File file5(FILE5, H5F_ACC_TRUNC);
+
+	// Create the data space
+	hsize_t dims[RANK1] = {ATTR1_DIM1};
+	DataSpace space(RANK1, dims);
+
+	// Create two attributes for the file
+	Attribute fattr1(file5.createAttribute(FATTR1_NAME, PredType::NATIVE_FLOAT, space));
+	Attribute fattr2(file5.createAttribute(FATTR2_NAME, PredType::NATIVE_INT, space));
+
+	fattr2.write(PredType::NATIVE_INT, fattr_data);
+
+	try {
+	    // Try to create the same attribute again (should fail)
+	    Attribute fattr_dup(file5.createAttribute(FATTR2_NAME, PredType::NATIVE_INT, space));
+	    // Should FAIL but didn't, so throw an invalid action exception
+	    throw InvalidActionException("H5File createAttribute", "Attempted to create an existing attribute.");
+	}
+	catch( AttributeIException E ) // catch creating existing attribute
+	{} // do nothing, FAIL expected
+
+	// Create a new dataset
+	DataSet dataset(file5.createDataSet (DSETNAME, PredType::NATIVE_INT, space));
+
+	// Create an attribute for the dataset
+	Attribute dattr(dataset.createAttribute(DATTRNAME, PredType::NATIVE_INT, space));
+
+	// Write data to the second file attribute
+	dattr.write(PredType::NATIVE_INT, dattr_data);
+
+	// Test flushing out the data from the attribute object
+        dattr.flush(H5F_SCOPE_GLOBAL);
+
+	// Get and verify the number of all objects in the file
+	// Current: 1 file, 2 file attr, 1 ds, and 1 ds attr.
+	ssize_t num_objs = file5.getObjCount(H5F_OBJ_ALL);
+	verify_val(num_objs, 5, "H5File::getObjCount", __LINE__, __FILE__);
+
+	num_objs = file5.getObjCount(H5F_OBJ_GROUP);
+	verify_val(num_objs, 0, "H5File::getObjCount(H5F_OBJ_GROUP)", __LINE__, __FILE__);
+	num_objs = file5.getObjCount(H5F_OBJ_DATASET);
+	verify_val(num_objs, 1, "H5File::getObjCount(H5F_OBJ_DATASET)", __LINE__, __FILE__);
+	num_objs = file5.getObjCount(H5F_OBJ_ATTR);
+	verify_val(num_objs, 3, "H5File::getObjCount(H5F_OBJ_ATTR)", __LINE__, __FILE__);
+	num_objs = file5.getObjCount(H5F_OBJ_DATATYPE);
+	verify_val(num_objs, 0, "H5File::getObjCount(H5F_OBJ_DATATYPE)", __LINE__, __FILE__);
+	num_objs = file5.getObjCount(H5F_OBJ_FILE);
+	verify_val(num_objs, 1, "H5File::getObjCount(H5F_OBJ_FILE)", __LINE__, __FILE__);
+	
+	// Get the file name using the attributes
+	H5std_string fname = fattr1.getFileName();
+	verify_val(fname, FILE5, "H5File::getFileName()", __LINE__, __FILE__);
+
+	fname.clear();
+	fname = dattr.getFileName();
+	verify_val(fname, FILE5, "H5File::getFileName()", __LINE__, __FILE__);
+
+	// Get the class of a file attribute's datatype
+	H5T_class_t atclass = fattr1.getTypeClass();
+	verify_val(atclass, H5T_FLOAT, "Attribute::getTypeClass()", __LINE__, __FILE__);
+
+	// Get and verify the number of attributes attached to a file
+	int n_attrs = file5.getNumAttrs();
+	verify_val(n_attrs, 2, "H5File::getNumAttrs()", __LINE__, __FILE__);
+
+	// Get and verify the number of attributes attached to a dataset
+	n_attrs = 0;
+	n_attrs = dataset.getNumAttrs();
+	verify_val(n_attrs, 1, "DataSet::getNumAttrs()", __LINE__, __FILE__);
+
+	// Read back attribute's data
+	HDmemset(rdata, 0, sizeof(rdata));
+        dattr.read(PredType::NATIVE_INT, rdata);
+        /* Check results */
+        for (i = 0; i < ATTR1_DIM1; i++) {
+            if (rdata[i] != dattr_data[i]) {
+                H5_FAILED();
+		cerr << endl;
+                cerr << "element [" << i << "] is " << rdata[i] <<
+			"but should have been " << dattr_data[i] << endl;
+                }
+            }
+	PASSED();
+    }   // end of try block
+
+    catch (Exception E) {
+        issue_fail_msg("test_file_name()", __LINE__, __FILE__, E.getCDetailMsg());
+    }
+}   // test_file_attribute()
 
 /*-------------------------------------------------------------------------
  * Function:    test_file
@@ -507,12 +623,12 @@ void test_file()
 {
     // Output message about test being performed
     MESSAGE(5, ("Testing File I/O operations\n"));
-    //MESSAGE("Testing File I/O operations\n");
 
     test_file_create();	// Test file creation (also creation templates)
     test_file_open();	// Test file opening
     test_file_size();	// Test file size
     test_file_name();	// Test getting file's name
+    test_file_attribute();	// Test file attribute feature
 }   // test_file()
 
 

@@ -152,6 +152,14 @@ ENDIF (WIN32)
 #
 SET (H5_DEFAULT_VFD H5FD_SEC2)
 
+IF (NOT DEFINED "H5_DEFAULT_PLUGINDIR")
+  IF (WINDOWS)
+    SET (H5_DEFAULT_PLUGINDIR "%ALLUSERSPROFILE%/hdf5/lib/plugin")
+  ELSE (WINDOWS)
+    SET (H5_DEFAULT_PLUGINDIR "/usr/local/hdf5/lib/plugin")
+  ENDIF (WINDOWS)
+ENDIF (NOT DEFINED "H5_DEFAULT_PLUGINDIR")
+
 IF (WINDOWS)
   SET (H5_HAVE_WINDOWS 1)
   # ----------------------------------------------------------------------
@@ -172,7 +180,9 @@ IF (WINDOWS)
   IF (NOT MINGW)
     SET (H5_HAVE_GETHOSTNAME 1)
   ENDIF (NOT MINGW)
-  SET (H5_HAVE_GETCONSOLESCREENBUFFERINFO 1)
+  IF (NOT UNIX AND NOT CYGWIN AND NOT MINGW)
+    SET (H5_HAVE_GETCONSOLESCREENBUFFERINFO 1)
+  ENDIF (NOT UNIX AND NOT CYGWIN AND NOT MINGW)
   SET (H5_HAVE_FUNCTION 1)
   SET (H5_GETTIMEOFDAY_GIVES_TZ 1)
   SET (H5_HAVE_TIMEZONE 1)
@@ -183,14 +193,14 @@ IF (WINDOWS)
   ENDIF (MINGW)
   SET (H5_HAVE_LIBWS2_32 1)
   SET (H5_HAVE_LIBWSOCK32 1)
-ENDIF (WINDOWS)
 
-#-----------------------------------------------------------------------------
-# These tests need to be manually SET for windows since there is currently
-# something not quite correct with the actual test implementation. This affects
-# the 'dt_arith' test and most likely lots of other code
-# ----------------------------------------------------------------------------
-SET (H5_FP_TO_ULLONG_RIGHT_MAXIMUM "" CACHE INTERNAL "")
+  #-----------------------------------------------------------------------------
+  # These tests need to be manually SET for windows since there is currently
+  # something not quite correct with the actual test implementation. This affects
+  # the 'dt_arith' test and most likely lots of other code
+  # ----------------------------------------------------------------------------
+  SET (H5_FP_TO_ULLONG_RIGHT_MAXIMUM "" CACHE INTERNAL "")
+ENDIF (WINDOWS)
 
 # ----------------------------------------------------------------------
 # END of WINDOWS Hard code Values
@@ -205,6 +215,7 @@ ENDIF (CYGWIN)
 #-----------------------------------------------------------------------------
 IF (NOT WINDOWS)
   CHECK_LIBRARY_EXISTS_CONCAT ("m" ceil     H5_HAVE_LIBM)
+  CHECK_LIBRARY_EXISTS_CONCAT ("dl" dlopen     H5_HAVE_LIBDL)
   CHECK_LIBRARY_EXISTS_CONCAT ("ws2_32" WSAStartup  H5_HAVE_LIBWS2_32)
   CHECK_LIBRARY_EXISTS_CONCAT ("wsock32" gethostbyname H5_HAVE_LIBWSOCK32)
 ENDIF (NOT WINDOWS)
@@ -367,6 +378,7 @@ CHECK_INCLUDE_FILE_CONCAT ("sys/types.h"     H5_HAVE_SYS_TYPES_H)
 CHECK_INCLUDE_FILE_CONCAT ("stddef.h"        H5_HAVE_STDDEF_H)
 CHECK_INCLUDE_FILE_CONCAT ("setjmp.h"        H5_HAVE_SETJMP_H)
 CHECK_INCLUDE_FILE_CONCAT ("features.h"      H5_HAVE_FEATURES_H)
+CHECK_INCLUDE_FILE_CONCAT ("dirent.h"        H5_HAVE_DIRENT_H)
 CHECK_INCLUDE_FILE_CONCAT ("stdint.h"        H5_HAVE_STDINT_H)
 
 # IF the c compiler found stdint, check the C++ as well. On some systems this
@@ -553,7 +565,9 @@ IF (NOT APPLE)
   IF (NOT H5_SIZEOF_SSIZE_T)
     SET (H5_SIZEOF_SSIZE_T 0)
   ENDIF (NOT H5_SIZEOF_SSIZE_T)
-  H5_CHECK_TYPE_SIZE (ptrdiff_t    H5_SIZEOF_PTRDIFF_T)
+  IF (NOT WINDOWS)
+    H5_CHECK_TYPE_SIZE (ptrdiff_t    H5_SIZEOF_PTRDIFF_T)
+  ENDIF (NOT WINDOWS)
 ENDIF (NOT APPLE)
 
 H5_CHECK_TYPE_SIZE (off_t          H5_SIZEOF_OFF_T)
@@ -608,7 +622,9 @@ IF (NOT WINDOWS)
   CHECK_FUNCTION_EXISTS (_getvideoconfig   H5_HAVE__GETVIDEOCONFIG)
   CHECK_FUNCTION_EXISTS (gettextinfo       H5_HAVE_GETTEXTINFO)
   CHECK_FUNCTION_EXISTS (_scrsize          H5_HAVE__SCRSIZE)
-  CHECK_FUNCTION_EXISTS (GetConsoleScreenBufferInfo    H5_HAVE_GETCONSOLESCREENBUFFERINFO)
+  IF (NOT CYGWIN AND NOT MINGW)
+    CHECK_FUNCTION_EXISTS (GetConsoleScreenBufferInfo    H5_HAVE_GETCONSOLESCREENBUFFERINFO)
+  ENDIF (NOT CYGWIN AND NOT MINGW)
   CHECK_SYMBOL_EXISTS (TIOCGWINSZ "sys/ioctl.h" H5_HAVE_TIOCGWINSZ)
   CHECK_SYMBOL_EXISTS (TIOCGETD   "sys/ioctl.h" H5_HAVE_TIOCGETD)
 ENDIF (NOT WINDOWS)
@@ -1027,7 +1043,9 @@ H5MiscConversionTest (H5_SIZEOF_LONG_DOUBLE H5_LDOUBLE_TO_INTEGER_ACCURATE "chec
 # integers except 'unsigned long long'.  Other HP-UX systems are unknown
 # yet. (1/8/05 - SLU)
 #
-H5ConversionTests (H5_LDOUBLE_TO_INTEGER_WORKS "Checking IF converting from long double to integers works")
+IF (NOT MSVC)
+  H5ConversionTests (H5_LDOUBLE_TO_INTEGER_WORKS "Checking IF converting from long double to integers works")
+ENDIF (NOT MSVC)
 # -----------------------------------------------------------------------
 # Set flag to indicate that the machine can handle conversion from
 # integers to long double.  (This flag should be set "yes" for all
@@ -1053,7 +1071,11 @@ H5ConversionTests (H5_ULONG_TO_FLOAT_ACCURATE "Checking IF accurately converting
 # 64-bit machines, where the short program below tests if round-up is
 # correctly handled.
 #
-H5ConversionTests (H5_ULONG_TO_FP_BOTTOM_BIT_ACCURATE "Checking IF accurately converting unsigned long long to floating-point values")
+IF (CMAKE_SYSTEM MATCHES "solaris2.*")
+  H5ConversionTests (H5_ULONG_TO_FP_BOTTOM_BIT_ACCURATE "Checking IF accurately converting unsigned long long to floating-point values")
+ELSE (CMAKE_SYSTEM MATCHES "solaris2.*")
+  SET(H5_ULONG_TO_FP_BOTTOM_BIT_ACCURATE 1)
+ENDIF (CMAKE_SYSTEM MATCHES "solaris2.*")
 # ----------------------------------------------------------------------
 # Set the flag to indicate that the machine can accurately convert
 # 'float' or 'double' to 'unsigned long long' values.
@@ -1101,7 +1123,9 @@ ENDIF (H5_LLONG_TO_FP_CAST_WORKS MATCHES ^H5_LLONG_TO_FP_CAST_WORKS$)
 # where the last 2 bytes of mantissa are lost when compiler tries to do
 # the conversion, and Cygwin where compiler doesn't do rounding correctly.)
 #
-H5ConversionTests (H5_ULLONG_TO_LDOUBLE_PRECISION "Checking IF converting unsigned long long to long double with precision")
+IF (NOT MSVC)
+  H5ConversionTests (H5_ULLONG_TO_LDOUBLE_PRECISION "Checking IF converting unsigned long long to long double with precision")
+ENDIF (NOT MSVC)
 # ----------------------------------------------------------------------
 # Set the flag to indicate that the machine can handle overflow converting
 # all floating-point to all integer types.
@@ -1167,9 +1191,3 @@ ENDIF (H5_BAD_LOG2_CODE_GENERATED MATCHES ^H5_BAD_LOG2_CODE_GENERATED$)
 # Check if pointer alignments are enforced
 #
 H5ConversionTests (H5_NO_ALIGNMENT_RESTRICTIONS "Checking IF alignment restrictions are strictly enforced")
-
-# Define a macro for Cygwin (on XP only) where the compiler has rounding
-#   problem converting from unsigned long long to long double */
-IF (CYGWIN)
-  SET (H5_CYGWIN_ULLONG_TO_LDOUBLE_ROUND_PROBLEM 1)
-ENDIF (CYGWIN)

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5_CPP_SRC)
 
 #-----------------------------------------------------------------------------
@@ -40,6 +40,7 @@ SET (CPP_SRCS
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5IdComponent.cpp
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5IntType.cpp
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5Library.cpp
+    ${HDF5_CPP_SRC_SOURCE_DIR}/H5Location.cpp
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5Object.cpp
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5PredType.cpp
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5PropList.cpp
@@ -74,6 +75,7 @@ SET (CPP_HDRS
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5Include.h
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5IntType.h
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5Library.h
+    ${HDF5_CPP_SRC_SOURCE_DIR}/H5Location.h
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5Object.h
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5PredType.h
     ${HDF5_CPP_SRC_SOURCE_DIR}/H5PropList.h
@@ -82,6 +84,7 @@ SET (CPP_HDRS
 )
 
 ADD_LIBRARY (${HDF5_CPP_LIB_TARGET} ${LIB_TYPE} ${CPP_SRCS} ${CPP_HDRS})
+TARGET_C_PROPERTIES (${HDF5_CPP_LIB_TARGET} " " " ")
 TARGET_LINK_LIBRARIES (${HDF5_CPP_LIB_TARGET} ${HDF5_LIB_TARGET})
 SET_GLOBAL_VARIABLE (HDF5_LIBRARIES_TO_EXPORT "${HDF5_LIBRARIES_TO_EXPORT};${HDF5_CPP_LIB_TARGET}")
 H5_SET_LIB_OPTIONS (${HDF5_CPP_LIB_TARGET} ${HDF5_CPP_LIB_NAME} ${LIB_TYPE})
@@ -94,7 +97,7 @@ INSTALL (
     FILES
         ${CPP_HDRS}
     DESTINATION
-        ${HDF5_INSTALL_INCLUDE_DIR}/cpp
+        ${HDF5_INSTALL_INCLUDE_DIR}
     COMPONENT
         cppheaders
 )

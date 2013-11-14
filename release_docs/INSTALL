@@ -263,10 +263,10 @@ CONTENTS
         To configure AIX 64-bit support including the Fortran and C++ APIs,
         (Note: need to set $AR to 'ar -X 64'.)
         Serial:
-            $ CFLAGS=-q64 FFLAGS=-q64 CXXFLAGS=-q64 AR='ar -X 64'\
+            $ CFLAGS=-q64 FCFLAGS=-q64 CXXFLAGS=-q64 AR='ar -X 64'\
               ./configure --enable-fortran
         Parallel: (C++ not supported with parallel)
-            $ CFLAGS=-q64 FFLAGS=-q64 AR='ar -X 64'\
+            $ CFLAGS=-q64 FCFLAGS=-q64 AR='ar -X 64'\
               ./configure --enable-fortran
 
 4.3.4. Additional compilation flags
@@ -301,13 +301,13 @@ CONTENTS
               Intel or PGI compilers. 
 
 4.3.6. Specifying other programs
-        The build system has been tuned for use with GNU make but also 
-        works with other versions of make.  If the `make' command runs a
-        non-GNU version but a GNU version is available under a different
-        name (perhaps `gmake'), then HDF5 can be configured to use it by
-        setting the MAKE variable. Note that whatever value is used for
-        MAKE must also be used as the make command when building the
-        library:
+        The build system has been tuned for use with GNU make which is
+        the preferred version. Other versions of make may or may not work
+        completely.  If the `make' command runs a non-GNU version but a GNU
+        version is available under a different name (perhaps `gmake'), then
+        HDF5 can be configured to use it by setting the MAKE variable. Note
+        that whatever value is used for MAKE must also be used as the make
+        command when building the library:
 
             $ MAKE=gmake ./configure
             $ gmake
@@ -515,8 +515,8 @@ CONTENTS
 
             $ bin/deploy NEW_DIR
 
-        This will install HDF5 in NEW_DIR.  Alternately, you can do this
-        manually by issuing the command:
+        This will install HDF5 in NEW_DIR.  Alternately, if shared libraries 
+        were disabled, you can do this manually by issuing the command:
 
             $ make install prefix=NEW_DIR
 
@@ -524,6 +524,11 @@ CONTENTS
         If you do not use the deploy script, you should run h5redeploy in
         NEW_DIR/bin directory.  This utility will fix the h5cc, h5fc and
         h5c++ scripts to reflect the new NEW_DIR location.
+
+        If shared libraries were enabled, configure must be run with 
+        --prefix=<final install directory>.  HDF5 can then be installed 
+        directly with "make install" or using a stage directory with 
+        "make install DESTDIR=STAGE_DIR".
 
         The library can be used without installing it by pointing the
         compiler at the `src' and 'src/.libs' directory for include files and

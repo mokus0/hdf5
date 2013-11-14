@@ -140,7 +140,7 @@ H5_init_library(void)
 	MPI_Initialized(&mpi_initialized);
 	if (mpi_initialized){
 	    mpe_code = MPE_Init_log();
-	    assert(mpe_code >=0);
+	    HDassert(mpe_code >=0);
 	    H5_MPEinit_g = TRUE;
 	}
     }
@@ -267,6 +267,9 @@ H5_term_library(void)
             pending += DOWN(Z);
             pending += DOWN(FD);
             pending += DOWN(P);
+#ifndef H5_VMS
+            pending += DOWN(PL);
+#endif /*H5_VMS*/
             /* Don't shut down the error code until other APIs which use it are shut down */
             if(pending == 0)
                 pending += DOWN(E);
@@ -304,7 +307,7 @@ H5_term_library(void)
 	MPI_Initialized(&mpi_initialized);
 	if(mpi_initialized) {
 	    mpe_code = MPE_Finish_log("h5log");
-	    assert(mpe_code >=0);
+	    HDassert(mpe_code >=0);
 	} /* end if */
 	H5_MPEinit_g = FALSE;	/* turn it off no matter what */
     } /* end if */
@@ -710,14 +713,14 @@ H5check_version(unsigned majnum, unsigned minnum, unsigned relnum)
 
     if (!disable_version_check){
 	/*
-	 *verify if H5_VERS_INFO is consistent with the other version information.
-	 *Check only the first sizeof(lib_str) char.  Assume the information
-	 *will fit within this size or enough significance.
+	 * Verify if H5_VERS_INFO is consistent with the other version information.
+	 * Check only the first sizeof(lib_str) char.  Assume the information
+	 * will fit within this size or enough significance.
 	 */
-	sprintf(lib_str, "HDF5 library version: %d.%d.%d",
+	HDsnprintf(lib_str, sizeof(lib_str), "HDF5 library version: %d.%d.%d",
 	    H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE);
 	if(*substr) {
-	    HDstrcat(lib_str, "-");
+	    HDstrncat(lib_str, "-", 1);
 	    HDstrncat(lib_str, substr, (sizeof(lib_str) - HDstrlen(lib_str)) - 1);
 	} /* end if */
 	if (HDstrcmp(lib_str, H5_lib_vers_info_g)){

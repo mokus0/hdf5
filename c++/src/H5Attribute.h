@@ -14,13 +14,21 @@
  * access to either file, you may request a copy from help@hdfgroup.org.     *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#ifndef _H5Attribute_H
-#define _H5Attribute_H
+#ifndef __H5Attribute_H
+#define __H5Attribute_H
 
 #ifndef H5_NO_NAMESPACE
 namespace H5 {
 #endif
 
+/*! \class Attribute
+    \brief Class Attribute operates on HDF5 attributes.
+
+    An attribute has many characteristics similar to a dataset, thus both
+    Attribute and DataSet are derivatives of AbstractDs.  Attribute also
+    inherits from IdComponent because an attribute is an HDF5 component that
+    is identified by an identifier.
+*/
 class H5_DLLCPP Attribute : public AbstractDs, public IdComponent {
    public:
 	// Closes this attribute.
@@ -55,7 +63,7 @@ class H5_DLLCPP Attribute : public AbstractDs, public IdComponent {
 	// attribute to disk.
 	void flush( H5F_scope_t scope ) const;
 
-	///\brief Returns this class name
+	///\brief Returns this class name.
 	virtual H5std_string fromClass () const { return("Attribute"); }
 
 	// Creates a copy of an existing attribute using the attribute id
@@ -99,4 +107,4 @@ class H5_DLLCPP Attribute : public AbstractDs, public IdComponent {
 #ifndef H5_NO_NAMESPACE
 }
 #endif
-#endif
+#endif // __H5Attribute_H

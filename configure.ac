@@ -16,7 +16,7 @@
 ## ----------------------------------------------------------------------
 ## Initialize configure.
 ##
-AC_REVISION($Id: configure.ac 23659 2013-04-30 21:50:05Z acheng $)
+AC_REVISION($Id: configure.ac 24276 2013-10-09 22:00:11Z epourmal $)
 AC_PREREQ([2.69])
 
 ## AC_INIT takes the name of the package, the version number, and an
@@ -26,7 +26,7 @@ AC_PREREQ([2.69])
 ## NOTE: Do not forget to change the version number here when we do a
 ## release!!!
 ##
-AC_INIT([HDF5], [1.8.11], [help@hdfgroup.org])
+AC_INIT([HDF5], [1.8.12], [help@hdfgroup.org])
 AC_CONFIG_SRCDIR([src/H5.c])
 AC_CONFIG_HEADER([src/H5config.h])
 
@@ -431,14 +431,6 @@ if test "X$HDF_FORTRAN" = "Xyes"; then
   AC_SUBST([HID_T])
   AC_SUBST([SIZE_T])
   AC_SUBST([OBJECT_NAMELEN_DEFAULT_F])
-
-  ## --------------------------------------------------------------------
-  ## General Fortran flags
-  ## Only add FFLAGS to FCFLAGS if it's set.
-  if test "x$FFLAGS" != "x" ; then
-    AM_FCFLAGS="${AM_FCFLAGS} ${FFLAGS}"
-    FCFLAGS="${FCFLAGS} ${FFLAGS}"
-  fi
 
   ## --------------------------------------------------------------------
   ## Fortran source extention
@@ -1027,18 +1019,6 @@ if test "X${ALLOW_UNSUPPORTED}" != "Xyes"; then
 fi
 
 ## ----------------------------------------------------------------------
-## The GCC compiler on Cygwin running on Windows XP has rounding problem
-## in the data conversion dt_arith.c from unsigned long long to long 
-## double (see bug HDFFV-1264).  I define a macro here to skip the test for
-## Cygwin.  I'll come back and figure out the problem once I'm available.
-## 2010/5/5 - SLU
-case "`uname`" in
-  CYGWIN*)
-    AC_DEFINE([CYGWIN_ULLONG_TO_LDOUBLE_ROUND_PROBLEM], [1], [Define a macro for Cygwin (on XP only) where the compiler has rounding problem converting from unsigned long long to long double])
-    ;;
-esac
-
-## ----------------------------------------------------------------------
 ## Windows won't create DLLs without the following macro.
 ##
 AC_LIBTOOL_WIN32_DLL
@@ -1066,12 +1046,15 @@ if test "X$STATIC_EXEC" = "Xyes"; then
   ## Issue a warning if -static flag is not supported.
   if test "X$lt_cv_prog_compiler_static_works" = "Xno"; then
       echo "    warning: -static flag not supported on this system; executable won't statically link shared system libraries."
+      LT_STATIC_EXEC=""
+  else
+    LT_STATIC_EXEC="-all-static"
   fi
-  LT_STATIC_EXEC="-all-static"
 else
   echo "no"
   LT_STATIC_EXEC=""
 fi
+AM_CONDITIONAL([USE_PLUGINS_CONDITIONAL], [test "X$LT_STATIC_EXEC" = X])
 
 AC_SUBST([LT_STATIC_EXEC])
 
@@ -1507,7 +1490,7 @@ case "$host_cpu-$host_vendor-$host_os" in
     ;;
 esac
 
-## Need to add the AM_ and H5_ into CPFLAGS/CPPFLAGS to make them visible 
+## Need to add the AM_ and H5_ into CFLAGS/CPPFLAGS to make them visible 
 ## for configure checks.
 ## Note: Both will be restored by the end of configure.
 CPPFLAGS="$H5_CPPFLAGS $AM_CPPFLAGS $CPPFLAGS"
@@ -1883,7 +1866,7 @@ case $withval in
     
     AC_CHECK_HEADERS([szlib.h],
                      [HAVE_SZLIB_H="yes"],
-                     [CPPFLAGS="$saved_CPPFLAGS"; AM_CPPFLAGS="$saved_AM_CPPFLAGS"] [unset HAVE_SZIP])
+                     [CPPFLAGS="$saved_CPPFLAGS"; AM_CPPFLAGS="$saved_AM_CPPFLAGS"] [unset HAVE_SZLIB])
 
     if test -n "$szlib_lib"; then
       LDFLAGS="$LDFLAGS -L$szlib_lib"
@@ -2188,7 +2171,14 @@ AC_TRY_COMPILE([
 ## ----------------------------------------------------------------------
 ## How do we figure out the width of a tty in characters?
 ##
-AC_CHECK_FUNCS([_getvideoconfig gettextinfo GetConsoleScreenBufferInfo])
+AC_CHECK_FUNCS([_getvideoconfig gettextinfo])
+case "`uname`" in
+  CYGWIN*)
+    ;;
+  *)
+    AC_CHECK_FUNCS([GetConsoleScreenBufferInfo])
+    ;;
+esac
 AC_CHECK_FUNCS([_scrsize ioctl])
 
 AC_MSG_CHECKING([for struct videoconfig])
@@ -2748,10 +2738,7 @@ case "X-$enable_parallel" in
           integer:: ierr
           call mpi_file_open( ierr )
           end],,
-          [AC_CHECK_LIB([mpi], [
-            include 'mpif.h'
-            integer:: ierr
-            call mpi_file_open( ierr )],, [PARALLEL=no])])
+          [AC_CHECK_LIB([mpi], [mpi_file_open],, [PARALLEL=no])])
 
       ## Then try link a simple MPI-IO program.  If fail, try again with
       ## -lmpio.
@@ -2762,10 +2749,7 @@ case "X-$enable_parallel" in
             integer:: ierr
             call mpi_file_open( ierr )
             end],,
-            [AC_CHECK_LIB([mpio], [
-              include 'mpif.h'
-              integer:: ierr
-              call mpi_file_open( ierr )],, [PARALLEL=no])])
+            [AC_CHECK_LIB([mpio], [mpi_file_open],, [PARALLEL=no])])
       fi
 
       ## Change to the C language
@@ -3131,6 +3115,27 @@ else
 fi
 
 AM_CONDITIONAL([DIRECT_VFD_CONDITIONAL], [test "X$DIRECT_VFD" = "Xyes"])
+
+## ----------------------------------------------------------------------
+## Enable custom plugin default path for library.  It requires SHARED support.
+##
+AC_MSG_CHECKING([for custom plugin default path definition])
+AC_ARG_WITH([default-plugindir],
+            [AS_HELP_STRING([--with-default-plugindir=location],
+                            [Specify default location for plugins
+                            [default="/usr/local/hdf5/lib/plugin"]])],,
+            withval="/usr/local/hdf5/lib/plugin")
+
+if test "X$withval" = "X"; then
+    AC_MSG_RESULT([default])
+    default_plugindir="/usr/local/hdf5/lib/plugin"
+else
+    AC_MSG_RESULT([$withval])
+    default_plugindir=$withval
+fi
+
+AC_DEFINE_UNQUOTED([DEFAULT_PLUGINDIR], ["$default_plugindir"],
+            [Define the default plugins path to compile])
 
 ## ----------------------------------------------------------------------
 ## Decide whether the presence of user's exception handling functions is
@@ -4274,7 +4279,7 @@ esac
 AC_SUBST([DEFAULT_API_VERSION])
 AC_MSG_CHECKING([which version of public symbols to use by default])
 AC_ARG_WITH([default-api-version],
-            [AS_HELP_STRING([--with-default-api-version=(v16|v18|v110)],
+            [AS_HELP_STRING([--with-default-api-version=(v16|v18)],
                             [Specify default release version of public symbols
                              [default=v18]])],,
             withval=v18)
@@ -4305,7 +4310,7 @@ fi
 ## Enable strict file format checks
 ##
 AC_SUBST([STRICT_FORMAT_CHECKS])
-AC_MSG_CHECKING([Whether to perform strict file format checks]);
+AC_MSG_CHECKING([whether to perform strict file format checks]);
 AC_ARG_ENABLE([strict-format-checks],
               [AS_HELP_STRING([--enable-strict-format-checks],
                      [Enable strict file format checks, default=yes if
@@ -4338,7 +4343,7 @@ esac
 ## ----------------------------------------------------------------------
 ## Enable embedded library information
 ##
-AC_MSG_CHECKING([Whether to have library information embedded in the executables])
+AC_MSG_CHECKING([whether to have library information embedded in the executables])
 AC_ARG_ENABLE([embedded-libinfo],
     [AS_HELP_STRING([--enable-embedded-libinfo],
 	[Enable embedded library information [default=yes]])],
@@ -4552,6 +4557,7 @@ AC_CONFIG_FILES([src/libhdf5.settings
                  tools/h5jam/testh5jam.sh
                  tools/h5repack/Makefile
                  tools/h5repack/h5repack.sh
+                 tools/h5repack/h5repack_plugin.sh
                  tools/h5ls/Makefile
                  tools/h5copy/Makefile
                  tools/h5copy/testh5copy.sh

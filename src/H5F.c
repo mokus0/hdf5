@@ -839,22 +839,25 @@ done:
 htri_t
 H5Fis_hdf5(const char *name)
 {
-    H5FD_t	*file = NULL;           /* Low-level file struct */
-    htri_t	ret_value;              /* Return value */
+    H5FD_t      *file = NULL;           /* Low-level file struct */
+    haddr_t     sig_addr;               /* Address of hdf5 file signature */
+    htri_t      ret_value;              /* Return value */
 
     FUNC_ENTER_API(FAIL)
     H5TRACE1("t", "*s", name);
 
     /* Check args and all the boring stuff. */
     if(!name || !*name)
-	HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "no file name specified")
+        HGOTO_ERROR(H5E_ARGS, H5E_BADRANGE, FAIL, "no file name specified")
 
     /* Open the file at the virtual file layer */
     if(NULL == (file = H5FD_open(name, H5F_ACC_RDONLY, H5P_FILE_ACCESS_DEFAULT, HADDR_UNDEF)))
-	HGOTO_ERROR(H5E_IO, H5E_CANTINIT, FAIL, "unable to open file")
+        HGOTO_ERROR(H5E_IO, H5E_CANTINIT, FAIL, "unable to open file")
 
     /* The file is an hdf5 file if the hdf5 file signature can be found */
-    ret_value = (HADDR_UNDEF != H5F_locate_signature(file, H5AC_ind_dxpl_id));
+    if(H5F_locate_signature(file, H5AC_ind_dxpl_id, &sig_addr) < 0)
+        HGOTO_ERROR(H5E_FILE, H5E_NOTHDF5, FAIL, "unable to locate file signature")
+    ret_value = (HADDR_UNDEF != sig_addr);
 
 done:
     /* Close the file */
@@ -2367,8 +2370,10 @@ H5F_build_actual_name(const H5F_t *f, const H5P_genplist_t *fapl, const char *na
     } /* end else */
 
 done:
-    if(new_fapl_id > 0 && H5Pclose(new_fapl_id) < 0)
-        HGOTO_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "can't close duplicated FAPL")
+    /* Close the property list */
+    if(new_fapl_id > 0)
+        if(H5I_dec_app_ref(new_fapl_id) < 0)
+            HDONE_ERROR(H5E_FILE, H5E_CANTCLOSEOBJ, FAIL, "can't close duplicated FAPL")
 
     FUNC_LEAVE_NOAPI(ret_value)
 } /* H5F_build_actual_name() */
@@ -2595,16 +2600,15 @@ done:
  *              david.pitt@bigpond.com
  *              Apr 27, 2004
  *
- * Modifications:
- *
  *-------------------------------------------------------------------------
  */
 herr_t
 H5Fget_filesize(hid_t file_id, hsize_t *size)
 {
-    H5F_t      *file;                   /* File object for file ID */
-    haddr_t    eof;                     /* End of file address */
-    herr_t     ret_value = SUCCEED;     /* Return value */
+    H5F_t       *file;                  /* File object for file ID */
+    haddr_t     eof;                    /* End of file address */
+    haddr_t     base_addr;              /* Base address for the file */
+    herr_t      ret_value = SUCCEED;    /* Return value */
 
     FUNC_ENTER_API(FAIL)
     H5TRACE2("e", "i*h", file_id, size);
@@ -2614,10 +2618,12 @@ H5Fget_filesize(hid_t file_id, hsize_t *size)
         HGOTO_ERROR(H5E_ARGS, H5E_BADVALUE, FAIL, "not a file ID")
 
     /* Go get the actual file size */
-    if(HADDR_UNDEF == (eof = H5FDget_eof(file->shared->lf)))
+    if(HADDR_UNDEF == (eof = H5FD_get_eof(file->shared->lf)))
         HGOTO_ERROR(H5E_FILE, H5E_CANTGET, FAIL, "unable to get file size")
+    base_addr = H5FD_get_base_addr(file->shared->lf);
 
-    *size = (hsize_t)eof;
+    if(size)
+        *size = (hsize_t)(eof + base_addr);     /* Convert relative base address for file to absolute address */
 
 done:
     FUNC_LEAVE_API(ret_value)

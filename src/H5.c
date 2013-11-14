@@ -140,7 +140,7 @@ H5_init_library(void)
 	MPI_Initialized(&mpi_initialized);
 	if (mpi_initialized){
 	    mpe_code = MPE_Init_log();
-	    assert(mpe_code >=0);
+	    HDassert(mpe_code >=0);
 	    H5_MPEinit_g = TRUE;
 	}
     }
@@ -267,7 +267,9 @@ H5_term_library(void)
             pending += DOWN(Z);
             pending += DOWN(FD);
             pending += DOWN(P);
+#ifndef H5_VMS
             pending += DOWN(PL);
+#endif /*H5_VMS*/
             /* Don't shut down the error code until other APIs which use it are shut down */
             if(pending == 0)
                 pending += DOWN(E);
@@ -305,7 +307,7 @@ H5_term_library(void)
 	MPI_Initialized(&mpi_initialized);
 	if(mpi_initialized) {
 	    mpe_code = MPE_Finish_log("h5log");
-	    assert(mpe_code >=0);
+	    HDassert(mpe_code >=0);
 	} /* end if */
 	H5_MPEinit_g = FALSE;	/* turn it off no matter what */
     } /* end if */

@@ -46,7 +46,7 @@ TEST_PROG=testhdf5 lheap ohdr stab gheap cache cache_api \
            big mtime fillval mount flush1 flush2 app_ref enum \
            set_extent ttsafe \
            getname vfd ntypes dangle dtransform reserved cross_read \
-           freespace mf btree2 fheap file_image
+           freespace mf btree2 fheap file_image unregister
 
 # List programs to be built when testing here. error_test and err_compat are
 # built at the same time as the other tests, but executed by testerror.sh.
@@ -130,7 +130,7 @@ CHECK_CLEANFILES+=accum.h5 cmpd_dset.h5 compact_dataset.h5 dataset.h5 dset_offse
     max_compact_dataset.h5 simple.h5 set_local.h5 random_chunks.h5 \
     huge_chunks.h5 chunk_cache.h5 big_chunk.h5 chunk_expand.h5 \
     copy_dcpl_newfile.h5 extend.h5 istore.h5 extlinks*.h5 frspace.h5 links*.h5 \
-    sys_file1 tfile[1-6].h5 th5s[1-4].h5 lheap.h5 fheap.h5 ohdr.h5 \
+    sys_file1 tfile[1-7].h5 th5s[1-4].h5 lheap.h5 fheap.h5 ohdr.h5 \
     stab.h5 extern_[1-3].h5 extern_[1-4][ab].raw gheap[0-4].h5 \
     dt_arith[1-2] links.h5 links[0-6]*.h5 extlinks[0-15].h5 tmp \
     big.data big[0-9][0-9][0-9][0-9][0-9].h5  \
@@ -150,7 +150,7 @@ CHECK_CLEANFILES+=accum.h5 cmpd_dset.h5 compact_dataset.h5 dataset.h5 dset_offse
     tcheck_version_*.err efc[0-5].h5 log_vfd_out.log \
     new_multi_file_v16-r.h5 new_multi_file_v16-s.h5 \
     split_get_file_image_test-m.h5 split_get_file_image_test-r.h5    \
-    file_image_core_test.h5.copy
+    file_image_core_test.h5.copy unregister_filter_1.h5 unregister_filter_2.h5
 
 # Sources for testhdf5 executable
 testhdf5_SOURCES=testhdf5.c tarray.c tattr.c tchecksum.c tconfig.c tfile.c \

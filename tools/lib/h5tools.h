@@ -36,6 +36,12 @@
 
 #define H5TOOLS_DUMP_MAX_RANK     H5S_MAX_RANK
 
+/* Stream macros */
+#define FLUSHSTREAM(S)           if(S != NULL) HDfflush(S)
+#define PRINTSTREAM(S, F, ...)   if(S != NULL) HDfprintf(S, F, __VA_ARGS__)
+#define PRINTVALSTREAM(S, V)   if(S != NULL) HDfprintf(S, V)
+#define PUTSTREAM(X,S)          if(S != NULL) HDfputs(X, S);
+
 /*
  * Strings for output - these were duplicated from the h5dump.h
  * file in order to support region reference data display
@@ -435,7 +441,7 @@ typedef struct h5tool_format_t {
      * indentlevel: a string that shows how far to indent if extra spacing
      *              is needed. dumper uses it.
      */
-    int         line_ncols;             /*columns of output             */
+    unsigned    line_ncols;             /*columns of output             */
     size_t      line_per_line;          /*max elements per line         */
     const char  *line_pre;              /*prefix at front of each line  */
     const char  *line_1st;              /*alternate pre. on first line  */
@@ -524,6 +530,7 @@ H5TOOLS_DLLVAR int     packed_bits_num;     /* number of packed bits to display 
 H5TOOLS_DLLVAR int     packed_data_offset;  /* offset of packed bits to display */
 H5TOOLS_DLLVAR int     packed_data_length; /* lengtht of packed bits to display */
 H5TOOLS_DLLVAR unsigned long long packed_data_mask;  /* mask in which packed bits to display */
+H5TOOLS_DLLVAR FILE   *rawattrstream;       /* output stream for raw attribute data */
 H5TOOLS_DLLVAR FILE   *rawdatastream;       /* output stream for raw data */
 H5TOOLS_DLLVAR FILE   *rawoutstream;        /* output stream for raw output */
 H5TOOLS_DLLVAR FILE   *rawerrorstream;      /* output stream for raw error */

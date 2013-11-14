@@ -40,7 +40,7 @@ if((msg = H5E_create_msg(cls, H5E_MAJOR, "Data storage"))==NULL)
 if((H5E_STORAGE_g = H5I_register(H5I_ERROR_MSG, msg, FALSE))<0)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTREGISTER, FAIL, "can't register error message")
 assert(H5E_FILE_g==(-1));
-if((msg = H5E_create_msg(cls, H5E_MAJOR, "File accessability"))==NULL)
+if((msg = H5E_create_msg(cls, H5E_MAJOR, "File accessibilty"))==NULL)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTINIT, FAIL, "error message initialization failed")
 if((H5E_FILE_g = H5I_register(H5I_ERROR_MSG, msg, FALSE))<0)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTREGISTER, FAIL, "can't register error message")
@@ -53,6 +53,11 @@ assert(H5E_SYM_g==(-1));
 if((msg = H5E_create_msg(cls, H5E_MAJOR, "Symbol table"))==NULL)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTINIT, FAIL, "error message initialization failed")
 if((H5E_SYM_g = H5I_register(H5I_ERROR_MSG, msg, FALSE))<0)
+    HGOTO_ERROR(H5E_ERROR, H5E_CANTREGISTER, FAIL, "can't register error message")
+assert(H5E_PLUGIN_g==(-1));
+if((msg = H5E_create_msg(cls, H5E_MAJOR, "Plugin for dynamically loaded library"))==NULL)
+    HGOTO_ERROR(H5E_ERROR, H5E_CANTINIT, FAIL, "error message initialization failed")
+if((H5E_PLUGIN_g = H5I_register(H5I_ERROR_MSG, msg, FALSE))<0)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTREGISTER, FAIL, "can't register error message")
 assert(H5E_VFL_g==(-1));
 if((msg = H5E_create_msg(cls, H5E_MAJOR, "Virtual File Layer"))==NULL)
@@ -467,7 +472,14 @@ if((msg = H5E_create_msg(cls, H5E_MINOR, "No error"))==NULL)
 if((H5E_NONE_MINOR_g = H5I_register(H5I_ERROR_MSG, msg, FALSE))<0)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTREGISTER, FAIL, "can't register error message")
 
-/* File accessability errors */
+/* Plugin errors */
+assert(H5E_OPENERROR_g==(-1));
+if((msg = H5E_create_msg(cls, H5E_MINOR, "Can't open directory or file"))==NULL)
+    HGOTO_ERROR(H5E_ERROR, H5E_CANTINIT, FAIL, "error message initialization failed")
+if((H5E_OPENERROR_g = H5I_register(H5I_ERROR_MSG, msg, FALSE))<0)
+    HGOTO_ERROR(H5E_ERROR, H5E_CANTREGISTER, FAIL, "can't register error message")
+
+/* File accessibilty errors */
 assert(H5E_FILEEXISTS_g==(-1));
 if((msg = H5E_create_msg(cls, H5E_MINOR, "File already exists"))==NULL)
     HGOTO_ERROR(H5E_ERROR, H5E_CANTINIT, FAIL, "error message initialization failed")

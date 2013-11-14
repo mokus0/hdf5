@@ -28,6 +28,7 @@ H5E_STORAGE_g=
 H5E_FILE_g=    
 H5E_SOHM_g=    
 H5E_SYM_g=    
+H5E_PLUGIN_g=    
 H5E_VFL_g=    
 H5E_INTERNAL_g=    
 H5E_BTREE_g=    
@@ -131,7 +132,10 @@ H5E_PATH_g=
 /* No error */    
 H5E_NONE_MINOR_g=
 
-/* File accessability errors */    
+/* Plugin errors */    
+H5E_OPENERROR_g=
+
+/* File accessibilty errors */    
 H5E_FILEEXISTS_g=    
 H5E_FILEOPEN_g=    
 H5E_CANTCREATE_g=    

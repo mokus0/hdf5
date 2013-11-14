@@ -2889,6 +2889,86 @@ done:
 
 
 /*-------------------------------------------------------------------------
+ * Function:	H5T__conv_enum_numeric
+ *
+ * Purpose:	Converts enumerated data to a numeric type (integer or 
+ *              floating-point number). This function is registered into 
+ *              the conversion table twice in H5T_init_interface in H5T.c.  
+ *              Once for enum-integer conversion. Once for enum-float conversion.
+ *
+ * Return:	Success:	Non-negative
+ *
+ *		Failure:	negative
+ *
+ * Programmer:	Raymond Lu
+ *              12 October 2012
+ *-------------------------------------------------------------------------
+ */
+herr_t
+H5T__conv_enum_numeric(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
+	      size_t buf_stride, size_t UNUSED bkg_stride, void *_buf,
+              void UNUSED *bkg, hid_t UNUSED dxpl_id)
+{
+    H5T_t	*src, *dst;		/*src and dst datatypes	*/
+    H5T_t	*src_parent;		/*parent type for src           */
+    hid_t       src_parent_id = -1;     /*ID for parent of the source   */
+    H5T_path_t  *tpath;                 /* Conversion information       */
+    herr_t      ret_value = SUCCEED;    /* Return value                 */
+
+    FUNC_ENTER_PACKAGE
+
+    switch(cdata->command) {
+        case H5T_CONV_INIT:
+            /*
+             * Determine if this conversion function applies to the conversion
+             * path SRC_ID->DST_ID.  If not, return failure.
+             */
+            if(NULL == (src = (H5T_t *)H5I_object(src_id)) || NULL == (dst = (H5T_t *)H5I_object(dst_id)))
+                HGOTO_ERROR(H5E_DATATYPE, H5E_BADTYPE, FAIL, "not a datatype")
+            if(H5T_ENUM != src->shared->type)
+                HGOTO_ERROR(H5E_DATATYPE, H5E_BADTYPE, FAIL, "source type is not a H5T_ENUM datatype")
+            if(H5T_INTEGER != dst->shared->type && H5T_FLOAT != dst->shared->type)
+                HGOTO_ERROR(H5E_DATATYPE, H5E_BADTYPE, FAIL, "destination is not an integer type")
+
+            cdata->need_bkg = H5T_BKG_NO;
+            break;
+
+        case H5T_CONV_FREE:
+            break;
+
+        case H5T_CONV_CONV:
+            if(NULL == (src = (H5T_t *)H5I_object(src_id)) || NULL == (dst = (H5T_t *)H5I_object(dst_id)))
+                HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "not a datatype")
+
+            src_parent = src->shared->parent;
+
+            if(NULL == (tpath = H5T_path_find(src_parent, dst, NULL, NULL, dxpl_id, FALSE))) {
+	        HGOTO_ERROR(H5E_DATASET, H5E_UNSUPPORTED, FAIL, "unable to convert between src and dest datatype")
+            } else if(!H5T_path_noop(tpath)) {
+                if((src_parent_id = H5I_register(H5I_DATATYPE, H5T_copy(src_parent, H5T_COPY_ALL), FALSE)) < 0) 
+                    HGOTO_ERROR(H5E_DATASET, H5E_CANTREGISTER, FAIL, "unable to register types for conversion")
+
+                /* Convert the data */
+                if(H5T_convert(tpath, src_parent_id, dst_id, nelmts, buf_stride, bkg_stride, _buf, bkg, dxpl_id) < 0)
+                    HGOTO_ERROR(H5E_DATATYPE, H5E_CANTINIT, FAIL, "datatype conversion failed")
+            }
+            break;
+
+        default:
+            /* Some other command we don't know about yet.*/
+            HGOTO_ERROR(H5E_DATATYPE, H5E_UNSUPPORTED, FAIL, "unknown conversion command")
+    } /* end switch */
+
+done:
+    /* Release the temporary datatype IDs used */
+    if(src_parent_id >= 0)
+        H5I_dec_ref(src_parent_id);
+
+    FUNC_LEAVE_NOAPI(ret_value)
+} /* end H5T__conv_enum_numeric() */
+
+
+/*-------------------------------------------------------------------------
  * Function:	H5T__conv_vlen
  *
  * Purpose:	Converts between VL datatypes in memory and on disk.
@@ -2934,17 +3014,17 @@ H5T__conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
 {
     H5T_vlen_alloc_info_t _vl_alloc_info;       /* VL allocation info buffer */
     H5T_vlen_alloc_info_t *vl_alloc_info = &_vl_alloc_info;   /* VL allocation info */
-    H5T_path_t	*tpath;			/* Type conversion path		     */
+    H5T_path_t	*tpath = NULL;		/* Type conversion path		     */
     hbool_t     noop_conv = FALSE;      /* Flag to indicate a noop conversion */
     hbool_t     write_to_file = FALSE;  /* Flag to indicate writing to file */
     hbool_t     parent_is_vlen;         /* Flag to indicate parent is vlen datatyp */
     hid_t   	tsrc_id = -1, tdst_id = -1;/*temporary type atoms	     */
-    H5T_t	*src;			/*source datatype		     */
-    H5T_t	*dst;			/*destination datatype		     */
+    H5T_t	*src = NULL;		/*source datatype		     */
+    H5T_t	*dst = NULL;		/*destination datatype		     */
     H5HG_t	bg_hobjid, parent_hobjid;
-    uint8_t	*s;		        /*source buffer			*/
-    uint8_t	*d;		        /*destination buffer		*/
-    uint8_t	*b;		        /*background buffer		*/
+    uint8_t	*s = NULL;		/*source buffer			*/
+    uint8_t	*d = NULL;		/*destination buffer		*/
+    uint8_t	*b = NULL;		/*background buffer		*/
     ssize_t	s_stride, d_stride;	/*src and dst strides		*/
     ssize_t	b_stride;	        /*bkg stride			*/
     size_t      safe;                   /*how many elements are safe to process in each pass */
@@ -3040,7 +3120,7 @@ H5T__conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
             if(tpath->cdata.need_bkg || parent_is_vlen) {
                 /* Set up initial background buffer */
                 tmp_buf_size = MAX(src_base_size, dst_base_size);
-                if(NULL == (tmp_buf = H5FL_BLK_MALLOC(vlen_seq,tmp_buf_size)))
+                if(NULL == (tmp_buf = H5FL_BLK_CALLOC(vlen_seq,tmp_buf_size)))
                     HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion")
             } /* end if */
 
@@ -3120,7 +3200,7 @@ H5T__conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
                              */
 			    if(!seq_len && !conv_buf) {
                                 conv_buf_size = ((1 / H5T_VLEN_MIN_CONF_BUF_SIZE) + 1) * H5T_VLEN_MIN_CONF_BUF_SIZE;
-                                if(NULL == (conv_buf = H5FL_BLK_MALLOC(vlen_seq, conv_buf_size)))
+                                if(NULL == (conv_buf = H5FL_BLK_CALLOC(vlen_seq, conv_buf_size)))
                                     HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion")
 			    }
                             else if(conv_buf_size < MAX(src_size, dst_size)) {
@@ -3128,6 +3208,7 @@ H5T__conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
                                 conv_buf_size = ((MAX(src_size, dst_size) / H5T_VLEN_MIN_CONF_BUF_SIZE) + 1) * H5T_VLEN_MIN_CONF_BUF_SIZE;
                                 if(NULL == (conv_buf = H5FL_BLK_REALLOC(vlen_seq, conv_buf, conv_buf_size)))
                                     HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion")
+                                HDmemset(conv_buf, 0, conv_buf_size);
                             } /* end if */
 
                             /* Read in VL sequence */
@@ -3143,6 +3224,7 @@ H5T__conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
                                 tmp_buf_size = conv_buf_size;
                                 if(NULL == (tmp_buf = H5FL_BLK_REALLOC(vlen_seq, tmp_buf, tmp_buf_size)))
                                     HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion")
+                                HDmemset(tmp_buf, 0, tmp_buf_size);
                             } /* end if */
 
                             /* If we are writing and there is a nested VL type, read
@@ -3156,6 +3238,7 @@ H5T__conv_vlen(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata, size_t nelmts,
                                         tmp_buf_size = (bg_seq_len * MAX(src_base_size, dst_base_size));
                                         if(NULL == (tmp_buf = H5FL_BLK_REALLOC(vlen_seq, tmp_buf, tmp_buf_size)))
                                             HGOTO_ERROR(H5E_RESOURCE, H5E_NOSPACE, FAIL, "memory allocation failed for type conversion")
+                                        HDmemset(tmp_buf, 0, tmp_buf_size);
                                     } /* end if */
                                     H5F_addr_decode(dst->shared->u.vlen.f, (const uint8_t **)&tmp, &(bg_hobjid.addr));
                                     INT32DECODE(tmp, bg_hobjid.idx);

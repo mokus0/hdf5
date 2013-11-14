@@ -1,4 +1,4 @@
-HDF5 version 1.8.10-patch1 released on 2013-01-22
+HDF5 version 1.8.11 released on 2013-05-08
 Please refer to the release_docs/INSTALL file for installation instructions.
 ------------------------------------------------------------------------------
 

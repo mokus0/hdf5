@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.6)
+cmake_minimum_required (VERSION 2.8.10)
 PROJECT (HDF5 C CXX)
 
 #-----------------------------------------------------------------------------
@@ -269,7 +269,7 @@ INCLUDE (${HDF5_RESOURCES_DIR}/ConfigureChecks.cmake)
 # Option to use legacy naming for windows libs/programs, default is legacy
 #-----------------------------------------------------------------------------
 IF (WIN32 AND NOT CYGWIN)
-  OPTION (HDF_LEGACY_NAMING "Use Legacy Names for Libraries and Programs" ON)
+  OPTION (HDF_LEGACY_NAMING "Use Legacy Names for Libraries and Programs" OFF)
 ENDIF (WIN32 AND NOT CYGWIN)
 
 #-----------------------------------------------------------------------------
@@ -663,7 +663,7 @@ IF (WIN32 AND NOT CYGWIN)
   IF (HDF5_ENABLE_THREADSAFE)
     # check for unsupported options
     IF (HDF5_ENABLE_PARALLEL)
-      MESSAGE (FATAL " **** Parallel and Threadsafe options are mutually exclusive **** ")
+      MESSAGE (FATAL_ERROR " **** Parallel and Threadsafe options are mutually exclusive **** ")
     ENDIF (HDF5_ENABLE_PARALLEL)
     SET (H5_HAVE_THREADSAFE 1)
     IF (H5_HAVE_IOEO)
@@ -672,7 +672,7 @@ IF (WIN32 AND NOT CYGWIN)
     ELSE (H5_HAVE_IOEO)
       IF (NOT H5_HAVE_PTHREAD_H)
         SET (H5_HAVE_THREADSAFE 0)
-        MESSAGE (FATAL " **** Threadsafe option requires thread library **** ")
+        MESSAGE (FATAL_ERROR " **** Threadsafe option requires thread library **** ")
       ENDIF (NOT H5_HAVE_PTHREAD_H)
     ENDIF (H5_HAVE_IOEO)
   ENDIF (HDF5_ENABLE_THREADSAFE)
@@ -748,8 +748,22 @@ SET (H5_FC_FUNC_ "H5_FC_FUNC_(name,NAME) name ## _")
 IF (EXISTS "${HDF5_SOURCE_DIR}/fortran" AND IS_DIRECTORY "${HDF5_SOURCE_DIR}/fortran")
   OPTION (HDF5_BUILD_FORTRAN "Build FORTRAN support" OFF)
   IF (HDF5_BUILD_FORTRAN)
+    IF (BUILD_SHARED_LIBS AND APPLE)
+      MESSAGE (FATAL_ERROR " **** Shared FORTRAN libraries are unsupported **** ")
+    ENDIF (BUILD_SHARED_LIBS AND APPLE)
     OPTION (HDF5_ENABLE_F2003 "Enable FORTRAN 2003 Standard" OFF)
     INCLUDE (${HDF5_RESOURCES_DIR}/HDF5UseFortran.cmake)
+    IF (HDF5_ENABLE_F2003)
+      IF (NOT FORTRAN_HAVE_ISO_C_BINDING)
+        SET (HDF5_ENABLE_F2003 OFF)
+      ENDIF (NOT FORTRAN_HAVE_ISO_C_BINDING)
+    ENDIF (HDF5_ENABLE_F2003)
+
+    # -----------------------------------------------------------------------
+    # wrapper script variables
+    # 
+#    SET (FCFLAGS "${Fortran_DEFINES}")
+
     ADD_SUBDIRECTORY (${HDF5_SOURCE_DIR}/fortran ${PROJECT_BINARY_DIR}/fortran)
     IF (HDF5_BUILD_HL_LIB)
       IF (EXISTS "${HDF5_SOURCE_DIR}/hl/fortran" AND IS_DIRECTORY "${HDF5_SOURCE_DIR}/hl/fortran")
@@ -778,7 +792,7 @@ IF (EXISTS "${HDF5_SOURCE_DIR}/c++" AND IS_DIRECTORY "${HDF5_SOURCE_DIR}/c++")
   IF (HDF5_BUILD_CPP_LIB)
     # check for unsupported options
     IF (HDF5_ENABLE_PARALLEL)
-      MESSAGE (FATAL " **** Parallel and C++ options are mutually exclusive **** ")
+      MESSAGE (FATAL_ERROR " **** Parallel and C++ options are mutually exclusive **** ")
     ENDIF (HDF5_ENABLE_PARALLEL)
     IF (CMAKE_NO_STD_NAMESPACE)
       SET (H5_NO_STD 1)
@@ -939,8 +953,8 @@ IF (NOT HDF5_EXTERNALLY_CONFIGURED)
   )
   IF (EXISTS "${HDF5_SOURCE_DIR}/release_docs" AND IS_DIRECTORY "${HDF5_SOURCE_DIR}/release_docs")
     SET (release_files
-        ${HDF5_SOURCE_DIR}/release_docs/CMake.txt
-        ${HDF5_SOURCE_DIR}/release_docs/USING_CMake.txt
+        ${HDF5_SOURCE_DIR}/release_docs/INSTALL_CMake.txt
+        ${HDF5_SOURCE_DIR}/release_docs/USING_HDF5_CMake.txt
         ${HDF5_SOURCE_DIR}/release_docs/COPYING
         ${HDF5_SOURCE_DIR}/release_docs/HISTORY-1_8.txt
         ${HDF5_SOURCE_DIR}/release_docs/INSTALL
@@ -955,7 +969,6 @@ IF (NOT HDF5_EXTERNALLY_CONFIGURED)
       SET (release_files
           ${release_files}
           ${HDF5_SOURCE_DIR}/release_docs/INSTALL_Cygwin.txt
-          ${HDF5_SOURCE_DIR}/release_docs/INSTALL_MinGW.txt
           ${HDF5_SOURCE_DIR}/release_docs/INSTALL_VMS.txt
       )
     ENDIF (WIN32 AND NOT CYGWIN)
@@ -980,7 +993,6 @@ IF (NOT HDF5_EXTERNALLY_CONFIGURED AND NOT HDF5_NO_PACKAGES)
   SET (CPACK_PACKAGE_VENDOR "HDF_Group")
   SET (CPACK_PACKAGE_NAME "${HDF5_PACKAGE_NAME}")
   SET (CPACK_PACKAGE_INSTALL_DIRECTORY "${HDF5_PACKAGE_NAME}")
-  SET (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${HDF5_PACKAGE_NAME}-${HDF5_PACKAGE_VERSION}-${LIB_TYPE}")
   SET (CPACK_PACKAGE_VERSION "${HDF5_PACKAGE_VERSION}")
   SET (CPACK_PACKAGE_VERSION_MAJOR "${HDF5_PACKAGE_VERSION_MAJOR}")
   SET (CPACK_PACKAGE_VERSION_MINOR "${HDF5_PACKAGE_VERSION_MINOR}")
@@ -993,10 +1005,15 @@ IF (NOT HDF5_EXTERNALLY_CONFIGURED AND NOT HDF5_NO_PACKAGES)
   SET (CPACK_PACKAGE_RELOCATABLE TRUE)
 
   IF (WIN32)
+    SET (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${HDF5_PACKAGE_NAME}-${HDF5_PACKAGE_VERSION}-${LIB_TYPE}")
     SET (CPACK_MONOLITHIC_INSTALL ON)
     SET (CPACK_NSIS_CONTACT "${HDF5_PACKAGE_BUGREPORT}")
     SET (CPACK_NSIS_MODIFY_PATH ON)
     SET (CPACK_NSIS_PACKAGE_NAME "HDF5 ${HDF5_PACKAGE_VERSION}")
+  ELSEIF (APPLE)
+    SET (CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE ON)
+    SET (CPACK_PACKAGE_DEFAULT_LOCATION "/opt/${CPACK_PACKAGE_NAME}")
+    SET (CPACK_PACKAGING_INSTALL_PREFIX "/")
   ELSE (WIN32)
     SET (CPACK_PACKAGING_INSTALL_PREFIX "/usr")
     SET (CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE ON)

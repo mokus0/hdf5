@@ -16,7 +16,7 @@
 ## ----------------------------------------------------------------------
 ## Initialize configure.
 ##
-AC_REVISION($Id: configure.ac 24276 2013-10-09 22:00:11Z epourmal $)
+AC_REVISION($Id: configure.ac 24404 2013-11-04 22:57:14Z epourmal $)
 AC_PREREQ([2.69])
 
 ## AC_INIT takes the name of the package, the version number, and an
